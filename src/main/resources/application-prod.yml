@@ -1,0 +1,62 @@
+spring:
+  # Production Database Configuration
+  datasource:
+    # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
+    url: jdbc:postgresql://175.24.139.148:8386/sism_prod?stringtype=unspecified
+    username: ${DB_USERNAME:sism_user}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+  
+  # JPA Configuration for Production
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none  # 生产环境: 完全禁用 DDL 自动生成
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 50
+  
+  # SQL Initialization for Production (必须禁用)
+  sql:
+    init:
+      mode: never  # 生产环境禁止自动执行 SQL 脚本
+
+# Logging Configuration for Production
+logging:
+  level:
+    root: WARN
+    com.sism: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+  file:
+    name: /var/log/sism/sism-prod.log
+    max-size: 100MB
+    max-history: 30
+    total-size-cap: 3GB
+
+# Production CORS Configuration
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:https://sism.example.com}
+    
+# JWT Configuration for Production
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 28800000  # 8 hours in production
+  refresh-expiration: 604800000  # 7 days
+
+# Server Configuration for Production
+server:
+  compression:
+    enabled: true
+  http2:
+    enabled: true

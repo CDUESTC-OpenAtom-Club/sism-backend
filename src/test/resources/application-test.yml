@@ -1,0 +1,29 @@
+# Test Configuration - 使用远程 PostgreSQL 数据库
+spring:
+  datasource:
+    # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
+    url: jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified
+    username: muzimu
+    password: 64378561huaW
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# Logging for tests
+logging:
+  level:
+    root: WARN
+    com.sism: DEBUG
+    org.hibernate.SQL: DEBUG
+
+# Test CORS Configuration
+app:
+  cors:
+    allowed-origins: http://localhost:5173

@@ -1,0 +1,42 @@
+spring:
+  # Development Database Configuration
+  datasource:
+    # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
+    url: jdbc:postgresql://${DB_HOST:175.24.139.148}:${DB_PORT:8386}/${DB_NAME:strategic}?stringtype=unspecified
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+  
+  # JPA Configuration for Development
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: validate  # 开发环境: 验证表结构，不自动创建
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # SQL Initialization for Development (可选)
+  # 如需自动执行初始化脚本，取消注释以下配置
+  # sql:
+  #   init:
+  #     mode: always
+  #     schema-locations: classpath:schema.sql
+  #     data-locations: classpath:data.sql
+  #     continue-on-error: false
+
+# Logging Configuration for Development
+logging:
+  level:
+    root: INFO
+    com.sism: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    name: logs/sism-dev.log
+
+# Development CORS Configuration
+app:
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
