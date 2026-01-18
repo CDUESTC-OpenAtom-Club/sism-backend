@@ -128,21 +128,28 @@ public class ApprovalService {
      */
     @Transactional
     public ReportVO approveReport(ProgressReport report, AppUser approver, String comment) {
-        // Update report status
-        report.setStatus(ReportStatus.APPROVED);
-        report.setIsFinal(true);
-
-        // Handle final version management (Requirements: 4.6)
-        if (report.getMilestone() != null) {
-            updateFinalVersionForMilestone(report.getMilestone().getMilestoneId(), report.getReportId());
-            
-            // Update milestone status if achieved (Requirements: 4.5)
-            if (Boolean.TRUE.equals(report.getAchievedMilestone())) {
-                updateMilestoneStatusToCompleted(report.getMilestone().getMilestoneId());
+        Long milestoneId = report.getMilestone() != null ? report.getMilestone().getMilestoneId() : null;
+        
+        // Handle final version management FIRST (Requirements: 4.6)
+        // Clear isFinal flag for all existing approved reports of the same milestone
+        // Using @Modifying query to ensure database-level update that bypasses Hibernate cache
+        if (milestoneId != null) {
+            int updatedCount = reportRepository.clearAllFinalFlagsForMilestone(milestoneId);
+            if (updatedCount > 0) {
+                log.info("Cleared isFinal flag for {} existing approved report(s) of milestone {}", 
+                        updatedCount, milestoneId);
             }
         }
 
-        ProgressReport savedReport = reportRepository.save(report);
+        // Update report status and set as final
+        report.setStatus(ReportStatus.APPROVED);
+        report.setIsFinal(true);
+        ProgressReport savedReport = reportRepository.saveAndFlush(report);
+
+        // Update milestone status if achieved (Requirements: 4.5)
+        if (milestoneId != null && Boolean.TRUE.equals(report.getAchievedMilestone())) {
+            updateMilestoneStatusToCompleted(milestoneId);
+        }
 
         // Create approval record
         createApprovalRecord(savedReport, approver, ApprovalAction.APPROVE, comment);
@@ -204,16 +211,10 @@ public class ApprovalService {
      */
     @Transactional
     public void updateFinalVersionForMilestone(Long milestoneId, Long currentReportId) {
-        List<ProgressReport> approvedReports = reportRepository
-                .findByMilestone_MilestoneIdAndStatus(milestoneId, ReportStatus.APPROVED);
-
-        for (ProgressReport existingReport : approvedReports) {
-            if (!existingReport.getReportId().equals(currentReportId) && Boolean.TRUE.equals(existingReport.getIsFinal())) {
-                existingReport.setIsFinal(false);
-                reportRepository.save(existingReport);
-                log.info("Set isFinal=false for report {} (milestone {})", 
-                        existingReport.getReportId(), milestoneId);
-            }
+        int updatedCount = reportRepository.clearFinalFlagForMilestone(milestoneId, currentReportId);
+        if (updatedCount > 0) {
+            log.info("Cleared isFinal flag for {} report(s) of milestone {} (excluding report {})", 
+                    updatedCount, milestoneId, currentReportId);
         }
     }
 

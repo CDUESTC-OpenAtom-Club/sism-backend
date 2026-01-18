@@ -34,6 +34,7 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
   file:
+    path: logs
     name: logs/sism-dev.log
 
 # Development CORS Configuration

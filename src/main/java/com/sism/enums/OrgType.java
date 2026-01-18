@@ -3,6 +3,8 @@ package com.sism.enums;
 /**
  * Organization type enumeration
  * Defines the different types of organizations in the system
+ * 
+ * Values must match PostgreSQL enum: org_type
  */
 public enum OrgType {
     /**
@@ -29,6 +31,11 @@ public enum OrgType {
      * Strategy department
      */
     STRATEGY_DEPT,
+    
+    /**
+     * Division (sub-unit of college)
+     */
+    DIVISION,
     
     /**
      * Other organization types

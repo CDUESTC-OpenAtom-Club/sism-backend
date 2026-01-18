@@ -325,10 +325,10 @@ public class AdhocTaskService {
     public AdhocTaskVO updateAdhocTask(Long adhocTaskId, AdhocTaskUpdateRequest request) {
         AdhocTask adhocTask = findAdhocTaskById(adhocTaskId);
 
-        // Check if task can be updated (not completed or canceled)
-        if (adhocTask.getStatus() == AdhocTaskStatus.COMPLETED || 
-            adhocTask.getStatus() == AdhocTaskStatus.CANCELED) {
-            throw new BusinessException("Cannot update completed or canceled adhoc task");
+        // Check if task can be updated (not closed or archived)
+        if (adhocTask.getStatus() == AdhocTaskStatus.CLOSED || 
+            adhocTask.getStatus() == AdhocTaskStatus.ARCHIVED) {
+            throw new BusinessException("Cannot update closed or archived adhoc task");
         }
 
         // Update fields if provided
@@ -427,57 +427,65 @@ public class AdhocTaskService {
      * @param newStatus new status
      */
     private void validateStatusTransition(AdhocTaskStatus currentStatus, AdhocTaskStatus newStatus) {
-        // Define valid transitions
+        // Define valid transitions based on PostgreSQL enum values
+        // DRAFT -> OPEN, ARCHIVED
+        // OPEN -> CLOSED, ARCHIVED
+        // CLOSED -> ARCHIVED
+        // ARCHIVED -> (terminal state)
         switch (currentStatus) {
             case DRAFT:
-                if (newStatus != AdhocTaskStatus.ACTIVE && newStatus != AdhocTaskStatus.CANCELED) {
+                if (newStatus != AdhocTaskStatus.OPEN && newStatus != AdhocTaskStatus.ARCHIVED) {
                     throw new BusinessException("Invalid status transition from DRAFT to " + newStatus);
                 }
                 break;
-            case ACTIVE:
-                if (newStatus != AdhocTaskStatus.COMPLETED && newStatus != AdhocTaskStatus.CANCELED) {
-                    throw new BusinessException("Invalid status transition from ACTIVE to " + newStatus);
+            case OPEN:
+                if (newStatus != AdhocTaskStatus.CLOSED && newStatus != AdhocTaskStatus.ARCHIVED) {
+                    throw new BusinessException("Invalid status transition from OPEN to " + newStatus);
                 }
                 break;
-            case COMPLETED:
-            case CANCELED:
-                throw new BusinessException("Cannot change status of completed or canceled task");
+            case CLOSED:
+                if (newStatus != AdhocTaskStatus.ARCHIVED) {
+                    throw new BusinessException("Invalid status transition from CLOSED to " + newStatus);
+                }
+                break;
+            case ARCHIVED:
+                throw new BusinessException("Cannot change status of archived task");
             default:
                 throw new BusinessException("Unknown status: " + currentStatus);
         }
     }
 
     /**
-     * Activate an adhoc task (DRAFT -> ACTIVE)
+     * Open an adhoc task (DRAFT -> OPEN)
      * 
      * @param adhocTaskId adhoc task ID
      * @return updated adhoc task VO
      */
     @Transactional
-    public AdhocTaskVO activateAdhocTask(Long adhocTaskId) {
-        return updateAdhocTaskStatus(adhocTaskId, AdhocTaskStatus.ACTIVE);
+    public AdhocTaskVO openAdhocTask(Long adhocTaskId) {
+        return updateAdhocTaskStatus(adhocTaskId, AdhocTaskStatus.OPEN);
     }
 
     /**
-     * Complete an adhoc task (ACTIVE -> COMPLETED)
+     * Close an adhoc task (OPEN -> CLOSED)
      * 
      * @param adhocTaskId adhoc task ID
      * @return updated adhoc task VO
      */
     @Transactional
-    public AdhocTaskVO completeAdhocTask(Long adhocTaskId) {
-        return updateAdhocTaskStatus(adhocTaskId, AdhocTaskStatus.COMPLETED);
+    public AdhocTaskVO closeAdhocTask(Long adhocTaskId) {
+        return updateAdhocTaskStatus(adhocTaskId, AdhocTaskStatus.CLOSED);
     }
 
     /**
-     * Cancel an adhoc task (DRAFT/ACTIVE -> CANCELED)
+     * Archive an adhoc task (DRAFT/OPEN/CLOSED -> ARCHIVED)
      * 
      * @param adhocTaskId adhoc task ID
      * @return updated adhoc task VO
      */
     @Transactional
-    public AdhocTaskVO cancelAdhocTask(Long adhocTaskId) {
-        return updateAdhocTaskStatus(adhocTaskId, AdhocTaskStatus.CANCELED);
+    public AdhocTaskVO archiveAdhocTask(Long adhocTaskId) {
+        return updateAdhocTaskStatus(adhocTaskId, AdhocTaskStatus.ARCHIVED);
     }
 
     /**

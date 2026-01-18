@@ -234,42 +234,42 @@ public class AdhocTaskController {
     }
 
     /**
-     * Activate an adhoc task (DRAFT -> ACTIVE)
-     * POST /api/adhoc-tasks/{id}/activate
+     * Open an adhoc task (DRAFT -> OPEN)
+     * POST /api/adhoc-tasks/{id}/open
      */
-    @PostMapping("/{id}/activate")
-    @Operation(summary = "Activate adhoc task", description = "Activate a draft adhoc task")
-    public ResponseEntity<ApiResponse<AdhocTaskVO>> activateAdhocTask(
+    @PostMapping("/{id}/open")
+    @Operation(summary = "Open adhoc task", description = "Open a draft adhoc task for reporting")
+    public ResponseEntity<ApiResponse<AdhocTaskVO>> openAdhocTask(
             @Parameter(description = "Adhoc task ID") @PathVariable Long id) {
-        log.info("Activating adhoc task: {}", id);
-        AdhocTaskVO adhocTask = adhocTaskService.activateAdhocTask(id);
-        return ResponseEntity.ok(ApiResponse.success("Adhoc task activated", adhocTask));
+        log.info("Opening adhoc task: {}", id);
+        AdhocTaskVO adhocTask = adhocTaskService.openAdhocTask(id);
+        return ResponseEntity.ok(ApiResponse.success("Adhoc task opened", adhocTask));
     }
 
     /**
-     * Complete an adhoc task (ACTIVE -> COMPLETED)
-     * POST /api/adhoc-tasks/{id}/complete
+     * Close an adhoc task (OPEN -> CLOSED)
+     * POST /api/adhoc-tasks/{id}/close
      */
-    @PostMapping("/{id}/complete")
-    @Operation(summary = "Complete adhoc task", description = "Mark an active adhoc task as completed")
-    public ResponseEntity<ApiResponse<AdhocTaskVO>> completeAdhocTask(
+    @PostMapping("/{id}/close")
+    @Operation(summary = "Close adhoc task", description = "Close an open adhoc task")
+    public ResponseEntity<ApiResponse<AdhocTaskVO>> closeAdhocTask(
             @Parameter(description = "Adhoc task ID") @PathVariable Long id) {
-        log.info("Completing adhoc task: {}", id);
-        AdhocTaskVO adhocTask = adhocTaskService.completeAdhocTask(id);
-        return ResponseEntity.ok(ApiResponse.success("Adhoc task completed", adhocTask));
+        log.info("Closing adhoc task: {}", id);
+        AdhocTaskVO adhocTask = adhocTaskService.closeAdhocTask(id);
+        return ResponseEntity.ok(ApiResponse.success("Adhoc task closed", adhocTask));
     }
 
     /**
-     * Cancel an adhoc task (DRAFT/ACTIVE -> CANCELED)
-     * POST /api/adhoc-tasks/{id}/cancel
+     * Archive an adhoc task (DRAFT/OPEN/CLOSED -> ARCHIVED)
+     * POST /api/adhoc-tasks/{id}/archive
      */
-    @PostMapping("/{id}/cancel")
-    @Operation(summary = "Cancel adhoc task", description = "Cancel an adhoc task")
-    public ResponseEntity<ApiResponse<AdhocTaskVO>> cancelAdhocTask(
+    @PostMapping("/{id}/archive")
+    @Operation(summary = "Archive adhoc task", description = "Archive an adhoc task")
+    public ResponseEntity<ApiResponse<AdhocTaskVO>> archiveAdhocTask(
             @Parameter(description = "Adhoc task ID") @PathVariable Long id) {
-        log.info("Canceling adhoc task: {}", id);
-        AdhocTaskVO adhocTask = adhocTaskService.cancelAdhocTask(id);
-        return ResponseEntity.ok(ApiResponse.success("Adhoc task canceled", adhocTask));
+        log.info("Archiving adhoc task: {}", id);
+        AdhocTaskVO adhocTask = adhocTaskService.archiveAdhocTask(id);
+        return ResponseEntity.ok(ApiResponse.success("Adhoc task archived", adhocTask));
     }
 
     /**

@@ -3,25 +3,27 @@ package com.sism.enums;
 /**
  * Adhoc task status enumeration
  * Defines the lifecycle status of adhoc tasks
+ * 
+ * Values must match PostgreSQL enum: adhoc_task_status
  */
 public enum AdhocTaskStatus {
     /**
-     * Task is in draft state
+     * Task is in draft state - not yet published
      */
     DRAFT,
     
     /**
-     * Task is active
+     * Task is open and active for reporting
      */
-    ACTIVE,
+    OPEN,
     
     /**
-     * Task is completed
+     * Task is closed - no more reports accepted
      */
-    COMPLETED,
+    CLOSED,
     
     /**
-     * Task is canceled
+     * Task is archived - historical record
      */
-    CANCELED
+    ARCHIVED
 }

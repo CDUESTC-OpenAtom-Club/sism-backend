@@ -78,11 +78,39 @@ jwt:
   expiration: 86400000  # 24 hours in milliseconds
   refresh-expiration: 604800000  # 7 days in milliseconds
 
+# Spring Boot Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
 # Application Configuration
 app:
   cors:
     allowed-origins: http://localhost:5173,http://localhost:3000
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-    allowed-headers: Authorization,Content-Type,X-Requested-With
+    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature
     allow-credentials: true
     max-age: 3600
+  security:
+    headers:
+      enabled: true
+      frame-options: SAMEORIGIN
+      content-type-options: nosniff
+      xss-protection: 1; mode=block
+      referrer-policy: strict-origin-when-cross-origin
+      permissions-policy: geolocation=(), microphone=(), camera=()

@@ -3,65 +3,52 @@ package com.sism.enums;
 /**
  * Audit entity type enumeration
  * Defines the types of entities that can be audited
+ * 
+ * Values must match PostgreSQL enum: audit_entity_type
  */
 public enum AuditEntityType {
     /**
-     * Organization entity
+     * Organization entity (org table)
      */
     ORG,
     
     /**
-     * User entity
+     * User entity (app_user table)
      */
     USER,
     
     /**
-     * Assessment cycle entity
+     * Assessment cycle entity (assessment_cycle table)
      */
-    ASSESSMENT_CYCLE,
+    CYCLE,
     
     /**
-     * Strategic task entity
+     * Strategic task entity (strategic_task table)
      */
-    STRATEGIC_TASK,
+    TASK,
     
     /**
-     * Indicator entity
+     * Indicator entity (indicator table)
      */
     INDICATOR,
     
     /**
-     * Milestone entity
+     * Milestone entity (milestone table)
      */
     MILESTONE,
     
     /**
-     * Progress report entity
+     * Progress report entity (progress_report table)
      */
-    PROGRESS_REPORT,
+    REPORT,
     
     /**
-     * Approval record entity
+     * Adhoc task entity (adhoc_task table)
      */
-    APPROVAL_RECORD,
+    ADHOC_TASK,
     
     /**
-     * Alert window entity
+     * Alert entity (alert_event table)
      */
-    ALERT_WINDOW,
-    
-    /**
-     * Alert rule entity
-     */
-    ALERT_RULE,
-    
-    /**
-     * Alert event entity
-     */
-    ALERT_EVENT,
-    
-    /**
-     * Adhoc task entity
-     */
-    ADHOC_TASK
+    ALERT
 }

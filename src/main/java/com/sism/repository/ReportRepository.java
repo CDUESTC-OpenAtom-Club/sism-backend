@@ -150,4 +150,30 @@ public interface ReportRepository extends JpaRepository<ProgressReport, Long> {
      * Check if a final version report exists for a milestone
      */
     boolean existsByMilestone_MilestoneIdAndIsFinalTrue(Long milestoneId);
+
+    /**
+     * Clear final flag for all approved reports of a milestone except the specified report
+     * This uses a direct database update to ensure consistency within the same transaction
+     * clearAutomatically=true ensures the persistence context is cleared after the update
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE ProgressReport r SET r.isFinal = false " +
+           "WHERE r.milestone.milestoneId = :milestoneId " +
+           "AND r.status = 'APPROVED' " +
+           "AND r.isFinal = true " +
+           "AND r.reportId != :excludeReportId")
+    int clearFinalFlagForMilestone(@Param("milestoneId") Long milestoneId, 
+                                    @Param("excludeReportId") Long excludeReportId);
+
+    /**
+     * Clear final flag for all approved reports of a milestone
+     * This uses a direct database update to ensure consistency within the same transaction
+     * clearAutomatically=true ensures the persistence context is cleared after the update
+     */
+    @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true)
+    @Query("UPDATE ProgressReport r SET r.isFinal = false " +
+           "WHERE r.milestone.milestoneId = :milestoneId " +
+           "AND r.status = 'APPROVED' " +
+           "AND r.isFinal = true")
+    int clearAllFinalFlagsForMilestone(@Param("milestoneId") Long milestoneId);
 }

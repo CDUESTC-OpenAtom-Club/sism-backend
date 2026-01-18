@@ -27,3 +27,9 @@ logging:
 app:
   cors:
     allowed-origins: http://localhost:5173
+
+# JWT Configuration for tests
+jwt:
+  secret: test-secret-key-for-unit-tests-must-be-at-least-256-bits-long-for-security
+  expiration: 86400000
+  refresh-expiration: 604800000

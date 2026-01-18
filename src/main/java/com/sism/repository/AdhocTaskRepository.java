@@ -107,17 +107,17 @@ public interface AdhocTaskRepository extends JpaRepository<AdhocTask, Long> {
     Page<AdhocTask> findByStatusIn(@Param("statuses") List<AdhocTaskStatus> statuses, Pageable pageable);
 
     /**
-     * Find overdue adhoc tasks (due date passed and not completed)
+     * Find overdue adhoc tasks (due date passed and not closed/archived)
      */
     @Query("SELECT at FROM AdhocTask at WHERE at.dueAt < :currentDate " +
-           "AND at.status NOT IN ('COMPLETED', 'CANCELED')")
+           "AND at.status NOT IN (com.sism.enums.AdhocTaskStatus.CLOSED, com.sism.enums.AdhocTaskStatus.ARCHIVED)")
     List<AdhocTask> findOverdueTasks(@Param("currentDate") LocalDate currentDate);
 
     /**
      * Find upcoming adhoc tasks (due within specified date range)
      */
     @Query("SELECT at FROM AdhocTask at WHERE at.dueAt BETWEEN :startDate AND :endDate " +
-           "AND at.status NOT IN ('COMPLETED', 'CANCELED')")
+           "AND at.status NOT IN (com.sism.enums.AdhocTaskStatus.CLOSED, com.sism.enums.AdhocTaskStatus.ARCHIVED)")
     List<AdhocTask> findUpcomingTasks(@Param("startDate") LocalDate startDate, 
                                       @Param("endDate") LocalDate endDate);
 

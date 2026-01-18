@@ -83,6 +83,7 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
 
     /**
      * Create a test milestone for an indicator.
+     * Uses sortOrder=0 to ensure it's the first milestone for catch-up rule compliance.
      */
     private Milestone createTestMilestone(Indicator indicator, MilestoneStatus initialStatus) {
         String uniqueName = "Test Milestone " + UUID.randomUUID().toString().substring(0, 8);
@@ -91,7 +92,8 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         request.setIndicatorId(indicator.getIndicatorId());
         request.setMilestoneName(uniqueName);
         request.setMilestoneDesc("Test milestone for property testing");
-        request.setDueDate(LocalDate.now().plusDays(30));
+        // Use a past due date to ensure this milestone is the first unpaired one
+        request.setDueDate(LocalDate.now().minusDays(30));
         request.setWeightPercent(BigDecimal.valueOf(25));
         request.setSortOrder(0);
         
@@ -105,6 +107,27 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         }
         
         return milestone;
+    }
+
+    /**
+     * Get the first unpaired milestone for an indicator, or create one if none exists.
+     */
+    private Milestone getOrCreateFirstUnpairedMilestone(Indicator indicator, MilestoneStatus initialStatus) {
+        // First, try to find an existing unpaired milestone
+        Optional<Milestone> firstUnpaired = milestoneRepository.findFirstUnpairedMilestone(indicator.getIndicatorId());
+        
+        if (firstUnpaired.isPresent()) {
+            Milestone milestone = firstUnpaired.get();
+            // Update status if needed
+            if (initialStatus != milestone.getStatus()) {
+                milestone.setStatus(initialStatus);
+                milestone = milestoneRepository.save(milestone);
+            }
+            return milestone;
+        }
+        
+        // No unpaired milestone exists, create a new one
+        return createTestMilestone(indicator, initialStatus);
     }
 
     /**
@@ -198,8 +221,8 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone with initial non-completed status
-        Milestone milestone = createTestMilestone(indicator, initialStatus);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, initialStatus);
         assertThat(milestone.getStatus()).isEqualTo(initialStatus);
 
         // Create a report with achievedMilestone=true
@@ -253,8 +276,8 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone with initial non-completed status
-        Milestone milestone = createTestMilestone(indicator, initialStatus);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, initialStatus);
         assertThat(milestone.getStatus()).isEqualTo(initialStatus);
 
         // Create a report with achievedMilestone=false
@@ -354,8 +377,8 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone that is already COMPLETED
-        Milestone milestone = createTestMilestone(indicator, MilestoneStatus.COMPLETED);
+        // Get or create the first unpaired milestone that is already COMPLETED
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, MilestoneStatus.COMPLETED);
         assertThat(milestone.getStatus()).isEqualTo(MilestoneStatus.COMPLETED);
 
         // Create a report with achievedMilestone=true
@@ -413,8 +436,8 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone with initial non-completed status
-        Milestone milestone = createTestMilestone(indicator, initialStatus);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, initialStatus);
         assertThat(milestone.getStatus()).isEqualTo(initialStatus);
 
         // Create a report with achievedMilestone=true

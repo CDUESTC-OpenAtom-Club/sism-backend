@@ -2,7 +2,7 @@ spring:
   # Production Database Configuration
   datasource:
     # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
-    url: jdbc:postgresql://175.24.139.148:8386/sism_prod?stringtype=unspecified
+    url: jdbc:postgresql://${DB_HOST:175.24.139.148}:${DB_PORT:8386}/${DB_NAME:sism_prod}?stringtype=unspecified
     username: ${DB_USERNAME:sism_user}
     password: ${DB_PASSWORD}
     hikari:
@@ -12,6 +12,7 @@ spring:
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
+      pool-name: SismHikariPool
   
   # JPA Configuration for Production
   jpa:
@@ -37,16 +38,36 @@ logging:
     org.springframework.web: WARN
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
+    org.springframework.boot.actuate: INFO
   file:
-    name: /var/log/sism/sism-prod.log
-    max-size: 100MB
-    max-history: 30
-    total-size-cap: 3GB
+    path: ${LOG_PATH:/var/log/sism}
+    name: ${LOG_PATH:/var/log/sism}/sism-prod.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
+      clean-history-on-start: false
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{requestId:-}] [%X{userId:-}] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{requestId:-}] %-5level %logger{36} - %msg%n"
 
 # Production CORS Configuration
 app:
   cors:
-    allowed-origins: ${ALLOWED_ORIGINS:https://sism.example.com}
+    allowed-origins: ${ALLOWED_ORIGINS:https://blackevil.cn}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature
+    allow-credentials: true
+    max-age: 3600
+  security:
+    headers:
+      enabled: true
+      frame-options: DENY
+      content-type-options: nosniff
+      xss-protection: 1; mode=block
+      referrer-policy: strict-origin-when-cross-origin
+      permissions-policy: geolocation=(), microphone=(), camera=()
     
 # JWT Configuration for Production
 jwt:
@@ -56,7 +77,68 @@ jwt:
 
 # Server Configuration for Production
 server:
+  port: ${SERVER_PORT:8080}
   compression:
     enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024
   http2:
     enabled: true
+  shutdown: graceful
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 20
+    accept-count: 100
+    connection-timeout: 20000
+
+# Spring Boot Actuator Configuration for Health Checks and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      show-components: when_authorized
+      probes:
+        enabled: true
+    info:
+      enabled: true
+    metrics:
+      enabled: true
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+      threshold: 10485760  # 10MB
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    os:
+      enabled: true
+
+# Application Info for Actuator
+info:
+  app:
+    name: SISM Backend
+    description: Strategic Indicator Management System
+    version: 1.0.0
+  build:
+    artifact: sism-backend
+    group: com.sism
+
+# SpringDoc Configuration for Production (disabled by default)
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}

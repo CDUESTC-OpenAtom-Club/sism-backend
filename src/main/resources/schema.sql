@@ -17,4 +17,8 @@
 -- 2. 配置 spring.jpa.hibernate.ddl-auto=validate 验证表结构
 -- 3. 生产环境使用 spring.jpa.hibernate.ddl-auto=none
 
+-- Entity-Schema 验证报告: sism-backend/database/entity-schema-verification.md
+-- 验证日期: 2026-01-17
+-- 验证结果: 所有 15 个 Entity 类与数据库表定义完全匹配
+
 -- 此文件保留为空，作为占位符

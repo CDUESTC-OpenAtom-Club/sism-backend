@@ -55,6 +55,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         
+        <!-- Spring Boot Actuator for Health Checks and Monitoring -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        
         <!-- Database -->
         <dependency>
             <groupId>org.postgresql</groupId>

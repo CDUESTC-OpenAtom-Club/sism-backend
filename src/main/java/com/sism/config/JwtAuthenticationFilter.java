@@ -74,6 +74,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     
                     // Set authentication in SecurityContext
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    
+                    // Update MDC with user ID for logging context
+                    RequestLoggingFilter.setUserId(String.valueOf(userId));
+                    
                     log.debug("Authenticated user: {} (userId: {}, orgId: {})", username, userId, orgId);
                 }
             }

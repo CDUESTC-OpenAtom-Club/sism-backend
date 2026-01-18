@@ -85,6 +85,7 @@ public class SingleFinalVersionPropertyTest {
 
     /**
      * Create a test milestone for an indicator.
+     * Uses a past due date to ensure it's the first unpaired milestone for catch-up rule compliance.
      */
     private Milestone createTestMilestone(Indicator indicator) {
         String uniqueName = "Test Milestone " + UUID.randomUUID().toString().substring(0, 8);
@@ -93,7 +94,8 @@ public class SingleFinalVersionPropertyTest {
         request.setIndicatorId(indicator.getIndicatorId());
         request.setMilestoneName(uniqueName);
         request.setMilestoneDesc("Test milestone for single final version property testing");
-        request.setDueDate(LocalDate.now().plusDays(30));
+        // Use a past due date to ensure this milestone is the first unpaired one
+        request.setDueDate(LocalDate.now().minusDays(30));
         request.setWeightPercent(BigDecimal.valueOf(25));
         request.setSortOrder(0);
         
@@ -102,7 +104,24 @@ public class SingleFinalVersionPropertyTest {
     }
 
     /**
+     * Get the first unpaired milestone for an indicator, or create one if none exists.
+     */
+    private Milestone getOrCreateFirstUnpairedMilestone(Indicator indicator) {
+        // First, try to find an existing unpaired milestone
+        Optional<Milestone> firstUnpaired = milestoneRepository.findFirstUnpairedMilestone(indicator.getIndicatorId());
+        
+        if (firstUnpaired.isPresent()) {
+            return firstUnpaired.get();
+        }
+        
+        // No unpaired milestone exists, create a new one
+        return createTestMilestone(indicator);
+    }
+
+    /**
      * Create a test report associated with a milestone.
+     * The milestone is used directly - the catch-up rule allows creating reports
+     * for milestones that already have approved reports (revision scenario).
      */
     private ProgressReport createTestReportWithMilestone(
             Indicator indicator, 
@@ -207,8 +226,8 @@ public class SingleFinalVersionPropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone
-        Milestone milestone = createTestMilestone(indicator);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
 
         // Create and approve multiple reports for the same milestone
         List<ProgressReport> approvedReports = new ArrayList<>();
@@ -251,8 +270,8 @@ public class SingleFinalVersionPropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone
-        Milestone milestone = createTestMilestone(indicator);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
 
         // Create and approve first report
         ProgressReport firstReport = createTestReportWithMilestone(indicator, milestone, reporter);
@@ -306,8 +325,8 @@ public class SingleFinalVersionPropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone
-        Milestone milestone = createTestMilestone(indicator);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
 
         // Create and approve multiple reports, tracking the last one
         ProgressReport lastApprovedReport = null;
@@ -356,8 +375,8 @@ public class SingleFinalVersionPropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone
-        Milestone milestone = createTestMilestone(indicator);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
 
         // Create and approve multiple reports
         for (int i = 0; i < reportCount; i++) {
@@ -399,8 +418,8 @@ public class SingleFinalVersionPropertyTest {
         AppUser reporter = users.get(userIndex % users.size());
         AppUser approver = users.get((userIndex + 1) % users.size());
 
-        // Create a milestone
-        Milestone milestone = createTestMilestone(indicator);
+        // Get or create the first unpaired milestone (to comply with catch-up rule)
+        Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
 
         // Create and approve multiple reports
         List<Long> approvedReportIds = new ArrayList<>();

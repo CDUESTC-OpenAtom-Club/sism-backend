@@ -182,12 +182,28 @@ public class ReportService {
 
     /**
      * Validate catch-up rule: user must report on the earliest unpaired milestone
+     * Exception: If the milestone already has an approved report, allow creating
+     * additional reports for revision purposes.
      * 
      * @param indicatorId indicator ID
      * @param milestoneId milestone ID being reported on
      * @throws BusinessException if trying to skip an earlier unpaired milestone
      */
     private void validateCatchupRule(Long indicatorId, Long milestoneId) {
+        // Check if the milestone already has an approved report (revision scenario)
+        boolean hasApprovedReport = reportRepository
+                .findByMilestone_MilestoneIdAndStatus(milestoneId, ReportStatus.APPROVED)
+                .stream()
+                .findAny()
+                .isPresent();
+        
+        // If the milestone already has an approved report, allow creating additional reports
+        // This supports the revision workflow where multiple reports can be approved for the same milestone
+        if (hasApprovedReport) {
+            return;
+        }
+        
+        // Otherwise, enforce the catch-up rule
         milestoneRepository.findFirstUnpairedMilestone(indicatorId).ifPresent(firstUnpaired -> {
             if (!firstUnpaired.getMilestoneId().equals(milestoneId)) {
                 throw new BusinessException(
