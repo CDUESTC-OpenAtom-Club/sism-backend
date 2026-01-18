@@ -1,0 +1,56 @@
+# 后端自动部署到生产服务器
+# 仓库: CDUESTC-OpenAtom-Club/sism-backend
+
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Backend
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn package -B -DskipTests
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            target/sism-backend-1.0.0.jar \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/sism/backend/
+          
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            sudo ln -sf /opt/sism/backend/sism-backend-1.0.0.jar /opt/sism/backend/sism-backend.jar
+            sudo systemctl restart sism-backend
+            sleep 10
+            curl -sf http://localhost:8080/api/actuator/health || exit 1
+            echo "✅ Backend deployed and healthy"
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
