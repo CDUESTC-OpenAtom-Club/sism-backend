@@ -49,4 +49,20 @@ public class Milestone extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "inherited_from")
     private Milestone inheritedFrom;
+
+    // ==================== 新增字段 (前端数据对齐) ====================
+
+    /**
+     * 目标进度百分比 (0-100)
+     * 对应前端 targetProgress
+     */
+    @Column(name = "target_progress")
+    private Integer targetProgress = 0;
+
+    /**
+     * 是否已配对（有审核通过的填报记录）
+     * 对应前端 isPaired
+     */
+    @Column(name = "is_paired")
+    private Boolean isPaired = false;
 }

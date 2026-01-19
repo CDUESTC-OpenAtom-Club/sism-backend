@@ -25,4 +25,18 @@ public class MilestoneVO {
     private Long inheritedFromId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // ==================== 新增字段 (前端数据对齐) ====================
+
+    /**
+     * 目标进度百分比 (0-100)
+     * 对应前端 targetProgress
+     */
+    private Integer targetProgress;
+
+    /**
+     * 是否已配对（有审核通过的填报记录）
+     * 对应前端 isPaired
+     */
+    private Boolean isPaired;
 }

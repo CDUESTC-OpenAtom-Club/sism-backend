@@ -193,6 +193,7 @@ public class TaskService {
         vo.setTaskId(task.getTaskId());
         vo.setCycleId(task.getCycle().getCycleId());
         vo.setCycleName(task.getCycle().getCycleName());
+        vo.setYear(task.getCycle().getYear());  // 从关联的 AssessmentCycle 获取年份
         vo.setTaskName(task.getTaskName());
         vo.setTaskDesc(task.getTaskDesc());
         vo.setTaskType(task.getTaskType());

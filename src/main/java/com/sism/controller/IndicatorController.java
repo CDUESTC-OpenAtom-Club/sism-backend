@@ -3,6 +3,7 @@ package com.sism.controller;
 import com.sism.common.ApiResponse;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
+import com.sism.enums.IndicatorStatus;
 import com.sism.service.IndicatorService;
 import com.sism.vo.IndicatorVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -251,5 +252,50 @@ public class IndicatorController {
             @Parameter(description = "Indicator ID") @PathVariable Long id) {
         IndicatorService.DistributionEligibility eligibility = indicatorService.checkDistributionEligibility(id);
         return ResponseEntity.ok(ApiResponse.success(eligibility));
+    }
+
+    // ==================== Indicator Filtering APIs (指标过滤) ====================
+
+    /**
+     * Filter indicators by type
+     * GET /api/indicators/filter
+     * Requirements: 7.3, 7.5 - Filter by indicator type
+     */
+    @GetMapping("/filter")
+    @Operation(summary = "Filter indicators", 
+               description = "Filter indicators by type1 (定性/定量), type2 (发展性/基础性), or status")
+    public ResponseEntity<ApiResponse<List<IndicatorVO>>> filterIndicators(
+            @Parameter(description = "Type1 filter (定性 or 定量)") @RequestParam(required = false) String type1,
+            @Parameter(description = "Type2 filter (发展性 or 基础性)") @RequestParam(required = false) String type2,
+            @Parameter(description = "Status filter") @RequestParam(required = false) IndicatorStatus status) {
+        log.info("Filtering indicators: type1={}, type2={}, status={}", type1, type2, status);
+        List<IndicatorVO> indicators = indicatorService.getIndicatorsWithFilters(type1, type2, status);
+        return ResponseEntity.ok(ApiResponse.success(indicators));
+    }
+
+    /**
+     * Get qualitative indicators
+     * GET /api/indicators/qualitative
+     * Requirements: 7.3, 7.5 - Filter by qualitative type
+     */
+    @GetMapping("/qualitative")
+    @Operation(summary = "Get qualitative indicators", 
+               description = "Retrieve all qualitative (定性) indicators")
+    public ResponseEntity<ApiResponse<List<IndicatorVO>>> getQualitativeIndicators() {
+        List<IndicatorVO> indicators = indicatorService.getIndicatorsByQualitative(true);
+        return ResponseEntity.ok(ApiResponse.success(indicators));
+    }
+
+    /**
+     * Get quantitative indicators
+     * GET /api/indicators/quantitative
+     * Requirements: 7.3, 7.5 - Filter by quantitative type
+     */
+    @GetMapping("/quantitative")
+    @Operation(summary = "Get quantitative indicators", 
+               description = "Retrieve all quantitative (定量) indicators")
+    public ResponseEntity<ApiResponse<List<IndicatorVO>>> getQuantitativeIndicators() {
+        List<IndicatorVO> indicators = indicatorService.getIndicatorsByQualitative(false);
+        return ResponseEntity.ok(ApiResponse.success(indicators));
     }
 }

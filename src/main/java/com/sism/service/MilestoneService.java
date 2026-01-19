@@ -304,6 +304,11 @@ public class MilestoneService {
         }
         vo.setCreatedAt(milestone.getCreatedAt());
         vo.setUpdatedAt(milestone.getUpdatedAt());
+        
+        // 新增字段映射 (前端数据对齐)
+        vo.setTargetProgress(milestone.getTargetProgress());
+        vo.setIsPaired(milestone.getIsPaired());
+        
         return vo;
     }
 

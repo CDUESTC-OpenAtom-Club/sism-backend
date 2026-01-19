@@ -114,4 +114,28 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
     @Query("SELECT i FROM Indicator i WHERE i.parentIndicator.indicatorId = :parentId " +
            "OR i.parentIndicator.parentIndicator.indicatorId = :parentId")
     List<Indicator> findDescendantIndicators(@Param("parentId") Long parentId);
+
+    /**
+     * Find indicators by type1 (定性/定量)
+     * Requirements: 7.3, 7.5 - Filter by indicator type
+     */
+    List<Indicator> findByType1AndStatus(String type1, IndicatorStatus status);
+
+    /**
+     * Find indicators by type2 (发展性/基础性)
+     * Requirements: 7.3, 7.5 - Filter by indicator type
+     */
+    List<Indicator> findByType2AndStatus(String type2, IndicatorStatus status);
+
+    /**
+     * Find indicators by isQualitative flag
+     * Requirements: 7.3, 7.5 - Filter by qualitative/quantitative
+     */
+    List<Indicator> findByIsQualitativeAndStatus(Boolean isQualitative, IndicatorStatus status);
+
+    /**
+     * Find indicators by type1 and type2
+     * Requirements: 7.3, 7.5 - Combined filter
+     */
+    List<Indicator> findByType1AndType2AndStatus(String type1, String type2, IndicatorStatus status);
 }

@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 
 import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -129,6 +130,46 @@ class IndicatorControllerIntegrationTest {
             mockMvc.perform(get("/api/indicators"))
                     .andExpect(status().isForbidden());
         }
+
+        /**
+         * Task 7.1: 测试指标列表 API - 验证响应包含所有前端需要的字段
+         * Requirements: 5.3, 5.4
+         */
+        @Test
+        @DisplayName("Should return indicators with all frontend-required fields")
+        void shouldReturnIndicatorsWithAllFrontendFields() throws Exception {
+            mockMvc.perform(get("/api/indicators")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray())
+                    // Core fields
+                    .andExpect(jsonPath("$.data[0].indicatorId").exists())
+                    .andExpect(jsonPath("$.data[0].indicatorDesc").exists())
+                    .andExpect(jsonPath("$.data[0].status").exists())
+                    .andExpect(jsonPath("$.data[0].year").exists())
+                    .andExpect(jsonPath("$.data[0].weightPercent").exists())
+                    // Organization fields
+                    .andExpect(jsonPath("$.data[0].ownerOrgId").exists())
+                    .andExpect(jsonPath("$.data[0].ownerOrgName").exists())
+                    .andExpect(jsonPath("$.data[0].targetOrgId").exists())
+                    .andExpect(jsonPath("$.data[0].targetOrgName").exists())
+                    // New alignment fields (may be null but should exist in response)
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("isQualitative")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("type1")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("type2")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("canWithdraw")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("targetValue")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("unit")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("responsiblePerson")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("progress")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("statusAudit")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("progressApprovalStatus")))
+                    // Derived fields
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("isStrategic")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("responsibleDept")))
+                    .andExpect(jsonPath("$.data[0]").value(hasKey("ownerDept")));
+        }
     }
 
     @Nested
@@ -151,6 +192,62 @@ class IndicatorControllerIntegrationTest {
             mockMvc.perform(get("/api/indicators/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isNotFound());
+        }
+
+        /**
+         * Task 7.2: 测试指标详情 API - 验证里程碑、审计日志等嵌套数据
+         * Requirements: 7.4, 8.3
+         */
+        @Test
+        @DisplayName("Should return indicator detail with milestones and nested data")
+        void shouldReturnIndicatorDetailWithMilestones() throws Exception {
+            mockMvc.perform(get("/api/indicators/{id}", testIndicator.getIndicatorId())
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data.indicatorId").value(testIndicator.getIndicatorId()))
+                    // Core fields
+                    .andExpect(jsonPath("$.data.indicatorDesc").exists())
+                    .andExpect(jsonPath("$.data.status").exists())
+                    .andExpect(jsonPath("$.data.level").exists())
+                    // Nested data - milestones (may be empty array)
+                    .andExpect(jsonPath("$.data.milestones").isArray())
+                    // Nested data - child indicators (may be empty array)
+                    .andExpect(jsonPath("$.data.childIndicators").isArray())
+                    // Audit log field (JSON string, may be null)
+                    .andExpect(jsonPath("$.data").value(hasKey("statusAudit")))
+                    // Progress approval fields
+                    .andExpect(jsonPath("$.data").value(hasKey("progressApprovalStatus")))
+                    .andExpect(jsonPath("$.data").value(hasKey("pendingProgress")))
+                    .andExpect(jsonPath("$.data").value(hasKey("pendingRemark")));
+        }
+
+        /**
+         * Task 7.2: 验证里程碑数据结构完整性
+         * Requirements: 7.4
+         */
+        @Test
+        @DisplayName("Should return milestones with all required fields when present")
+        void shouldReturnMilestonesWithRequiredFields() throws Exception {
+            // First check if indicator has milestones
+            MvcResult result = mockMvc.perform(get("/api/indicators/{id}", testIndicator.getIndicatorId())
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String responseBody = result.getResponse().getContentAsString();
+            var response = objectMapper.readTree(responseBody);
+            var milestones = response.get("data").get("milestones");
+            
+            // If milestones exist, verify their structure
+            if (milestones != null && milestones.isArray() && milestones.size() > 0) {
+                var firstMilestone = milestones.get(0);
+                assertThat(firstMilestone.has("milestoneId")).isTrue();
+                assertThat(firstMilestone.has("milestoneName")).isTrue();
+                assertThat(firstMilestone.has("dueDate")).isTrue();
+                assertThat(firstMilestone.has("status")).isTrue();
+                assertThat(firstMilestone.has("weightPercent")).isTrue();
+            }
         }
     }
 
@@ -297,6 +394,117 @@ class IndicatorControllerIntegrationTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data.canDistribute").exists());
+        }
+    }
+
+    /**
+     * Task 7.3: 测试指标过滤 API
+     * Requirements: 7.3, 7.5
+     */
+    @Nested
+    @DisplayName("GET /api/indicators/filter")
+    class FilterIndicatorsTests {
+
+        @Test
+        @DisplayName("Should filter indicators by type1 (定性)")
+        void shouldFilterByType1Qualitative() throws Exception {
+            mockMvc.perform(get("/api/indicators/filter")
+                            .param("type1", "定性")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("Should filter indicators by type1 (定量)")
+        void shouldFilterByType1Quantitative() throws Exception {
+            mockMvc.perform(get("/api/indicators/filter")
+                            .param("type1", "定量")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("Should filter indicators by type2 (发展性)")
+        void shouldFilterByType2Development() throws Exception {
+            mockMvc.perform(get("/api/indicators/filter")
+                            .param("type2", "发展性")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("Should filter indicators by type2 (基础性)")
+        void shouldFilterByType2Basic() throws Exception {
+            mockMvc.perform(get("/api/indicators/filter")
+                            .param("type2", "基础性")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("Should filter indicators by status")
+        void shouldFilterByStatus() throws Exception {
+            mockMvc.perform(get("/api/indicators/filter")
+                            .param("status", "ACTIVE")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("Should filter indicators by combined type1 and type2")
+        void shouldFilterByCombinedTypes() throws Exception {
+            mockMvc.perform(get("/api/indicators/filter")
+                            .param("type1", "定量")
+                            .param("type2", "发展性")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("Should return all active indicators when no filter specified")
+        void shouldReturnAllWhenNoFilter() throws Exception {
+            mockMvc.perform(get("/api/indicators/filter")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/indicators/qualitative and /quantitative")
+    class QualitativeQuantitativeTests {
+
+        @Test
+        @DisplayName("Should get qualitative indicators")
+        void shouldGetQualitativeIndicators() throws Exception {
+            mockMvc.perform(get("/api/indicators/qualitative")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @DisplayName("Should get quantitative indicators")
+        void shouldGetQuantitativeIndicators() throws Exception {
+            mockMvc.perform(get("/api/indicators/quantitative")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
         }
     }
 

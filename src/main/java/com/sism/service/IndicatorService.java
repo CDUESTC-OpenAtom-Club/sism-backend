@@ -408,6 +408,9 @@ public class IndicatorService {
     /**
      * Convert Indicator entity to IndicatorVO
      * 
+     * Updated: 2026-01-19 - Added mapping for new fields (frontend data alignment)
+     * Requirements: data-alignment-sop 5.3
+     * 
      * @param indicator indicator entity
      * @param includeChildren whether to include child indicators and milestones
      * @return indicator VO
@@ -436,6 +439,46 @@ public class IndicatorService {
         vo.setRemark(indicator.getRemark());
         vo.setCreatedAt(indicator.getCreatedAt());
         vo.setUpdatedAt(indicator.getUpdatedAt());
+
+        // ==================== 新增字段映射 (前端数据对齐) ====================
+        
+        // 指标类型字段
+        vo.setIsQualitative(indicator.getIsQualitative());
+        vo.setType1(indicator.getType1());
+        vo.setType2(indicator.getType2());
+        
+        // 目标值和单位
+        vo.setTargetValue(indicator.getTargetValue());
+        vo.setActualValue(indicator.getActualValue());
+        vo.setUnit(indicator.getUnit());
+        
+        // 责任人
+        vo.setResponsiblePerson(indicator.getResponsiblePerson());
+        
+        // 进度
+        vo.setProgress(indicator.getProgress());
+        
+        // 撤回控制
+        vo.setCanWithdraw(indicator.getCanWithdraw());
+        
+        // 审计日志 (JSON)
+        vo.setStatusAudit(indicator.getStatusAudit());
+        
+        // 进度审批相关
+        vo.setProgressApprovalStatus(indicator.getProgressApprovalStatus());
+        vo.setPendingProgress(indicator.getPendingProgress());
+        vo.setPendingRemark(indicator.getPendingRemark());
+        vo.setPendingAttachments(indicator.getPendingAttachments());
+        
+        // 派生字段
+        // isStrategic: STRAT_TO_FUNC -> true, FUNC_TO_COLLEGE -> false
+        vo.setIsStrategic(indicator.getLevel() == com.sism.enums.IndicatorLevel.STRAT_TO_FUNC);
+        
+        // responsibleDept: 等同于 targetOrgName
+        vo.setResponsibleDept(indicator.getTargetOrg().getOrgName());
+        
+        // ownerDept: 等同于 ownerOrgName
+        vo.setOwnerDept(indicator.getOwnerOrg().getOrgName());
 
         if (includeChildren) {
             // Include child indicators
@@ -474,6 +517,11 @@ public class IndicatorService {
         }
         vo.setCreatedAt(milestone.getCreatedAt());
         vo.setUpdatedAt(milestone.getUpdatedAt());
+        
+        // 新增字段映射 (前端数据对齐)
+        vo.setTargetProgress(milestone.getTargetProgress());
+        vo.setIsPaired(milestone.getIsPaired());
+        
         return vo;
     }
 
@@ -656,4 +704,89 @@ public class IndicatorService {
             String reason,
             int existingDistributionCount
     ) {}
+
+    // ==================== Indicator Filtering (指标过滤) ====================
+
+    /**
+     * Get indicators filtered by type1 (定性/定量)
+     * Requirements: 7.3, 7.5 - Filter by indicator type
+     * 
+     * @param type1 indicator type1 value ("定性" or "定量")
+     * @return list of matching indicators
+     */
+    public List<IndicatorVO> getIndicatorsByType1(String type1) {
+        return indicatorRepository.findByType1AndStatus(type1, IndicatorStatus.ACTIVE).stream()
+                .map(i -> toIndicatorVO(i, false))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get indicators filtered by type2 (发展性/基础性)
+     * Requirements: 7.3, 7.5 - Filter by indicator type
+     * 
+     * @param type2 indicator type2 value ("发展性" or "基础性")
+     * @return list of matching indicators
+     */
+    public List<IndicatorVO> getIndicatorsByType2(String type2) {
+        return indicatorRepository.findByType2AndStatus(type2, IndicatorStatus.ACTIVE).stream()
+                .map(i -> toIndicatorVO(i, false))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get indicators filtered by isQualitative flag
+     * Requirements: 7.3, 7.5 - Filter by qualitative/quantitative
+     * 
+     * @param isQualitative true for qualitative, false for quantitative
+     * @return list of matching indicators
+     */
+    public List<IndicatorVO> getIndicatorsByQualitative(Boolean isQualitative) {
+        return indicatorRepository.findByIsQualitativeAndStatus(isQualitative, IndicatorStatus.ACTIVE).stream()
+                .map(i -> toIndicatorVO(i, false))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get indicators filtered by status
+     * Requirements: 7.3, 7.5 - Filter by status
+     * 
+     * @param status indicator status
+     * @return list of matching indicators
+     */
+    public List<IndicatorVO> getIndicatorsByStatus(IndicatorStatus status) {
+        return indicatorRepository.findByStatus(status).stream()
+                .map(i -> toIndicatorVO(i, false))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get indicators with combined filters
+     * Requirements: 7.3, 7.5 - Combined filtering
+     * 
+     * @param type1 indicator type1 (optional)
+     * @param type2 indicator type2 (optional)
+     * @param status indicator status (optional, defaults to ACTIVE)
+     * @return list of matching indicators
+     */
+    public List<IndicatorVO> getIndicatorsWithFilters(String type1, String type2, IndicatorStatus status) {
+        IndicatorStatus effectiveStatus = status != null ? status : IndicatorStatus.ACTIVE;
+        
+        if (type1 != null && type2 != null) {
+            return indicatorRepository.findByType1AndType2AndStatus(type1, type2, effectiveStatus).stream()
+                    .map(i -> toIndicatorVO(i, false))
+                    .collect(Collectors.toList());
+        } else if (type1 != null) {
+            return indicatorRepository.findByType1AndStatus(type1, effectiveStatus).stream()
+                    .map(i -> toIndicatorVO(i, false))
+                    .collect(Collectors.toList());
+        } else if (type2 != null) {
+            return indicatorRepository.findByType2AndStatus(type2, effectiveStatus).stream()
+                    .map(i -> toIndicatorVO(i, false))
+                    .collect(Collectors.toList());
+        } else {
+            return indicatorRepository.findByStatus(effectiveStatus).stream()
+                    .map(i -> toIndicatorVO(i, false))
+                    .collect(Collectors.toList());
+        }
+    }
 }

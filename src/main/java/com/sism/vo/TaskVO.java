@@ -14,6 +14,7 @@ public class TaskVO {
     private Long taskId;
     private Long cycleId;
     private String cycleName;
+    private Integer year;  // 年份，从关联的 AssessmentCycle 获取
     private String taskName;
     private String taskDesc;
     private TaskType taskType;
