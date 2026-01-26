@@ -1,0 +1,56 @@
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "ctx7sk-41acdc5a-b1d3-4580-939e-942076d6e784"
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      },
+      "autoApprove": [
+        "list_commits",
+        "list_commits"
+      ]
+    },
+    "postgres": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://postgres:64378561huaW@175.24.139.148:8386/strategic"
+      ],
+      "autoApprove": [
+        "query"
+      ]
+    },
+    "browser": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "autoApprove": [
+        "puppeteer_screenshot",
+        "puppeteer_navigate",
+        "puppeteer_click",
+        "puppeteer_fill",
+        "puppeteer_evaluate"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    }
+  }
+}

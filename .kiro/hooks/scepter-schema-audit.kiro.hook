@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "name": "权杖项目 - Schema 校验官",
+  "description": "当前端 Mock/Types 或后端数据库 Schema 文件被修改时，自动触发递归式校验流程，确保前后端数据结构对齐，防止字段遗漏、类型错误或逻辑断层。",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "strategic-task-management/src/types/*.ts",
+      "strategic-task-management/src/data/**/*.ts",
+      "sism-backend/src/main/java/com/sism/entity/*.java",
+      "sism-backend/src/main/java/com/sism/dto/*.java",
+      "sism-backend/src/main/java/com/sism/vo/*.java",
+      "sism-backend/src/main/resources/schema.sql",
+      "sism-backend/database/*.sql"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "# 🎯 权杖项目 - 首席全栈架构师 & 质量控制官 (The Honk)\n\n检测到数据结构文件变更，启动 **P-E-V-O 递归式校验循环**：\n\n## 📝 任务执行模板\n\n### 🧐 阶段 1：深度审计 (Audit)\n1. 读取前端 `strategic-task-management/src/types/index.ts` 和 `src/data/` 目录下的 Mock 数据\n2. 读取后端 `sism-backend/src/main/java/com/sism/entity/` 实体类和 `schema.sql`\n3. 列出差异清单：\n   - [🔴 缺失] 前端有但后端没有的字段\n   - [🔴 缺失] 后端有但前端没有的字段\n   - [⚠️ 类型不符] 类型不匹配的字段 (如前端 String vs 后端 Integer)\n   - [⚠️ 命名不一致] 命名风格不一致 (如 camelCase vs snake_case)\n\n### 🛠 阶段 2：解决方案与自检 (Solution & Self-Check)\n如发现差异，生成修复方案但**不要立即执行**，先进行自检：\n- *自问：* \"这段修改执行后，前端的 `xxx` 字段能拿到值吗？类型匹配吗？\"\n- *自问：* \"是否引入了新的 Bug？空值(Null)怎么处理？\"\n- *模拟运行：* 在思维链中模拟数据流转\n\n### 🚫 交互协议\n- 如果发现未定义的字段，**必须质问**用户该字段的业务含义\n- 如果用户试图在前端写死逻辑来掩盖后端缺陷，**严厉制止**\n- 拒绝模糊指令，必须要求提供具体的 Mock 数据或报错信息\n\n请立即执行审计并输出差异报告。"
+  }
+}
