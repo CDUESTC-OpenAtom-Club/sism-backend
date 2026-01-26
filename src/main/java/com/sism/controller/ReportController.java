@@ -33,7 +33,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/reports")
+@RequestMapping("/reports")
 @RequiredArgsConstructor
 @Tag(name = "Progress Reports", description = "Progress report management and approval endpoints")
 public class ReportController {

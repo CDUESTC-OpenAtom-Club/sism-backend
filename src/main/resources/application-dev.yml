@@ -1,8 +1,10 @@
 spring:
   # Development Database Configuration
+  # 开发环境使用环境变量，但提供合理的默认值用于本地开发
+  # 参考: Requirements 1.1.2
   datasource:
     # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
-    url: jdbc:postgresql://${DB_HOST:175.24.139.148}:${DB_PORT:8386}/${DB_NAME:strategic}?stringtype=unspecified
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/strategic?stringtype=unspecified}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
   
@@ -24,6 +26,13 @@ spring:
   #     data-locations: classpath:data.sql
   #     continue-on-error: false
 
+# JWT Configuration for Development
+# 开发环境可以使用默认密钥，但生产环境必须配置
+jwt:
+  secret: ${JWT_SECRET:dev-only-secret-key-do-not-use-in-production-at-least-256-bits-long}
+  expiration: ${JWT_EXPIRATION:86400000}  # 24 hours
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
+
 # Logging Configuration for Development
 logging:
   level:
@@ -40,4 +49,16 @@ logging:
 # Development CORS Configuration
 app:
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
+    allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:3001
+
+# Rate Limit Configuration for Development
+# 开发环境使用更宽松的限制
+rate-limit:
+  enabled: true
+  storage: memory
+  login:
+    limit: 10  # 开发环境放宽登录限制
+    window-seconds: 60
+  api:
+    limit: 1000  # 开发环境放宽 API 限制
+    window-seconds: 60

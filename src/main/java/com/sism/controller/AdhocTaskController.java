@@ -30,7 +30,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/adhoc-tasks")
+@RequestMapping("/adhoc-tasks")
 @RequiredArgsConstructor
 @Tag(name = "Adhoc Tasks", description = "Adhoc task management endpoints")
 public class AdhocTaskController {

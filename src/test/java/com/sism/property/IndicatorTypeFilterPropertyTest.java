@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * **Feature: data-alignment-sop, Property 12: 指标类型过滤正确性**
  * **Validates: Requirements 7.3, 7.5**
  */
-public class IndicatorTypeFilterPropTest {
+public class IndicatorTypeFilterPropertyTest {
 
     private static final Set<String> VALID_TYPE1_VALUES = Set.of("定性", "定量");
     private static final Set<String> VALID_TYPE2_VALUES = Set.of("发展性", "基础性");
@@ -60,7 +60,6 @@ public class IndicatorTypeFilterPropTest {
         });
     }
 
-
     @Provide
     Arbitrary<List<IndicatorVO>> indicatorListGenerator() {
         return indicatorVOGenerator().list().ofMinSize(1).ofMaxSize(50);
@@ -107,6 +106,8 @@ public class IndicatorTypeFilterPropTest {
             .collect(Collectors.toList());
     }
 
+
+    /** Property 12.1: Type1 filter returns only matching indicators */
     @Property(tries = 100)
     void filterByType1_shouldReturnOnlyMatchingIndicators(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -117,6 +118,7 @@ public class IndicatorTypeFilterPropTest {
         }
     }
 
+    /** Property 12.2: Type2 filter returns only matching indicators */
     @Property(tries = 100)
     void filterByType2_shouldReturnOnlyMatchingIndicators(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -127,6 +129,7 @@ public class IndicatorTypeFilterPropTest {
         }
     }
 
+    /** Property 12.3: Qualitative filter returns only matching indicators */
     @Property(tries = 100)
     void filterByQualitative_shouldReturnOnlyMatchingIndicators(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -137,6 +140,7 @@ public class IndicatorTypeFilterPropTest {
         }
     }
 
+    /** Property 12.4: Status filter returns only matching indicators */
     @Property(tries = 100)
     void filterByStatus_shouldReturnOnlyMatchingIndicators(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -147,6 +151,7 @@ public class IndicatorTypeFilterPropTest {
         }
     }
 
+    /** Property 12.5: Combined filter returns only matching indicators */
     @Property(tries = 100)
     void filterByCombinedTypes_shouldReturnOnlyMatchingIndicators(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -159,6 +164,8 @@ public class IndicatorTypeFilterPropTest {
         }
     }
 
+
+    /** Property 12.6: Filter results are subset of all indicators */
     @Property(tries = 100)
     void filterResults_shouldBeSubsetOfAllIndicators(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -170,6 +177,7 @@ public class IndicatorTypeFilterPropTest {
         assertThat(allIds).containsAll(filteredIds);
     }
 
+    /** Property 12.7: Filter completeness - no matching indicators are excluded */
     @Property(tries = 100)
     void filterResults_shouldIncludeAllMatchingIndicators(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -180,6 +188,7 @@ public class IndicatorTypeFilterPropTest {
         assertThat(filtered.size()).isEqualTo(expectedCount);
     }
 
+    /** Property 12.8: Filter idempotence - applying same filter twice gives same result */
     @Property(tries = 100)
     void filterIdempotence_shouldReturnSameResult(
             @ForAll("indicatorListGenerator") List<IndicatorVO> indicators,
@@ -188,5 +197,8 @@ public class IndicatorTypeFilterPropTest {
         List<IndicatorVO> firstResult = filterByCombined(indicators, type1, type2);
         List<IndicatorVO> secondResult = filterByCombined(indicators, type1, type2);
         assertThat(firstResult.size()).isEqualTo(secondResult.size());
+        Set<Long> firstIds = firstResult.stream().map(IndicatorVO::getIndicatorId).collect(Collectors.toSet());
+        Set<Long> secondIds = secondResult.stream().map(IndicatorVO::getIndicatorId).collect(Collectors.toSet());
+        assertThat(firstIds).isEqualTo(secondIds);
     }
 }

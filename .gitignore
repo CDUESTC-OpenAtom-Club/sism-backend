@@ -49,3 +49,7 @@ Thumbs.db
 *.bak
 *.swp
 *~.nib
+
+# Test files
+test-bcrypt.java
+.jqwik-database

@@ -138,4 +138,12 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
      * Requirements: 7.3, 7.5 - Combined filter
      */
     List<Indicator> findByType1AndType2AndStatus(String type1, String type2, IndicatorStatus status);
+
+    /**
+     * Get the latest update timestamp across all active indicators
+     * Used for Last-Modified cache validation
+     * **Validates: Requirements 4.2.2**
+     */
+    @Query("SELECT MAX(i.updatedAt) FROM Indicator i WHERE i.status = :status")
+    java.time.LocalDateTime findLatestUpdateTime(@Param("status") IndicatorStatus status);
 }

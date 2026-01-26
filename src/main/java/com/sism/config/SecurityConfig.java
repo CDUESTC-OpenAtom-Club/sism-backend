@@ -50,13 +50,17 @@ public class SecurityConfig {
             // Configure authorization rules
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints - no authentication required
-                .requestMatchers("/api/auth/**").permitAll()
-                // Swagger/OpenAPI documentation
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
-                .requestMatchers("/swagger-resources/**", "/webjars/**").permitAll()
+                // Note: context path is /api, so actual path is /auth/** not /api/auth/**
+                .requestMatchers("/auth/**").permitAll()
+                // Swagger/OpenAPI documentation - multiple patterns for compatibility
+                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/swagger-ui.html").permitAll()
+                .requestMatchers("/v3/api-docs/**").permitAll()
+                .requestMatchers("/v3/api-docs.yaml").permitAll()
+                .requestMatchers("/swagger-resources/**").permitAll()
+                .requestMatchers("/webjars/**").permitAll()
                 // Health check endpoint
-                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

@@ -1,17 +1,20 @@
 spring:
   # Production Database Configuration
+  # 生产环境所有敏感配置必须从环境变量读取，禁止硬编码默认值
+  # 参考: Requirements 1.1.1, 1.1.2
   datasource:
     # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
-    url: jdbc:postgresql://${DB_HOST:175.24.139.148}:${DB_PORT:8386}/${DB_NAME:sism_prod}?stringtype=unspecified
-    username: ${DB_USERNAME:sism_user}
+    # 注意: DB_URL, DB_USERNAME, DB_PASSWORD 必须通过环境变量配置，无默认值
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 10
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
-      leak-detection-threshold: 60000
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:10}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION:60000}
       pool-name: SismHikariPool
   
   # JPA Configuration for Production
@@ -57,7 +60,7 @@ app:
   cors:
     allowed-origins: ${ALLOWED_ORIGINS:https://blackevil.cn}
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature
+    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature,X-Idempotency-Key
     allow-credentials: true
     max-age: 3600
   security:
@@ -68,12 +71,27 @@ app:
       xss-protection: 1; mode=block
       referrer-policy: strict-origin-when-cross-origin
       permissions-policy: geolocation=(), microphone=(), camera=()
+
+# Rate Limit Configuration for Production
+# 生产环境使用严格的限制
+# 参考: Requirements 2.3.3, 2.3.4, 2.3.5
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}
+  storage: ${RATE_LIMIT_STORAGE:memory}  # 可配置为 redis 用于分布式部署
+  login:
+    limit: ${RATE_LIMIT_LOGIN_LIMIT:5}  # 登录接口限制: 5次/分钟
+    window-seconds: ${RATE_LIMIT_LOGIN_WINDOW:60}
+  api:
+    limit: ${RATE_LIMIT_API_LIMIT:100}  # 通用 API 限制: 100次/分钟
+    window-seconds: ${RATE_LIMIT_API_WINDOW:60}
     
 # JWT Configuration for Production
+# JWT 密钥必须从环境变量读取，禁止硬编码默认值
+# 参考: Requirements 1.1.1
 jwt:
   secret: ${JWT_SECRET}
-  expiration: 28800000  # 8 hours in production
-  refresh-expiration: 604800000  # 7 days
+  expiration: ${JWT_EXPIRATION:28800000}  # 8 hours in production (default)
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days (default)
 
 # Server Configuration for Production
 server:

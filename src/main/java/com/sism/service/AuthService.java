@@ -153,6 +153,19 @@ public class AuthService {
     }
 
     /**
+     * Get user entity by username
+     * Used by AuthController for refresh token generation
+     * 
+     * @param username the username
+     * @return user entity
+     * @throws UnauthorizedException if user not found
+     */
+    public AppUser getUserByUsername(String username) {
+        return userService.findByUsername(username)
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+    }
+
+    /**
      * Build UserVO from AppUser entity
      */
     private UserVO buildUserVO(AppUser user) {

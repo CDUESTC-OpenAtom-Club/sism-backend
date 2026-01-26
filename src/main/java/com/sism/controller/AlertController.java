@@ -29,7 +29,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/alerts")
+@RequestMapping("/alerts")
 @RequiredArgsConstructor
 @Tag(name = "Alerts", description = "Alert event management endpoints")
 public class AlertController {

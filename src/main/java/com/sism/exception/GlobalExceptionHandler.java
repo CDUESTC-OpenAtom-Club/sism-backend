@@ -1,6 +1,6 @@
 package com.sism.exception;
 
-import com.sism.common.ApiResponse;
+import com.sism.common.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -15,10 +15,14 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Global exception handler for REST controllers.
- * Converts exceptions to unified ApiResponse format with comprehensive logging.
+ * Converts exceptions to unified ErrorResponse format with comprehensive logging.
+ * 
+ * Validates: Requirements 3.1.1, 3.1.3, 3.1.5
+ * Validates: P10 - 所有错误响应包含 requestId 用于追踪
  * 
  * Requirements:
  * - 15.4: Complete stack trace for errors
@@ -32,93 +36,143 @@ public class GlobalExceptionHandler {
      * Handle business exceptions (expected application errors).
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
+    public ResponseEntity<ErrorResponse<Void>> handleBusinessException(BusinessException e) {
+        String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
-        log.warn("Business exception: code={}, message={}, context=[{}]", 
-                e.getCode(), e.getMessage(), requestContext);
+        
+        log.warn("Business exception: code={}, message={}, requestId={}, context=[{}]", 
+                e.getCode(), e.getMessage(), requestId, requestContext);
+        
+        String errorCode = mapBusinessCodeToErrorCode(e.getCode());
+        ErrorResponse<Void> response = ErrorResponse.of(errorCode, e.getMessage(), requestId);
+        
         return ResponseEntity
                 .status(getHttpStatus(e.getCode()))
-                .body(ApiResponse.error(e.getCode(), e.getMessage()));
+                .body(response);
     }
     
     /**
      * Handle resource not found exceptions.
      */
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(ResourceNotFoundException e) {
+    public ResponseEntity<ErrorResponse<Void>> handleResourceNotFoundException(ResourceNotFoundException e) {
+        String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
-        log.warn("Resource not found: message={}, context=[{}]", e.getMessage(), requestContext);
+        
+        log.warn("Resource not found: message={}, requestId={}, context=[{}]", 
+                e.getMessage(), requestId, requestContext);
+        
+        ErrorResponse<Void> response = ErrorResponse.of("BIZ_002", e.getMessage(), requestId);
+        
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(404, e.getMessage()));
+                .body(response);
     }
     
     /**
      * Handle unauthorized exceptions.
      */
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException e) {
+    public ResponseEntity<ErrorResponse<Void>> handleUnauthorizedException(UnauthorizedException e) {
+        String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
-        log.warn("Unauthorized access: message={}, context=[{}]", e.getMessage(), requestContext);
+        
+        log.warn("Unauthorized access: message={}, requestId={}, context=[{}]", 
+                e.getMessage(), requestId, requestContext);
+        
+        ErrorResponse<Void> response = ErrorResponse.of("AUTH_003", e.getMessage(), requestId);
+        
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(401, e.getMessage()));
+                .body(response);
     }
     
     /**
      * Handle conflict exceptions.
      */
     @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ApiResponse<Void>> handleConflictException(ConflictException e) {
+    public ResponseEntity<ErrorResponse<Void>> handleConflictException(ConflictException e) {
+        String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
-        log.warn("Conflict: message={}, context=[{}]", e.getMessage(), requestContext);
+        
+        log.warn("Conflict: message={}, requestId={}, context=[{}]", 
+                e.getMessage(), requestId, requestContext);
+        
+        ErrorResponse<Void> response = ErrorResponse.of("BIZ_001", e.getMessage(), requestId);
+        
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(409, e.getMessage()));
+                .body(response);
     }
     
     /**
      * Handle validation exceptions from @Valid annotations.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationException(
+    public ResponseEntity<ErrorResponse<Map<String, Object>>> handleValidationException(
             MethodArgumentNotValidException e) {
-        Map<String, String> errors = new HashMap<>();
+        String requestId = getOrGenerateRequestId();
+        
+        Map<String, String> fieldErrors = new HashMap<>();
         e.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+            fieldErrors.put(fieldName, errorMessage);
         });
         
+        Map<String, Object> details = new HashMap<>();
+        details.put("errors", fieldErrors);
+        
         String requestContext = getRequestContext();
-        log.warn("Validation failed: errors={}, context=[{}]", errors, requestContext);
+        log.warn("Validation failed: errors={}, requestId={}, context=[{}]", 
+                fieldErrors, requestId, requestContext);
+        
+        ErrorResponse<Map<String, Object>> response = ErrorResponse.of(
+                "VAL_001", 
+                "Validation failed", 
+                details, 
+                requestId
+        );
+        
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(400, "Validation failed", errors));
+                .body(response);
     }
     
     /**
      * Handle validation exceptions.
      */
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidationException(ValidationException e) {
+    public ResponseEntity<ErrorResponse<Void>> handleValidationException(ValidationException e) {
+        String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
-        log.warn("Validation error: message={}, context=[{}]", e.getMessage(), requestContext);
+        
+        log.warn("Validation error: message={}, requestId={}, context=[{}]", 
+                e.getMessage(), requestId, requestContext);
+        
+        ErrorResponse<Void> response = ErrorResponse.of("VAL_002", e.getMessage(), requestId);
+        
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(400, e.getMessage()));
+                .body(response);
     }
     
     /**
      * Handle illegal argument exceptions.
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
+    public ResponseEntity<ErrorResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
+        String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
-        log.warn("Illegal argument: message={}, context=[{}]", e.getMessage(), requestContext);
+        
+        log.warn("Illegal argument: message={}, requestId={}, context=[{}]", 
+                e.getMessage(), requestId, requestContext);
+        
+        ErrorResponse<Void> response = ErrorResponse.of("VAL_002", e.getMessage(), requestId);
+        
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(400, e.getMessage()));
+                .body(response);
     }
     
     /**
@@ -126,19 +180,54 @@ public class GlobalExceptionHandler {
      * This is the catch-all handler for unexpected errors.
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception e) {
+    public ResponseEntity<ErrorResponse<Void>> handleGenericException(Exception e) {
+        String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
         
         // Log with full stack trace and request context
-        log.error("Unexpected error occurred: message={}, type={}, context=[{}]", 
+        log.error("Unexpected error occurred: message={}, type={}, requestId={}, context=[{}]", 
                 e.getMessage(), 
                 e.getClass().getName(), 
+                requestId,
                 requestContext, 
                 e);  // This will include full stack trace
         
+        ErrorResponse<Void> response = ErrorResponse.of("SYS_001", "Internal server error", requestId);
+        
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(500, "Internal server error"));
+                .body(response);
+    }
+    
+    /**
+     * Get request ID from MDC or generate a new one.
+     * The request ID should be set by RequestLoggingFilter or passed in X-Request-ID header.
+     * 
+     * @return Request ID
+     */
+    private String getOrGenerateRequestId() {
+        // First try to get from MDC (set by RequestLoggingFilter)
+        String requestId = MDC.get("requestId");
+        if (requestId != null && !requestId.isBlank()) {
+            return requestId;
+        }
+        
+        // Try to get from request header
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                HttpServletRequest request = attrs.getRequest();
+                String headerRequestId = request.getHeader("X-Request-ID");
+                if (headerRequestId != null && !headerRequestId.isBlank()) {
+                    return headerRequestId;
+                }
+            }
+        } catch (Exception ignored) {
+            // Ignore if request context is not available
+        }
+        
+        // Generate a new request ID as fallback
+        return UUID.randomUUID().toString();
     }
     
     /**
@@ -180,6 +269,23 @@ public class GlobalExceptionHandler {
         }
         
         return context.toString();
+    }
+    
+    /**
+     * Map business error code to standard error code format.
+     */
+    private String mapBusinessCodeToErrorCode(int code) {
+        return switch (code) {
+            case 400 -> "VAL_001";
+            case 401 -> "AUTH_003";
+            case 403 -> "AUTH_004";
+            case 404 -> "BIZ_002";
+            case 409 -> "BIZ_001";
+            case 422 -> "VAL_002";
+            case 429 -> "RATE_001";
+            case 500 -> "SYS_001";
+            default -> "BIZ_003";
+        };
     }
     
     /**

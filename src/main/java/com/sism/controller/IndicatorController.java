@@ -4,7 +4,9 @@ import com.sism.common.ApiResponse;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.enums.IndicatorStatus;
+import com.sism.repository.IndicatorRepository;
 import com.sism.service.IndicatorService;
+import com.sism.util.CacheUtils;
 import com.sism.vo.IndicatorVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,6 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 /**
@@ -23,25 +28,43 @@ import java.util.List;
  * Provides CRUD operations for indicators with soft deletion
  * 
  * Requirements: 2.2, 2.3, 2.4, 2.5
+ * Cache: Last-Modified-based caching for list endpoints
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/indicators")
+@RequestMapping("/indicators")
 @RequiredArgsConstructor
 @Tag(name = "Indicators", description = "Indicator management endpoints")
 public class IndicatorController {
 
     private final IndicatorService indicatorService;
+    private final IndicatorRepository indicatorRepository;
 
     /**
      * Get all active indicators
      * GET /api/indicators
+     * Cache: Last-Modified-based caching
+     * **Validates: Requirements 4.2.2**
      */
     @GetMapping
-    @Operation(summary = "Get all indicators", description = "Retrieve all active indicators")
-    public ResponseEntity<ApiResponse<List<IndicatorVO>>> getAllIndicators() {
+    @Operation(summary = "Get all indicators", description = "Retrieve all active indicators with Last-Modified caching")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indicators retrieved successfully"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "304", description = "Not Modified - use cached data")
+    })
+    public ResponseEntity<ApiResponse<List<IndicatorVO>>> getAllIndicators(
+            @RequestHeader(value = "If-Modified-Since", required = false) String ifModifiedSince) {
         List<IndicatorVO> indicators = indicatorService.getAllActiveIndicators();
-        return ResponseEntity.ok(ApiResponse.success(indicators));
+        ApiResponse<List<IndicatorVO>> response = ApiResponse.success(indicators);
+        
+        // Get latest update time for Last-Modified header
+        LocalDateTime latestUpdate = indicatorRepository.findLatestUpdateTime(IndicatorStatus.ACTIVE);
+        Instant lastModified = latestUpdate != null 
+            ? latestUpdate.atZone(ZoneId.systemDefault()).toInstant() 
+            : Instant.now();
+        
+        // Use Last-Modified-based caching
+        return CacheUtils.buildLastModifiedResponse(response, lastModified, ifModifiedSince);
     }
 
     /**

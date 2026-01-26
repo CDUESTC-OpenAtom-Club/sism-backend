@@ -25,7 +25,7 @@ import java.util.List;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/tasks")
+@RequestMapping("/tasks")
 @RequiredArgsConstructor
 @Tag(name = "Strategic Tasks", description = "Strategic task management endpoints")
 public class TaskController {

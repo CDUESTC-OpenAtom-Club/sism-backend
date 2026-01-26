@@ -28,7 +28,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/milestones")
+@RequestMapping("/milestones")
 @RequiredArgsConstructor
 @Tag(name = "Milestones", description = "Milestone management endpoints")
 public class MilestoneController {
