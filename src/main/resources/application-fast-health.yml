@@ -1,0 +1,30 @@
+# 快速健康检查配置
+# 使用方式: mvnw spring-boot:run -Dspring-boot.run.profiles=dev,fast-health
+
+spring:
+  datasource:
+    hikari:
+      connection-timeout: 2000  # 2 秒超时
+      validation-timeout: 1000  # 1 秒验证超时
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized  # 减少详情查询
+  health:
+    # 只保留最基本的健康检查
+    db:
+      enabled: true
+    diskspace:
+      enabled: false  # 临时禁用磁盘检查
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    # 确保其他组件都被禁用
+    defaults:
+      enabled: false
+
+logging:
+  level:
+    org.springframework.boot.actuate: DEBUG  # 查看健康检查日志

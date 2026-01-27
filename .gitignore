@@ -35,10 +35,19 @@ application-*.properties
 .env.local
 .env.*.local
 
-# Logs
+# Logs (不提交日志文件)
 logs/
 *.log
 *.log.*
+
+# 旧的数据库脚本（已整理到新目录）
+database/add-college-users.sql
+database/fix-weight-to-integer.sql
+database/optimize-performance.sql
+database/seed-indicators-2026.sql
+database/V1.1__add_refresh_tokens.sql
+database/verify-schema.sql
+database/README.md
 
 # OS
 .DS_Store

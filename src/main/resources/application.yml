@@ -13,9 +13,11 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
-      connection-timeout: 30000
+      connection-timeout: 5000  # 缩短连接超时时间到 5 秒
+      validation-timeout: 3000  # 健康检查验证超时 3 秒
       idle-timeout: 600000
       max-lifetime: 1800000
+      connection-test-query: SELECT 1  # 快速验证查询
   
   # JPA Configuration
   jpa:
@@ -110,6 +112,20 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+    # 禁用可能导致慢的健康检查
+    mail:
+      enabled: false
+    rabbit:
+      enabled: false
+    redis:
+      enabled: false
+    mongo:
+      enabled: false
+    elasticsearch:
+      enabled: false
+    diskspace:
+      enabled: true
+      threshold: 10MB  # 磁盘空间检查阈值
 
 # Rate Limit Configuration
 # 频率限制配置

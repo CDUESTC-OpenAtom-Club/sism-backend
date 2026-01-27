@@ -28,6 +28,42 @@ src/main/java/com/sism/
 ├── exception/      # 异常处理
 ├── common/         # 通用工具
 └── util/           # 工具类
+
+database/           # 数据库脚本
+├── migrations/     # 数据库迁移脚本（按版本）
+│   ├── V1.0__init.sql
+│   └── V1.1__add_refresh_tokens.sql
+├── seeds/          # 种子数据
+│   ├── seed-data.sql
+│   └── seed-indicators-2026.sql
+└── scripts/        # 维护脚本
+    ├── add-college-users.sql
+    ├── fix-weight-to-integer.sql
+    ├── optimize-performance.sql
+    ├── verify-schema.sql
+    ├── drop-all.sql
+    ├── validate-data.sql
+    ├── db-setup.js
+    └── fix-college-users.sh
+
+scripts/            # 数据同步与维护脚本
+├── sync/           # 数据同步
+│   ├── sync-all.js
+│   ├── sync-context.js
+│   ├── config.js
+│   ├── verify.js
+│   └── phases/
+│       ├── sync-org.js
+│       ├── sync-cycle.js
+│       ├── sync-indicator.js
+│       ├── sync-milestone.js
+│       └── sync-task.js
+└── maintenance/    # 数据维护
+    ├── add-college-users.js
+    ├── fix-college-passwords.js
+    ├── fix-data-completeness.js
+    ├── update-remarks.js
+    └── verify-data-consistency.cjs
 ```
 
 ## 快速开始
@@ -107,6 +143,42 @@ copy .env.example .env
 | `DB_PASSWORD` | 数据库密码 |
 | `JWT_SECRET` | JWT 签名密钥 (至少 256 位) |
 | `LOG_PATH` | 日志路径 (可选，默认 `logs`) |
+
+## 数据库管理
+
+### 初始化数据库
+
+```bash
+# 使用 Node.js 脚本初始化
+node database/scripts/db-setup.js
+
+# 或手动执行 SQL
+psql -U postgres -d sism_dev -f database/migrations/V1.0__init.sql
+psql -U postgres -d sism_dev -f database/seeds/seed-data.sql
+```
+
+### 数据同步
+
+```bash
+# 同步所有数据
+node scripts/sync/sync-all.js
+
+# 验证数据一致性
+node scripts/sync/verify.js
+```
+
+### 数据维护
+
+```bash
+# 添加二级学院用户
+node scripts/maintenance/add-college-users.js
+
+# 修复密码
+node scripts/maintenance/fix-college-passwords.js
+
+# 修复数据完整性
+node scripts/maintenance/fix-data-completeness.js
+```
 
 ## 测试
 
