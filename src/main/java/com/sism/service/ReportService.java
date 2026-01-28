@@ -175,6 +175,7 @@ public class ReportService {
         report.setVersionNo(1);
 
         ProgressReport savedReport = reportRepository.save(report);
+        reportRepository.flush(); // 强制立即持久化到数据库
         log.info("Created progress report {} in DRAFT status", savedReport.getReportId());
 
         return toReportVO(savedReport);
@@ -288,6 +289,7 @@ public class ReportService {
         }
 
         ProgressReport updatedReport = reportRepository.save(report);
+        reportRepository.flush(); // 强制立即持久化到数据库
         log.info("Updated progress report {}", updatedReport.getReportId());
 
         return toReportVO(updatedReport);
@@ -313,6 +315,7 @@ public class ReportService {
         report.setReportedAt(LocalDateTime.now());
 
         ProgressReport submittedReport = reportRepository.save(report);
+        reportRepository.flush(); // 强制立即持久化到数据库
         log.info("Submitted progress report {} (DRAFT/RETURNED → SUBMITTED)", submittedReport.getReportId());
 
         return toReportVO(submittedReport);
@@ -338,6 +341,7 @@ public class ReportService {
         report.setReportedAt(null);
 
         ProgressReport withdrawnReport = reportRepository.save(report);
+        reportRepository.flush(); // 强制立即持久化到数据库
         log.info("Withdrawn progress report {} (SUBMITTED → DRAFT)", withdrawnReport.getReportId());
 
         return toReportVO(withdrawnReport);
