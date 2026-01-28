@@ -60,11 +60,12 @@ public class OrgController {
     /**
      * Get organization hierarchy tree
      * GET /api/orgs/hierarchy
+     * GET /api/orgs/tree (alias for backward compatibility)
      * Requirements: 8.3
      * Cache: ETag-based caching (5 minutes TTL)
      * **Validates: Requirements 4.2.1**
      */
-    @GetMapping("/hierarchy")
+    @GetMapping({"/hierarchy", "/tree"})
     @Operation(summary = "Get organization hierarchy", 
                description = "Retrieve organization hierarchy tree structure with ETag caching")
     @ApiResponses(value = {
