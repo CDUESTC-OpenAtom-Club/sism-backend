@@ -3,7 +3,9 @@ package com.sism.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -12,6 +14,8 @@ import java.time.LocalDate;
  * DTO for creating a milestone
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class MilestoneCreateRequest {
 
     @NotNull(message = "Indicator ID is required")

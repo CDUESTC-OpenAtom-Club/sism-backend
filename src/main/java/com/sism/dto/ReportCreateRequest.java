@@ -1,7 +1,9 @@
 package com.sism.dto;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
@@ -10,6 +12,8 @@ import java.math.BigDecimal;
  * Requirements: 3.1 - Create progress report in draft status
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ReportCreateRequest {
 
     @NotNull(message = "Indicator ID is required")

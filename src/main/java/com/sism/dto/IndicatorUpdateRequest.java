@@ -1,7 +1,9 @@
 package com.sism.dto;
 
 import com.sism.enums.IndicatorLevel;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
@@ -9,6 +11,8 @@ import java.math.BigDecimal;
  * DTO for updating an indicator
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class IndicatorUpdateRequest {
 
     private Long parentIndicatorId;

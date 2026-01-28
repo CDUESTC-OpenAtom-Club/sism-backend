@@ -91,12 +91,27 @@ public class EnvConfigValidator implements ApplicationRunner {
             return true;
         }
         
-        // 然后检查 Spring Environment（支持 application.yml 中的配置）
-        // 将环境变量名转换为 Spring 属性名格式（例如：JWT_SECRET -> jwt.secret）
-        String propertyName = convertToPropertyName(varName);
-        String propertyValue = environment.getProperty(propertyName);
+        // 然后检查 Spring Environment 中对应的属性值
+        // 根据变量名映射到实际的配置属性
+        String propertyValue = getPropertyValueForEnvVar(varName);
         
         return propertyValue != null && !propertyValue.isBlank();
+    }
+    
+    /**
+     * 根据环境变量名获取对应的Spring属性值
+     * 
+     * @param envVarName 环境变量名称
+     * @return 属性值，如果不存在返回null
+     */
+    private String getPropertyValueForEnvVar(String envVarName) {
+        return switch (envVarName) {
+            case "JWT_SECRET" -> environment.getProperty("jwt.secret");
+            case "DB_URL" -> environment.getProperty("spring.datasource.url");
+            case "DB_USERNAME" -> environment.getProperty("spring.datasource.username");
+            case "DB_PASSWORD" -> environment.getProperty("spring.datasource.password");
+            default -> null;
+        };
     }
 
     /**
