@@ -11,6 +11,7 @@ import com.sism.repository.OrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.vo.TaskVO;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
  * 
  * Requirements: 2.1
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -82,12 +84,15 @@ public class TaskService {
 
     /**
      * Create a new strategic task
+     * Requirements: 2.1 - Persist task to database immediately
      * 
      * @param request task creation request
      * @return created task VO
      */
     @Transactional
     public TaskVO createTask(TaskCreateRequest request) {
+        log.info("Creating strategic task: {}", request.getTaskName());
+        
         // Validate cycle exists
         AssessmentCycle cycle = cycleRepository.findById(request.getCycleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Assessment Cycle", request.getCycleId()));
@@ -111,6 +116,9 @@ public class TaskService {
         task.setRemark(request.getRemark());
 
         StrategicTask savedTask = taskRepository.save(task);
+        taskRepository.flush(); // Force immediate database write
+        
+        log.info("Successfully created strategic task with ID: {}", savedTask.getTaskId());
         return toTaskVO(savedTask);
     }
 

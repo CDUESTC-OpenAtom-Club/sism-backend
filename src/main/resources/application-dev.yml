@@ -5,7 +5,7 @@ spring:
   datasource:
     # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
     url: ${DB_URL:jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified}
-    username: ${DB_USERNAME:postgres}
+    username: ${DB_USERNAME:muzimu}
     password: ${DB_PASSWORD:64378561huaW}
   
   # JPA Configuration for Development

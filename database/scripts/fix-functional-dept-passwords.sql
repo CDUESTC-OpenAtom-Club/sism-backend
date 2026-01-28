@@ -1,40 +1,26 @@
--- =====================================================
 -- 修复职能部门用户密码
--- =====================================================
--- 问题: 职能部门账号全部无法登录
--- 原因: 密码哈希与 admin 不一致
--- 解决: 统一使用与 admin 相同的密码哈希 (密码: 123456)
--- =====================================================
+-- 所有密码重置为: 123456
+-- BCrypt哈希: $2a$10$UF.UUADlBmXZUqvuj/yuuOehOFkcLBfCYmWc7WROCiuGHMVVceWMS
 
--- 正确的密码哈希 (123456)
--- 与 admin 用户使用相同的哈希值
-UPDATE app_user 
-SET password_hash = '$2a$10$UF.UUADlBmXZU1tU3iec3OK5lfK4TOvVxErggE0HGPguRTiOO/dmi',
+-- 更新所有职能部门用户的密码
+UPDATE app_user
+SET password_hash = '$2a$10$UF.UUADlBmXZUqvuj/yuuOehOFkcLBfCYmWc7WROCiuGHMVVceWMS',
     updated_at = CURRENT_TIMESTAMP
-WHERE username IN (
-    'jiaowu',      -- 教务处
-    'xuegong',     -- 学工处  
-    'keyan',       -- 科研处
-    'renshichu',   -- 人事处
-    'caiwuchu',    -- 财务处
-    'zichan',      -- 资产处
-    'houqin',      -- 后勤处
-    'guoji',       -- 国际处
-    'xuanchuan',   -- 宣传部
-    'zuzhi'        -- 组织部
+WHERE user_id IN (
+    SELECT u.user_id
+    FROM app_user u
+    JOIN org o ON u.org_id = o.org_id
+    WHERE o.org_type = 'FUNCTIONAL_DEPT' OR o.org_type = 'FUNCTION_DEPT'
 );
 
 -- 验证更新结果
 SELECT 
-    username,
-    real_name,
-    LEFT(password_hash, 30) as pwd_prefix,
-    updated_at
-FROM app_user 
-WHERE username IN (
-    'jiaowu', 'xuegong', 'keyan', 'renshichu', 'caiwuchu',
-    'zichan', 'houqin', 'guoji', 'xuanchuan', 'zuzhi'
-)
-ORDER BY username;
-
--- 预期结果: 所有职能部门用户的密码哈希前缀应为 $2a$10$UF.UUADlBmXZU1tU3iec
+    u.username,
+    u.real_name,
+    o.org_name,
+    LENGTH(u.password_hash) as hash_length,
+    SUBSTRING(u.password_hash, 1, 20) as hash_prefix
+FROM app_user u
+JOIN org o ON u.org_id = o.org_id
+WHERE o.org_type = 'FUNCTIONAL_DEPT' OR o.org_type = 'FUNCTION_DEPT'
+ORDER BY u.username;

@@ -158,6 +158,8 @@ public class IndicatorService {
      */
     @Transactional
     public IndicatorVO createIndicator(IndicatorCreateRequest request, Long actorUserId, String reason) {
+        log.info("Creating indicator: {} for task: {}", request.getIndicatorDesc(), request.getTaskId());
+        
         // Validate task exists
         StrategicTask task = taskRepository.findById(request.getTaskId())
                 .orElseThrow(() -> new ResourceNotFoundException("Strategic Task", request.getTaskId()));
@@ -191,6 +193,9 @@ public class IndicatorService {
         indicator.setRemark(request.getRemark());
 
         Indicator savedIndicator = indicatorRepository.save(indicator);
+        indicatorRepository.flush(); // Force immediate database write
+        
+        log.info("Successfully created indicator with ID: {}", savedIndicator.getIndicatorId());
 
         // Record audit log for CREATE operation
         AppUser actorUser = actorUserId != null ? 
