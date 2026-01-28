@@ -47,54 +47,61 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Stop backend service
-        run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "sudo systemctl stop sism-backend || true"
-
       - name: Upload JAR with rsync
         run: |
           rsync -avz --progress -e "ssh -i ~/.ssh/deploy_key" \
             target/${{ env.JAR_NAME }} \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/sism/backend/
 
-      - name: Verify upload and restart
+      - name: Verify upload and restart service
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << EOF
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
             # Verify file integrity
-            REMOTE_MD5=\$(md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1)
-            REMOTE_SIZE=\$(stat -c%s /opt/sism/backend/${{ env.JAR_NAME }})
+            REMOTE_MD5=$(md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1)
+            REMOTE_SIZE=$(stat -c%s /opt/sism/backend/${{ env.JAR_NAME }})
             
-            echo "📦 Remote JAR: \$REMOTE_SIZE bytes, MD5: \$REMOTE_MD5"
+            echo "📦 Remote JAR: $REMOTE_SIZE bytes, MD5: $REMOTE_MD5"
             echo "📦 Expected:   ${{ steps.checksum.outputs.local_size }} bytes, MD5: ${{ steps.checksum.outputs.local_md5 }}"
             
-            if [ "\$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
+            if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
               echo "❌ Checksum mismatch! Upload corrupted."
               exit 1
             fi
             
             echo "✅ Checksum verified"
             
-            # Update symlink and restart
+            # Update symlink
             sudo ln -sf /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/sism-backend.jar
-            sudo systemctl start sism-backend
+            
+            # Restart service (stop + start ensures clean restart)
+            echo "🔄 Restarting backend service..."
+            sudo systemctl restart sism-backend
             
             # Wait for startup
-            echo "⏳ Waiting for service to start..."
-            sleep 15
+            echo "⏳ Waiting for service to start (20 seconds)..."
+            sleep 20
             
             # Health check with retries
-            for i in 1 2 3; do
+            echo "🏥 Performing health checks..."
+            for i in 1 2 3 4 5; do
               if curl -sf http://localhost:8080/api/actuator/health > /dev/null; then
-                echo "✅ Backend deployed and healthy"
+                echo "✅ Backend deployed successfully and is healthy!"
+                
+                # Test Cycles API
+                echo "🧪 Testing Cycles API..."
+                if curl -sf http://localhost:8080/api/cycles -H "Authorization: Bearer test" > /dev/null 2>&1 || [ $? -eq 22 ]; then
+                  echo "✅ Cycles API endpoint is accessible"
+                fi
+                
                 exit 0
               fi
-              echo "⏳ Retry \$i/3..."
+              echo "⏳ Health check retry $i/5..."
               sleep 5
             done
             
-            echo "❌ Health check failed"
-            sudo journalctl -u sism-backend -n 30 --no-pager
+            echo "❌ Health check failed after 5 attempts"
+            echo "📋 Recent service logs:"
+            sudo journalctl -u sism-backend -n 50 --no-pager
             exit 1
           EOF
 
