@@ -301,6 +301,36 @@ public class IndicatorService {
         if (request.getCanWithdraw() != null) {
             indicator.setCanWithdraw(request.getCanWithdraw());
         }
+        if (request.getStatus() != null) {
+            indicator.setStatus(request.getStatus());
+        }
+        if (request.getProgress() != null) {
+            indicator.setProgress(request.getProgress());
+        }
+        if (request.getProgressApprovalStatus() != null) {
+            indicator.setProgressApprovalStatus(request.getProgressApprovalStatus());
+        }
+        if (request.getPendingProgress() != null) {
+            indicator.setPendingProgress(request.getPendingProgress());
+        }
+        if (request.getPendingRemark() != null) {
+            indicator.setPendingRemark(request.getPendingRemark());
+        }
+        if (request.getPendingAttachments() != null) {
+            indicator.setPendingAttachments(request.getPendingAttachments());
+        }
+        if (request.getTargetValue() != null) {
+            indicator.setTargetValue(request.getTargetValue());
+        }
+        if (request.getActualValue() != null) {
+            indicator.setActualValue(request.getActualValue());
+        }
+        if (request.getUnit() != null) {
+            indicator.setUnit(request.getUnit());
+        }
+        if (request.getResponsiblePerson() != null) {
+            indicator.setResponsiblePerson(request.getResponsiblePerson());
+        }
 
         Indicator updatedIndicator = indicatorRepository.save(indicator);
 
