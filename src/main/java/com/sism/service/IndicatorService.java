@@ -191,6 +191,11 @@ public class IndicatorService {
         indicator.setYear(request.getYear());
         indicator.setStatus(IndicatorStatus.ACTIVE);
         indicator.setRemark(request.getRemark());
+        
+        // Set canWithdraw if provided, otherwise use default (false)
+        if (request.getCanWithdraw() != null) {
+            indicator.setCanWithdraw(request.getCanWithdraw());
+        }
 
         Indicator savedIndicator = indicatorRepository.save(indicator);
         indicatorRepository.flush(); // Force immediate database write
@@ -292,6 +297,9 @@ public class IndicatorService {
         }
         if (request.getRemark() != null) {
             indicator.setRemark(request.getRemark());
+        }
+        if (request.getCanWithdraw() != null) {
+            indicator.setCanWithdraw(request.getCanWithdraw());
         }
 
         Indicator updatedIndicator = indicatorRepository.save(indicator);

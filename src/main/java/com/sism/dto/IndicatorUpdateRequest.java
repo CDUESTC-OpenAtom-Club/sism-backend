@@ -32,4 +32,9 @@ public class IndicatorUpdateRequest {
     private Integer year;
 
     private String remark;
+
+    /**
+     * 是否可撤回（用于指标下发/撤回状态控制）
+     */
+    private Boolean canWithdraw;
 }
