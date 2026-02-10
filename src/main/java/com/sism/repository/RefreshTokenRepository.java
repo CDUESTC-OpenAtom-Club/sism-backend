@@ -35,9 +35,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      * @param userId 用户 ID
      * @return 有效的 Refresh Token 列表
      */
-    @Query("SELECT rt FROM RefreshToken rt WHERE rt.user.userId = :userId " +
+    @Query("SELECT rt FROM RefreshToken rt WHERE rt.user.id = :userId " +
            "AND rt.revokedAt IS NULL AND rt.expiresAt > CURRENT_TIMESTAMP")
-    List<RefreshToken> findValidTokensByUserId(@Param("userId") Long userId);
+    List<RefreshToken> findValidTokensById(@Param("userId") Long userId);
 
     /**
      * 查找用户的所有 Refresh Token（包括已撤销和过期的）
@@ -45,7 +45,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      * @param userId 用户 ID
      * @return Refresh Token 列表
      */
-    List<RefreshToken> findByUser_UserId(Long userId);
+    List<RefreshToken> findByUser_Id(Long userId);
 
     /**
      * 撤销用户的所有 Refresh Token
@@ -57,8 +57,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      */
     @Modifying
     @Query("UPDATE RefreshToken rt SET rt.revokedAt = :revokedAt " +
-           "WHERE rt.user.userId = :userId AND rt.revokedAt IS NULL")
-    int revokeAllByUserId(@Param("userId") Long userId, @Param("revokedAt") LocalDateTime revokedAt);
+           "WHERE rt.user.id = :userId AND rt.revokedAt IS NULL")
+    int revokeAllById(@Param("userId") Long userId, @Param("revokedAt") LocalDateTime revokedAt);
 
     /**
      * 撤销指定的 Refresh Token
@@ -90,9 +90,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
      * @param userId 用户 ID
      * @return 有效 Token 数量
      */
-    @Query("SELECT COUNT(rt) FROM RefreshToken rt WHERE rt.user.userId = :userId " +
+    @Query("SELECT COUNT(rt) FROM RefreshToken rt WHERE rt.user.id = :userId " +
            "AND rt.revokedAt IS NULL AND rt.expiresAt > CURRENT_TIMESTAMP")
-    long countValidTokensByUserId(@Param("userId") Long userId);
+    long countValidTokensById(@Param("userId") Long userId);
 
     /**
      * 检查 Token 哈希是否存在

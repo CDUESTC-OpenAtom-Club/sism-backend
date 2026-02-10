@@ -261,8 +261,8 @@ public class SoftDeletionBehaviorPropertyTest {
 
         // Capture original state
         Long originalTaskId = indicator.getTask().getTaskId();
-        Long originalOwnerOrgId = indicator.getOwnerOrg().getOrgId();
-        Long originalTargetOrgId = indicator.getTargetOrg().getOrgId();
+        Long originalOwnerOrgId = indicator.getOwnerOrg().getId();
+        Long originalTargetOrgId = indicator.getTargetOrg().getId();
         String originalDesc = indicator.getIndicatorDesc();
         Integer originalYear = indicator.getYear();
         Integer originalSortOrder = indicator.getSortOrder();
@@ -280,8 +280,8 @@ public class SoftDeletionBehaviorPropertyTest {
         
         // All other fields should be unchanged
         assertThat(archivedIndicator.getTask().getTaskId()).isEqualTo(originalTaskId);
-        assertThat(archivedIndicator.getOwnerOrg().getOrgId()).isEqualTo(originalOwnerOrgId);
-        assertThat(archivedIndicator.getTargetOrg().getOrgId()).isEqualTo(originalTargetOrgId);
+        assertThat(archivedIndicator.getOwnerOrg().getId()).isEqualTo(originalOwnerOrgId);
+        assertThat(archivedIndicator.getTargetOrg().getId()).isEqualTo(originalTargetOrgId);
         assertThat(archivedIndicator.getIndicatorDesc()).isEqualTo(originalDesc);
         assertThat(archivedIndicator.getYear()).isEqualTo(originalYear);
         assertThat(archivedIndicator.getSortOrder()).isEqualTo(originalSortOrder);

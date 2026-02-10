@@ -33,12 +33,12 @@ public interface AdhocTaskRepository extends JpaRepository<AdhocTask, Long> {
     /**
      * Find all adhoc tasks by creator organization ID
      */
-    List<AdhocTask> findByCreatorOrg_OrgId(Long creatorOrgId);
+    List<AdhocTask> findByCreatorOrg_Id(Long creatorOrgId);
 
     /**
      * Find all adhoc tasks by creator organization ID with pagination
      */
-    Page<AdhocTask> findByCreatorOrg_OrgId(Long creatorOrgId, Pageable pageable);
+    Page<AdhocTask> findByCreatorOrg_Id(Long creatorOrgId, Pageable pageable);
 
     /**
      * Find all adhoc tasks by scope type
@@ -98,7 +98,7 @@ public interface AdhocTaskRepository extends JpaRepository<AdhocTask, Long> {
     /**
      * Count adhoc tasks by creator organization ID
      */
-    long countByCreatorOrg_OrgId(Long creatorOrgId);
+    long countByCreatorOrg_Id(Long creatorOrgId);
 
     /**
      * Find adhoc tasks by multiple statuses with pagination

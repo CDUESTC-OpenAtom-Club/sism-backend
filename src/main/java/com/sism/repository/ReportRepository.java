@@ -43,12 +43,12 @@ public interface ReportRepository extends JpaRepository<ProgressReport, Long> {
     /**
      * Find all reports by reporter ID
      */
-    List<ProgressReport> findByReporter_UserId(Long reporterId);
+    List<ProgressReport> findByReporter_Id(Long reporterId);
 
     /**
      * Find all reports by reporter ID with pagination
      */
-    Page<ProgressReport> findByReporter_UserId(Long reporterId, Pageable pageable);
+    Page<ProgressReport> findByReporter_Id(Long reporterId, Pageable pageable);
 
     /**
      * Find all reports by status
@@ -123,13 +123,13 @@ public interface ReportRepository extends JpaRepository<ProgressReport, Long> {
     /**
      * Find reports by reporter's organization
      */
-    @Query("SELECT r FROM ProgressReport r WHERE r.reporter.org.orgId = :orgId")
+    @Query("SELECT r FROM ProgressReport r WHERE r.reporter.org.id = :orgId")
     List<ProgressReport> findByReporterOrg(@Param("orgId") Long orgId);
 
     /**
      * Find reports by reporter's organization with pagination
      */
-    @Query("SELECT r FROM ProgressReport r WHERE r.reporter.org.orgId = :orgId")
+    @Query("SELECT r FROM ProgressReport r WHERE r.reporter.org.id = :orgId")
     Page<ProgressReport> findByReporterOrg(@Param("orgId") Long orgId, Pageable pageable);
 
     /**

@@ -58,7 +58,7 @@ public class AdhocTaskScopeTypePropertyTest {
     private AssessmentCycleRepository assessmentCycleRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private IndicatorRepository indicatorRepository;
@@ -77,7 +77,7 @@ public class AdhocTaskScopeTypePropertyTest {
     /**
      * Get existing active organizations from the database.
      */
-    private List<Org> getExistingActiveOrgs(int limit) {
+    private List<SysOrg> getExistingActiveOrgs(int limit) {
         return orgRepository.findByIsActiveTrue().stream()
                 .limit(limit)
                 .toList();
@@ -162,7 +162,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Get existing cycles and organizations
         List<AssessmentCycle> cycles = getExistingCycles(5);
-        List<Org> activeOrgs = getExistingActiveOrgs(10);
+        List<SysOrg> activeOrgs = getExistingActiveOrgs(10);
 
         // Skip if no cycles or organizations exist
         assumeThat(cycles).isNotEmpty();
@@ -170,11 +170,11 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Select cycle and creator org based on indices
         AssessmentCycle cycle = cycles.get(cycleIndex % cycles.size());
-        Org creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
+        SysOrg creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
 
         // Create adhoc task with ALL_ORGS scope type
         AdhocTaskCreateRequest request = createBasicRequest(
-                cycle.getCycleId(), creatorOrg.getOrgId(), AdhocScopeType.ALL_ORGS);
+                cycle.getCycleId(), creatorOrg.getId(), AdhocScopeType.ALL_ORGS);
 
         // Create the adhoc task
         AdhocTaskVO createdTask = adhocTaskService.createAdhocTask(request);
@@ -184,7 +184,7 @@ public class AdhocTaskScopeTypePropertyTest {
         assertThat(createdTask.getScopeType()).isEqualTo(AdhocScopeType.ALL_ORGS);
 
         // Get all active organizations from the database
-        List<Org> allActiveOrgs = orgRepository.findByIsActiveTrue();
+        List<SysOrg> allActiveOrgs = orgRepository.findByIsActiveTrue();
 
         // Get target organizations for the created task
         List<AdhocTaskTarget> targets = adhocTaskTargetRepository
@@ -195,10 +195,10 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Assert: All active organizations should be in the targets
         List<Long> targetOrgIds = targets.stream()
-                .map(t -> t.getTargetOrg().getOrgId())
+                .map(t -> t.getTargetOrg().getId())
                 .collect(Collectors.toList());
         List<Long> allActiveOrgIds = allActiveOrgs.stream()
-                .map(Org::getOrgId)
+                .map(SysOrg::getId)
                 .collect(Collectors.toList());
 
         assertThat(targetOrgIds).containsExactlyInAnyOrderElementsOf(allActiveOrgIds);
@@ -224,7 +224,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Get existing cycles and organizations
         List<AssessmentCycle> cycles = getExistingCycles(5);
-        List<Org> activeOrgs = getExistingActiveOrgs(10);
+        List<SysOrg> activeOrgs = getExistingActiveOrgs(10);
 
         // Skip if no cycles or organizations exist
         assumeThat(cycles).isNotEmpty();
@@ -232,11 +232,11 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Select cycle and creator org based on indices
         AssessmentCycle cycle = cycles.get(cycleIndex % cycles.size());
-        Org creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
+        SysOrg creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
 
         // Create adhoc task with BY_DEPT_ISSUED_INDICATORS scope type
         AdhocTaskCreateRequest request = createBasicRequest(
-                cycle.getCycleId(), creatorOrg.getOrgId(), AdhocScopeType.BY_DEPT_ISSUED_INDICATORS);
+                cycle.getCycleId(), creatorOrg.getId(), AdhocScopeType.BY_DEPT_ISSUED_INDICATORS);
 
         // Create the adhoc task
         AdhocTaskVO createdTask = adhocTaskService.createAdhocTask(request);
@@ -246,7 +246,7 @@ public class AdhocTaskScopeTypePropertyTest {
         assertThat(createdTask.getScopeType()).isEqualTo(AdhocScopeType.BY_DEPT_ISSUED_INDICATORS);
 
         // Get indicators issued by the creator organization
-        List<Indicator> issuedIndicators = getIndicatorsIssuedByOrg(creatorOrg.getOrgId());
+        List<Indicator> issuedIndicators = getIndicatorsIssuedByOrg(creatorOrg.getId());
 
         // Filter to secondary level indicators (FUNC_TO_COLLEGE) if any exist
         List<Indicator> secondaryIndicators = issuedIndicators.stream()
@@ -298,7 +298,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Get existing cycles and organizations
         List<AssessmentCycle> cycles = getExistingCycles(5);
-        List<Org> activeOrgs = getExistingActiveOrgs(10);
+        List<SysOrg> activeOrgs = getExistingActiveOrgs(10);
 
         // Skip if no cycles or organizations exist
         assumeThat(cycles).isNotEmpty();
@@ -306,11 +306,11 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Select cycle and creator org based on indices
         AssessmentCycle cycle = cycles.get(cycleIndex % cycles.size());
-        Org creatorOrg = activeOrgs.get(creatorOrgIndex % activeOrgs.size());
+        SysOrg creatorOrg = activeOrgs.get(creatorOrgIndex % activeOrgs.size());
 
         // Select target organizations based on indices (ensure uniqueness)
         List<Long> selectedOrgIds = targetOrgIndices.stream()
-                .map(idx -> activeOrgs.get(idx % activeOrgs.size()).getOrgId())
+                .map(idx -> activeOrgs.get(idx % activeOrgs.size()).getId())
                 .distinct()
                 .collect(Collectors.toList());
 
@@ -319,7 +319,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Create adhoc task with CUSTOM scope type
         AdhocTaskCreateRequest request = createBasicRequest(
-                cycle.getCycleId(), creatorOrg.getOrgId(), AdhocScopeType.CUSTOM);
+                cycle.getCycleId(), creatorOrg.getId(), AdhocScopeType.CUSTOM);
         request.setTargetOrgIds(selectedOrgIds);
 
         // Create the adhoc task
@@ -338,7 +338,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Assert: All selected organizations should be in the targets
         List<Long> targetOrgIds = targets.stream()
-                .map(t -> t.getTargetOrg().getOrgId())
+                .map(t -> t.getTargetOrg().getId())
                 .collect(Collectors.toList());
 
         assertThat(targetOrgIds).containsExactlyInAnyOrderElementsOf(selectedOrgIds);
@@ -365,7 +365,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Get existing cycles, organizations, and indicators
         List<AssessmentCycle> cycles = getExistingCycles(5);
-        List<Org> activeOrgs = getExistingActiveOrgs(10);
+        List<SysOrg> activeOrgs = getExistingActiveOrgs(10);
         List<Indicator> activeIndicators = getExistingActiveIndicators(10);
 
         // Skip if no cycles, organizations, or indicators exist
@@ -375,7 +375,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Select cycle and creator org based on indices
         AssessmentCycle cycle = cycles.get(cycleIndex % cycles.size());
-        Org creatorOrg = activeOrgs.get(creatorOrgIndex % activeOrgs.size());
+        SysOrg creatorOrg = activeOrgs.get(creatorOrgIndex % activeOrgs.size());
 
         // Select target indicators based on indices (ensure uniqueness)
         List<Long> selectedIndicatorIds = targetIndicatorIndices.stream()
@@ -388,7 +388,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Create adhoc task with CUSTOM scope type
         AdhocTaskCreateRequest request = createBasicRequest(
-                cycle.getCycleId(), creatorOrg.getOrgId(), AdhocScopeType.CUSTOM);
+                cycle.getCycleId(), creatorOrg.getId(), AdhocScopeType.CUSTOM);
         request.setTargetIndicatorIds(selectedIndicatorIds);
 
         // Create the adhoc task
@@ -435,7 +435,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Get existing cycles and organizations
         List<AssessmentCycle> cycles = getExistingCycles(5);
-        List<Org> activeOrgs = getExistingActiveOrgs(10);
+        List<SysOrg> activeOrgs = getExistingActiveOrgs(10);
 
         // Skip if no cycles or organizations exist
         assumeThat(cycles).isNotEmpty();
@@ -443,11 +443,11 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Select cycle and creator org based on indices
         AssessmentCycle cycle = cycles.get(cycleIndex % cycles.size());
-        Org creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
+        SysOrg creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
 
         // Test ALL_ORGS scope type
         AdhocTaskCreateRequest allOrgsRequest = createBasicRequest(
-                cycle.getCycleId(), creatorOrg.getOrgId(), AdhocScopeType.ALL_ORGS);
+                cycle.getCycleId(), creatorOrg.getId(), AdhocScopeType.ALL_ORGS);
         AdhocTaskVO allOrgsTask = adhocTaskService.createAdhocTask(allOrgsRequest);
 
         List<AdhocTaskTarget> allOrgsTargets = adhocTaskTargetRepository
@@ -461,7 +461,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Test BY_DEPT_ISSUED_INDICATORS scope type
         AdhocTaskCreateRequest byDeptRequest = createBasicRequest(
-                cycle.getCycleId(), creatorOrg.getOrgId(), AdhocScopeType.BY_DEPT_ISSUED_INDICATORS);
+                cycle.getCycleId(), creatorOrg.getId(), AdhocScopeType.BY_DEPT_ISSUED_INDICATORS);
         AdhocTaskVO byDeptTask = adhocTaskService.createAdhocTask(byDeptRequest);
 
         List<AdhocTaskTarget> byDeptTargets = adhocTaskTargetRepository
@@ -495,7 +495,7 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Get existing cycles and organizations
         List<AssessmentCycle> cycles = getExistingCycles(5);
-        List<Org> activeOrgs = getExistingActiveOrgs(10);
+        List<SysOrg> activeOrgs = getExistingActiveOrgs(10);
         List<Indicator> activeIndicators = getExistingActiveIndicators(10);
 
         // Skip if no cycles or organizations exist
@@ -504,15 +504,15 @@ public class AdhocTaskScopeTypePropertyTest {
 
         // Select cycle and creator org based on indices
         AssessmentCycle cycle = cycles.get(cycleIndex % cycles.size());
-        Org creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
+        SysOrg creatorOrg = activeOrgs.get(orgIndex % activeOrgs.size());
 
         // Create adhoc task with the given scope type
         AdhocTaskCreateRequest request = createBasicRequest(
-                cycle.getCycleId(), creatorOrg.getOrgId(), scopeType);
+                cycle.getCycleId(), creatorOrg.getId(), scopeType);
 
         // For CUSTOM scope type, add some targets
         if (scopeType == AdhocScopeType.CUSTOM && !activeOrgs.isEmpty()) {
-            request.setTargetOrgIds(List.of(activeOrgs.get(0).getOrgId()));
+            request.setTargetOrgIds(List.of(activeOrgs.get(0).getId()));
         }
 
         // Create the adhoc task

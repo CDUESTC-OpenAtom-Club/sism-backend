@@ -93,7 +93,7 @@ public class ApprovalService {
         }
 
         // Validate approver exists
-        AppUser approver = userRepository.findById(request.getApproverId())
+        SysUser approver = userRepository.findById(request.getApproverId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", request.getApproverId()));
 
         // Validate comment is provided for REJECT and RETURN actions
@@ -127,7 +127,7 @@ public class ApprovalService {
      * @return approved report VO
      */
     @Transactional
-    public ReportVO approveReport(ProgressReport report, AppUser approver, String comment) {
+    public ReportVO approveReport(ProgressReport report, SysUser approver, String comment) {
         Long milestoneId = report.getMilestone() != null ? report.getMilestone().getMilestoneId() : null;
         
         // Handle final version management FIRST (Requirements: 4.6)
@@ -169,7 +169,7 @@ public class ApprovalService {
      * @return rejected report VO
      */
     @Transactional
-    public ReportVO rejectReport(ProgressReport report, AppUser approver, String comment) {
+    public ReportVO rejectReport(ProgressReport report, SysUser approver, String comment) {
         report.setStatus(ReportStatus.REJECTED);
         ProgressReport savedReport = reportRepository.save(report);
 
@@ -190,7 +190,7 @@ public class ApprovalService {
      * @return returned report VO
      */
     @Transactional
-    public ReportVO returnReport(ProgressReport report, AppUser approver, String comment) {
+    public ReportVO returnReport(ProgressReport report, SysUser approver, String comment) {
         report.setStatus(ReportStatus.RETURNED);
         ProgressReport savedReport = reportRepository.save(report);
 
@@ -242,7 +242,7 @@ public class ApprovalService {
      * @param action approval action
      * @param comment approval comment
      */
-    private void createApprovalRecord(ProgressReport report, AppUser approver, 
+    private void createApprovalRecord(ProgressReport report, SysUser approver, 
                                        ApprovalAction action, String comment) {
         ApprovalRecord record = new ApprovalRecord();
         record.setReport(report);
@@ -276,10 +276,10 @@ public class ApprovalService {
         vo.setPercentComplete(report.getPercentComplete());
         vo.setAchievedMilestone(report.getAchievedMilestone());
         vo.setNarrative(report.getNarrative());
-        vo.setReporterId(report.getReporter().getUserId());
+        vo.setReporterId(report.getReporter().getId());
         vo.setReporterName(report.getReporter().getRealName());
-        vo.setReporterOrgId(report.getReporter().getOrg().getOrgId());
-        vo.setReporterOrgName(report.getReporter().getOrg().getOrgName());
+        vo.setReporterOrgId(report.getReporter().getOrg().getId());
+        vo.setReporterOrgName(report.getReporter().getOrg().getName());
         vo.setStatus(report.getStatus());
         vo.setIsFinal(report.getIsFinal());
         vo.setVersionNo(report.getVersionNo());
@@ -297,10 +297,10 @@ public class ApprovalService {
         ApprovalRecordVO vo = new ApprovalRecordVO();
         vo.setApprovalId(record.getApprovalId());
         vo.setReportId(record.getReport().getReportId());
-        vo.setApproverId(record.getApprover().getUserId());
+        vo.setApproverId(record.getApprover().getId());
         vo.setApproverName(record.getApprover().getRealName());
-        vo.setApproverOrgId(record.getApprover().getOrg().getOrgId());
-        vo.setApproverOrgName(record.getApprover().getOrg().getOrgName());
+        vo.setApproverOrgId(record.getApprover().getOrg().getId());
+        vo.setApproverOrgName(record.getApprover().getOrg().getName());
         vo.setAction(record.getAction());
         vo.setComment(record.getComment());
         vo.setActedAt(record.getActedAt());

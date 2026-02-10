@@ -36,11 +36,11 @@ public class StrategicTask extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "org_id", nullable = false)
-    private Org org;
+    private SysOrg org;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_org_id", nullable = false)
-    private Org createdByOrg;
+    private SysOrg createdByOrg;
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;

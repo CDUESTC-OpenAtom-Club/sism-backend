@@ -3,17 +3,17 @@ package com.sism.service;
 import com.sism.dto.IndicatorAuditData;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.entity.Milestone;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.enums.AuditEntityType;
 import com.sism.enums.IndicatorStatus;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.IndicatorRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.repository.UserRepository;
 import com.sism.vo.IndicatorVO;
@@ -40,7 +40,7 @@ public class IndicatorService {
 
     private final IndicatorRepository indicatorRepository;
     private final TaskRepository taskRepository;
-    private final OrgRepository orgRepository;
+    private final SysOrgRepository orgRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
@@ -113,7 +113,7 @@ public class IndicatorService {
      * @return list of indicators targeting the organization
      */
     public List<IndicatorVO> getIndicatorsByTargetOrgId(Long targetOrgId) {
-        return indicatorRepository.findByTargetOrg_OrgId(targetOrgId).stream()
+        return indicatorRepository.findByTargetOrg_Id(targetOrgId).stream()
                 .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
                 .map(i -> toIndicatorVO(i, false))
                 .collect(Collectors.toList());
@@ -165,11 +165,11 @@ public class IndicatorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Strategic Task", request.getTaskId()));
 
         // Validate owner organization exists
-        Org ownerOrg = orgRepository.findById(request.getOwnerOrgId())
+        SysOrg ownerOrg = orgRepository.findById(request.getOwnerOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner Organization", request.getOwnerOrgId()));
 
         // Validate target organization exists
-        Org targetOrg = orgRepository.findById(request.getTargetOrgId())
+        SysOrg targetOrg = orgRepository.findById(request.getTargetOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Target Organization", request.getTargetOrgId()));
 
         // Validate parent indicator if provided
@@ -203,9 +203,9 @@ public class IndicatorService {
         log.info("Successfully created indicator with ID: {}", savedIndicator.getIndicatorId());
 
         // Record audit log for CREATE operation
-        AppUser actorUser = actorUserId != null ? 
+        SysUser actorUser = actorUserId != null ? 
                 userRepository.findById(actorUserId).orElse(null) : null;
-        Org actorOrg = actorUser != null ? actorUser.getOrg() : ownerOrg;
+        SysOrg actorOrg = actorUser != null ? actorUser.getOrg() : ownerOrg;
         
         try {
             auditLogService.logCreate(
@@ -274,12 +274,12 @@ public class IndicatorService {
             indicator.setLevel(request.getLevel());
         }
         if (request.getOwnerOrgId() != null) {
-            Org ownerOrg = orgRepository.findById(request.getOwnerOrgId())
+            SysOrg ownerOrg = orgRepository.findById(request.getOwnerOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Owner Organization", request.getOwnerOrgId()));
             indicator.setOwnerOrg(ownerOrg);
         }
         if (request.getTargetOrgId() != null) {
-            Org targetOrg = orgRepository.findById(request.getTargetOrgId())
+            SysOrg targetOrg = orgRepository.findById(request.getTargetOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Target Organization", request.getTargetOrgId()));
             indicator.setTargetOrg(targetOrg);
         }
@@ -335,9 +335,9 @@ public class IndicatorService {
         Indicator updatedIndicator = indicatorRepository.save(indicator);
 
         // Record audit log for UPDATE operation
-        AppUser actorUser = actorUserId != null ? 
+        SysUser actorUser = actorUserId != null ? 
                 userRepository.findById(actorUserId).orElse(null) : null;
-        Org actorOrg = actorUser != null ? actorUser.getOrg() : indicator.getOwnerOrg();
+        SysOrg actorOrg = actorUser != null ? actorUser.getOrg() : indicator.getOwnerOrg();
         IndicatorAuditData afterData = IndicatorAuditData.fromEntity(updatedIndicator);
         
         try {
@@ -394,9 +394,9 @@ public class IndicatorService {
         indicatorRepository.save(indicator);
 
         // Record audit log for DELETE (ARCHIVE) operation
-        AppUser actorUser = actorUserId != null ? 
+        SysUser actorUser = actorUserId != null ? 
                 userRepository.findById(actorUserId).orElse(null) : null;
-        Org actorOrg = actorUser != null ? actorUser.getOrg() : indicator.getOwnerOrg();
+        SysOrg actorOrg = actorUser != null ? actorUser.getOrg() : indicator.getOwnerOrg();
         
         try {
             auditLogService.logArchive(
@@ -470,10 +470,10 @@ public class IndicatorService {
         }
         
         vo.setLevel(indicator.getLevel());
-        vo.setOwnerOrgId(indicator.getOwnerOrg().getOrgId());
-        vo.setOwnerOrgName(indicator.getOwnerOrg().getOrgName());
-        vo.setTargetOrgId(indicator.getTargetOrg().getOrgId());
-        vo.setTargetOrgName(indicator.getTargetOrg().getOrgName());
+        vo.setOwnerOrgId(indicator.getOwnerOrg().getId());
+        vo.setOwnerOrgName(indicator.getOwnerOrg().getName());
+        vo.setTargetOrgId(indicator.getTargetOrg().getId());
+        vo.setTargetOrgName(indicator.getTargetOrg().getName());
         vo.setIndicatorDesc(indicator.getIndicatorDesc());
         vo.setWeightPercent(indicator.getWeightPercent());
         vo.setSortOrder(indicator.getSortOrder());
@@ -518,10 +518,10 @@ public class IndicatorService {
         vo.setIsStrategic(indicator.getLevel() == com.sism.enums.IndicatorLevel.STRAT_TO_FUNC);
         
         // responsibleDept: 等同于 targetOrgName
-        vo.setResponsibleDept(indicator.getTargetOrg().getOrgName());
+        vo.setResponsibleDept(indicator.getTargetOrg().getName());
         
         // ownerDept: 等同于 ownerOrgName
-        vo.setOwnerDept(indicator.getOwnerOrg().getOrgName());
+        vo.setOwnerDept(indicator.getOwnerOrg().getName());
 
         if (includeChildren) {
             // Include child indicators
@@ -591,7 +591,7 @@ public class IndicatorService {
         }
 
         // Validate target organization exists
-        Org targetOrg = orgRepository.findById(targetOrgId)
+        SysOrg targetOrg = orgRepository.findById(targetOrgId)
                 .orElseThrow(() -> new ResourceNotFoundException("Target Organization", targetOrgId));
 
         // Determine child level based on parent level
@@ -621,7 +621,7 @@ public class IndicatorService {
         inheritMilestones(parentIndicator, savedChild);
 
         // Record audit log
-        AppUser actorUser = actorUserId != null ? 
+        SysUser actorUser = actorUserId != null ? 
                 userRepository.findById(actorUserId).orElse(null) : null;
         try {
             auditLogService.logCreate(
@@ -630,7 +630,7 @@ public class IndicatorService {
                     IndicatorAuditData.fromEntity(savedChild),
                     actorUser,
                     parentIndicator.getTargetOrg(),
-                    "指标下发：从指标 #" + parentIndicatorId + " 下发到 " + targetOrg.getOrgName()
+                    "指标下发：从指标 #" + parentIndicatorId + " 下发到 " + targetOrg.getName()
             );
         } catch (Exception e) {
             log.warn("Failed to create audit log for indicator distribution: {}", e.getMessage());

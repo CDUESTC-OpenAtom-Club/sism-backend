@@ -47,7 +47,7 @@ public class ProgressReport extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reporter_id", nullable = false)
-    private AppUser reporter;
+    private SysUser reporter;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

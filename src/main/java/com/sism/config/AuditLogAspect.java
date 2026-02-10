@@ -1,7 +1,7 @@
 package com.sism.config;
 
-import com.sism.entity.AppUser;
-import com.sism.entity.Org;
+import com.sism.entity.SysUser;
+import com.sism.entity.SysOrg;
 import com.sism.enums.AuditAction;
 import com.sism.enums.AuditEntityType;
 import com.sism.repository.UserRepository;
@@ -82,8 +82,8 @@ public class AuditLogAspect {
             }
             
             // Get current user and organization
-            AppUser actorUser = getCurrentUser();
-            Org actorOrg = actorUser != null ? actorUser.getOrg() : null;
+            SysUser actorUser = getCurrentUser();
+            SysOrg actorOrg = actorUser != null ? actorUser.getOrg() : null;
             
             // Record audit log based on action type
             recordAuditLog(entityType, entityId, action, beforeData, afterData, actorUser, actorOrg);
@@ -226,7 +226,7 @@ public class AuditLogAspect {
     /**
      * Get current authenticated user
      */
-    private AppUser getCurrentUser() {
+    private SysUser getCurrentUser() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             if (authentication != null && authentication.isAuthenticated()) {
@@ -245,7 +245,7 @@ public class AuditLogAspect {
      * Record audit log based on action type
      */
     private void recordAuditLog(AuditEntityType entityType, Long entityId, AuditAction action,
-                                 Object beforeData, Object afterData, AppUser actorUser, Org actorOrg) {
+                                 Object beforeData, Object afterData, SysUser actorUser, SysOrg actorOrg) {
         if (entityId == null) {
             log.warn("Cannot record audit log: entity ID is null");
             return;

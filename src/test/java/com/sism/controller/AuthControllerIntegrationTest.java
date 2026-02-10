@@ -2,7 +2,7 @@ package com.sism.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.repository.UserRepository;
 import com.sism.vo.LoginResponse;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,20 +47,20 @@ class AuthControllerIntegrationTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private AppUser testUser;
+    private SysUser testUser;
     private final String testPassword = "testPassword123";
 
     @BeforeEach
     void setUp() {
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode(testPassword));
             user.setRealName("Test User");
             user.setIsActive(true);
             user.setOrg(userRepository.findAll().stream()
                     .filter(u -> u.getOrg() != null)
-                    .map(AppUser::getOrg)
+                    .map(SysUser::getOrg)
                     .findFirst()
                     .orElseThrow());
             return userRepository.save(user);

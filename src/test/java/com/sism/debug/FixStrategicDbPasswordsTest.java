@@ -1,6 +1,6 @@
 package com.sism.debug;
 
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,10 +38,10 @@ public class FixStrategicDbPasswordsTest {
         System.out.println("Hash length: " + newPasswordHash.length());
         System.out.println();
         
-        List<AppUser> allUsers = userRepository.findAll();
+        List<SysUser> allUsers = userRepository.findAll();
         int updatedCount = 0;
         
-        for (AppUser user : allUsers) {
+        for (SysUser user : allUsers) {
             boolean needsUpdate = !passwordEncoder.matches(newPassword, user.getPasswordHash());
             
             if (needsUpdate) {

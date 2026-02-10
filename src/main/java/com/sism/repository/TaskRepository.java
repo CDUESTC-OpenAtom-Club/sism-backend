@@ -24,7 +24,7 @@ public interface TaskRepository extends JpaRepository<StrategicTask, Long> {
     /**
      * Find all tasks by organization ID
      */
-    List<StrategicTask> findByOrg_OrgId(Long orgId);
+    List<StrategicTask> findByOrg_Id(Long orgId);
 
     /**
      * Find all tasks by task type
@@ -34,7 +34,7 @@ public interface TaskRepository extends JpaRepository<StrategicTask, Long> {
     /**
      * Find all tasks by cycle ID and organization ID
      */
-    List<StrategicTask> findByCycle_CycleIdAndOrg_OrgId(Long cycleId, Long orgId);
+    List<StrategicTask> findByCycle_CycleIdAndOrg_Id(Long cycleId, Long orgId);
 
     /**
      * Find all tasks by cycle ID ordered by sort order
@@ -49,7 +49,7 @@ public interface TaskRepository extends JpaRepository<StrategicTask, Long> {
     /**
      * Find tasks created by a specific organization
      */
-    List<StrategicTask> findByCreatedByOrg_OrgId(Long createdByOrgId);
+    List<StrategicTask> findByCreatedByOrg_Id(Long createdByOrgId);
 
     /**
      * Count tasks by cycle ID
@@ -58,11 +58,11 @@ public interface TaskRepository extends JpaRepository<StrategicTask, Long> {
 
     /**
      * Find tasks by cycle ID and organization hierarchy
-     * Returns tasks where the organization or its descendants are involved
+     * Returns tasks where the organization is involved (flat structure, no hierarchy)
      */
     @Query("SELECT DISTINCT t FROM StrategicTask t " +
            "WHERE t.cycle.cycleId = :cycleId " +
-           "AND (t.org.orgId = :orgId OR t.org.parentOrg.orgId = :orgId)")
+           "AND t.org.id = :orgId")
     List<StrategicTask> findByCycleAndOrgHierarchy(@Param("cycleId") Long cycleId, 
                                                      @Param("orgId") Long orgId);
 

@@ -4,14 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
 import com.sism.repository.IndicatorRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +57,7 @@ class IndicatorControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private IndicatorRepository indicatorRepository;
@@ -70,14 +70,14 @@ class IndicatorControllerIntegrationTest {
 
     private String authToken;
     private Indicator testIndicator;
-    private Org testOrg;
+    private SysOrg testOrg;
     private StrategicTask testTask;
 
     @BeforeEach
     void setUp() throws Exception {
         // Get or create test user and login
-        AppUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
@@ -273,7 +273,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return indicators by owner org ID")
         void shouldReturnIndicatorsByOwnerOrgId() throws Exception {
-            mockMvc.perform(get("/api/indicators/owner/{ownerOrgId}", testOrg.getOrgId())
+            mockMvc.perform(get("/api/indicators/owner/{ownerOrgId}", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -307,8 +307,8 @@ class IndicatorControllerIntegrationTest {
             IndicatorCreateRequest request = new IndicatorCreateRequest();
             request.setIndicatorDesc("New Test Indicator");
             request.setTaskId(testTask.getTaskId());
-            request.setOwnerOrgId(testOrg.getOrgId());
-            request.setTargetOrgId(testOrg.getOrgId());
+            request.setOwnerOrgId(testOrg.getId());
+            request.setTargetOrgId(testOrg.getId());
             request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
             request.setWeightPercent(BigDecimal.valueOf(5));
             request.setYear(2025);

@@ -45,12 +45,12 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
     /**
      * Find all indicators by owner organization ID
      */
-    List<Indicator> findByOwnerOrg_OrgId(Long ownerOrgId);
+    List<Indicator> findByOwnerOrg_Id(Long ownerOrgId);
 
     /**
      * Find all indicators by target organization ID
      */
-    List<Indicator> findByTargetOrg_OrgId(Long targetOrgId);
+    List<Indicator> findByTargetOrg_Id(Long targetOrgId);
 
     /**
      * Find all indicators by task ID and status
@@ -92,13 +92,13 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
      * Returns indicators where the target organization matches or is a descendant
      */
     @Query("SELECT DISTINCT i FROM Indicator i " +
-           "WHERE i.targetOrg.orgId = :orgId OR i.targetOrg.parentOrg.orgId = :orgId")
+           "WHERE i.targetOrg.id = :orgId")
     List<Indicator> findByTargetOrgHierarchy(@Param("orgId") Long orgId);
 
     /**
      * Find indicators issued by a specific organization (owner)
      */
-    @Query("SELECT i FROM Indicator i WHERE i.ownerOrg.orgId = :ownerOrgId AND i.status = :status")
+    @Query("SELECT i FROM Indicator i WHERE i.ownerOrg.id = :ownerOrgId AND i.status = :status")
     List<Indicator> findByOwnerOrgAndStatus(@Param("ownerOrgId") Long ownerOrgId, 
                                              @Param("status") IndicatorStatus status);
 

@@ -41,8 +41,8 @@ public class EntitySchemaFieldCoveragePropertyTest {
 
     // Entity classes to verify (excluding BaseEntity which is a MappedSuperclass)
     private static final List<Class<?>> ENTITY_CLASSES = List.of(
-            com.sism.entity.Org.class,
-            com.sism.entity.AppUser.class,
+            com.sism.entity.SysOrg.class,
+            com.sism.entity.SysUser.class,
             com.sism.entity.AssessmentCycle.class,
             com.sism.entity.StrategicTask.class,
             com.sism.entity.Indicator.class,

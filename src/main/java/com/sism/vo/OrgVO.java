@@ -6,6 +6,7 @@ import lombok.Data;
 /**
  * Value Object for organization data
  * Used for API responses
+ * Flat structure without parent-child relationships
  */
 @Data
 public class OrgVO {
@@ -15,10 +16,6 @@ public class OrgVO {
     private String orgName;
     
     private OrgType orgType;
-    
-    private Long parentOrgId;
-    
-    private String parentOrgName;
     
     private Boolean isActive;
     

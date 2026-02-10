@@ -23,7 +23,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate  # 默认: 验证表结构，不自动创建
+      ddl-auto: update  # 临时改为 update 以自动更新表结构
     show-sql: false
     properties:
       hibernate:

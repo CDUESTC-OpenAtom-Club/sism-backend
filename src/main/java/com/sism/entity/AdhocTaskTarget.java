@@ -25,7 +25,7 @@ public class AdhocTaskTarget {
     @Id
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "target_org_id", nullable = false)
-    private Org targetOrg;
+    private SysOrg targetOrg;
 
     /**
      * Composite primary key class

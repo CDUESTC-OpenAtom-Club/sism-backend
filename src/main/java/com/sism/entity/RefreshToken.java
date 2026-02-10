@@ -38,7 +38,7 @@ public class RefreshToken {
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private AppUser user;
+    private SysUser user;
 
     /**
      * Token 的 SHA-256 哈希值
@@ -89,7 +89,7 @@ public class RefreshToken {
      * @param deviceInfo 设备信息
      * @param ipAddress IP 地址
      */
-    public RefreshToken(AppUser user, String tokenHash, LocalDateTime expiresAt, 
+    public RefreshToken(SysUser user, String tokenHash, LocalDateTime expiresAt, 
                         String deviceInfo, String ipAddress) {
         this.user = user;
         this.tokenHash = tokenHash;

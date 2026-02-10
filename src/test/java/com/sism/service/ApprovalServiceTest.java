@@ -2,7 +2,7 @@ package com.sism.service;
 
 import com.sism.dto.ApprovalRequest;
 import com.sism.dto.ReportCreateRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.enums.ApprovalAction;
 import com.sism.enums.IndicatorStatus;
@@ -50,8 +50,8 @@ class ApprovalServiceTest {
     private UserRepository userRepository;
 
     private Indicator testIndicator;
-    private AppUser testReporter;
-    private AppUser testApprover;
+    private SysUser testReporter;
+    private SysUser testApprover;
 
     @BeforeEach
     void setUp() {
@@ -61,8 +61,8 @@ class ApprovalServiceTest {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No active indicators found in test database"));
 
-        List<AppUser> users = userRepository.findAll().stream()
-                .filter(AppUser::getIsActive)
+        List<SysUser> users = userRepository.findAll().stream()
+                .filter(SysUser::getIsActive)
                 .toList();
         
         assertThat(users).hasSizeGreaterThanOrEqualTo(2);
@@ -73,7 +73,7 @@ class ApprovalServiceTest {
     private ReportVO createAndSubmitReport() {
         ReportCreateRequest createRequest = new ReportCreateRequest();
         createRequest.setIndicatorId(testIndicator.getIndicatorId());
-        createRequest.setReporterId(testReporter.getUserId());
+        createRequest.setReporterId(testReporter.getId());
         createRequest.setPercentComplete(new BigDecimal("50"));
         createRequest.setNarrative("Test report for approval");
 
@@ -112,7 +112,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.APPROVE);
             request.setComment("Approved");
 
@@ -130,14 +130,14 @@ class ApprovalServiceTest {
             // Given - Create a DRAFT report (not submitted)
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             ReportVO draft = reportService.createReport(createRequest);
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(draft.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.APPROVE);
 
             // When/Then
@@ -159,7 +159,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.REJECT);
             request.setComment("Rejected - incomplete data");
 
@@ -178,7 +178,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.REJECT);
             request.setComment(null);
 
@@ -196,7 +196,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.REJECT);
             request.setComment("   ");
 
@@ -219,7 +219,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.RETURN);
             request.setComment("Please revise the narrative");
 
@@ -238,7 +238,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.RETURN);
             request.setComment(null);
 
@@ -261,7 +261,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getUserId());
+            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.APPROVE);
             request.setComment("Approved");
 
@@ -281,7 +281,7 @@ class ApprovalServiceTest {
             // Given - Create a report but don't approve it
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             ReportVO created = reportService.createReport(createRequest);
@@ -306,7 +306,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest returnRequest = new ApprovalRequest();
             returnRequest.setReportId(submitted.getReportId());
-            returnRequest.setApproverId(testApprover.getUserId());
+            returnRequest.setApproverId(testApprover.getId());
             returnRequest.setAction(ApprovalAction.RETURN);
             returnRequest.setComment("Please revise");
 
@@ -327,7 +327,7 @@ class ApprovalServiceTest {
 
             ApprovalRequest returnRequest = new ApprovalRequest();
             returnRequest.setReportId(submitted.getReportId());
-            returnRequest.setApproverId(testApprover.getUserId());
+            returnRequest.setApproverId(testApprover.getId());
             returnRequest.setAction(ApprovalAction.RETURN);
             returnRequest.setComment("Please revise");
 

@@ -38,7 +38,7 @@ public class AdhocTaskService {
     private final AdhocTaskTargetRepository adhocTaskTargetRepository;
     private final AdhocTaskIndicatorMapRepository adhocTaskIndicatorMapRepository;
     private final AssessmentCycleRepository assessmentCycleRepository;
-    private final OrgRepository orgRepository;
+    private final SysOrgRepository orgRepository;
     private final IndicatorRepository indicatorRepository;
 
     /**
@@ -85,7 +85,7 @@ public class AdhocTaskService {
      * @return list of adhoc tasks
      */
     public List<AdhocTaskVO> getAdhocTasksByCreatorOrgId(Long creatorOrgId) {
-        return adhocTaskRepository.findByCreatorOrg_OrgId(creatorOrgId).stream()
+        return adhocTaskRepository.findByCreatorOrg_Id(creatorOrgId).stream()
                 .map(task -> toAdhocTaskVO(task, false))
                 .collect(Collectors.toList());
     }
@@ -155,7 +155,7 @@ public class AdhocTaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Assessment Cycle", request.getCycleId()));
 
         // Validate creator organization exists
-        Org creatorOrg = orgRepository.findById(request.getCreatorOrgId())
+        SysOrg creatorOrg = orgRepository.findById(request.getCreatorOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Creator Organization", request.getCreatorOrgId()));
 
         // Validate indicator if provided
@@ -183,7 +183,7 @@ public class AdhocTaskService {
 
         // Handle scope type specific logic
         handleScopeType(savedTask, request.getScopeType(), request.getTargetOrgIds(), 
-                request.getTargetIndicatorIds(), creatorOrg.getOrgId());
+                request.getTargetIndicatorIds(), creatorOrg.getId());
 
         log.info("Created adhoc task: {} with scope type: {}", savedTask.getAdhocTaskId(), request.getScopeType());
 
@@ -227,9 +227,9 @@ public class AdhocTaskService {
      * @param adhocTask the adhoc task
      */
     private void populateAllOrgsTargets(AdhocTask adhocTask) {
-        List<Org> allActiveOrgs = orgRepository.findByIsActiveTrue();
+        List<SysOrg> allActiveOrgs = orgRepository.findByIsActiveTrue();
         
-        for (Org org : allActiveOrgs) {
+        for (SysOrg org : allActiveOrgs) {
             AdhocTaskTarget target = new AdhocTaskTarget();
             target.setAdhocTask(adhocTask);
             target.setTargetOrg(org);
@@ -284,7 +284,7 @@ public class AdhocTaskService {
         // Populate target organizations
         if (targetOrgIds != null && !targetOrgIds.isEmpty()) {
             for (Long orgId : targetOrgIds) {
-                Org org = orgRepository.findById(orgId)
+                SysOrg org = orgRepository.findById(orgId)
                         .orElseThrow(() -> new ResourceNotFoundException("Target Organization", orgId));
                 
                 AdhocTaskTarget target = new AdhocTaskTarget();
@@ -368,7 +368,7 @@ public class AdhocTaskService {
             
             // Re-populate based on new scope type
             handleScopeType(adhocTask, request.getScopeType(), request.getTargetOrgIds(), 
-                    request.getTargetIndicatorIds(), adhocTask.getCreatorOrg().getOrgId());
+                    request.getTargetIndicatorIds(), adhocTask.getCreatorOrg().getId());
         } else if (request.getScopeType() == AdhocScopeType.CUSTOM) {
             // Update custom targets if scope type is CUSTOM
             if (request.getTargetOrgIds() != null || request.getTargetIndicatorIds() != null) {
@@ -583,8 +583,8 @@ public class AdhocTaskService {
         vo.setAdhocTaskId(adhocTask.getAdhocTaskId());
         vo.setCycleId(adhocTask.getCycle().getCycleId());
         vo.setCycleName(adhocTask.getCycle().getCycleName());
-        vo.setCreatorOrgId(adhocTask.getCreatorOrg().getOrgId());
-        vo.setCreatorOrgName(adhocTask.getCreatorOrg().getOrgName());
+        vo.setCreatorOrgId(adhocTask.getCreatorOrg().getId());
+        vo.setCreatorOrgName(adhocTask.getCreatorOrg().getName());
         vo.setScopeType(adhocTask.getScopeType());
         
         if (adhocTask.getIndicator() != null) {
@@ -626,8 +626,8 @@ public class AdhocTaskService {
      */
     private AdhocTaskVO.AdhocTaskTargetVO toTargetVO(AdhocTaskTarget target) {
         AdhocTaskVO.AdhocTaskTargetVO vo = new AdhocTaskVO.AdhocTaskTargetVO();
-        vo.setOrgId(target.getTargetOrg().getOrgId());
-        vo.setOrgName(target.getTargetOrg().getOrgName());
+        vo.setOrgId(target.getTargetOrg().getId());
+        vo.setOrgName(target.getTargetOrg().getName());
         return vo;
     }
 
@@ -638,8 +638,8 @@ public class AdhocTaskService {
         AdhocTaskVO.AdhocTaskIndicatorVO vo = new AdhocTaskVO.AdhocTaskIndicatorVO();
         vo.setIndicatorId(mapping.getIndicator().getIndicatorId());
         vo.setIndicatorDesc(mapping.getIndicator().getIndicatorDesc());
-        vo.setOwnerOrgId(mapping.getIndicator().getOwnerOrg().getOrgId());
-        vo.setOwnerOrgName(mapping.getIndicator().getOwnerOrg().getOrgName());
+        vo.setOwnerOrgId(mapping.getIndicator().getOwnerOrg().getId());
+        vo.setOwnerOrgName(mapping.getIndicator().getOwnerOrg().getName());
         return vo;
     }
 }

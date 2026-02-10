@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.AdhocTaskCreateRequest;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.AdhocTask;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.AssessmentCycle;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.enums.AdhocScopeType;
 import com.sism.enums.AdhocTaskStatus;
 import com.sism.repository.*;
@@ -53,7 +53,7 @@ class AdhocTaskControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private AdhocTaskRepository adhocTaskRepository;
@@ -65,8 +65,8 @@ class AdhocTaskControllerIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
-    private AppUser testUser;
-    private Org testOrg;
+    private SysUser testUser;
+    private SysOrg testOrg;
     private AssessmentCycle testCycle;
     private AdhocTask testAdhocTask;
 
@@ -74,7 +74,7 @@ class AdhocTaskControllerIntegrationTest {
     void setUp() throws Exception {
         // Get or create test user and login
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
@@ -152,7 +152,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return adhoc tasks by creator org ID")
         void shouldReturnAdhocTasksByCreatorOrgId() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/creator/{creatorOrgId}", testOrg.getOrgId())
+            mockMvc.perform(get("/api/adhoc-tasks/creator/{creatorOrgId}", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -217,10 +217,10 @@ class AdhocTaskControllerIntegrationTest {
             request.setTaskTitle("New Adhoc Task");
             request.setTaskDesc("New adhoc task description");
             request.setCycleId(testCycle.getCycleId());
-            request.setCreatorOrgId(testOrg.getOrgId());
+            request.setCreatorOrgId(testOrg.getId());
             request.setScopeType(AdhocScopeType.CUSTOM);
             request.setDueAt(LocalDate.now().plusMonths(2));
-            request.setTargetOrgIds(List.of(testOrg.getOrgId()));
+            request.setTargetOrgIds(List.of(testOrg.getId()));
 
             mockMvc.perform(post("/api/adhoc-tasks")
                             .header("Authorization", "Bearer " + authToken)

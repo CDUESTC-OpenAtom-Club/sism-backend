@@ -5,16 +5,16 @@ import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.dto.MilestoneCreateRequest;
 import com.sism.dto.MilestoneUpdateRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.entity.Milestone;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.MilestoneStatus;
 import com.sism.repository.IndicatorRepository;
 import com.sism.repository.MilestoneRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.repository.UserRepository;
 import com.sism.util.JwtUtil;
@@ -65,7 +65,7 @@ public class UnauthorizedAccessRejectionPropertyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private IndicatorRepository indicatorRepository;
@@ -158,14 +158,14 @@ public class UnauthorizedAccessRejectionPropertyTest {
 
     // ==================== Helper Methods ====================
 
-    private AppUser getTestUser() {
+    private SysUser getTestUser() {
         return userRepository.findAll().stream()
                 .filter(u -> u.getOrg() != null && u.getIsActive())
                 .findFirst()
                 .orElse(null);
     }
 
-    private Org getTestOrg() {
+    private SysOrg getTestOrg() {
         return orgRepository.findAll().stream()
                 .findFirst()
                 .orElse(null);
@@ -485,7 +485,7 @@ public class UnauthorizedAccessRejectionPropertyTest {
         Indicator indicator = getTestIndicator();
         Milestone milestone = getTestMilestone();
         StrategicTask task = getTestTask();
-        Org org = getTestOrg();
+        SysOrg org = getTestOrg();
 
         // Test unauthorized access to various resource endpoints
         if (indicator != null) {
@@ -504,7 +504,7 @@ public class UnauthorizedAccessRejectionPropertyTest {
         }
 
         if (org != null) {
-            mockMvc.perform(get("/api/orgs/{id}", org.getOrgId()))
+            mockMvc.perform(get("/api/orgs/{id}", org.getId()))
                     .andExpect(status().isForbidden());
         }
     }
@@ -522,7 +522,7 @@ public class UnauthorizedAccessRejectionPropertyTest {
     @Property(tries = 30)
     void unauthorizedModificationAttempts_shouldBeRejected() throws Exception {
         Indicator indicator = getTestIndicator();
-        Org org = getTestOrg();
+        SysOrg org = getTestOrg();
         StrategicTask task = getTestTask();
 
         assumeThat(indicator).isNotNull();
@@ -533,8 +533,8 @@ public class UnauthorizedAccessRejectionPropertyTest {
         IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
         createRequest.setIndicatorDesc("Unauthorized Create Attempt");
         createRequest.setTaskId(task.getTaskId());
-        createRequest.setOwnerOrgId(org.getOrgId());
-        createRequest.setTargetOrgId(org.getOrgId());
+        createRequest.setOwnerOrgId(org.getId());
+        createRequest.setTargetOrgId(org.getId());
         createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
         createRequest.setWeightPercent(BigDecimal.valueOf(10));
         createRequest.setYear(2025);

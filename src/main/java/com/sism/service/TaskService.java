@@ -3,11 +3,11 @@ package com.sism.service;
 import com.sism.dto.TaskCreateRequest;
 import com.sism.dto.TaskUpdateRequest;
 import com.sism.entity.AssessmentCycle;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.AssessmentCycleRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.vo.TaskVO;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final AssessmentCycleRepository cycleRepository;
-    private final OrgRepository orgRepository;
+    private final SysOrgRepository sysOrgRepository;
 
     /**
      * Get task by ID
@@ -77,7 +77,7 @@ public class TaskService {
      * @return list of tasks for the organization
      */
     public List<TaskVO> getTasksByOrgId(Long orgId) {
-        return taskRepository.findByOrg_OrgId(orgId).stream()
+        return taskRepository.findByOrg_Id(orgId).stream()
                 .map(this::toTaskVO)
                 .collect(Collectors.toList());
     }
@@ -98,11 +98,11 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("Assessment Cycle", request.getCycleId()));
 
         // Validate organization exists
-        Org org = orgRepository.findById(request.getOrgId())
+        SysOrg org = sysOrgRepository.findById(request.getOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Organization", request.getOrgId()));
 
         // Validate created by organization exists
-        Org createdByOrg = orgRepository.findById(request.getCreatedByOrgId())
+        SysOrg createdByOrg = sysOrgRepository.findById(request.getCreatedByOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Created By Organization", request.getCreatedByOrgId()));
 
         StrategicTask task = new StrategicTask();
@@ -143,7 +143,7 @@ public class TaskService {
             task.setTaskType(request.getTaskType());
         }
         if (request.getOrgId() != null) {
-            Org org = orgRepository.findById(request.getOrgId())
+            SysOrg org = sysOrgRepository.findById(request.getOrgId())
                     .orElseThrow(() -> new ResourceNotFoundException("Organization", request.getOrgId()));
             task.setOrg(org);
         }
@@ -205,10 +205,10 @@ public class TaskService {
         vo.setTaskName(task.getTaskName());
         vo.setTaskDesc(task.getTaskDesc());
         vo.setTaskType(task.getTaskType());
-        vo.setOrgId(task.getOrg().getOrgId());
-        vo.setOrgName(task.getOrg().getOrgName());
-        vo.setCreatedByOrgId(task.getCreatedByOrg().getOrgId());
-        vo.setCreatedByOrgName(task.getCreatedByOrg().getOrgName());
+        vo.setOrgId(task.getOrg().getId());
+        vo.setOrgName(task.getOrg().getName());
+        vo.setCreatedByOrgId(task.getCreatedByOrg().getId());
+        vo.setCreatedByOrgName(task.getCreatedByOrg().getName());
         vo.setSortOrder(task.getSortOrder());
         vo.setRemark(task.getRemark());
         vo.setCreatedAt(task.getCreatedAt());

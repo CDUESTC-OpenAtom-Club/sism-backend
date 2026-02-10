@@ -3,14 +3,14 @@ package com.sism.service;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.entity.Indicator;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.IndicatorRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.vo.IndicatorVO;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,11 +48,11 @@ class IndicatorServiceTest {
     private TaskRepository taskRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     private StrategicTask testTask;
-    private Org testOwnerOrg;
-    private Org testTargetOrg;
+    private SysOrg testOwnerOrg;
+    private SysOrg testTargetOrg;
 
     @BeforeEach
     void setUp() {
@@ -61,7 +61,7 @@ class IndicatorServiceTest {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No tasks found in test database"));
         
-        List<Org> orgs = orgRepository.findByIsActiveTrue();
+        List<SysOrg> orgs = orgRepository.findByIsActiveTrue();
         assertThat(orgs).hasSizeGreaterThanOrEqualTo(2);
         testOwnerOrg = orgs.get(0);
         testTargetOrg = orgs.get(1);
@@ -145,8 +145,8 @@ class IndicatorServiceTest {
             // Given
             IndicatorCreateRequest request = new IndicatorCreateRequest();
             request.setTaskId(testTask.getTaskId());
-            request.setOwnerOrgId(testOwnerOrg.getOrgId());
-            request.setTargetOrgId(testTargetOrg.getOrgId());
+            request.setOwnerOrgId(testOwnerOrg.getId());
+            request.setTargetOrgId(testTargetOrg.getId());
             request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
             request.setIndicatorDesc("Test Indicator Description");
             request.setWeightPercent(new BigDecimal("25.00"));
@@ -169,8 +169,8 @@ class IndicatorServiceTest {
             // Given
             IndicatorCreateRequest request = new IndicatorCreateRequest();
             request.setTaskId(999999L);
-            request.setOwnerOrgId(testOwnerOrg.getOrgId());
-            request.setTargetOrgId(testTargetOrg.getOrgId());
+            request.setOwnerOrgId(testOwnerOrg.getId());
+            request.setTargetOrgId(testTargetOrg.getId());
             request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
             request.setIndicatorDesc("Test");
 
@@ -187,7 +187,7 @@ class IndicatorServiceTest {
             IndicatorCreateRequest request = new IndicatorCreateRequest();
             request.setTaskId(testTask.getTaskId());
             request.setOwnerOrgId(999999L);
-            request.setTargetOrgId(testTargetOrg.getOrgId());
+            request.setTargetOrgId(testTargetOrg.getId());
             request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
             request.setIndicatorDesc("Test");
 
@@ -283,8 +283,8 @@ class IndicatorServiceTest {
             // Given - Create a new indicator to delete
             IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
             createRequest.setTaskId(testTask.getTaskId());
-            createRequest.setOwnerOrgId(testOwnerOrg.getOrgId());
-            createRequest.setTargetOrgId(testTargetOrg.getOrgId());
+            createRequest.setOwnerOrgId(testOwnerOrg.getId());
+            createRequest.setTargetOrgId(testTargetOrg.getId());
             createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
             createRequest.setIndicatorDesc("Indicator to delete");
             createRequest.setWeightPercent(new BigDecimal("10.00"));
@@ -313,8 +313,8 @@ class IndicatorServiceTest {
                 // Create one for testing
                 IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
                 createRequest.setTaskId(testTask.getTaskId());
-                createRequest.setOwnerOrgId(testOwnerOrg.getOrgId());
-                createRequest.setTargetOrgId(testTargetOrg.getOrgId());
+                createRequest.setOwnerOrgId(testOwnerOrg.getId());
+                createRequest.setTargetOrgId(testTargetOrg.getId());
                 createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
                 createRequest.setIndicatorDesc("To archive");
                 createRequest.setWeightPercent(new BigDecimal("5.00"));
@@ -344,8 +344,8 @@ class IndicatorServiceTest {
             // Given - Create indicator with specific description
             IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
             createRequest.setTaskId(testTask.getTaskId());
-            createRequest.setOwnerOrgId(testOwnerOrg.getOrgId());
-            createRequest.setTargetOrgId(testTargetOrg.getOrgId());
+            createRequest.setOwnerOrgId(testOwnerOrg.getId());
+            createRequest.setTargetOrgId(testTargetOrg.getId());
             createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
             createRequest.setIndicatorDesc("UniqueSearchKeyword123");
             createRequest.setWeightPercent(new BigDecimal("5.00"));

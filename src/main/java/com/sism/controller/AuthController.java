@@ -2,7 +2,7 @@ package com.sism.controller;
 
 import com.sism.common.ApiResponse;
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.service.AuthService;
 import com.sism.service.RefreshTokenService;
 import com.sism.vo.LoginResponse;
@@ -88,7 +88,7 @@ public class AuthController {
         LoginResponse response = authService.login(request);
         
         // Get user entity for refresh token generation
-        AppUser user = authService.getUserByUsername(request.getUsername());
+        SysUser user = authService.getUserByUsername(request.getUsername());
         
         // Generate refresh token (may be null if feature is disabled)
         String deviceInfo = httpRequest.getHeader("User-Agent");

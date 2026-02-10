@@ -59,22 +59,22 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSp
     /**
      * Find all audit logs by actor user ID
      */
-    List<AuditLog> findByActorUser_UserId(Long actorUserId);
+    List<AuditLog> findByActorUser_Id(Long actorUserId);
 
     /**
      * Find all audit logs by actor user ID with pagination
      */
-    Page<AuditLog> findByActorUser_UserId(Long actorUserId, Pageable pageable);
+    Page<AuditLog> findByActorUser_Id(Long actorUserId, Pageable pageable);
 
     /**
      * Find all audit logs by actor organization ID
      */
-    List<AuditLog> findByActorOrg_OrgId(Long actorOrgId);
+    List<AuditLog> findByActorOrg_Id(Long actorOrgId);
 
     /**
      * Find all audit logs by actor organization ID with pagination
      */
-    Page<AuditLog> findByActorOrg_OrgId(Long actorOrgId, Pageable pageable);
+    Page<AuditLog> findByActorOrg_Id(Long actorOrgId, Pageable pageable);
 
     /**
      * Find audit logs by date range
@@ -109,7 +109,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSp
     /**
      * Count audit logs by actor user ID
      */
-    long countByActorUser_UserId(Long actorUserId);
+    long countByActorUser_Id(Long actorUserId);
 
     /**
      * Find audit logs by multiple entity types with pagination
@@ -151,7 +151,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSp
     /**
      * Find recent audit logs by actor user
      */
-    @Query("SELECT al FROM AuditLog al WHERE al.actorUser.userId = :actorUserId " +
+    @Query("SELECT al FROM AuditLog al WHERE al.actorUser.id = :actorUserId " +
            "ORDER BY al.createdAt DESC")
     List<AuditLog> findRecentByActorUser(@Param("actorUserId") Long actorUserId, Pageable pageable);
 
@@ -174,7 +174,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long>, JpaSp
      */
     @Query("SELECT al FROM AuditLog al WHERE al.entityType = :entityType " +
            "AND al.entityId = :entityId " +
-           "AND al.actorOrg.orgId = :actorOrgId " +
+           "AND al.actorOrg.id = :actorOrgId " +
            "ORDER BY al.createdAt DESC")
     List<AuditLog> findByEntityAndActorOrg(@Param("entityType") AuditEntityType entityType,
                                            @Param("entityId") Long entityId,

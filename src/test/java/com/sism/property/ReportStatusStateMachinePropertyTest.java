@@ -90,7 +90,7 @@ public class ReportStatusStateMachinePropertyTest {
     /**
      * Get existing users from the database for testing.
      */
-    private List<AppUser> getExistingUsers(int limit) {
+    private List<SysUser> getExistingUsers(int limit) {
         return userRepository.findAll().stream()
                 .limit(limit)
                 .toList();
@@ -99,10 +99,10 @@ public class ReportStatusStateMachinePropertyTest {
     /**
      * Create a test report in DRAFT status.
      */
-    private ProgressReport createTestReportInDraft(Indicator indicator, AppUser reporter) {
+    private ProgressReport createTestReportInDraft(Indicator indicator, SysUser reporter) {
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setPercentComplete(BigDecimal.valueOf(50));
         request.setNarrative("Test report for property testing");
         request.setAchievedMilestone(false);
@@ -160,18 +160,18 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
 
         // Create a new report
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setPercentComplete(BigDecimal.valueOf(25));
         request.setNarrative("Property test report");
         request.setAchievedMilestone(false);
@@ -199,13 +199,13 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
 
         // Create a report in DRAFT status
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -235,13 +235,13 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
 
         // Create and submit a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -272,14 +272,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create and submit a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -288,7 +288,7 @@ public class ReportStatusStateMachinePropertyTest {
         // Approve the report
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getUserId());
+        request.setApproverId(approver.getId());
         request.setAction(ApprovalAction.APPROVE);
         request.setComment("Approved via property test");
 
@@ -315,14 +315,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create and submit a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -331,7 +331,7 @@ public class ReportStatusStateMachinePropertyTest {
         // Reject the report
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getUserId());
+        request.setApproverId(approver.getId());
         request.setAction(ApprovalAction.REJECT);
         request.setComment("Rejected via property test - data incomplete");
 
@@ -357,14 +357,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create and submit a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -373,7 +373,7 @@ public class ReportStatusStateMachinePropertyTest {
         // Return the report
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getUserId());
+        request.setApproverId(approver.getId());
         request.setAction(ApprovalAction.RETURN);
         request.setComment("Returned via property test - needs revision");
 
@@ -400,14 +400,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create, submit, and return a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -415,7 +415,7 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest returnRequest = new ApprovalRequest();
         returnRequest.setReportId(report.getReportId());
-        returnRequest.setApproverId(approver.getUserId());
+        returnRequest.setApproverId(approver.getId());
         returnRequest.setAction(ApprovalAction.RETURN);
         returnRequest.setComment("Needs revision");
         approvalService.processApproval(returnRequest);
@@ -443,13 +443,13 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
 
         // Create a report in DRAFT status
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -477,14 +477,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create, submit, and approve a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -492,7 +492,7 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest approveRequest = new ApprovalRequest();
         approveRequest.setReportId(report.getReportId());
-        approveRequest.setApproverId(approver.getUserId());
+        approveRequest.setApproverId(approver.getId());
         approveRequest.setAction(ApprovalAction.APPROVE);
         approveRequest.setComment("Approved");
         approvalService.processApproval(approveRequest);
@@ -523,14 +523,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create, submit, and reject a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -538,7 +538,7 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest rejectRequest = new ApprovalRequest();
         rejectRequest.setReportId(report.getReportId());
-        rejectRequest.setApproverId(approver.getUserId());
+        rejectRequest.setApproverId(approver.getId());
         rejectRequest.setAction(ApprovalAction.REJECT);
         rejectRequest.setComment("Rejected - invalid data");
         approvalService.processApproval(rejectRequest);
@@ -569,14 +569,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("approvalActions") ApprovalAction action) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create a report in DRAFT status (not submitted)
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -585,7 +585,7 @@ public class ReportStatusStateMachinePropertyTest {
         // Attempt approval action (should fail)
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getUserId());
+        request.setApproverId(approver.getId());
         request.setAction(action);
         request.setComment("Test comment for " + action);
 
@@ -610,13 +610,13 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
 
         // Create a report in DRAFT status
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -651,14 +651,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create, submit, and return a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -666,7 +666,7 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest returnRequest = new ApprovalRequest();
         returnRequest.setReportId(report.getReportId());
-        returnRequest.setApproverId(approver.getUserId());
+        returnRequest.setApproverId(approver.getId());
         returnRequest.setAction(ApprovalAction.RETURN);
         returnRequest.setComment("Needs revision");
         approvalService.processApproval(returnRequest);
@@ -704,13 +704,13 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
 
         // Create and submit a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -743,14 +743,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create, submit, and approve a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -758,7 +758,7 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest approveRequest = new ApprovalRequest();
         approveRequest.setReportId(report.getReportId());
-        approveRequest.setApproverId(approver.getUserId());
+        approveRequest.setApproverId(approver.getId());
         approveRequest.setAction(ApprovalAction.APPROVE);
         approveRequest.setComment("Approved");
         approvalService.processApproval(approveRequest);
@@ -790,14 +790,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create, submit, and reject a report
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -805,7 +805,7 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest rejectRequest = new ApprovalRequest();
         rejectRequest.setReportId(report.getReportId());
-        rejectRequest.setApproverId(approver.getUserId());
+        rejectRequest.setApproverId(approver.getId());
         rejectRequest.setAction(ApprovalAction.REJECT);
         rejectRequest.setComment("Rejected - invalid data");
         approvalService.processApproval(rejectRequest);
@@ -837,14 +837,14 @@ public class ReportStatusStateMachinePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create report - should always start in DRAFT
         ProgressReport report = createTestReportInDraft(indicator, reporter);
@@ -857,7 +857,7 @@ public class ReportStatusStateMachinePropertyTest {
         // Return - should always go to RETURNED
         ApprovalRequest returnRequest = new ApprovalRequest();
         returnRequest.setReportId(report.getReportId());
-        returnRequest.setApproverId(approver.getUserId());
+        returnRequest.setApproverId(approver.getId());
         returnRequest.setAction(ApprovalAction.RETURN);
         returnRequest.setComment("Needs revision");
         var returned = approvalService.processApproval(returnRequest);
@@ -870,7 +870,7 @@ public class ReportStatusStateMachinePropertyTest {
         // Approve - should always go to APPROVED
         ApprovalRequest approveRequest = new ApprovalRequest();
         approveRequest.setReportId(report.getReportId());
-        approveRequest.setApproverId(approver.getUserId());
+        approveRequest.setApproverId(approver.getId());
         approveRequest.setAction(ApprovalAction.APPROVE);
         approveRequest.setComment("Approved");
         var approved = approvalService.processApproval(approveRequest);

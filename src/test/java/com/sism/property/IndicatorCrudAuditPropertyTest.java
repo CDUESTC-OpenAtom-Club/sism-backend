@@ -3,7 +3,7 @@ package com.sism.property;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.entity.AuditLog;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.entity.AssessmentCycle;
 import com.sism.enums.AuditAction;
@@ -12,7 +12,7 @@ import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
 import com.sism.repository.AuditLogRepository;
 import com.sism.repository.IndicatorRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.repository.AssessmentCycleRepository;
 import com.sism.service.IndicatorService;
@@ -55,7 +55,7 @@ public class IndicatorCrudAuditPropertyTest {
     private AuditLogRepository auditLogRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private TaskRepository taskRepository;
@@ -65,14 +65,14 @@ public class IndicatorCrudAuditPropertyTest {
 
     // ==================== Helper Methods ====================
 
-    private Org getTestOwnerOrg() {
+    private SysOrg getTestOwnerOrg() {
         return orgRepository.findAll().stream()
                 .findFirst()
                 .orElse(null);
     }
 
-    private Org getTestTargetOrg() {
-        List<Org> orgs = orgRepository.findAll();
+    private SysOrg getTestTargetOrg() {
+        List<SysOrg> orgs = orgRepository.findAll();
         if (orgs.size() > 1) {
             return orgs.get(1);
         }
@@ -141,8 +141,8 @@ public class IndicatorCrudAuditPropertyTest {
             @ForAll("sortOrders") Integer sortOrder) {
 
         // Get test data
-        Org ownerOrg = getTestOwnerOrg();
-        Org targetOrg = getTestTargetOrg();
+        SysOrg ownerOrg = getTestOwnerOrg();
+        SysOrg targetOrg = getTestTargetOrg();
         StrategicTask task = getTestTask();
 
         // Skip if required data doesn't exist
@@ -153,8 +153,8 @@ public class IndicatorCrudAuditPropertyTest {
         // Arrange
         IndicatorCreateRequest request = new IndicatorCreateRequest();
         request.setTaskId(task.getTaskId());
-        request.setOwnerOrgId(ownerOrg.getOrgId());
-        request.setTargetOrgId(targetOrg.getOrgId());
+        request.setOwnerOrgId(ownerOrg.getId());
+        request.setTargetOrgId(targetOrg.getId());
         request.setIndicatorDesc(description);
         request.setWeightPercent(weight);
         request.setYear(year);
@@ -230,8 +230,8 @@ public class IndicatorCrudAuditPropertyTest {
             @ForAll("validYears") Integer year) {
 
         // Get test data
-        Org ownerOrg = getTestOwnerOrg();
-        Org targetOrg = getTestTargetOrg();
+        SysOrg ownerOrg = getTestOwnerOrg();
+        SysOrg targetOrg = getTestTargetOrg();
         StrategicTask task = getTestTask();
 
         // Skip if required data doesn't exist
@@ -242,8 +242,8 @@ public class IndicatorCrudAuditPropertyTest {
         // Arrange: Create an indicator first
         IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
         createRequest.setTaskId(task.getTaskId());
-        createRequest.setOwnerOrgId(ownerOrg.getOrgId());
-        createRequest.setTargetOrgId(targetOrg.getOrgId());
+        createRequest.setOwnerOrgId(ownerOrg.getId());
+        createRequest.setTargetOrgId(targetOrg.getId());
         createRequest.setIndicatorDesc(originalDesc);
         createRequest.setWeightPercent(originalWeight);
         createRequest.setYear(year);
@@ -325,8 +325,8 @@ public class IndicatorCrudAuditPropertyTest {
             @ForAll("indicatorLevels") IndicatorLevel level) {
 
         // Get test data
-        Org ownerOrg = getTestOwnerOrg();
-        Org targetOrg = getTestTargetOrg();
+        SysOrg ownerOrg = getTestOwnerOrg();
+        SysOrg targetOrg = getTestTargetOrg();
         StrategicTask task = getTestTask();
 
         // Skip if required data doesn't exist
@@ -337,8 +337,8 @@ public class IndicatorCrudAuditPropertyTest {
         // Arrange: Create an indicator first
         IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
         createRequest.setTaskId(task.getTaskId());
-        createRequest.setOwnerOrgId(ownerOrg.getOrgId());
-        createRequest.setTargetOrgId(targetOrg.getOrgId());
+        createRequest.setOwnerOrgId(ownerOrg.getId());
+        createRequest.setTargetOrgId(targetOrg.getId());
         createRequest.setIndicatorDesc(description);
         createRequest.setWeightPercent(weight);
         createRequest.setYear(year);
@@ -407,8 +407,8 @@ public class IndicatorCrudAuditPropertyTest {
             @ForAll("validYears") Integer year) {
 
         // Get test data
-        Org ownerOrg = getTestOwnerOrg();
-        Org targetOrg = getTestTargetOrg();
+        SysOrg ownerOrg = getTestOwnerOrg();
+        SysOrg targetOrg = getTestTargetOrg();
         StrategicTask task = getTestTask();
 
         // Skip if required data doesn't exist
@@ -422,8 +422,8 @@ public class IndicatorCrudAuditPropertyTest {
             // Step 1: CREATE
             IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
             createRequest.setTaskId(task.getTaskId());
-            createRequest.setOwnerOrgId(ownerOrg.getOrgId());
-            createRequest.setTargetOrgId(targetOrg.getOrgId());
+            createRequest.setOwnerOrgId(ownerOrg.getId());
+            createRequest.setTargetOrgId(targetOrg.getId());
             createRequest.setIndicatorDesc(originalDesc);
             createRequest.setWeightPercent(weight);
             createRequest.setYear(year);
@@ -495,8 +495,8 @@ public class IndicatorCrudAuditPropertyTest {
             @ForAll("validYears") Integer year) {
 
         // Get test data
-        Org ownerOrg = getTestOwnerOrg();
-        Org targetOrg = getTestTargetOrg();
+        SysOrg ownerOrg = getTestOwnerOrg();
+        SysOrg targetOrg = getTestTargetOrg();
         StrategicTask task = getTestTask();
 
         // Skip if required data doesn't exist
@@ -510,8 +510,8 @@ public class IndicatorCrudAuditPropertyTest {
             // Create indicator
             IndicatorCreateRequest createRequest = new IndicatorCreateRequest();
             createRequest.setTaskId(task.getTaskId());
-            createRequest.setOwnerOrgId(ownerOrg.getOrgId());
-            createRequest.setTargetOrgId(targetOrg.getOrgId());
+            createRequest.setOwnerOrgId(ownerOrg.getId());
+            createRequest.setTargetOrgId(targetOrg.getId());
             createRequest.setIndicatorDesc(description);
             createRequest.setWeightPercent(BigDecimal.valueOf(50));
             createRequest.setYear(year);

@@ -43,8 +43,8 @@ public class IndicatorAuditData {
         data.setParentIndicatorId(indicator.getParentIndicator() != null ? 
                 indicator.getParentIndicator().getIndicatorId() : null);
         data.setLevel(indicator.getLevel());
-        data.setOwnerOrgId(indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getOrgId() : null);
-        data.setTargetOrgId(indicator.getTargetOrg() != null ? indicator.getTargetOrg().getOrgId() : null);
+        data.setOwnerOrgId(indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getId() : null);
+        data.setTargetOrgId(indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null);
         data.setIndicatorDesc(indicator.getIndicatorDesc());
         data.setWeightPercent(indicator.getWeightPercent());
         data.setSortOrder(indicator.getSortOrder());

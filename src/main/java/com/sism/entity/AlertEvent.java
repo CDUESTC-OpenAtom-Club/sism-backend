@@ -57,7 +57,7 @@ public class AlertEvent extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "handled_by")
-    private AppUser handledBy;
+    private SysUser handledBy;
 
     @Column(name = "handled_note", columnDefinition = "TEXT")
     private String handledNote;

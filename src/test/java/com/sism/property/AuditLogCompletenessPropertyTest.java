@@ -1,12 +1,12 @@
 package com.sism.property;
 
 import com.sism.entity.AuditLog;
-import com.sism.entity.AppUser;
-import com.sism.entity.Org;
+import com.sism.entity.SysUser;
+import com.sism.entity.SysOrg;
 import com.sism.enums.AuditAction;
 import com.sism.enums.AuditEntityType;
 import com.sism.repository.AuditLogRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.UserRepository;
 import com.sism.service.AuditLogService;
 import net.jqwik.api.*;
@@ -52,7 +52,7 @@ public class AuditLogCompletenessPropertyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     // Use unique entity IDs to avoid conflicts with existing data
     // Use timestamp-based counter to ensure uniqueness across test runs
@@ -61,13 +61,13 @@ public class AuditLogCompletenessPropertyTest {
 
     // ==================== Helper Methods ====================
 
-    private AppUser getTestUser() {
+    private SysUser getTestUser() {
         return userRepository.findAll().stream()
                 .findFirst()
                 .orElse(null);
     }
 
-    private Org getTestOrg() {
+    private SysOrg getTestOrg() {
         return orgRepository.findAll().stream()
                 .findFirst()
                 .orElse(null);
@@ -160,8 +160,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -191,9 +191,9 @@ public class AuditLogCompletenessPropertyTest {
 
         // Assert: Actor information is captured
         assertThat(createLog.getActorUser()).isNotNull();
-        assertThat(createLog.getActorUser().getUserId()).isEqualTo(actorUser.getUserId());
+        assertThat(createLog.getActorUser().getId()).isEqualTo(actorUser.getId());
         assertThat(createLog.getActorOrg()).isNotNull();
-        assertThat(createLog.getActorOrg().getOrgId()).isEqualTo(actorOrg.getOrgId());
+        assertThat(createLog.getActorOrg().getId()).isEqualTo(actorOrg.getId());
 
         // Assert: CREATE has after_json but no before_json
         assertThat(createLog.getAfterJson()).isNotNull();
@@ -225,8 +225,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -256,9 +256,9 @@ public class AuditLogCompletenessPropertyTest {
 
         // Assert: Actor information is captured
         assertThat(updateLog.getActorUser()).isNotNull();
-        assertThat(updateLog.getActorUser().getUserId()).isEqualTo(actorUser.getUserId());
+        assertThat(updateLog.getActorUser().getId()).isEqualTo(actorUser.getId());
         assertThat(updateLog.getActorOrg()).isNotNull();
-        assertThat(updateLog.getActorOrg().getOrgId()).isEqualTo(actorOrg.getOrgId());
+        assertThat(updateLog.getActorOrg().getId()).isEqualTo(actorOrg.getId());
 
         // Assert: UPDATE has both before_json and after_json
         assertThat(updateLog.getBeforeJson()).isNotNull();
@@ -288,8 +288,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -319,9 +319,9 @@ public class AuditLogCompletenessPropertyTest {
 
         // Assert: Actor information is captured
         assertThat(deleteLog.getActorUser()).isNotNull();
-        assertThat(deleteLog.getActorUser().getUserId()).isEqualTo(actorUser.getUserId());
+        assertThat(deleteLog.getActorUser().getId()).isEqualTo(actorUser.getId());
         assertThat(deleteLog.getActorOrg()).isNotNull();
-        assertThat(deleteLog.getActorOrg().getOrgId()).isEqualTo(actorOrg.getOrgId());
+        assertThat(deleteLog.getActorOrg().getId()).isEqualTo(actorOrg.getId());
 
         // Assert: DELETE has before_json but no after_json
         assertThat(deleteLog.getBeforeJson()).isNotNull();
@@ -353,8 +353,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String approvalComments) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -384,9 +384,9 @@ public class AuditLogCompletenessPropertyTest {
 
         // Assert: Actor (approver) information is captured
         assertThat(approveLog.getActorUser()).isNotNull();
-        assertThat(approveLog.getActorUser().getUserId()).isEqualTo(actorUser.getUserId());
+        assertThat(approveLog.getActorUser().getId()).isEqualTo(actorUser.getId());
         assertThat(approveLog.getActorOrg()).isNotNull();
-        assertThat(approveLog.getActorOrg().getOrgId()).isEqualTo(actorOrg.getOrgId());
+        assertThat(approveLog.getActorOrg().getId()).isEqualTo(actorOrg.getId());
 
         // Assert: APPROVE has both before_json and after_json
         assertThat(approveLog.getBeforeJson()).isNotNull();
@@ -417,8 +417,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -448,9 +448,9 @@ public class AuditLogCompletenessPropertyTest {
 
         // Assert: Actor information is captured
         assertThat(archiveLog.getActorUser()).isNotNull();
-        assertThat(archiveLog.getActorUser().getUserId()).isEqualTo(actorUser.getUserId());
+        assertThat(archiveLog.getActorUser().getId()).isEqualTo(actorUser.getId());
         assertThat(archiveLog.getActorOrg()).isNotNull();
-        assertThat(archiveLog.getActorOrg().getOrgId()).isEqualTo(actorOrg.getOrgId());
+        assertThat(archiveLog.getActorOrg().getId()).isEqualTo(actorOrg.getId());
 
         // Assert: ARCHIVE has before_json but no after_json
         assertThat(archiveLog.getBeforeJson()).isNotNull();
@@ -480,8 +480,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -511,9 +511,9 @@ public class AuditLogCompletenessPropertyTest {
 
         // Assert: Actor information is captured
         assertThat(restoreLog.getActorUser()).isNotNull();
-        assertThat(restoreLog.getActorUser().getUserId()).isEqualTo(actorUser.getUserId());
+        assertThat(restoreLog.getActorUser().getId()).isEqualTo(actorUser.getId());
         assertThat(restoreLog.getActorOrg()).isNotNull();
-        assertThat(restoreLog.getActorOrg().getOrgId()).isEqualTo(actorOrg.getOrgId());
+        assertThat(restoreLog.getActorOrg().getId()).isEqualTo(actorOrg.getId());
 
         // Assert: RESTORE has after_json but no before_json
         assertThat(restoreLog.getBeforeJson()).isNull();
@@ -537,8 +537,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -602,8 +602,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();
@@ -627,9 +627,9 @@ public class AuditLogCompletenessPropertyTest {
 
         // Assert: Actor information is correctly preserved
         assertThat(createLog.getActorUser()).isNotNull();
-        assertThat(createLog.getActorUser().getUserId()).isEqualTo(actorUser.getUserId());
+        assertThat(createLog.getActorUser().getId()).isEqualTo(actorUser.getId());
         assertThat(createLog.getActorOrg()).isNotNull();
-        assertThat(createLog.getActorOrg().getOrgId()).isEqualTo(actorOrg.getOrgId());
+        assertThat(createLog.getActorOrg().getId()).isEqualTo(actorOrg.getId());
     }
 
     /**
@@ -648,8 +648,8 @@ public class AuditLogCompletenessPropertyTest {
             @ForAll("reasons") String reason) {
 
         // Get test actor
-        AppUser actorUser = getTestUser();
-        Org actorOrg = getTestOrg();
+        SysUser actorUser = getTestUser();
+        SysOrg actorOrg = getTestOrg();
 
         // Skip if no test data exists
         assumeThat(actorUser).isNotNull();

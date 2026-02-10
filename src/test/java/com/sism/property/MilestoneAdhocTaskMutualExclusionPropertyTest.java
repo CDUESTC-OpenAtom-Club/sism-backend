@@ -67,7 +67,7 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
     /**
      * Get existing users from the database for testing.
      */
-    private List<AppUser> getExistingUsers(int limit) {
+    private List<SysUser> getExistingUsers(int limit) {
         return userRepository.findAll().stream()
                 .limit(limit)
                 .toList();
@@ -126,13 +126,13 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
             @ForAll("percentComplete") BigDecimal percent) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
         
         // Get milestones for this indicator
         List<Milestone> milestones = getMilestonesForIndicator(indicator.getIndicatorId());
@@ -143,7 +143,7 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
         // Create report with only milestone (no adhocTask)
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setMilestoneId(milestone.getMilestoneId());
         request.setAdhocTaskId(null);  // Explicitly null
         request.setPercentComplete(percent);
@@ -178,18 +178,18 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
             @ForAll("percentComplete") BigDecimal percent) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
 
         // Create report with neither milestone nor adhocTask
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setMilestoneId(null);
         request.setAdhocTaskId(null);
         request.setPercentComplete(percent);
@@ -229,13 +229,13 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
             @ForAll("percentComplete") BigDecimal percent) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
         
         // Get milestones for this indicator
         List<Milestone> milestones = getMilestonesForIndicator(indicator.getIndicatorId());
@@ -246,7 +246,7 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
         // Attempt to create report with BOTH milestone AND adhocTask
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setMilestoneId(milestone.getMilestoneId());
         request.setAdhocTaskId(fakeAdhocTaskId);  // Both set - violates constraint
         request.setPercentComplete(percent);
@@ -278,13 +278,13 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
             @ForAll("percentComplete") BigDecimal percent) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
         
         // Get milestones for this indicator
         List<Milestone> milestones = getMilestonesForIndicator(indicator.getIndicatorId());
@@ -295,7 +295,7 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
         // First, create a valid report with only milestone
         ReportCreateRequest createRequest = new ReportCreateRequest();
         createRequest.setIndicatorId(indicator.getIndicatorId());
-        createRequest.setReporterId(reporter.getUserId());
+        createRequest.setReporterId(reporter.getId());
         createRequest.setMilestoneId(milestone.getMilestoneId());
         createRequest.setAdhocTaskId(null);
         createRequest.setPercentComplete(percent);
@@ -410,13 +410,13 @@ public class MilestoneAdhocTaskMutualExclusionPropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).isNotEmpty();
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
         
         // Get milestones for this indicator
         List<Milestone> milestones = getMilestonesForIndicator(indicator.getIndicatorId());

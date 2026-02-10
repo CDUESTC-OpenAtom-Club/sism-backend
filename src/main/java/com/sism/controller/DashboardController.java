@@ -2,7 +2,7 @@ package com.sism.controller;
 
 import com.sism.common.ApiResponse;
 import com.sism.service.IndicatorService;
-import com.sism.service.OrgService;
+import com.sism.service.SysOrgService;
 import com.sism.vo.IndicatorVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class DashboardController {
 
     private final IndicatorService indicatorService;
-    private final OrgService orgService;
+    private final SysOrgService orgService;
 
     /**
      * Get dashboard summary

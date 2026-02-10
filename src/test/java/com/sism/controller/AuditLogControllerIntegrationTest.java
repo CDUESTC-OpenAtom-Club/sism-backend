@@ -2,12 +2,12 @@ package com.sism.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.AuditLog;
 import com.sism.enums.AuditAction;
 import com.sism.enums.AuditEntityType;
 import com.sism.repository.AuditLogRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,7 +51,7 @@ class AuditLogControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private AuditLogRepository auditLogRepository;
@@ -60,14 +60,14 @@ class AuditLogControllerIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
-    private AppUser testUser;
+    private SysUser testUser;
     private AuditLog testAuditLog;
 
     @BeforeEach
     void setUp() throws Exception {
         // Get or create test user and login
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
@@ -205,7 +205,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should return recent audit logs by user")
         void shouldReturnRecentAuditLogsByUser() throws Exception {
-            mockMvc.perform(get("/api/audit-logs/user/{userId}/recent", testUser.getUserId())
+            mockMvc.perform(get("/api/audit-logs/user/{userId}/recent", testUser.getId())
                             .param("limit", "10")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())

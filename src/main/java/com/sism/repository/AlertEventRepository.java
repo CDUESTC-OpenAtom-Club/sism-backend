@@ -77,12 +77,12 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, Long> {
     /**
      * Find alert events handled by a specific user
      */
-    List<AlertEvent> findByHandledBy_UserId(Long handledById);
+    List<AlertEvent> findByHandledBy_Id(Long handledById);
 
     /**
      * Find alert events handled by a specific user with pagination
      */
-    Page<AlertEvent> findByHandledBy_UserId(Long handledById, Pageable pageable);
+    Page<AlertEvent> findByHandledBy_Id(Long handledById, Pageable pageable);
 
     /**
      * Count alert events by indicator ID
@@ -119,13 +119,13 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, Long> {
     /**
      * Find alert events by indicator's target organization
      */
-    @Query("SELECT ae FROM AlertEvent ae WHERE ae.indicator.targetOrg.orgId = :orgId")
+    @Query("SELECT ae FROM AlertEvent ae WHERE ae.indicator.targetOrg.id = :orgId")
     List<AlertEvent> findByTargetOrg(@Param("orgId") Long orgId);
 
     /**
      * Find alert events by indicator's target organization with pagination
      */
-    @Query("SELECT ae FROM AlertEvent ae WHERE ae.indicator.targetOrg.orgId = :orgId " +
+    @Query("SELECT ae FROM AlertEvent ae WHERE ae.indicator.targetOrg.id = :orgId " +
            "ORDER BY ae.createdAt DESC")
     Page<AlertEvent> findByTargetOrg(@Param("orgId") Long orgId, Pageable pageable);
 

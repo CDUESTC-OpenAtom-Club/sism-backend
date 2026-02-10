@@ -62,7 +62,7 @@ public interface AdhocTaskIndicatorMapRepository extends JpaRepository<AdhocTask
      * Find indicator mappings by adhoc task and indicator owner organization
      */
     @Query("SELECT atim FROM AdhocTaskIndicatorMap atim WHERE atim.adhocTask.adhocTaskId = :adhocTaskId " +
-           "AND atim.indicator.ownerOrg.orgId = :ownerOrgId")
+           "AND atim.indicator.ownerOrg.id = :ownerOrgId")
     List<AdhocTaskIndicatorMap> findByAdhocTaskAndOwnerOrg(@Param("adhocTaskId") Long adhocTaskId,
                                                             @Param("ownerOrgId") Long ownerOrgId);
 }

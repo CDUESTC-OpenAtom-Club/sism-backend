@@ -32,12 +32,12 @@ public interface ApprovalRecordRepository extends JpaRepository<ApprovalRecord, 
     /**
      * Find all approval records by approver ID
      */
-    List<ApprovalRecord> findByApprover_UserId(Long approverId);
+    List<ApprovalRecord> findByApprover_Id(Long approverId);
 
     /**
      * Find all approval records by approver ID with pagination
      */
-    Page<ApprovalRecord> findByApprover_UserId(Long approverId, Pageable pageable);
+    Page<ApprovalRecord> findByApprover_Id(Long approverId, Pageable pageable);
 
     /**
      * Find all approval records by approval action
@@ -67,7 +67,7 @@ public interface ApprovalRecordRepository extends JpaRepository<ApprovalRecord, 
     /**
      * Count approval records by approver ID
      */
-    long countByApprover_UserId(Long approverId);
+    long countByApprover_Id(Long approverId);
 
     /**
      * Count approval records by action
@@ -77,13 +77,13 @@ public interface ApprovalRecordRepository extends JpaRepository<ApprovalRecord, 
     /**
      * Find approval records by approver's organization
      */
-    @Query("SELECT ar FROM ApprovalRecord ar WHERE ar.approver.org.orgId = :orgId")
+    @Query("SELECT ar FROM ApprovalRecord ar WHERE ar.approver.org.id = :orgId")
     List<ApprovalRecord> findByApproverOrg(@Param("orgId") Long orgId);
 
     /**
      * Find approval records by approver's organization with pagination
      */
-    @Query("SELECT ar FROM ApprovalRecord ar WHERE ar.approver.org.orgId = :orgId")
+    @Query("SELECT ar FROM ApprovalRecord ar WHERE ar.approver.org.id = :orgId")
     Page<ApprovalRecord> findByApproverOrg(@Param("orgId") Long orgId, Pageable pageable);
 
     /**
@@ -118,7 +118,7 @@ public interface ApprovalRecordRepository extends JpaRepository<ApprovalRecord, 
     /**
      * Find recent approval records by approver
      */
-    @Query("SELECT ar FROM ApprovalRecord ar WHERE ar.approver.userId = :approverId " +
+    @Query("SELECT ar FROM ApprovalRecord ar WHERE ar.approver.id = :approverId " +
            "ORDER BY ar.actedAt DESC")
     List<ApprovalRecord> findRecentByApprover(@Param("approverId") Long approverId, Pageable pageable);
 }

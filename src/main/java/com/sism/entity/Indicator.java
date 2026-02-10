@@ -48,11 +48,11 @@ public class Indicator extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_org_id", nullable = false)
-    private Org ownerOrg;
+    private SysOrg ownerOrg;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "target_org_id", nullable = false)
-    private Org targetOrg;
+    private SysOrg targetOrg;
 
     @Column(name = "indicator_desc", nullable = false, columnDefinition = "TEXT")
     private String indicatorDesc;

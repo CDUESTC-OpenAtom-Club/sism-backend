@@ -4,13 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.dto.MilestoneCreateRequest;
 import com.sism.dto.MilestoneUpdateRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.entity.Milestone;
 import com.sism.enums.MilestoneStatus;
 import com.sism.repository.IndicatorRepository;
 import com.sism.repository.MilestoneRepository;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,7 +55,7 @@ class MilestoneControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private IndicatorRepository indicatorRepository;
@@ -73,8 +73,8 @@ class MilestoneControllerIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         // Get or create test user and login
-        AppUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");

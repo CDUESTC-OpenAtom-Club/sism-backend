@@ -3,7 +3,7 @@ package com.sism.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.AlertEvent;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.enums.AlertSeverity;
 import com.sism.enums.AlertStatus;
@@ -49,7 +49,7 @@ class AlertControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private IndicatorRepository indicatorRepository;
@@ -61,7 +61,7 @@ class AlertControllerIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
-    private AppUser testUser;
+    private SysUser testUser;
     private Indicator testIndicator;
     private AlertEvent testAlert;
 
@@ -69,7 +69,7 @@ class AlertControllerIntegrationTest {
     void setUp() throws Exception {
         // Get or create test user and login
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
@@ -237,7 +237,7 @@ class AlertControllerIntegrationTest {
             Assumptions.assumeTrue(testAlert != null, "No test alert available");
             
             mockMvc.perform(post("/api/alerts/{id}/handle", testAlert.getEventId())
-                            .param("handledById", testUser.getUserId().toString())
+                            .param("handledById", testUser.getId().toString())
                             .param("handledNote", "Handled via test")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -261,7 +261,7 @@ class AlertControllerIntegrationTest {
             Assumptions.assumeTrue(existingAlert.isPresent(), "No open alert available for testing");
             
             mockMvc.perform(post("/api/alerts/{id}/close", existingAlert.get().getEventId())
-                            .param("handledById", testUser.getUserId().toString())
+                            .param("handledById", testUser.getId().toString())
                             .param("handledNote", "Closed via test")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())

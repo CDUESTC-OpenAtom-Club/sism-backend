@@ -1,6 +1,6 @@
 package com.sism.debug;
 
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,17 +27,17 @@ public class CheckUsersTest {
         System.out.println("Checking Functional Department Users");
         System.out.println("=".repeat(80));
         
-        List<AppUser> allUsers = userRepository.findAll();
+        List<SysUser> allUsers = userRepository.findAll();
         
-        for (AppUser user : allUsers) {
+        for (SysUser user : allUsers) {
             if (user.getOrg() != null && 
-                (user.getOrg().getOrgType().name().contains("FUNCTION") || 
-                 user.getOrg().getOrgType().name().equals("FUNCTIONAL_DEPT"))) {
+                (user.getOrg().getType().name().contains("FUNCTION") || 
+                 user.getOrg().getType().name().equals("FUNCTIONAL_DEPT"))) {
                 
                 System.out.println("\nUsername: " + user.getUsername());
                 System.out.println("Real Name: " + user.getRealName());
-                System.out.println("Org: " + user.getOrg().getOrgName());
-                System.out.println("Org Type: " + user.getOrg().getOrgType());
+                System.out.println("Org: " + user.getOrg().getName());
+                System.out.println("Org Type: " + user.getOrg().getType());
                 System.out.println("Is Active: " + user.getIsActive());
                 System.out.println("Password Hash Length: " + user.getPasswordHash().length());
                 System.out.println("Password Hash Prefix: " + user.getPasswordHash().substring(0, Math.min(20, user.getPasswordHash().length())));

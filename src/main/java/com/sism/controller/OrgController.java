@@ -5,7 +5,7 @@ import com.sism.enums.OrgType;
 import com.sism.service.OrgService;
 import com.sism.util.CacheUtils;
 import com.sism.vo.OrgTreeVO;
-import com.sism.vo.OrgVO;
+import com.sism.vo.SysOrgVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -46,12 +46,12 @@ public class OrgController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Organizations retrieved successfully"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "304", description = "Not Modified - use cached data")
     })
-    public ResponseEntity<ApiResponse<List<OrgVO>>> getAllOrgs(
+    public ResponseEntity<ApiResponse<List<SysOrgVO>>> getAllOrgs(
             @Parameter(description = "Filter by organization type") 
             @RequestParam(required = false) OrgType type,
             @RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
-        List<OrgVO> orgs = orgService.getOrgsByType(type);
-        ApiResponse<List<OrgVO>> response = ApiResponse.success(orgs);
+        List<SysOrgVO> orgs = orgService.getOrgsByType(type);
+        ApiResponse<List<SysOrgVO>> response = ApiResponse.success(orgs);
         
         // Use ETag-based caching
         return CacheUtils.buildETagResponse(response, ifNoneMatch);

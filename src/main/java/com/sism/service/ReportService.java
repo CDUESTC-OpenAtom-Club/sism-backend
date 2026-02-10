@@ -112,7 +112,7 @@ public class ReportService {
      * @return list of reports by the reporter
      */
     public List<ReportVO> getReportsByReporterId(Long reporterId) {
-        return reportRepository.findByReporter_UserId(reporterId).stream()
+        return reportRepository.findByReporter_Id(reporterId).stream()
                 .map(this::toReportVO)
                 .collect(Collectors.toList());
     }
@@ -136,7 +136,7 @@ public class ReportService {
                 .orElseThrow(() -> new ResourceNotFoundException("Indicator", request.getIndicatorId()));
 
         // Validate reporter exists
-        AppUser reporter = userRepository.findById(request.getReporterId())
+        SysUser reporter = userRepository.findById(request.getReporterId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", request.getReporterId()));
 
         // Validate milestone if provided
@@ -396,10 +396,10 @@ public class ReportService {
         vo.setPercentComplete(report.getPercentComplete());
         vo.setAchievedMilestone(report.getAchievedMilestone());
         vo.setNarrative(report.getNarrative());
-        vo.setReporterId(report.getReporter().getUserId());
+        vo.setReporterId(report.getReporter().getId());
         vo.setReporterName(report.getReporter().getRealName());
-        vo.setReporterOrgId(report.getReporter().getOrg().getOrgId());
-        vo.setReporterOrgName(report.getReporter().getOrg().getOrgName());
+        vo.setReporterOrgId(report.getReporter().getOrg().getId());
+        vo.setReporterOrgName(report.getReporter().getOrg().getName());
         vo.setStatus(report.getStatus());
         vo.setIsFinal(report.getIsFinal());
         vo.setVersionNo(report.getVersionNo());

@@ -77,7 +77,7 @@ public class SingleFinalVersionPropertyTest {
     /**
      * Get existing users from the database for testing.
      */
-    private List<AppUser> getExistingUsers(int limit) {
+    private List<SysUser> getExistingUsers(int limit) {
         return userRepository.findAll().stream()
                 .limit(limit)
                 .toList();
@@ -126,12 +126,12 @@ public class SingleFinalVersionPropertyTest {
     private ProgressReport createTestReportWithMilestone(
             Indicator indicator, 
             Milestone milestone, 
-            AppUser reporter) {
+            SysUser reporter) {
         
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
         request.setMilestoneId(milestone.getMilestoneId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setPercentComplete(BigDecimal.valueOf(50));
         request.setNarrative("Test report for single final version property testing - " + UUID.randomUUID());
         request.setAchievedMilestone(false);
@@ -143,14 +143,14 @@ public class SingleFinalVersionPropertyTest {
     /**
      * Submit and approve a report.
      */
-    private ProgressReport submitAndApproveReport(ProgressReport report, AppUser approver) {
+    private ProgressReport submitAndApproveReport(ProgressReport report, SysUser approver) {
         // Submit the report
         reportService.submitReport(report.getReportId());
         
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getUserId());
+        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved for single final version test");
         
@@ -217,14 +217,14 @@ public class SingleFinalVersionPropertyTest {
             @ForAll("reportCounts") Integer reportCount) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
@@ -261,14 +261,14 @@ public class SingleFinalVersionPropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
@@ -316,14 +316,14 @@ public class SingleFinalVersionPropertyTest {
             @ForAll("reportCounts") Integer reportCount) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
@@ -366,14 +366,14 @@ public class SingleFinalVersionPropertyTest {
             @ForAll("reportCounts") Integer reportCount) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);
@@ -409,14 +409,14 @@ public class SingleFinalVersionPropertyTest {
             @ForAll("reportCounts") Integer reportCount) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator);

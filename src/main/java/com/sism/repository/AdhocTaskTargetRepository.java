@@ -23,12 +23,12 @@ public interface AdhocTaskTargetRepository extends JpaRepository<AdhocTaskTarget
     /**
      * Find all targets by target organization ID
      */
-    List<AdhocTaskTarget> findByTargetOrg_OrgId(Long targetOrgId);
+    List<AdhocTaskTarget> findByTargetOrg_Id(Long targetOrgId);
 
     /**
      * Check if a target exists for an adhoc task and organization
      */
-    boolean existsByAdhocTask_AdhocTaskIdAndTargetOrg_OrgId(Long adhocTaskId, Long targetOrgId);
+    boolean existsByAdhocTask_AdhocTaskIdAndTargetOrg_Id(Long adhocTaskId, Long targetOrgId);
 
     /**
      * Count targets by adhoc task ID
@@ -38,7 +38,7 @@ public interface AdhocTaskTargetRepository extends JpaRepository<AdhocTaskTarget
     /**
      * Count targets by target organization ID
      */
-    long countByTargetOrg_OrgId(Long targetOrgId);
+    long countByTargetOrg_Id(Long targetOrgId);
 
     /**
      * Delete all targets by adhoc task ID
@@ -48,7 +48,7 @@ public interface AdhocTaskTargetRepository extends JpaRepository<AdhocTaskTarget
     /**
      * Find adhoc tasks targeting a specific organization
      */
-    @Query("SELECT att FROM AdhocTaskTarget att WHERE att.targetOrg.orgId = :orgId " +
+    @Query("SELECT att FROM AdhocTaskTarget att WHERE att.targetOrg.id = :orgId " +
            "AND att.adhocTask.status NOT IN ('COMPLETED', 'CANCELED')")
     List<AdhocTaskTarget> findActiveTasksByTargetOrg(@Param("orgId") Long orgId);
 

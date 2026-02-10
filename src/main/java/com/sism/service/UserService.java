@@ -1,7 +1,7 @@
 package com.sism.service;
 
-import com.sism.entity.AppUser;
-import com.sism.entity.Org;
+import com.sism.entity.SysUser;
+import com.sism.entity.SysOrg;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.UserRepository;
 import com.sism.vo.UserVO;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final OrgService orgService;
+    private final SysOrgService sysOrgService;
 
     /**
      * Get user by ID
@@ -34,7 +34,7 @@ public class UserService {
      * @return user entity
      * @throws ResourceNotFoundException if user not found
      */
-    public AppUser getUserById(Long userId) {
+    public SysUser getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
     }
@@ -46,7 +46,7 @@ public class UserService {
      * @param username username to search
      * @return optional user entity
      */
-    public Optional<AppUser> findByUsername(String username) {
+    public Optional<SysUser> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
@@ -57,7 +57,7 @@ public class UserService {
      * @return user entity
      * @throws ResourceNotFoundException if user not found
      */
-    public AppUser getByUsername(String username) {
+    public SysUser getByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
     }
@@ -71,7 +71,7 @@ public class UserService {
      * @return user value object with organization details
      */
     public UserVO getUserVO(Long userId) {
-        AppUser user = getUserById(userId);
+        SysUser user = getUserById(userId);
         return toUserVO(user);
     }
 
@@ -82,7 +82,7 @@ public class UserService {
      * @return user value object with organization details
      */
     public UserVO getUserVOByUsername(String username) {
-        AppUser user = getByUsername(username);
+        SysUser user = getByUsername(username);
         return toUserVO(user);
     }
 
@@ -104,7 +104,7 @@ public class UserService {
      * @return list of users in the organization
      */
     public List<UserVO> getUsersByOrgId(Long orgId) {
-        return userRepository.findByOrg_OrgIdAndIsActiveTrue(orgId).stream()
+        return userRepository.findByOrg_IdAndIsActiveTrue(orgId).stream()
                 .map(this::toUserVO)
                 .collect(Collectors.toList());
     }
@@ -120,22 +120,22 @@ public class UserService {
     }
 
     /**
-     * Convert AppUser entity to UserVO
+     * Convert SysUser entity to UserVO
      * Includes organization information
      */
-    private UserVO toUserVO(AppUser user) {
+    private UserVO toUserVO(SysUser user) {
         UserVO vo = new UserVO();
-        vo.setUserId(user.getUserId());
+        vo.setUserId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setRealName(user.getRealName());
         vo.setIsActive(user.getIsActive());
         
         // Include organization information
-        Org org = user.getOrg();
+        SysOrg org = user.getOrg();
         if (org != null) {
-            vo.setOrgId(org.getOrgId());
-            vo.setOrgName(org.getOrgName());
-            vo.setOrgType(org.getOrgType());
+            vo.setOrgId(org.getId());
+            vo.setOrgName(org.getName());
+            vo.setOrgType(org.getType());
         }
         
         return vo;

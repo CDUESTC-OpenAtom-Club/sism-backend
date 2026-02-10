@@ -5,19 +5,20 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * User entity
+ * System User entity
  * Associated with an organization
+ * Renamed from SysUser on 2026-02-10
  */
 @Getter
 @Setter
 @Entity
-@Table(name = "app_user")
-public class AppUser extends BaseEntity {
+@Table(name = "sys_user")
+public class SysUser extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long userId;
+    @Column(name = "id")
+    private Long id;
 
     @Column(nullable = false, unique = true, length = 50)
     private String username;
@@ -27,7 +28,7 @@ public class AppUser extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "org_id", nullable = false)
-    private Org org;
+    private SysOrg org;
 
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;

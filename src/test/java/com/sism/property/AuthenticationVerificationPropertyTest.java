@@ -1,8 +1,8 @@
 package com.sism.property;
 
-import com.sism.entity.AppUser;
-import com.sism.entity.Org;
-import com.sism.repository.OrgRepository;
+import com.sism.entity.SysUser;
+import com.sism.entity.SysOrg;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.UserRepository;
 import com.sism.util.JwtUtil;
 import com.sism.util.TokenBlacklistService;
@@ -52,7 +52,7 @@ public class AuthenticationVerificationPropertyTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     // ==================== Protected Endpoints ====================
     
@@ -73,14 +73,14 @@ public class AuthenticationVerificationPropertyTest {
 
     // ==================== Helper Methods ====================
 
-    private AppUser getTestUser() {
+    private SysUser getTestUser() {
         return userRepository.findAll().stream()
                 .filter(u -> u.getOrg() != null)
                 .findFirst()
                 .orElse(null);
     }
 
-    private Org getTestOrg() {
+    private SysOrg getTestOrg() {
         return orgRepository.findAll().stream()
                 .findFirst()
                 .orElse(null);
@@ -89,11 +89,11 @@ public class AuthenticationVerificationPropertyTest {
     /**
      * Generate a valid JWT token for a user
      */
-    private String generateValidToken(AppUser user) {
+    private String generateValidToken(SysUser user) {
         return jwtUtil.generateToken(
-                user.getUserId(),
+                user.getId(),
                 user.getUsername(),
-                user.getOrg().getOrgId()
+                user.getOrg().getId()
         );
     }
 
@@ -143,7 +143,7 @@ public class AuthenticationVerificationPropertyTest {
             @ForAll("protectedEndpoints") String endpoint) throws Exception {
 
         // Get test user
-        AppUser testUser = getTestUser();
+        SysUser testUser = getTestUser();
         assumeThat(testUser).isNotNull();
         assumeThat(testUser.getOrg()).isNotNull();
 
@@ -223,7 +223,7 @@ public class AuthenticationVerificationPropertyTest {
             @ForAll("protectedEndpoints") String endpoint) throws Exception {
 
         // Get test user
-        AppUser testUser = getTestUser();
+        SysUser testUser = getTestUser();
         assumeThat(testUser).isNotNull();
         assumeThat(testUser.getOrg()).isNotNull();
 
@@ -262,7 +262,7 @@ public class AuthenticationVerificationPropertyTest {
     @Property(tries = 100)
     void jwtTokenValidation_shouldBeConsistent() {
         // Get test user
-        AppUser testUser = getTestUser();
+        SysUser testUser = getTestUser();
         assumeThat(testUser).isNotNull();
         assumeThat(testUser.getOrg()).isNotNull();
 
@@ -281,11 +281,11 @@ public class AuthenticationVerificationPropertyTest {
 
         assertThat(jwtUtil.extractUserId(token))
                 .as("Extracted userId should match")
-                .isEqualTo(testUser.getUserId());
+                .isEqualTo(testUser.getId());
 
         assertThat(jwtUtil.extractOrgId(token))
                 .as("Extracted orgId should match")
-                .isEqualTo(testUser.getOrg().getOrgId());
+                .isEqualTo(testUser.getOrg().getId());
     }
 
     /**
@@ -366,7 +366,7 @@ public class AuthenticationVerificationPropertyTest {
     @Property(tries = 50)
     void tokenExpiration_shouldBeWithinReasonableTimeframe() {
         // Get test user
-        AppUser testUser = getTestUser();
+        SysUser testUser = getTestUser();
         assumeThat(testUser).isNotNull();
         assumeThat(testUser.getOrg()).isNotNull();
 

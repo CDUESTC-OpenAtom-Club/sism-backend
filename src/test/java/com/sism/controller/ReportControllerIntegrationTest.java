@@ -53,7 +53,7 @@ class ReportControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private IndicatorRepository indicatorRepository;
@@ -68,7 +68,7 @@ class ReportControllerIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
-    private AppUser testUser;
+    private SysUser testUser;
     private Indicator testIndicator;
     private Milestone testMilestone;
     private ProgressReport testReport;
@@ -77,7 +77,7 @@ class ReportControllerIntegrationTest {
     void setUp() throws Exception {
         // Get or create test user and login
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
@@ -205,7 +205,7 @@ class ReportControllerIntegrationTest {
             ReportCreateRequest request = new ReportCreateRequest();
             request.setIndicatorId(testIndicator.getIndicatorId());
             request.setMilestoneId(testMilestone.getMilestoneId());
-            request.setReporterId(testUser.getUserId());
+            request.setReporterId(testUser.getId());
             request.setNarrative("New progress report");
             request.setPercentComplete(BigDecimal.valueOf(30));
 
@@ -303,7 +303,7 @@ class ReportControllerIntegrationTest {
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(testReport.getReportId());
             request.setAction(ApprovalAction.APPROVE);
-            request.setApproverId(testUser.getUserId());
+            request.setApproverId(testUser.getId());
             request.setComment("Approved");
 
             mockMvc.perform(post("/api/reports/approve")
@@ -333,7 +333,7 @@ class ReportControllerIntegrationTest {
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(reportToReject.getReportId());
             request.setAction(ApprovalAction.REJECT);
-            request.setApproverId(testUser.getUserId());
+            request.setApproverId(testUser.getId());
             request.setComment("Rejected - needs more details");
 
             mockMvc.perform(post("/api/reports/approve")

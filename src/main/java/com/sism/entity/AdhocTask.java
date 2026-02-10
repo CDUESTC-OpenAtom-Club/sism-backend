@@ -29,7 +29,7 @@ public class AdhocTask extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_org_id", nullable = false)
-    private Org creatorOrg;
+    private SysOrg creatorOrg;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "scope_type", nullable = false)

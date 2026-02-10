@@ -28,7 +28,7 @@ public class ApprovalRecord {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "approver_id", nullable = false)
-    private AppUser approver;
+    private SysUser approver;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

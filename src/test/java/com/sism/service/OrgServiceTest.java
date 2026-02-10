@@ -1,11 +1,11 @@
 package com.sism.service;
 
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.enums.OrgType;
 import com.sism.exception.ResourceNotFoundException;
-import com.sism.repository.OrgRepository;
+import com.sism.repository.SysOrgRepository;
 import com.sism.vo.OrgTreeVO;
-import com.sism.vo.OrgVO;
+import com.sism.vo.SysOrgVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -33,7 +33,7 @@ class OrgServiceTest {
     private OrgService orgService;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Nested
     @DisplayName("getOrgById Tests")
@@ -43,16 +43,16 @@ class OrgServiceTest {
         @DisplayName("Should return organization when exists")
         void shouldReturnOrgWhenExists() {
             // Given
-            Org existingOrg = orgRepository.findAll().stream()
+            SysOrg existingOrg = orgRepository.findAll().stream()
                     .findFirst()
                     .orElseThrow();
 
             // When
-            Org result = orgService.getOrgById(existingOrg.getOrgId());
+            SysOrg result = orgService.getOrgById(existingOrg.getId());
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getOrgId()).isEqualTo(existingOrg.getOrgId());
+            assertThat(result.getId()).isEqualTo(existingOrg.getId());
         }
 
         @Test
@@ -76,11 +76,11 @@ class OrgServiceTest {
         @DisplayName("Should return only active organizations")
         void shouldReturnOnlyActiveOrgs() {
             // When
-            List<OrgVO> result = orgService.getAllActiveOrgs();
+            List<SysOrgVO> result = orgService.getAllActiveOrgs();
 
             // Then
             assertThat(result).isNotEmpty();
-            assertThat(result).allMatch(OrgVO::getIsActive);
+            assertThat(result).allMatch(SysOrgVO::getIsActive);
         }
     }
 
@@ -95,21 +95,21 @@ class OrgServiceTest {
             OrgType targetType = OrgType.FUNCTIONAL_DEPT;
 
             // When
-            List<OrgVO> result = orgService.getOrgsByType(targetType);
+            List<SysOrgVO> result = orgService.getOrgsByType(targetType);
 
             // Then
-            assertThat(result).allMatch(org -> org.getOrgType() == targetType);
+            assertThat(result).allMatch(org -> org.getType() == targetType);
         }
 
         @Test
         @DisplayName("Should return all active orgs when type is null")
         void shouldReturnAllActiveOrgsWhenTypeIsNull() {
             // When
-            List<OrgVO> result = orgService.getOrgsByType(null);
+            List<SysOrgVO> result = orgService.getOrgsByType(null);
 
             // Then
             assertThat(result).isNotEmpty();
-            assertThat(result).allMatch(OrgVO::getIsActive);
+            assertThat(result).allMatch(SysOrgVO::getIsActive);
         }
     }
 
@@ -150,18 +150,18 @@ class OrgServiceTest {
         @DisplayName("Should return hierarchy starting from specified org")
         void shouldReturnHierarchyFromSpecifiedOrg() {
             // Given
-            Org existingOrg = orgRepository.findAll().stream()
-                    .filter(Org::getIsActive)
+            SysOrg existingOrg = orgRepository.findAll().stream()
+                    .filter(SysOrg::getIsActive)
                     .findFirst()
                     .orElseThrow();
 
             // When
-            OrgTreeVO result = orgService.getOrgHierarchyFrom(existingOrg.getOrgId());
+            OrgTreeVO result = orgService.getOrgHierarchyFrom(existingOrg.getId());
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getOrgId()).isEqualTo(existingOrg.getOrgId());
-            assertThat(result.getOrgName()).isEqualTo(existingOrg.getOrgName());
+            assertThat(result.getOrgId()).isEqualTo(existingOrg.getId());
+            assertThat(result.getOrgName()).isEqualTo(existingOrg.getName());
         }
 
         @Test
@@ -181,60 +181,33 @@ class OrgServiceTest {
     class GetDescendantOrgIdsTests {
 
         @Test
-        @DisplayName("Should include the org itself in descendants")
-        void shouldIncludeOrgItselfInDescendants() {
-            // Given
-            Org existingOrg = orgRepository.findAll().stream()
-                    .filter(Org::getIsActive)
+        @DisplayName("Should return empty list for flat structure (no descendants)")
+        void shouldReturnEmptyListForFlatStructure() {
+            // Given - In flat structure, no org has descendants
+            SysOrg existingOrg = orgRepository.findAll().stream()
+                    .filter(SysOrg::getIsActive)
                     .findFirst()
                     .orElseThrow();
 
             // When
-            List<Long> result = orgService.getDescendantOrgIds(existingOrg.getOrgId());
+            List<Long> result = orgService.getDescendantOrgIds(existingOrg.getId());
 
-            // Then
-            assertThat(result).isNotEmpty();
-            assertThat(result).contains(existingOrg.getOrgId());
+            // Then - Flat structure means no descendants
+            assertThat(result).isEmpty();
         }
 
         @Test
-        @DisplayName("Should return all descendant org IDs")
-        void shouldReturnAllDescendantOrgIds() {
-            // Given - Find an org that has children
-            Org parentOrg = orgRepository.findAll().stream()
-                    .filter(Org::getIsActive)
-                    .filter(org -> !orgRepository.findByParentOrg_OrgId(org.getOrgId()).isEmpty())
+        @DisplayName("Should not throw exception for valid org ID")
+        void shouldNotThrowExceptionForValidOrgId() {
+            // Given
+            SysOrg existingOrg = orgRepository.findAll().stream()
+                    .filter(SysOrg::getIsActive)
                     .findFirst()
-                    .orElse(null);
+                    .orElseThrow();
 
-            if (parentOrg != null) {
-                // When
-                List<Long> result = orgService.getDescendantOrgIds(parentOrg.getOrgId());
-
-                // Then
-                assertThat(result).hasSizeGreaterThan(1);
-                assertThat(result).contains(parentOrg.getOrgId());
-            }
-        }
-
-        @Test
-        @DisplayName("Should return only self for leaf org")
-        void shouldReturnOnlySelfForLeafOrg() {
-            // Given - Find a leaf org (no children)
-            Org leafOrg = orgRepository.findAll().stream()
-                    .filter(Org::getIsActive)
-                    .filter(org -> orgRepository.findByParentOrg_OrgId(org.getOrgId()).isEmpty())
-                    .findFirst()
-                    .orElse(null);
-
-            if (leafOrg != null) {
-                // When
-                List<Long> result = orgService.getDescendantOrgIds(leafOrg.getOrgId());
-
-                // Then
-                assertThat(result).hasSize(1);
-                assertThat(result).containsExactly(leafOrg.getOrgId());
-            }
+            // When/Then - Should not throw exception
+            assertThatCode(() -> orgService.getDescendantOrgIds(existingOrg.getId()))
+                    .doesNotThrowAnyException();
         }
     }
 }

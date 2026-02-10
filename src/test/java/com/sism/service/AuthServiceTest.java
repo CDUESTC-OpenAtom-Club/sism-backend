@@ -1,7 +1,7 @@
 package com.sism.service;
 
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.exception.UnauthorizedException;
 import com.sism.repository.UserRepository;
 import com.sism.vo.LoginResponse;
@@ -38,14 +38,14 @@ class AuthServiceTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    private AppUser testUser;
+    private SysUser testUser;
     private String testPassword = "testPassword123";
 
     @BeforeEach
     void setUp() {
         // Get or create a test user
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode(testPassword));
             user.setRealName("Test User");
@@ -53,7 +53,7 @@ class AuthServiceTest {
             // Get first org for test user
             user.setOrg(userRepository.findAll().stream()
                     .filter(u -> u.getOrg() != null)
-                    .map(AppUser::getOrg)
+                    .map(SysUser::getOrg)
                     .findFirst()
                     .orElseThrow());
             return userRepository.save(user);
@@ -114,7 +114,7 @@ class AuthServiceTest {
         @DisplayName("Should throw UnauthorizedException for inactive user")
         void shouldThrowExceptionForInactiveUser() {
             // Given - Create inactive user
-            AppUser inactiveUser = new AppUser();
+            SysUser inactiveUser = new SysUser();
             inactiveUser.setUsername("inactiveuser" + System.currentTimeMillis());
             inactiveUser.setPasswordHash(passwordEncoder.encode("password"));
             inactiveUser.setRealName("Inactive User");

@@ -1,6 +1,6 @@
 package com.sism.debug;
 
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,13 +39,13 @@ public class FixFunctionalPasswordsTest {
         System.out.println("Verification: " + passwordEncoder.matches(newPassword, newPasswordHash));
         System.out.println();
         
-        List<AppUser> allUsers = userRepository.findAll();
+        List<SysUser> allUsers = userRepository.findAll();
         int updatedCount = 0;
         
-        for (AppUser user : allUsers) {
+        for (SysUser user : allUsers) {
             if (user.getOrg() != null && 
-                (user.getOrg().getOrgType().name().contains("FUNCTION") || 
-                 user.getOrg().getOrgType().name().equals("FUNCTIONAL_DEPT"))) {
+                (user.getOrg().getType().name().contains("FUNCTION") || 
+                 user.getOrg().getType().name().equals("FUNCTIONAL_DEPT"))) {
                 
                 // 检查密码是否需要更新
                 boolean needsUpdate = !passwordEncoder.matches(newPassword, user.getPasswordHash());
@@ -72,10 +72,10 @@ public class FixFunctionalPasswordsTest {
         int verifiedCount = 0;
         int failedCount = 0;
         
-        for (AppUser user : allUsers) {
+        for (SysUser user : allUsers) {
             if (user.getOrg() != null && 
-                (user.getOrg().getOrgType().name().contains("FUNCTION") || 
-                 user.getOrg().getOrgType().name().equals("FUNCTIONAL_DEPT"))) {
+                (user.getOrg().getType().name().contains("FUNCTION") || 
+                 user.getOrg().getType().name().equals("FUNCTIONAL_DEPT"))) {
                 
                 boolean matches = passwordEncoder.matches(newPassword, user.getPasswordHash());
                 if (matches) {

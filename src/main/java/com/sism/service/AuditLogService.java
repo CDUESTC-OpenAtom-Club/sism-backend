@@ -3,9 +3,9 @@ package com.sism.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.common.PageResult;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.AuditLog;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.enums.AuditAction;
 import com.sism.enums.AuditEntityType;
 import com.sism.repository.AuditLogRepository;
@@ -57,7 +57,7 @@ public class AuditLogService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logCreate(AuditEntityType entityType, Long entityId, Object afterData,
-                          AppUser actorUser, Org actorOrg, String reason) {
+                          SysUser actorUser, SysOrg actorOrg, String reason) {
         AuditLog auditLog = new AuditLog();
         auditLog.setEntityType(entityType);
         auditLog.setEntityId(entityId);
@@ -88,7 +88,7 @@ public class AuditLogService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logUpdate(AuditEntityType entityType, Long entityId, Object beforeData, Object afterData,
-                          AppUser actorUser, Org actorOrg, String reason) {
+                          SysUser actorUser, SysOrg actorOrg, String reason) {
         Map<String, Object> beforeMap = convertToMap(beforeData);
         Map<String, Object> afterMap = convertToMap(afterData);
         Map<String, Object> changedFields = calculateChangedFields(beforeMap, afterMap);
@@ -122,7 +122,7 @@ public class AuditLogService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logDelete(AuditEntityType entityType, Long entityId, Object beforeData,
-                          AppUser actorUser, Org actorOrg, String reason) {
+                          SysUser actorUser, SysOrg actorOrg, String reason) {
         AuditLog auditLog = new AuditLog();
         auditLog.setEntityType(entityType);
         auditLog.setEntityId(entityId);
@@ -151,7 +151,7 @@ public class AuditLogService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logArchive(AuditEntityType entityType, Long entityId, Object beforeData,
-                           AppUser actorUser, Org actorOrg, String reason) {
+                           SysUser actorUser, SysOrg actorOrg, String reason) {
         AuditLog auditLog = new AuditLog();
         auditLog.setEntityType(entityType);
         auditLog.setEntityId(entityId);
@@ -182,7 +182,7 @@ public class AuditLogService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logApprove(AuditEntityType entityType, Long entityId, Object beforeData, Object afterData,
-                           AppUser actorUser, Org actorOrg, String approvalComments) {
+                           SysUser actorUser, SysOrg actorOrg, String approvalComments) {
         Map<String, Object> beforeMap = convertToMap(beforeData);
         Map<String, Object> afterMap = convertToMap(afterData);
         Map<String, Object> changedFields = calculateChangedFields(beforeMap, afterMap);
@@ -215,7 +215,7 @@ public class AuditLogService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logRestore(AuditEntityType entityType, Long entityId, Object afterData,
-                           AppUser actorUser, Org actorOrg, String reason) {
+                           SysUser actorUser, SysOrg actorOrg, String reason) {
         AuditLog auditLog = new AuditLog();
         auditLog.setEntityType(entityType);
         auditLog.setEntityId(entityId);
@@ -477,13 +477,13 @@ public class AuditLogService {
         vo.setReason(auditLog.getReason());
         
         if (auditLog.getActorUser() != null) {
-            vo.setActorUserId(auditLog.getActorUser().getUserId());
+            vo.setActorUserId(auditLog.getActorUser().getId());
             vo.setActorUserName(auditLog.getActorUser().getRealName());
         }
         
         if (auditLog.getActorOrg() != null) {
-            vo.setActorOrgId(auditLog.getActorOrg().getOrgId());
-            vo.setActorOrgName(auditLog.getActorOrg().getOrgName());
+            vo.setActorOrgId(auditLog.getActorOrg().getId());
+            vo.setActorOrgName(auditLog.getActorOrg().getName());
         }
         
         vo.setCreatedAt(auditLog.getCreatedAt());

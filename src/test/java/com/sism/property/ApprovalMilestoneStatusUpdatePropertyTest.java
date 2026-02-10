@@ -75,7 +75,7 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
     /**
      * Get existing users from the database for testing.
      */
-    private List<AppUser> getExistingUsers(int limit) {
+    private List<SysUser> getExistingUsers(int limit) {
         return userRepository.findAll().stream()
                 .limit(limit)
                 .toList();
@@ -136,13 +136,13 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
     private ProgressReport createTestReportWithMilestone(
             Indicator indicator, 
             Milestone milestone, 
-            AppUser reporter,
+            SysUser reporter,
             boolean achievedMilestone) {
         
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
         request.setMilestoneId(milestone.getMilestoneId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setPercentComplete(achievedMilestone ? BigDecimal.valueOf(100) : BigDecimal.valueOf(50));
         request.setNarrative("Test report for milestone status update property testing");
         request.setAchievedMilestone(achievedMilestone);
@@ -156,12 +156,12 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
      */
     private ProgressReport createTestReportWithoutMilestone(
             Indicator indicator, 
-            AppUser reporter,
+            SysUser reporter,
             boolean achievedMilestone) {
         
         ReportCreateRequest request = new ReportCreateRequest();
         request.setIndicatorId(indicator.getIndicatorId());
-        request.setReporterId(reporter.getUserId());
+        request.setReporterId(reporter.getId());
         request.setPercentComplete(BigDecimal.valueOf(50));
         request.setNarrative("Test report without milestone for property testing");
         request.setAchievedMilestone(achievedMilestone);
@@ -212,14 +212,14 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
             @ForAll("nonCompletedStatuses") MilestoneStatus initialStatus) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, initialStatus);
@@ -236,7 +236,7 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getUserId());
+        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - milestone achieved");
 
@@ -267,14 +267,14 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
             @ForAll("nonCompletedStatuses") MilestoneStatus initialStatus) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, initialStatus);
@@ -291,7 +291,7 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getUserId());
+        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - milestone not yet achieved");
 
@@ -321,14 +321,14 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Create a report without milestone (achievedMilestone can be true or false)
         ProgressReport report = createTestReportWithoutMilestone(indicator, reporter, true);
@@ -340,7 +340,7 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report - should succeed without error
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getUserId());
+        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - no milestone associated");
 
@@ -368,14 +368,14 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
             @ForAll("userIndices") Integer userIndex) {
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone that is already COMPLETED
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, MilestoneStatus.COMPLETED);
@@ -390,7 +390,7 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getUserId());
+        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - milestone was already completed");
 
@@ -427,14 +427,14 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         ApprovalAction action = Arbitraries.of(ApprovalAction.REJECT, ApprovalAction.RETURN).sample();
 
         List<Indicator> indicators = getExistingActiveIndicators(10);
-        List<AppUser> users = getExistingUsers(5);
+        List<SysUser> users = getExistingUsers(5);
         
         assumeThat(indicators).isNotEmpty();
         assumeThat(users).size().isGreaterThanOrEqualTo(2);
 
         Indicator indicator = indicators.get(indicatorIndex % indicators.size());
-        AppUser reporter = users.get(userIndex % users.size());
-        AppUser approver = users.get((userIndex + 1) % users.size());
+        SysUser reporter = users.get(userIndex % users.size());
+        SysUser approver = users.get((userIndex + 1) % users.size());
 
         // Get or create the first unpaired milestone (to comply with catch-up rule)
         Milestone milestone = getOrCreateFirstUnpairedMilestone(indicator, initialStatus);
@@ -450,7 +450,7 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Reject or Return the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getUserId());
+        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(action);
         approvalRequest.setComment("Test " + action + " - milestone should not be updated");
 

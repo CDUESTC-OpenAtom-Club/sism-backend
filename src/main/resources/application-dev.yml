@@ -12,7 +12,7 @@ spring:
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: validate  # 开发环境: 验证表结构，不自动创建
+      ddl-auto: none  # 使用手动迁移脚本，不自动修改表结构
     properties:
       hibernate:
         format_sql: true

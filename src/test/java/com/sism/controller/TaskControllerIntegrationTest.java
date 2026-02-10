@@ -2,9 +2,9 @@ package com.sism.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.AssessmentCycle;
-import com.sism.entity.Org;
+import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +47,7 @@ class TaskControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private TaskRepository taskRepository;
@@ -60,14 +60,14 @@ class TaskControllerIntegrationTest {
 
     private String authToken;
     private StrategicTask testTask;
-    private Org testOrg;
+    private SysOrg testOrg;
     private AssessmentCycle testCycle;
 
     @BeforeEach
     void setUp() throws Exception {
         // Get or create test user and login
-        AppUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
@@ -155,7 +155,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return tasks by organization ID")
         void shouldReturnTasksByOrgId() throws Exception {
-            mockMvc.perform(get("/api/tasks/org/{orgId}", testOrg.getOrgId())
+            mockMvc.perform(get("/api/tasks/org/{orgId}", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))

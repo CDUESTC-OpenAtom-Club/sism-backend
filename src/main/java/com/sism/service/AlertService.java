@@ -210,7 +210,7 @@ public class AlertService {
         // Add detail information
         Map<String, Object> details = new HashMap<>();
         details.put("indicatorDesc", indicator.getIndicatorDesc());
-        details.put("targetOrgName", indicator.getTargetOrg().getOrgName());
+        details.put("targetOrgName", indicator.getTargetOrg().getName());
         details.put("hasReports", hasReports);
         details.put("ruleName", applicableRule.getName());
         event.setDetailJson(details);
@@ -382,7 +382,7 @@ public class AlertService {
             throw new BusinessException("Alert event is already closed or resolved");
         }
 
-        AppUser handler = userRepository.findById(handledById)
+        SysUser handler = userRepository.findById(handledById)
                 .orElseThrow(() -> new ResourceNotFoundException("User", handledById));
 
         event.setHandledBy(handler);
@@ -413,7 +413,7 @@ public class AlertService {
             throw new BusinessException("Alert event is already closed");
         }
 
-        AppUser handler = userRepository.findById(handledById)
+        SysUser handler = userRepository.findById(handledById)
                 .orElseThrow(() -> new ResourceNotFoundException("User", handledById));
 
         event.setHandledBy(handler);
@@ -442,7 +442,7 @@ public class AlertService {
             throw new BusinessException("Can only start handling OPEN alerts");
         }
 
-        AppUser handler = userRepository.findById(handledById)
+        SysUser handler = userRepository.findById(handledById)
                 .orElseThrow(() -> new ResourceNotFoundException("User", handledById));
 
         event.setHandledBy(handler);
@@ -482,8 +482,8 @@ public class AlertService {
         vo.setEventId(event.getEventId());
         vo.setIndicatorId(event.getIndicator().getIndicatorId());
         vo.setIndicatorDesc(event.getIndicator().getIndicatorDesc());
-        vo.setTargetOrgId(event.getIndicator().getTargetOrg().getOrgId());
-        vo.setTargetOrgName(event.getIndicator().getTargetOrg().getOrgName());
+        vo.setTargetOrgId(event.getIndicator().getTargetOrg().getId());
+        vo.setTargetOrgName(event.getIndicator().getTargetOrg().getName());
         vo.setWindowId(event.getWindow().getWindowId());
         vo.setWindowName(event.getWindow().getName());
         vo.setCutoffDate(event.getWindow().getCutoffDate());
@@ -496,7 +496,7 @@ public class AlertService {
         vo.setStatus(event.getStatus());
         
         if (event.getHandledBy() != null) {
-            vo.setHandledById(event.getHandledBy().getUserId());
+            vo.setHandledById(event.getHandledBy().getId());
             vo.setHandledByName(event.getHandledBy().getRealName());
         }
         vo.setHandledNote(event.getHandledNote());

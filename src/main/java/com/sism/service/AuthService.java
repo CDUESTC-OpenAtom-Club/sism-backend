@@ -1,7 +1,7 @@
 package com.sism.service;
 
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.exception.UnauthorizedException;
 import com.sism.util.JwtUtil;
 import com.sism.util.TokenBlacklistService;
@@ -48,13 +48,13 @@ public class AuthService {
         log.info("Login attempt for user: {}", request.getUsername());
         
         // Find user by username
-        Optional<AppUser> userOpt = userService.findByUsername(request.getUsername());
+        Optional<SysUser> userOpt = userService.findByUsername(request.getUsername());
         if (userOpt.isEmpty()) {
             log.warn("Login failed: user not found - {}", request.getUsername());
             throw new UnauthorizedException("Invalid username or password");
         }
         
-        AppUser user = userOpt.get();
+        SysUser user = userOpt.get();
         
         // Check if user is active
         if (!user.getIsActive()) {
@@ -71,9 +71,9 @@ public class AuthService {
         
         // Generate JWT token
         String token = jwtUtil.generateToken(
-                user.getUserId(),
+                user.getId(),
                 user.getUsername(),
-                user.getOrg().getOrgId()
+                user.getOrg().getId()
         );
         
         // Build user VO
@@ -160,25 +160,25 @@ public class AuthService {
      * @return user entity
      * @throws UnauthorizedException if user not found
      */
-    public AppUser getUserByUsername(String username) {
+    public SysUser getUserByUsername(String username) {
         return userService.findByUsername(username)
                 .orElseThrow(() -> new UnauthorizedException("User not found"));
     }
 
     /**
-     * Build UserVO from AppUser entity
+     * Build UserVO from SysUser entity
      */
-    private UserVO buildUserVO(AppUser user) {
+    private UserVO buildUserVO(SysUser user) {
         UserVO vo = new UserVO();
-        vo.setUserId(user.getUserId());
+        vo.setUserId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setRealName(user.getRealName());
         vo.setIsActive(user.getIsActive());
         
         if (user.getOrg() != null) {
-            vo.setOrgId(user.getOrg().getOrgId());
-            vo.setOrgName(user.getOrg().getOrgName());
-            vo.setOrgType(user.getOrg().getOrgType());
+            vo.setOrgId(user.getOrg().getId());
+            vo.setOrgName(user.getOrg().getName());
+            vo.setOrgType(user.getOrg().getType());
         }
         
         return vo;

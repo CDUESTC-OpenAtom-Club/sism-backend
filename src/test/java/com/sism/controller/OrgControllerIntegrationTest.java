@@ -2,9 +2,9 @@ package com.sism.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
-import com.sism.entity.AppUser;
-import com.sism.entity.Org;
-import com.sism.repository.OrgRepository;
+import com.sism.entity.SysUser;
+import com.sism.entity.SysOrg;
+import com.sism.repository.SysOrgRepository;
 import com.sism.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,19 +46,19 @@ class OrgControllerIntegrationTest {
     private UserRepository userRepository;
 
     @Autowired
-    private OrgRepository orgRepository;
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
-    private Org testOrg;
+    private SysOrg testOrg;
 
     @BeforeEach
     void setUp() throws Exception {
         // Get or create test user and login
-        AppUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
-            AppUser user = new AppUser();
+        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+            SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
@@ -119,7 +119,7 @@ class OrgControllerIntegrationTest {
         @Test
         @DisplayName("Should return organization subtree")
         void shouldReturnOrgSubtree() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", testOrg.getOrgId())
+            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -142,7 +142,7 @@ class OrgControllerIntegrationTest {
         @Test
         @DisplayName("Should return descendant organization IDs")
         void shouldReturnDescendantOrgIds() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/descendants", testOrg.getOrgId())
+            mockMvc.perform(get("/api/orgs/{orgId}/descendants", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))

@@ -54,11 +54,11 @@ public class AuditLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_user_id")
-    private AppUser actorUser;
+    private SysUser actorUser;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "actor_org_id")
-    private Org actorOrg;
+    private SysOrg actorOrg;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

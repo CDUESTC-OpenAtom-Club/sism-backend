@@ -2,7 +2,7 @@ package com.sism.service;
 
 import com.sism.dto.ReportCreateRequest;
 import com.sism.dto.ReportUpdateRequest;
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.enums.IndicatorStatus;
 import com.sism.enums.ReportStatus;
@@ -50,7 +50,7 @@ class ReportServiceTest {
     private UserRepository userRepository;
 
     private Indicator testIndicator;
-    private AppUser testReporter;
+    private SysUser testReporter;
 
     @BeforeEach
     void setUp() {
@@ -61,7 +61,7 @@ class ReportServiceTest {
                 .orElseThrow(() -> new RuntimeException("No active indicators found in test database"));
 
         testReporter = userRepository.findAll().stream()
-                .filter(AppUser::getIsActive)
+                .filter(SysUser::getIsActive)
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("No active users found in test database"));
     }
@@ -76,7 +76,7 @@ class ReportServiceTest {
             // Given - Create a report first
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
             createRequest.setNarrative("Test report");
 
@@ -113,7 +113,7 @@ class ReportServiceTest {
             // Given
             ReportCreateRequest request = new ReportCreateRequest();
             request.setIndicatorId(testIndicator.getIndicatorId());
-            request.setReporterId(testReporter.getUserId());
+            request.setReporterId(testReporter.getId());
             request.setPercentComplete(new BigDecimal("25"));
             request.setNarrative("Test report narrative");
             request.setAchievedMilestone(false);
@@ -135,7 +135,7 @@ class ReportServiceTest {
             // Given
             ReportCreateRequest request = new ReportCreateRequest();
             request.setIndicatorId(999999L);
-            request.setReporterId(testReporter.getUserId());
+            request.setReporterId(testReporter.getId());
             request.setPercentComplete(new BigDecimal("50"));
 
             // When/Then
@@ -165,7 +165,7 @@ class ReportServiceTest {
             // Given
             ReportCreateRequest request = new ReportCreateRequest();
             request.setIndicatorId(testIndicator.getIndicatorId());
-            request.setReporterId(testReporter.getUserId());
+            request.setReporterId(testReporter.getId());
             request.setPercentComplete(new BigDecimal("50"));
             request.setMilestoneId(1L);
             request.setAdhocTaskId(1L);
@@ -187,7 +187,7 @@ class ReportServiceTest {
             // Given - Create a report first
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("25"));
             createRequest.setNarrative("Original narrative");
 
@@ -211,7 +211,7 @@ class ReportServiceTest {
             // Given - Create and submit a report
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             ReportVO created = reportService.createReport(createRequest);
@@ -237,7 +237,7 @@ class ReportServiceTest {
             // Given
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             ReportVO created = reportService.createReport(createRequest);
@@ -256,7 +256,7 @@ class ReportServiceTest {
             // Given - Create, submit, then try to submit again
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             ReportVO created = reportService.createReport(createRequest);
@@ -278,7 +278,7 @@ class ReportServiceTest {
             // Given
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             ReportVO created = reportService.createReport(createRequest);
@@ -298,7 +298,7 @@ class ReportServiceTest {
             // Given - Create a DRAFT report
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             ReportVO created = reportService.createReport(createRequest);
@@ -320,7 +320,7 @@ class ReportServiceTest {
             // Given - Create a report
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             reportService.createReport(createRequest);
@@ -344,7 +344,7 @@ class ReportServiceTest {
             // Given - Create a DRAFT report
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             reportService.createReport(createRequest);
@@ -367,17 +367,17 @@ class ReportServiceTest {
             // Given - Create a report
             ReportCreateRequest createRequest = new ReportCreateRequest();
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
-            createRequest.setReporterId(testReporter.getUserId());
+            createRequest.setReporterId(testReporter.getId());
             createRequest.setPercentComplete(new BigDecimal("50"));
 
             reportService.createReport(createRequest);
 
             // When
-            List<ReportVO> result = reportService.getReportsByReporterId(testReporter.getUserId());
+            List<ReportVO> result = reportService.getReportsByReporterId(testReporter.getId());
 
             // Then
             assertThat(result).isNotEmpty();
-            assertThat(result).allMatch(r -> r.getReporterId().equals(testReporter.getUserId()));
+            assertThat(result).allMatch(r -> r.getReporterId().equals(testReporter.getId()));
         }
     }
 

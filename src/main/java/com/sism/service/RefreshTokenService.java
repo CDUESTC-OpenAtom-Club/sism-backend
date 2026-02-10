@@ -1,6 +1,6 @@
 package com.sism.service;
 
-import com.sism.entity.AppUser;
+import com.sism.entity.SysUser;
 import com.sism.entity.RefreshToken;
 import com.sism.exception.UnauthorizedException;
 import com.sism.repository.RefreshTokenRepository;
@@ -112,7 +112,7 @@ public class RefreshTokenService {
      * @return 原始 Refresh Token（仅返回一次，不存储），如果功能禁用则返回 null
      */
     @Transactional
-    public String generateRefreshToken(AppUser user, String deviceInfo, String ipAddress) {
+    public String generateRefreshToken(SysUser user, String deviceInfo, String ipAddress) {
         if (!refreshTokenEnabled) {
             log.debug("Refresh token generation skipped - feature disabled");
             return null;
@@ -120,7 +120,7 @@ public class RefreshTokenService {
 
         try {
             // 检查并限制用户的会话数
-            enforceMaxSessions(user.getUserId());
+            enforceMaxSessions(user.getId());
 
             // 生成随机 Token
             String rawToken = generateSecureToken();
@@ -155,7 +155,7 @@ public class RefreshTokenService {
      * @throws UnauthorizedException 如果 Token 无效、过期或已撤销
      */
     @Transactional(readOnly = true)
-    public AppUser validateRefreshToken(String rawToken) {
+    public SysUser validateRefreshToken(String rawToken) {
         if (!refreshTokenEnabled) {
             throw new UnauthorizedException("Refresh token feature is not available");
         }
@@ -199,7 +199,7 @@ public class RefreshTokenService {
         }
 
         // 验证旧 Token
-        AppUser user = validateRefreshToken(rawToken);
+        SysUser user = validateRefreshToken(rawToken);
 
         // 撤销旧 Token（Token 轮换）
         String oldTokenHash = hashToken(rawToken);
@@ -208,9 +208,9 @@ public class RefreshTokenService {
 
         // 生成新的 Access Token
         String newAccessToken = jwtUtil.generateToken(
-                user.getUserId(),
+                user.getId(),
                 user.getUsername(),
-                user.getOrg().getOrgId()
+                user.getOrg().getId()
         );
 
         // 生成新的 Refresh Token
@@ -260,7 +260,7 @@ public class RefreshTokenService {
         }
 
         try {
-            int revoked = refreshTokenRepository.revokeAllByUserId(userId, LocalDateTime.now());
+            int revoked = refreshTokenRepository.revokeAllById(userId, LocalDateTime.now());
             log.info("Revoked {} refresh tokens for user ID: {}", revoked, userId);
         } catch (Exception e) {
             log.warn("Failed to revoke all user tokens: {}", e.getMessage());
@@ -292,11 +292,11 @@ public class RefreshTokenService {
      * 如果超过限制，撤销最旧的会话
      */
     private void enforceMaxSessions(Long userId) {
-        long validTokenCount = refreshTokenRepository.countValidTokensByUserId(userId);
+        long validTokenCount = refreshTokenRepository.countValidTokensById(userId);
         
         if (validTokenCount >= maxSessionsPerUser) {
             // 获取用户的所有有效 Token，按创建时间排序
-            var validTokens = refreshTokenRepository.findValidTokensByUserId(userId);
+            var validTokens = refreshTokenRepository.findValidTokensById(userId);
             
             // 撤销最旧的 Token，直到数量符合限制
             int tokensToRevoke = (int) (validTokenCount - maxSessionsPerUser + 1);
