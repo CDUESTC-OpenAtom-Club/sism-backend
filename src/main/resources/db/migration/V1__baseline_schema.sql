@@ -1,0 +1,42 @@
+-- ============================================
+-- SISM Baseline Schema Migration
+-- Version: 1.0
+-- Date: 2026-02-13
+-- Description: Baseline schema for existing tables
+-- ============================================
+
+-- This migration establishes the baseline for existing database tables
+-- Flyway will use baseline-on-migrate=true to skip this on existing databases
+
+-- Note: This is a placeholder baseline migration
+-- The actual schema already exists in the production database
+-- This file documents the baseline state for Flyway tracking
+
+-- Existing tables (already in production):
+-- - sys_user
+-- - sys_org
+-- - sys_role
+-- - sys_permission
+-- - sys_user_role
+-- - sys_role_permission
+-- - assessment_cycle
+-- - plan
+-- - plan_report
+-- - indicator
+-- - milestone
+-- - progress_report
+-- - strategic_task
+-- - adhoc_task
+-- - adhoc_task_target
+-- - adhoc_task_indicator_map
+-- - approval_record
+-- - audit_log
+-- - alert_rule
+-- - alert_event
+-- - alert_window
+-- - refresh_token
+-- - idempotency_record
+-- - attachment
+
+-- Flyway baseline: This migration is marked as baseline
+-- Existing databases will start from V2 onwards

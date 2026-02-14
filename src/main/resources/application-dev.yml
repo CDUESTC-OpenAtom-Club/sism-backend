@@ -1,0 +1,64 @@
+spring:
+  # Development Database Configuration
+  # 开发环境使用环境变量，但提供合理的默认值用于本地开发
+  # 参考: Requirements 1.1.2
+  datasource:
+    # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
+    url: ${DB_URL:jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified}
+    username: ${DB_USERNAME:muzimu}
+    password: ${DB_PASSWORD:64378561huaW}
+  
+  # JPA Configuration for Development
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none  # 使用手动迁移脚本，不自动修改表结构
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # SQL Initialization for Development (可选)
+  # 如需自动执行初始化脚本，取消注释以下配置
+  # sql:
+  #   init:
+  #     mode: always
+  #     schema-locations: classpath:schema.sql
+  #     data-locations: classpath:data.sql
+  #     continue-on-error: false
+
+# JWT Configuration for Development
+# 开发环境可以使用默认密钥，但生产环境必须配置
+jwt:
+  secret: ${JWT_SECRET:dev-only-secret-key-do-not-use-in-production-at-least-256-bits-long}
+  expiration: ${JWT_EXPIRATION:86400000}  # 24 hours
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
+
+# Logging Configuration for Development
+logging:
+  level:
+    root: INFO
+    com.sism: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    path: logs
+    name: logs/sism-dev.log
+
+# Development CORS Configuration
+app:
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:3001
+
+# Rate Limit Configuration for Development
+# 开发环境使用更宽松的限制
+rate-limit:
+  enabled: true
+  storage: memory
+  login:
+    limit: 10  # 开发环境放宽登录限制
+    window-seconds: 60
+  api:
+    limit: 1000  # 开发环境放宽 API 限制
+    window-seconds: 60

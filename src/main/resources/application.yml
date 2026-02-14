@@ -1,0 +1,175 @@
+spring:
+  application:
+    name: sism-backend
+  
+  # Database Configuration
+  # 敏感配置必须从环境变量读取，禁止硬编码默认值
+  # 参考: Requirements 1.1.2
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 5000  # 缩短连接超时时间到 5 秒
+      validation-timeout: 3000  # 健康检查验证超时 3 秒
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1  # 快速验证查询
+  
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate  # Changed to validate - Flyway manages schema
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1.0
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    out-of-order: false
+    placeholder-replacement: false
+  
+  # SQL Initialization (默认禁用)
+  sql:
+    init:
+      mode: never  # 不自动执行 schema.sql 和 data.sql
+  
+  # Jackson Configuration
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+    serialization:
+      write-dates-as-timestamps: false
+
+# Server Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+# Logging Configuration
+# 日志级别可通过环境变量动态配置
+# 参考: Requirements 1.3.5
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.sism: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.web: ${LOG_LEVEL_SPRING:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:DEBUG}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:TRACE}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# SpringDoc OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    disable-swagger-default-url: true
+  show-actuator: false
+  packages-to-scan: com.sism.controller
+
+# JWT Configuration
+# JWT 密钥必须从环境变量读取，禁止硬编码默认值
+# 参考: Requirements 1.1.1
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:900000}  # 15 minutes in milliseconds (default for access token)
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days in milliseconds (default)
+  max-sessions-per-user: ${JWT_MAX_SESSIONS:5}  # Maximum concurrent sessions per user
+
+# Spring Boot Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    # 禁用可能导致慢的健康检查
+    mail:
+      enabled: false
+    rabbit:
+      enabled: false
+    redis:
+      enabled: false
+    mongo:
+      enabled: false
+    elasticsearch:
+      enabled: false
+    diskspace:
+      enabled: true
+      threshold: 10MB  # 磁盘空间检查阈值
+
+# Rate Limit Configuration
+# 频率限制配置
+# 参考: Requirements 2.3.3, 2.3.4, 2.3.5
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}
+  storage: ${RATE_LIMIT_STORAGE:memory}  # memory 或 redis
+  login:
+    limit: ${RATE_LIMIT_LOGIN_LIMIT:5}  # 登录接口限制次数
+    window-seconds: ${RATE_LIMIT_LOGIN_WINDOW:60}  # 时间窗口（秒）
+  api:
+    limit: ${RATE_LIMIT_API_LIMIT:100}  # 通用 API 限制次数
+    window-seconds: ${RATE_LIMIT_API_WINDOW:60}  # 时间窗口（秒）
+
+# Idempotency Configuration
+# 幂等性配置
+idempotency:
+  enabled: ${IDEMPOTENCY_ENABLED:true}
+  ttl-seconds: ${IDEMPOTENCY_TTL:300}  # 5 minutes
+  protected-paths: /api/indicators,/api/milestones,/api/tasks,/api/approvals,/api/progress
+
+# Application Configuration
+app:
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature,X-Idempotency-Key
+    allow-credentials: true
+    max-age: 3600
+  security:
+    headers:
+      enabled: true
+      frame-options: SAMEORIGIN
+      content-type-options: nosniff
+      xss-protection: 1; mode=block
+      referrer-policy: strict-origin-when-cross-origin
+      permissions-policy: geolocation=(), microphone=(), camera=()
