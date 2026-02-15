@@ -5,7 +5,9 @@ import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
 import com.sism.entity.SysOrg;
 import com.sism.repository.SysOrgRepository;
-import com.sism.repository.UserRepository;
+import com.sism.repository.SysUserRepository;
+import com.sism.util.TestDataFactory;
+import com.sism.enums.OrgType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -15,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -43,7 +46,7 @@ class OrgControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -53,22 +56,23 @@ class OrgControllerIntegrationTest {
 
     private String authToken;
     private SysOrg testOrg;
+    private SysUser testUser;
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
-        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+        // Create test data using TestDataFactory
+        testOrg = TestDataFactory.createTestOrg(orgRepository, "测试组织", OrgType.FUNCTIONAL_DEPT);
+        
+        // Create test user with encoded password
+        testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testOrg);
             return userRepository.save(user);
         });
-
-        // Get a test org
-        testOrg = orgRepository.findAll().stream().findFirst().orElseThrow();
 
         // Login to get token
         authToken = loginAndGetToken(testUser.getUsername(), "testPassword123");
@@ -79,10 +83,10 @@ class OrgControllerIntegrationTest {
     class GetAllOrgsTests {
 
         @Test
+        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return all organizations")
         void shouldReturnAllOrganizations() throws Exception {
-            mockMvc.perform(get("/api/orgs")
-                            .header("Authorization", "Bearer " + authToken))
+            mockMvc.perform(get("/api/orgs"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").isArray())
@@ -90,7 +94,7 @@ class OrgControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should return 401 without authentication")
+        @DisplayName("Should return 403 without authentication")
         void shouldReturn401WithoutAuth() throws Exception {
             mockMvc.perform(get("/api/orgs"))
                     .andExpect(status().isForbidden());
@@ -102,10 +106,10 @@ class OrgControllerIntegrationTest {
     class GetOrgHierarchyTests {
 
         @Test
+        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return organization hierarchy tree")
         void shouldReturnOrgHierarchy() throws Exception {
-            mockMvc.perform(get("/api/orgs/hierarchy")
-                            .header("Authorization", "Bearer " + authToken))
+            mockMvc.perform(get("/api/orgs/hierarchy"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").isArray());
@@ -117,20 +121,20 @@ class OrgControllerIntegrationTest {
     class GetOrgSubtreeTests {
 
         @Test
+        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return organization subtree")
         void shouldReturnOrgSubtree() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", testOrg.getId())
-                            .header("Authorization", "Bearer " + authToken))
+            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", testOrg.getId()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").exists());
         }
 
         @Test
+        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return 404 for non-existent org")
         void shouldReturn404ForNonExistentOrg() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", 999999L)
-                            .header("Authorization", "Bearer " + authToken))
+            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", 999999L))
                     .andExpect(status().isNotFound());
         }
     }
@@ -140,10 +144,10 @@ class OrgControllerIntegrationTest {
     class GetDescendantOrgIdsTests {
 
         @Test
+        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return descendant organization IDs")
         void shouldReturnDescendantOrgIds() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/descendants", testOrg.getId())
-                            .header("Authorization", "Bearer " + authToken))
+            mockMvc.perform(get("/api/orgs/{orgId}/descendants", testOrg.getId()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").isArray());

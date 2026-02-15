@@ -10,6 +10,7 @@ import com.sism.enums.ApprovalAction;
 import com.sism.enums.MilestoneStatus;
 import com.sism.enums.ReportStatus;
 import com.sism.repository.*;
+import com.sism.util.TestDataFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,7 +51,7 @@ class ReportControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -65,6 +66,12 @@ class ReportControllerIntegrationTest {
     private ReportRepository reportRepository;
 
     @Autowired
+    private TaskRepository taskRepository;
+
+    @Autowired
+    private AssessmentCycleRepository cycleRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
@@ -75,53 +82,26 @@ class ReportControllerIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
+        // Create test data using TestDataFactory
+        testIndicator = TestDataFactory.createTestIndicator(indicatorRepository, taskRepository, 
+                                                            cycleRepository, orgRepository);
+        testMilestone = TestDataFactory.createTestMilestone(milestoneRepository, indicatorRepository, 
+                                                            taskRepository, cycleRepository, orgRepository);
+        
+        // Create test user with encoded password
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testIndicator.getOwnerOrg());
             return userRepository.save(user);
         });
 
-        // Get test indicator
-        testIndicator = indicatorRepository.findAll().stream()
-                .findFirst()
-                .orElseThrow();
-
-        // Get or create test milestone
-        testMilestone = milestoneRepository.findByIndicator_IndicatorId(testIndicator.getIndicatorId())
-                .stream()
-                .findFirst()
-                .orElseGet(() -> {
-                    Milestone milestone = new Milestone();
-                    milestone.setMilestoneName("Test Milestone for Report");
-                    milestone.setIndicator(testIndicator);
-                    milestone.setDueDate(LocalDate.now().plusMonths(1));
-                    milestone.setWeightPercent(BigDecimal.valueOf(25));
-                    milestone.setStatus(MilestoneStatus.NOT_STARTED);
-                    return milestoneRepository.save(milestone);
-                });
-
-        // Get or create test report
-        testReport = reportRepository.findByIndicator_IndicatorId(testIndicator.getIndicatorId())
-                .stream()
-                .filter(r -> r.getStatus() == ReportStatus.DRAFT)
-                .findFirst()
-                .orElseGet(() -> {
-                    ProgressReport report = new ProgressReport();
-                    report.setIndicator(testIndicator);
-                    report.setMilestone(testMilestone);
-                    report.setReporter(testUser);
-                    report.setNarrative("Test progress description");
-                    report.setPercentComplete(BigDecimal.valueOf(50));
-                    report.setStatus(ReportStatus.DRAFT);
-                    report.setVersionNo(1);
-                    report.setIsFinal(false);
-                    return reportRepository.save(report);
-                });
+        // Create test report
+        testReport = TestDataFactory.createTestReport(reportRepository, indicatorRepository, 
+                                                     userRepository, taskRepository, cycleRepository, orgRepository);
 
         // Login to get token
         authToken = loginAndGetToken(testUser.getUsername(), "testPassword123");

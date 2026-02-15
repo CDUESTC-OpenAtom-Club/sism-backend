@@ -3,7 +3,11 @@ package com.sism.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
-import com.sism.repository.UserRepository;
+import com.sism.entity.SysOrg;
+import com.sism.repository.SysUserRepository;
+import com.sism.repository.SysOrgRepository;
+import com.sism.util.TestDataFactory;
+import com.sism.enums.OrgType;
 import com.sism.vo.LoginResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -42,7 +47,10 @@ class AuthControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
+
+    @Autowired
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -52,17 +60,17 @@ class AuthControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // Create test org first
+        SysOrg testOrg = TestDataFactory.createTestOrg(orgRepository, "测试组织", OrgType.FUNCTIONAL_DEPT);
+        
+        // Create test user with encoded password
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode(testPassword));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(userRepository.findAll().stream()
-                    .filter(u -> u.getOrg() != null)
-                    .map(SysUser::getOrg)
-                    .findFirst()
-                    .orElseThrow());
+            user.setOrg(testOrg);
             return userRepository.save(user);
         });
     }
@@ -119,13 +127,10 @@ class AuthControllerIntegrationTest {
     class LogoutEndpointTests {
 
         @Test
+        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return 200 for logout with valid token")
         void shouldReturn200ForLogoutWithValidToken() throws Exception {
-            // First login to get token
-            String token = loginAndGetToken();
-
-            mockMvc.perform(post("/api/auth/logout")
-                            .header("Authorization", "Bearer " + token))
+            mockMvc.perform(post("/api/auth/logout"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0));
         }
@@ -143,12 +148,10 @@ class AuthControllerIntegrationTest {
     class GetCurrentUserEndpointTests {
 
         @Test
+        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return current user for valid token")
         void shouldReturnCurrentUserForValidToken() throws Exception {
-            String token = loginAndGetToken();
-
-            mockMvc.perform(get("/api/auth/me")
-                            .header("Authorization", "Bearer " + token))
+            mockMvc.perform(get("/api/auth/me"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data.username").value(testUser.getUsername()));
@@ -168,21 +171,5 @@ class AuthControllerIntegrationTest {
                             .header("Authorization", "Bearer invalid.token.here"))
                     .andExpect(status().isUnauthorized());
         }
-    }
-
-    private String loginAndGetToken() throws Exception {
-        LoginRequest request = new LoginRequest();
-        request.setUsername(testUser.getUsername());
-        request.setPassword(testPassword);
-
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String responseBody = result.getResponse().getContentAsString();
-        var response = objectMapper.readTree(responseBody);
-        return response.get("data").get("token").asText();
     }
 }

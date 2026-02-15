@@ -2,16 +2,20 @@ package com.sism.service;
 
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
+import com.sism.entity.AssessmentCycle;
 import com.sism.entity.Indicator;
 import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
+import com.sism.enums.OrgType;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
+import com.sism.repository.AssessmentCycleRepository;
 import com.sism.repository.IndicatorRepository;
 import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
+import com.sism.util.TestDataFactory;
 import com.sism.vo.IndicatorVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,21 +54,29 @@ class IndicatorServiceTest {
     @Autowired
     private SysOrgRepository orgRepository;
 
+    @Autowired
+    private AssessmentCycleRepository cycleRepository;
+
     private StrategicTask testTask;
     private SysOrg testOwnerOrg;
     private SysOrg testTargetOrg;
+    private Indicator testIndicator;
 
     @BeforeEach
     void setUp() {
-        // Get existing test data from database
-        testTask = taskRepository.findAll().stream()
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No tasks found in test database"));
+        // Create test cycle
+        AssessmentCycle cycle = TestDataFactory.createTestCycle(cycleRepository);
         
-        List<SysOrg> orgs = orgRepository.findByIsActiveTrue();
-        assertThat(orgs).hasSizeGreaterThanOrEqualTo(2);
-        testOwnerOrg = orgs.get(0);
-        testTargetOrg = orgs.get(1);
+        // Create test organizations
+        testOwnerOrg = TestDataFactory.createTestOrg(orgRepository, "测试职能部门", OrgType.FUNCTIONAL_DEPT);
+        testTargetOrg = TestDataFactory.createTestOrg(orgRepository, "测试二级学院", OrgType.COLLEGE);
+        
+        // Create test task
+        testTask = TestDataFactory.createTestTask(taskRepository, cycleRepository, orgRepository);
+        
+        // Create test indicator
+        testIndicator = TestDataFactory.createTestIndicator(indicatorRepository, taskRepository, 
+                                                            cycleRepository, orgRepository);
     }
 
     @Nested
@@ -74,18 +86,15 @@ class IndicatorServiceTest {
         @Test
         @DisplayName("Should return indicator when exists")
         void shouldReturnIndicatorWhenExists() {
-            // Given
-            Indicator existingIndicator = indicatorRepository.findAll().stream()
-                    .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
-                    .findFirst()
-                    .orElseThrow();
+            // Given - use the test indicator created in setUp
+            Long existingId = testIndicator.getIndicatorId();
 
             // When
-            IndicatorVO result = indicatorService.getIndicatorById(existingIndicator.getIndicatorId());
+            IndicatorVO result = indicatorService.getIndicatorById(existingId);
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getIndicatorId()).isEqualTo(existingIndicator.getIndicatorId());
+            assertThat(result.getIndicatorId()).isEqualTo(existingId);
         }
 
         @Test
@@ -147,7 +156,7 @@ class IndicatorServiceTest {
             request.setTaskId(testTask.getTaskId());
             request.setOwnerOrgId(testOwnerOrg.getId());
             request.setTargetOrgId(testTargetOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             request.setIndicatorDesc("Test Indicator Description");
             request.setWeightPercent(new BigDecimal("25.00"));
             request.setYear(2025);
@@ -171,7 +180,7 @@ class IndicatorServiceTest {
             request.setTaskId(999999L);
             request.setOwnerOrgId(testOwnerOrg.getId());
             request.setTargetOrgId(testTargetOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             request.setIndicatorDesc("Test");
 
             // When/Then
@@ -188,7 +197,7 @@ class IndicatorServiceTest {
             request.setTaskId(testTask.getTaskId());
             request.setOwnerOrgId(999999L);
             request.setTargetOrgId(testTargetOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             request.setIndicatorDesc("Test");
 
             // When/Then
@@ -285,7 +294,7 @@ class IndicatorServiceTest {
             createRequest.setTaskId(testTask.getTaskId());
             createRequest.setOwnerOrgId(testOwnerOrg.getId());
             createRequest.setTargetOrgId(testTargetOrg.getId());
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             createRequest.setIndicatorDesc("Indicator to delete");
             createRequest.setWeightPercent(new BigDecimal("10.00"));
             createRequest.setYear(2025);
@@ -315,7 +324,7 @@ class IndicatorServiceTest {
                 createRequest.setTaskId(testTask.getTaskId());
                 createRequest.setOwnerOrgId(testOwnerOrg.getId());
                 createRequest.setTargetOrgId(testTargetOrg.getId());
-                createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+                createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
                 createRequest.setIndicatorDesc("To archive");
                 createRequest.setWeightPercent(new BigDecimal("5.00"));
                 createRequest.setYear(2025);
@@ -346,7 +355,7 @@ class IndicatorServiceTest {
             createRequest.setTaskId(testTask.getTaskId());
             createRequest.setOwnerOrgId(testOwnerOrg.getId());
             createRequest.setTargetOrgId(testTargetOrg.getId());
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             createRequest.setIndicatorDesc("UniqueSearchKeyword123");
             createRequest.setWeightPercent(new BigDecimal("5.00"));
             createRequest.setYear(2025);

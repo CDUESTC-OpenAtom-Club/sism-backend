@@ -18,10 +18,45 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Strategic Task Controller
- * Provides CRUD operations for strategic tasks
+ * Strategic Task Controller for SISM (Strategic Indicator Management System).
  * 
- * Requirements: 2.1
+ * <p>This controller manages strategic tasks which represent high-level organizational
+ * objectives that are decomposed into measurable indicators. Tasks serve as the top-level
+ * organizational unit in the strategic planning hierarchy.
+ * 
+ * <h2>Task Hierarchy</h2>
+ * <pre>
+ * Assessment Cycle
+ *   └── Strategic Task
+ *         └── Indicators (decomposed from task)
+ *               └── Milestones (time-based progress tracking)
+ * </pre>
+ * 
+ * <h2>Key Features</h2>
+ * <ul>
+ *   <li>CRUD operations for strategic tasks</li>
+ *   <li>Task filtering by cycle and organization</li>
+ *   <li>Keyword search across task names and descriptions</li>
+ *   <li>Soft deletion for data integrity</li>
+ * </ul>
+ * 
+ * <h2>API Endpoints</h2>
+ * <ul>
+ *   <li>GET /api/tasks - List all tasks</li>
+ *   <li>GET /api/tasks/{id} - Get task details</li>
+ *   <li>GET /api/tasks/cycle/{cycleId} - Filter by cycle</li>
+ *   <li>GET /api/tasks/org/{orgId} - Filter by organization</li>
+ *   <li>GET /api/tasks/search?keyword=xxx - Search tasks</li>
+ *   <li>POST /api/tasks - Create new task</li>
+ *   <li>PUT /api/tasks/{id} - Update task</li>
+ *   <li>DELETE /api/tasks/{id} - Soft delete task</li>
+ * </ul>
+ * 
+ * @author SISM Development Team
+ * @version 1.0
+ * @since 1.0
+ * @see com.sism.service.TaskService
+ * @see com.sism.entity.StrategicTask
  */
 @Slf4j
 @RestController

@@ -5,15 +5,15 @@ import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
+import com.sism.entity.SysOrg;
 import com.sism.entity.Indicator;
 import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
-import com.sism.repository.IndicatorRepository;
-import com.sism.repository.SysOrgRepository;
-import com.sism.repository.TaskRepository;
-import com.sism.repository.UserRepository;
+import com.sism.enums.OrgType;
+import com.sism.repository.*;
+import com.sism.util.TestDataFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,6 +27,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 import java.math.BigDecimal;
 
@@ -54,7 +56,7 @@ class IndicatorControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -66,45 +68,35 @@ class IndicatorControllerIntegrationTest {
     private TaskRepository taskRepository;
 
     @Autowired
+    private AssessmentCycleRepository cycleRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
     private Indicator testIndicator;
     private SysOrg testOrg;
     private StrategicTask testTask;
+    private SysUser testUser;
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
-        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+        // Create test data using TestDataFactory
+        testOrg = TestDataFactory.createTestOrg(orgRepository, "测试组织", OrgType.FUNCTIONAL_DEPT);
+        testTask = TestDataFactory.createTestTask(taskRepository, cycleRepository, orgRepository);
+        testIndicator = TestDataFactory.createTestIndicator(indicatorRepository, taskRepository, 
+                                                            cycleRepository, orgRepository);
+        
+        // Create test user with encoded password
+        testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testOrg);
             return userRepository.save(user);
         });
-
-        // Get test org and task
-        testOrg = orgRepository.findAll().stream().findFirst().orElseThrow();
-        testTask = taskRepository.findAll().stream().findFirst().orElseThrow();
-
-        // Get or create test indicator
-        testIndicator = indicatorRepository.findAll().stream()
-                .findFirst()
-                .orElseGet(() -> {
-                    Indicator indicator = new Indicator();
-                    indicator.setIndicatorDesc("Test Indicator");
-                    indicator.setTask(testTask);
-                    indicator.setOwnerOrg(testOrg);
-                    indicator.setTargetOrg(testOrg);
-                    indicator.setLevel(IndicatorLevel.STRAT_TO_FUNC);
-                    indicator.setStatus(IndicatorStatus.ACTIVE);
-                    indicator.setWeightPercent(BigDecimal.valueOf(10));
-                    indicator.setYear(2025);
-                    return indicatorRepository.save(indicator);
-                });
 
         // Login to get token
         authToken = loginAndGetToken(testUser.getUsername(), "testPassword123");
@@ -309,7 +301,7 @@ class IndicatorControllerIntegrationTest {
             request.setTaskId(testTask.getTaskId());
             request.setOwnerOrgId(testOrg.getId());
             request.setTargetOrgId(testOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             request.setWeightPercent(BigDecimal.valueOf(5));
             request.setYear(2025);
 
@@ -366,13 +358,16 @@ class IndicatorControllerIntegrationTest {
             // Create a new indicator to delete
             Indicator toDelete = new Indicator();
             toDelete.setIndicatorDesc("Indicator to Delete");
-            toDelete.setTask(testTask);
+            toDelete.setTaskId(testTask.getTaskId());
             toDelete.setOwnerOrg(testOrg);
             toDelete.setTargetOrg(testOrg);
             toDelete.setLevel(IndicatorLevel.STRAT_TO_FUNC);
             toDelete.setStatus(IndicatorStatus.ACTIVE);
             toDelete.setWeightPercent(BigDecimal.valueOf(5));
             toDelete.setYear(2025);
+            toDelete.setCreatedAt(LocalDateTime.now());
+            toDelete.setUpdatedAt(LocalDateTime.now());
+            toDelete.setIsDeleted(false);
             toDelete = indicatorRepository.save(toDelete);
 
             mockMvc.perform(delete("/api/indicators/{id}", toDelete.getIndicatorId())

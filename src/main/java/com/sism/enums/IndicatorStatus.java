@@ -6,6 +6,11 @@ package com.sism.enums;
  */
 public enum IndicatorStatus {
     /**
+     * Draft indicator (not yet published)
+     */
+    DRAFT,
+    
+    /**
      * Active indicator
      */
     ACTIVE,

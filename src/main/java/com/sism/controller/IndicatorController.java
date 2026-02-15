@@ -24,11 +24,44 @@ import java.time.ZoneId;
 import java.util.List;
 
 /**
- * Indicator Controller
- * Provides CRUD operations for indicators with soft deletion
+ * Indicator Controller for SISM (Strategic Indicator Management System).
  * 
- * Requirements: 2.2, 2.3, 2.4, 2.5
- * Cache: Last-Modified-based caching for list endpoints
+ * <p>This controller manages strategic indicators throughout their lifecycle including:
+ * <ul>
+ *   <li>CRUD operations for indicators</li>
+ *   <li>Hierarchical indicator relationships (parent-child)</li>
+ *   <li>Progress tracking and milestone management</li>
+ *   <li>Indicator filtering by task, organization, and status</li>
+ *   <li>HTTP caching with Last-Modified headers</li>
+ * </ul>
+ * 
+ * <h2>Indicator Hierarchy</h2>
+ * <p>Indicators support a parent-child relationship for decomposition:
+ * <ul>
+ *   <li><b>Root Indicators</b>: Top-level strategic indicators (no parent)</li>
+ *   <li><b>Child Indicators</b>: Decomposed from parent indicators</li>
+ *   <li><b>Leaf Indicators</b>: Indicators with no children (execution level)</li>
+ * </ul>
+ * 
+ * <h2>Caching Strategy</h2>
+ * <p>List endpoints support Last-Modified-based HTTP caching to reduce server load
+ * and improve client performance. Clients should send If-Modified-Since header.
+ * 
+ * <h2>API Endpoints</h2>
+ * <ul>
+ *   <li>GET /api/indicators - List all active indicators (cached)</li>
+ *   <li>GET /api/indicators/{id} - Get indicator details with children</li>
+ *   <li>GET /api/indicators/task/{taskId} - Filter by task</li>
+ *   <li>POST /api/indicators - Create new indicator</li>
+ *   <li>PUT /api/indicators/{id} - Update indicator</li>
+ *   <li>DELETE /api/indicators/{id} - Soft delete indicator</li>
+ * </ul>
+ * 
+ * @author SISM Development Team
+ * @version 1.0
+ * @since 1.0
+ * @see com.sism.service.IndicatorService
+ * @see com.sism.entity.Indicator
  */
 @Slf4j
 @RestController

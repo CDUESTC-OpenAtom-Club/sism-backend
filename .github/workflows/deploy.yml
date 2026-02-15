@@ -31,6 +31,15 @@ jobs:
       - name: Build with Maven
         run: mvn package -B -DskipTests
 
+      - name: Validate Flyway Migrations
+        run: |
+          echo "🔍 Validating Flyway migrations..."
+          mvn flyway:validate -B
+        env:
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
       - name: Get JAR checksum
         id: checksum
         run: |

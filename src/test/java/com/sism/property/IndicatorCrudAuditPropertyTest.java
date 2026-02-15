@@ -158,13 +158,13 @@ public class IndicatorCrudAuditPropertyTest {
         request.setIndicatorDesc(description);
         request.setWeightPercent(weight);
         request.setYear(year);
-        request.setLevel(level);
+        request.setLevel(level.name()); // Convert enum to string
         request.setSortOrder(sortOrder);
 
         long auditLogCountBefore = auditLogRepository.count();
 
         // Act
-        IndicatorVO createdIndicator = indicatorService.createIndicator(request, null, "Property test create");
+        IndicatorVO createdIndicator = indicatorService.createIndicator(request);
 
         try {
             // Assert 1: Indicator is persisted
@@ -247,10 +247,10 @@ public class IndicatorCrudAuditPropertyTest {
         createRequest.setIndicatorDesc(originalDesc);
         createRequest.setWeightPercent(originalWeight);
         createRequest.setYear(year);
-        createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+        createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
         createRequest.setSortOrder(1);
 
-        IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest, null, "Setup for update test");
+        IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest);
         Long indicatorId = createdIndicator.getIndicatorId();
 
         try {
@@ -263,7 +263,7 @@ public class IndicatorCrudAuditPropertyTest {
             updateRequest.setIndicatorDesc(updatedDesc);
             updateRequest.setWeightPercent(updatedWeight);
 
-            IndicatorVO updatedIndicator = indicatorService.updateIndicator(indicatorId, updateRequest, null, "Property test update");
+            IndicatorVO updatedIndicator = indicatorService.updateIndicator(indicatorId, updateRequest);
 
             // Assert 1: Indicator is updated in database
             assertThat(updatedIndicator).isNotNull();
@@ -342,10 +342,10 @@ public class IndicatorCrudAuditPropertyTest {
         createRequest.setIndicatorDesc(description);
         createRequest.setWeightPercent(weight);
         createRequest.setYear(year);
-        createRequest.setLevel(level);
+        createRequest.setLevel(level.name());
         createRequest.setSortOrder(1);
 
-        IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest, null, "Setup for delete test");
+        IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest);
         Long indicatorId = createdIndicator.getIndicatorId();
 
         try {
@@ -353,21 +353,21 @@ public class IndicatorCrudAuditPropertyTest {
             auditLogRepository.deleteAll(
                     auditLogRepository.findByEntityTypeAndEntityId(AuditEntityType.INDICATOR, indicatorId));
 
-            // Act: Delete (archive) the indicator
-            indicatorService.deleteIndicator(indicatorId, null, "Property test delete");
+            // Act: Delete (soft delete) the indicator
+            indicatorService.deleteIndicator(indicatorId);
 
-            // Assert 1: Indicator is soft deleted (status = ARCHIVED)
+            // Assert 1: Indicator is soft deleted (isDeleted = true)
             var archivedIndicator = indicatorRepository.findById(indicatorId).orElse(null);
             assertThat(archivedIndicator).isNotNull();
-            assertThat(archivedIndicator.getStatus()).isEqualTo(IndicatorStatus.ARCHIVED);
+            assertThat(archivedIndicator.getIsDeleted()).isTrue();
 
-            // Assert 2: Audit log is created for ARCHIVE
+            // Assert 2: Audit log is created for DELETE
             List<AuditLog> auditLogs = auditLogRepository.findByEntityTypeAndEntityId(
                     AuditEntityType.INDICATOR, indicatorId);
             assertThat(auditLogs).isNotEmpty();
 
             AuditLog archiveLog = auditLogs.stream()
-                    .filter(log -> log.getAction() == AuditAction.ARCHIVE)
+                    .filter(log -> log.getAction() == AuditAction.DELETE)
                     .findFirst()
                     .orElse(null);
             assertThat(archiveLog).isNotNull();
@@ -427,24 +427,24 @@ public class IndicatorCrudAuditPropertyTest {
             createRequest.setIndicatorDesc(originalDesc);
             createRequest.setWeightPercent(weight);
             createRequest.setYear(year);
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             createRequest.setSortOrder(1);
 
-            IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest, null, "Lifecycle test - create");
+            IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest);
             indicatorId = createdIndicator.getIndicatorId();
 
             // Step 2: UPDATE
             IndicatorUpdateRequest updateRequest = new IndicatorUpdateRequest();
             updateRequest.setIndicatorDesc(updatedDesc);
-            indicatorService.updateIndicator(indicatorId, updateRequest, null, "Lifecycle test - update");
+            indicatorService.updateIndicator(indicatorId, updateRequest);
 
-            // Step 3: DELETE (archive)
-            indicatorService.deleteIndicator(indicatorId, null, "Lifecycle test - delete");
+            // Step 3: DELETE (soft delete)
+            indicatorService.deleteIndicator(indicatorId);
 
             // Assert: Complete audit trail exists
             List<AuditLog> auditTrail = auditLogRepository.findAuditTrail(AuditEntityType.INDICATOR, indicatorId);
             
-            // Should have at least 3 entries: CREATE, UPDATE, ARCHIVE
+            // Should have at least 3 entries: CREATE, UPDATE, DELETE
             assertThat(auditTrail).hasSizeGreaterThanOrEqualTo(3);
 
             // Verify CREATE log exists
@@ -515,10 +515,10 @@ public class IndicatorCrudAuditPropertyTest {
             createRequest.setIndicatorDesc(description);
             createRequest.setWeightPercent(BigDecimal.valueOf(50));
             createRequest.setYear(year);
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
             createRequest.setSortOrder(1);
 
-            IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest, null, "Entity type test");
+            IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest);
             indicatorId = createdIndicator.getIndicatorId();
 
             // Get all audit logs for this indicator

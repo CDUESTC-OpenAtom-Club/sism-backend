@@ -10,6 +10,7 @@ import com.sism.entity.SysOrg;
 import com.sism.enums.AdhocScopeType;
 import com.sism.enums.AdhocTaskStatus;
 import com.sism.repository.*;
+import com.sism.util.TestDataFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -50,7 +51,7 @@ class AdhocTaskControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -72,22 +73,22 @@ class AdhocTaskControllerIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
+        // Create test data using TestDataFactory
+        testCycle = TestDataFactory.createTestCycle(cycleRepository);
+        testOrg = TestDataFactory.createTestOrg(orgRepository, "测试组织", com.sism.enums.OrgType.FUNCTIONAL_DEPT);
+        
+        // Create test user with encoded password
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testOrg);
             return userRepository.save(user);
         });
 
-        // Get test org and cycle
-        testOrg = orgRepository.findAll().stream().findFirst().orElseThrow();
-        testCycle = cycleRepository.findAll().stream().findFirst().orElseThrow();
-
-        // Get or create test adhoc task
+        // Create test adhoc task
         testAdhocTask = adhocTaskRepository.findAll().stream()
                 .findFirst()
                 .orElseGet(() -> {

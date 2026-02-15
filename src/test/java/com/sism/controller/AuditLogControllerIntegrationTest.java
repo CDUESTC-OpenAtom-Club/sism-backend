@@ -3,12 +3,15 @@ package com.sism.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
+import com.sism.entity.SysOrg;
 import com.sism.entity.AuditLog;
 import com.sism.enums.AuditAction;
 import com.sism.enums.AuditEntityType;
 import com.sism.repository.AuditLogRepository;
 import com.sism.repository.SysOrgRepository;
-import com.sism.repository.UserRepository;
+import com.sism.repository.SysUserRepository;
+import com.sism.util.TestDataFactory;
+import com.sism.enums.OrgType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -48,7 +51,7 @@ class AuditLogControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -65,14 +68,17 @@ class AuditLogControllerIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
+        // Create test data using TestDataFactory
+        SysOrg testOrg = TestDataFactory.createTestOrg(orgRepository, "测试组织", OrgType.FUNCTIONAL_DEPT);
+        
+        // Create test user with encoded password
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testOrg);
             return userRepository.save(user);
         });
 

@@ -4,12 +4,18 @@ import com.sism.dto.ApprovalRequest;
 import com.sism.dto.ReportCreateRequest;
 import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
+import com.sism.entity.ProgressReport;
 import com.sism.enums.ApprovalAction;
 import com.sism.enums.IndicatorStatus;
 import com.sism.enums.ReportStatus;
 import com.sism.exception.BusinessException;
+import com.sism.repository.AssessmentCycleRepository;
 import com.sism.repository.IndicatorRepository;
-import com.sism.repository.UserRepository;
+import com.sism.repository.ReportRepository;
+import com.sism.repository.SysOrgRepository;
+import com.sism.repository.SysUserRepository;
+import com.sism.repository.TaskRepository;
+import com.sism.util.TestDataFactory;
 import com.sism.vo.ApprovalRecordVO;
 import com.sism.vo.ReportVO;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,27 +53,34 @@ class ApprovalServiceTest {
     private IndicatorRepository indicatorRepository;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
+
+    @Autowired
+    private ReportRepository reportRepository;
+
+    @Autowired
+    private TaskRepository taskRepository;
+
+    @Autowired
+    private SysOrgRepository orgRepository;
+
+    @Autowired
+    private AssessmentCycleRepository cycleRepository;
 
     private Indicator testIndicator;
     private SysUser testReporter;
     private SysUser testApprover;
+    private ProgressReport testReport;
 
     @BeforeEach
     void setUp() {
-        // Get existing test data from database
-        testIndicator = indicatorRepository.findAll().stream()
-                .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No active indicators found in test database"));
-
-        List<SysUser> users = userRepository.findAll().stream()
-                .filter(SysUser::getIsActive)
-                .toList();
-        
-        assertThat(users).hasSizeGreaterThanOrEqualTo(2);
-        testReporter = users.get(0);
-        testApprover = users.get(1);
+        // Create test data
+        testIndicator = TestDataFactory.createTestIndicator(indicatorRepository, taskRepository, 
+                                                            cycleRepository, orgRepository);
+        testReporter = TestDataFactory.createTestUser(userRepository, orgRepository, "test_reporter");
+        testApprover = TestDataFactory.createTestUser(userRepository, orgRepository, "test_approver");
+        testReport = TestDataFactory.createTestReport(reportRepository, indicatorRepository, userRepository,
+                                                      taskRepository, cycleRepository, orgRepository);
     }
 
     private ReportVO createAndSubmitReport() {

@@ -3,17 +3,15 @@ package com.sism.entity;
 import com.sism.enums.TaskType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
 /**
  * Task entity
- * Maps to task table in database
+ * Maps to strategic_task table in database
  */
 @Entity
-@Table(name = "task", schema = "public")
+@Table(name = "sys_task")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,7 +21,7 @@ public class StrategicTask {
     @Id
     @SequenceGenerator(name="Task_IdSeq", sequenceName="public.task_id_seq", allocationSize=1)
     @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="Task_IdSeq")
-    @Column(name="id")
+    @Column(name="task_id")
     private Long taskId;
 
     @Column(name="plan_id", nullable=false)
@@ -32,15 +30,14 @@ public class StrategicTask {
     @Column(name="cycle_id", nullable=false)
     private Long cycleId;
 
-    @Column(name="name", nullable=false)
+    @Column(name="task_name", nullable=false)
     private String taskName;
 
-    @Column(name="desc")
+    @Column(name="task_desc")
     private String taskDesc;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Enumerated(EnumType.STRING)
-    @Column(name="type", columnDefinition="task_type", nullable=false)
+    @Column(name="task_type", nullable=false)
     private TaskType taskType;
 
     @ManyToOne(fetch = FetchType.LAZY)

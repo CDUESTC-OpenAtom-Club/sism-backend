@@ -110,7 +110,7 @@ public class SoftDeletionBehaviorPropertyTest {
         assertThat(indicator.getStatus()).isEqualTo(IndicatorStatus.ACTIVE);
 
         // Act: Delete the indicator (soft delete)
-        indicatorService.deleteIndicator(indicatorId, null, "Property test soft delete");
+        indicatorService.deleteIndicator(indicatorId);
 
         // Assert 1: Record still exists in database (NOT physically deleted)
         Optional<Indicator> afterDeleteOpt = indicatorRepository.findById(indicatorId);
@@ -118,8 +118,8 @@ public class SoftDeletionBehaviorPropertyTest {
         
         Indicator afterDelete = afterDeleteOpt.get();
 
-        // Assert 2: Status is changed to ARCHIVED
-        assertThat(afterDelete.getStatus()).isEqualTo(IndicatorStatus.ARCHIVED);
+        // Assert 2: isDeleted flag is set to true
+        assertThat(afterDelete.getIsDeleted()).isTrue();
 
         // Assert 3: All other data remains unchanged
         assertThat(afterDelete.getIndicatorDesc()).isEqualTo(originalDesc);
@@ -153,7 +153,7 @@ public class SoftDeletionBehaviorPropertyTest {
         int actualIndex = index % activeIndicators.size();
         Indicator indicator = activeIndicators.get(actualIndex);
         Long indicatorId = indicator.getIndicatorId();
-        Long taskId = indicator.getTask().getTaskId();
+        Long taskId = indicator.getTaskId(); // Use taskId field directly
 
         // Verify indicator appears in active queries before deletion
         List<IndicatorVO> activeIndicatorsBefore = indicatorService.getAllActiveIndicators();
@@ -167,15 +167,15 @@ public class SoftDeletionBehaviorPropertyTest {
         assertThat(foundInTaskBefore).isTrue();
 
         // Act: Soft delete the indicator
-        indicatorService.deleteIndicator(indicatorId, null, "Query exclusion test delete");
+        indicatorService.deleteIndicator(indicatorId);
 
-        // Assert 1: Archived indicator is excluded from getAllActiveIndicators
+        // Assert 1: Deleted indicator is excluded from getAllActiveIndicators
         List<IndicatorVO> activeIndicatorsAfter = indicatorService.getAllActiveIndicators();
         boolean foundAfterDelete = activeIndicatorsAfter.stream()
                 .anyMatch(i -> i.getIndicatorId().equals(indicatorId));
         assertThat(foundAfterDelete).isFalse();
 
-        // Assert 2: Archived indicator is excluded from getIndicatorsByTaskId
+        // Assert 2: Deleted indicator is excluded from getIndicatorsByTaskId
         List<IndicatorVO> taskIndicatorsAfter = indicatorService.getIndicatorsByTaskId(taskId);
         boolean foundInTaskAfter = taskIndicatorsAfter.stream()
                 .anyMatch(i -> i.getIndicatorId().equals(indicatorId));
@@ -211,21 +211,25 @@ public class SoftDeletionBehaviorPropertyTest {
         Long indicatorId = indicator.getIndicatorId();
 
         // Soft delete
-        indicatorService.deleteIndicator(indicatorId, null, "Explicit query test delete");
+        indicatorService.deleteIndicator(indicatorId);
 
-        // Assert 1: findById can still retrieve the archived record
-        Optional<Indicator> archivedIndicatorOpt = indicatorRepository.findById(indicatorId);
-        assertThat(archivedIndicatorOpt).isPresent();
-        assertThat(archivedIndicatorOpt.get().getStatus()).isEqualTo(IndicatorStatus.ARCHIVED);
+        // Assert 1: findById can still retrieve the deleted record
+        Optional<Indicator> deletedIndicatorOpt = indicatorRepository.findById(indicatorId);
+        assertThat(deletedIndicatorOpt).isPresent();
+        assertThat(deletedIndicatorOpt.get().getIsDeleted()).isTrue();
 
-        // Assert 2: Filter by ARCHIVED status in Java includes the record
-        List<Indicator> archivedIndicators = getIndicatorsByStatusInJava(IndicatorStatus.ARCHIVED);
-        boolean foundInArchived = archivedIndicators.stream()
+        // Assert 2: Filter by isDeleted=true in Java includes the record
+        List<Indicator> deletedIndicators = indicatorRepository.findAll().stream()
+                .filter(i -> Boolean.TRUE.equals(i.getIsDeleted()))
+                .collect(java.util.stream.Collectors.toList());
+        boolean foundInDeleted = deletedIndicators.stream()
                 .anyMatch(i -> i.getIndicatorId().equals(indicatorId));
-        assertThat(foundInArchived).isTrue();
+        assertThat(foundInDeleted).isTrue();
 
-        // Assert 3: Filter by ACTIVE status in Java excludes the record
-        List<Indicator> activeIndicatorsAfter = getIndicatorsByStatusInJava(IndicatorStatus.ACTIVE);
+        // Assert 3: Filter by isDeleted=false in Java excludes the record
+        List<Indicator> activeIndicatorsAfter = indicatorRepository.findAll().stream()
+                .filter(i -> !Boolean.TRUE.equals(i.getIsDeleted()))
+                .collect(java.util.stream.Collectors.toList());
         boolean foundInActive = activeIndicatorsAfter.stream()
                 .anyMatch(i -> i.getIndicatorId().equals(indicatorId));
         assertThat(foundInActive).isFalse();
@@ -260,7 +264,7 @@ public class SoftDeletionBehaviorPropertyTest {
         Long indicatorId = indicator.getIndicatorId();
 
         // Capture original state
-        Long originalTaskId = indicator.getTask().getTaskId();
+        Long originalTaskId = indicator.getTaskId();
         Long originalOwnerOrgId = indicator.getOwnerOrg().getId();
         Long originalTargetOrgId = indicator.getTargetOrg().getId();
         String originalDesc = indicator.getIndicatorDesc();
@@ -269,23 +273,23 @@ public class SoftDeletionBehaviorPropertyTest {
         String originalRemark = indicator.getRemark();
 
         // Act: Soft delete
-        indicatorService.deleteIndicator(indicatorId, null, "Data preservation test delete");
+        indicatorService.deleteIndicator(indicatorId);
 
-        // Assert: All fields preserved except status
-        Indicator archivedIndicator = indicatorRepository.findById(indicatorId).orElse(null);
-        assertThat(archivedIndicator).isNotNull();
+        // Assert: All fields preserved except isDeleted
+        Indicator deletedIndicator = indicatorRepository.findById(indicatorId).orElse(null);
+        assertThat(deletedIndicator).isNotNull();
         
-        // Status should be ARCHIVED
-        assertThat(archivedIndicator.getStatus()).isEqualTo(IndicatorStatus.ARCHIVED);
+        // isDeleted should be true
+        assertThat(deletedIndicator.getIsDeleted()).isTrue();
         
         // All other fields should be unchanged
-        assertThat(archivedIndicator.getTask().getTaskId()).isEqualTo(originalTaskId);
-        assertThat(archivedIndicator.getOwnerOrg().getId()).isEqualTo(originalOwnerOrgId);
-        assertThat(archivedIndicator.getTargetOrg().getId()).isEqualTo(originalTargetOrgId);
-        assertThat(archivedIndicator.getIndicatorDesc()).isEqualTo(originalDesc);
-        assertThat(archivedIndicator.getYear()).isEqualTo(originalYear);
-        assertThat(archivedIndicator.getSortOrder()).isEqualTo(originalSortOrder);
-        assertThat(archivedIndicator.getRemark()).isEqualTo(originalRemark);
+        assertThat(deletedIndicator.getTaskId()).isEqualTo(originalTaskId);
+        assertThat(deletedIndicator.getOwnerOrg().getId()).isEqualTo(originalOwnerOrgId);
+        assertThat(deletedIndicator.getTargetOrg().getId()).isEqualTo(originalTargetOrgId);
+        assertThat(deletedIndicator.getIndicatorDesc()).isEqualTo(originalDesc);
+        assertThat(deletedIndicator.getYear()).isEqualTo(originalYear);
+        assertThat(deletedIndicator.getSortOrder()).isEqualTo(originalSortOrder);
+        assertThat(deletedIndicator.getRemark()).isEqualTo(originalRemark);
 
         // Rollback will restore the original state due to @Transactional
     }
@@ -295,14 +299,14 @@ public class SoftDeletionBehaviorPropertyTest {
      * 
      * **Feature: sism-fullstack-integration, Property 17: Soft Deletion Behavior**
      * 
-     * For any already archived indicator, calling deleteIndicator again SHALL
-     * throw a BusinessException indicating the indicator is already archived.
+     * For any already deleted indicator, calling deleteIndicator again SHALL
+     * be idempotent (no error, just updates timestamp).
      * 
      * **Validates: Requirements 12.5**
      */
     @Property(tries = 50)
     @Transactional
-    void softDelete_shouldRejectAlreadyArchivedIndicator(
+    void softDelete_shouldBeIdempotent(
             @ForAll("indicatorIndices") Integer index) {
 
         // Get existing active indicators
@@ -317,13 +321,15 @@ public class SoftDeletionBehaviorPropertyTest {
         Long indicatorId = indicator.getIndicatorId();
 
         // First soft delete
-        indicatorService.deleteIndicator(indicatorId, null, "First delete");
+        indicatorService.deleteIndicator(indicatorId);
 
-        // Act & Assert: Second soft delete should throw exception
-        org.junit.jupiter.api.Assertions.assertThrows(
-                com.sism.exception.BusinessException.class,
-                () -> indicatorService.deleteIndicator(indicatorId, null, "Second delete")
-        );
+        // Act: Second soft delete should be idempotent (no exception)
+        indicatorService.deleteIndicator(indicatorId);
+        
+        // Assert: Still deleted
+        Indicator deletedIndicator = indicatorRepository.findById(indicatorId).orElse(null);
+        assertThat(deletedIndicator).isNotNull();
+        assertThat(deletedIndicator.getIsDeleted()).isTrue();
 
         // Rollback will restore the original state due to @Transactional
     }

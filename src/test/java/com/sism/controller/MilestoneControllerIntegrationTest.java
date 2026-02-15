@@ -8,10 +8,8 @@ import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.entity.Milestone;
 import com.sism.enums.MilestoneStatus;
-import com.sism.repository.IndicatorRepository;
-import com.sism.repository.MilestoneRepository;
-import com.sism.repository.SysOrgRepository;
-import com.sism.repository.UserRepository;
+import com.sism.repository.*;
+import com.sism.util.TestDataFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -52,7 +50,7 @@ class MilestoneControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -64,43 +62,37 @@ class MilestoneControllerIntegrationTest {
     private MilestoneRepository milestoneRepository;
 
     @Autowired
+    private TaskRepository taskRepository;
+
+    @Autowired
+    private AssessmentCycleRepository cycleRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
     private Indicator testIndicator;
     private Milestone testMilestone;
+    private SysUser testUser;
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
-        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+        // Create test data using TestDataFactory
+        testIndicator = TestDataFactory.createTestIndicator(indicatorRepository, taskRepository, 
+                                                            cycleRepository, orgRepository);
+        testMilestone = TestDataFactory.createTestMilestone(milestoneRepository, indicatorRepository, 
+                                                            taskRepository, cycleRepository, orgRepository);
+        
+        // Create test user with encoded password
+        testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testIndicator.getOwnerOrg());
             return userRepository.save(user);
         });
-
-        // Get test indicator
-        testIndicator = indicatorRepository.findAll().stream()
-                .findFirst()
-                .orElseThrow();
-
-        // Get or create test milestone
-        testMilestone = milestoneRepository.findByIndicator_IndicatorId(testIndicator.getIndicatorId())
-                .stream()
-                .findFirst()
-                .orElseGet(() -> {
-                    Milestone milestone = new Milestone();
-                    milestone.setMilestoneName("Test Milestone");
-                    milestone.setIndicator(testIndicator);
-                    milestone.setDueDate(LocalDate.now().plusMonths(1));
-                    milestone.setWeightPercent(BigDecimal.valueOf(25));
-                    milestone.setStatus(MilestoneStatus.NOT_STARTED);
-                    return milestoneRepository.save(milestone);
-                });
 
         // Login to get token
         authToken = loginAndGetToken(testUser.getUsername(), "testPassword123");
@@ -217,7 +209,7 @@ class MilestoneControllerIntegrationTest {
             request.setMilestoneName("New Test Milestone");
             request.setIndicatorId(testIndicator.getIndicatorId());
             request.setDueDate(LocalDate.now().plusMonths(2));
-            request.setWeightPercent(BigDecimal.valueOf(10));
+            request.setTargetProgress(10);
 
             mockMvc.perform(post("/api/milestones")
                             .header("Authorization", "Bearer " + authToken)

@@ -535,7 +535,7 @@ public class UnauthorizedAccessRejectionPropertyTest {
         createRequest.setTaskId(task.getTaskId());
         createRequest.setOwnerOrgId(org.getId());
         createRequest.setTargetOrgId(org.getId());
-        createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+        createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
         createRequest.setWeightPercent(BigDecimal.valueOf(10));
         createRequest.setYear(2025);
 

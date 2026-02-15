@@ -1,12 +1,12 @@
 spring:
   # Development Database Configuration
-  # 开发环境使用环境变量，但提供合理的默认值用于本地开发
+  # 开发环境使用实际数据库连接
   # 参考: Requirements 1.1.2
   datasource:
     # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
-    url: ${DB_URL:jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified}
-    username: ${DB_USERNAME:muzimu}
-    password: ${DB_PASSWORD:64378561huaW}
+    url: jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified
+    username: postgres
+    password: 64378561huaW
   
   # JPA Configuration for Development
   jpa:
@@ -16,6 +16,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        javax:
+          persistence:
+            validation:
+              mode: none
   
   # SQL Initialization for Development (可选)
   # 如需自动执行初始化脚本，取消注释以下配置
@@ -27,9 +32,9 @@ spring:
   #     continue-on-error: false
 
 # JWT Configuration for Development
-# 开发环境可以使用默认密钥，但生产环境必须配置
+# 开发环境使用默认密钥，生产环境必须修改
 jwt:
-  secret: ${JWT_SECRET:dev-only-secret-key-do-not-use-in-production-at-least-256-bits-long}
+  secret: sism-dev-secret-key-change-in-production-at-least-256-bits-long-for-security
   expiration: ${JWT_EXPIRATION:86400000}  # 24 hours
   refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
 

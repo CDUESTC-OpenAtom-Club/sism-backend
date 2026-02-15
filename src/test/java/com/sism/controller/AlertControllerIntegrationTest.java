@@ -8,6 +8,7 @@ import com.sism.entity.Indicator;
 import com.sism.enums.AlertSeverity;
 import com.sism.enums.AlertStatus;
 import com.sism.repository.*;
+import com.sism.util.TestDataFactory;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +47,7 @@ class AlertControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -58,6 +59,12 @@ class AlertControllerIntegrationTest {
     private AlertEventRepository alertEventRepository;
 
     @Autowired
+    private TaskRepository taskRepository;
+
+    @Autowired
+    private AssessmentCycleRepository cycleRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private String authToken;
@@ -67,23 +74,22 @@ class AlertControllerIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
+        // Create test data using TestDataFactory
+        testIndicator = TestDataFactory.createTestIndicator(indicatorRepository, taskRepository, 
+                                                            cycleRepository, orgRepository);
+        
+        // Create test user with encoded password
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testIndicator.getOwnerOrg());
             return userRepository.save(user);
         });
 
-        // Get test indicator
-        testIndicator = indicatorRepository.findAll().stream()
-                .findFirst()
-                .orElseThrow();
-
-        // Get or create test alert
+        // Get or create test alert (optional - AlertEvent requires complex setup)
         testAlert = alertEventRepository.findAll().stream()
                 .findFirst()
                 .orElse(null);

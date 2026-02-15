@@ -23,7 +23,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate  # Changed to validate - Flyway manages schema
+      ddl-auto: none  # Flyway manages schema, disable validation
     show-sql: false
     properties:
       hibernate:

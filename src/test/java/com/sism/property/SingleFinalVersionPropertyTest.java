@@ -96,7 +96,7 @@ public class SingleFinalVersionPropertyTest {
         request.setMilestoneDesc("Test milestone for single final version property testing");
         // Use a past due date to ensure this milestone is the first unpaired one
         request.setDueDate(LocalDate.now().minusDays(30));
-        request.setWeightPercent(BigDecimal.valueOf(25));
+        request.setTargetProgress(25);
         request.setSortOrder(0);
         
         var milestoneVO = milestoneService.createMilestone(request);

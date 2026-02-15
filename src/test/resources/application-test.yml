@@ -1,27 +1,34 @@
-# Test Configuration - 使用远程 PostgreSQL 数据库
+# Test Configuration - 使用 H2 内存数据库
 spring:
   datasource:
-    # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
-    url: jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified
-    username: muzimu
-    password: 64378561huaW
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;INIT=CREATE DOMAIN IF NOT EXISTS task_type AS VARCHAR
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
   
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: validate
-    show-sql: true
+      ddl-auto: create-drop  # Use JPA schema generation for tests
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
+  
+  flyway:
+    enabled: false  # Disable Flyway for tests, use JPA schema generation
+  
+  sql:
+    init:
+      mode: never  # Don't run schema.sql or data.sql
 
 # Logging for tests
 logging:
   level:
     root: WARN
-    com.sism: DEBUG
+    com.sism: INFO
     org.hibernate.SQL: DEBUG
+    org.testcontainers: INFO
 
 # Test CORS Configuration
 app:
@@ -33,3 +40,5 @@ jwt:
   secret: test-secret-key-for-unit-tests-must-be-at-least-256-bits-long-for-security
   expiration: 86400000
   refresh-expiration: 604800000
+
+

@@ -21,10 +21,45 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Milestone Controller
- * Provides CRUD operations for milestones
+ * Milestone Controller for SISM (Strategic Indicator Management System).
  * 
- * Requirements: 5.1, 5.2, 5.3
+ * <p>This controller manages indicator milestones which represent time-based progress
+ * checkpoints for strategic indicators. Milestones enable granular tracking of indicator
+ * completion and provide early warning for delays.
+ * 
+ * <h2>Milestone Features</h2>
+ * <ul>
+ *   <li><b>Time-based Tracking</b>: Due dates for progress checkpoints</li>
+ *   <li><b>Progress Monitoring</b>: Target vs actual progress comparison</li>
+ *   <li><b>Delay Detection</b>: Automatic identification of overdue milestones</li>
+ *   <li><b>Weight Validation</b>: Ensures milestone weights sum to 100%</li>
+ * </ul>
+ * 
+ * <h2>Milestone Status</h2>
+ * <ul>
+ *   <li><b>NOT_STARTED</b>: Milestone not yet begun</li>
+ *   <li><b>IN_PROGRESS</b>: Work is ongoing</li>
+ *   <li><b>COMPLETED</b>: Milestone achieved</li>
+ *   <li><b>OVERDUE</b>: Past due date without completion</li>
+ * </ul>
+ * 
+ * <h2>API Endpoints</h2>
+ * <ul>
+ *   <li>GET /api/milestones - List all milestones</li>
+ *   <li>GET /api/milestones/{id} - Get milestone details</li>
+ *   <li>GET /api/milestones/indicator/{indicatorId} - Filter by indicator</li>
+ *   <li>GET /api/milestones/overdue - Get overdue milestones</li>
+ *   <li>GET /api/milestones/upcoming?days=7 - Get upcoming milestones</li>
+ *   <li>POST /api/milestones - Create new milestone</li>
+ *   <li>PUT /api/milestones/{id} - Update milestone</li>
+ *   <li>DELETE /api/milestones/{id} - Delete milestone</li>
+ * </ul>
+ * 
+ * @author SISM Development Team
+ * @version 1.0
+ * @since 1.0
+ * @see com.sism.service.MilestoneService
+ * @see com.sism.entity.Milestone
  */
 @Slf4j
 @RestController

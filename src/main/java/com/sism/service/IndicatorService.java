@@ -8,6 +8,7 @@ import com.sism.entity.Milestone;
 import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.enums.AuditEntityType;
+import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
@@ -145,10 +146,23 @@ public class IndicatorService {
         SysOrg targetOrg = orgRepository.findById(request.getTargetOrgId())
                 .orElseThrow(() -> new ResourceNotFoundException("Target Organization", request.getTargetOrgId()));
 
+        // Parse level from string to enum
+        IndicatorLevel level = IndicatorLevel.STRAT_TO_FUNC; // default
+        if (request.getLevel() != null) {
+            try {
+                level = IndicatorLevel.valueOf(request.getLevel());
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid level value: {}, using default STRAT_TO_FUNC", request.getLevel());
+            }
+        }
+
         // Build indicator using builder pattern
         Indicator indicator = Indicator.builder()
                 .taskId(request.getTaskId())
                 .parentIndicatorId(request.getParentIndicatorId())
+                .level(level)
+                .ownerOrg(ownerOrg)
+                .targetOrg(targetOrg)
                 .indicatorDesc(request.getIndicatorDesc())
                 .weightPercent(request.getWeightPercent())
                 .sortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0)
@@ -315,6 +329,13 @@ public class IndicatorService {
         vo.setYear(indicator.getYear());
         vo.setCanWithdraw(indicator.getCanWithdraw());
         
+        // 扩展字段
+        vo.setStatus(indicator.getStatus());
+        vo.setIsQualitative(indicator.getIsQualitative());
+        vo.setType1(indicator.getType1());
+        vo.setType2(indicator.getType2());
+        vo.setIsStrategic(indicator.getLevel() == IndicatorLevel.STRAT_TO_FUNC);
+        
         // 生成任务名称
         vo.setTaskName(generateTaskName(indicator));
 
@@ -338,6 +359,11 @@ public class IndicatorService {
      * 基于数据分析结果，为常见的 task_id 提供有意义的名称
      */
     private String getTaskNameByTaskId(Long taskId) {
+        // Handle null taskId
+        if (taskId == null) {
+            return "未分配任务";
+        }
+        
         // 基于数据分析的任务名称映射
         // 这些名称是根据每个 task_id 下指标的共同特征生成的
         if (taskId >= 11 && taskId <= 20) {

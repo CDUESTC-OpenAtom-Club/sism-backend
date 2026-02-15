@@ -24,7 +24,7 @@ public class AssessmentCycle extends BaseEntity {
     @Column(name = "cycle_name", nullable = false, length = 100)
     private String cycleName;
 
-    @Column(nullable = false)
+    @Column(name = "`year`", nullable = false)
     private Integer year;
 
     @Column(name = "start_date", nullable = false)

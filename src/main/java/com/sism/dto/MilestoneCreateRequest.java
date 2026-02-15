@@ -7,7 +7,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -30,7 +29,7 @@ public class MilestoneCreateRequest {
     @NotNull(message = "Due date is required")
     private LocalDate dueDate;
 
-    private BigDecimal weightPercent = BigDecimal.ZERO;
+    private Integer targetProgress = 0;
 
     private Integer sortOrder = 0;
 

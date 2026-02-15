@@ -28,6 +28,11 @@ public interface WarnLevelRepository extends JpaRepository<WarnLevel, Long> {
      * Find active warning levels
      */
     List<WarnLevel> findByIsActiveTrue();
+    
+    /**
+     * Find warning levels by active status
+     */
+    List<WarnLevel> findByIsActive(Boolean isActive);
 
     /**
      * Find warning levels by severity and active status

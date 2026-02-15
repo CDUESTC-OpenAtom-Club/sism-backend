@@ -1,9 +1,12 @@
 package com.sism.service;
 
 import com.sism.dto.LoginRequest;
+import com.sism.entity.SysOrg;
 import com.sism.entity.SysUser;
+import com.sism.enums.OrgType;
 import com.sism.exception.UnauthorizedException;
-import com.sism.repository.UserRepository;
+import com.sism.repository.SysOrgRepository;
+import com.sism.repository.SysUserRepository;
 import com.sism.vo.LoginResponse;
 import com.sism.vo.UserVO;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +36,10 @@ class AuthServiceTest {
     private AuthService authService;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
+
+    @Autowired
+    private SysOrgRepository orgRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -43,6 +49,18 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
+        // Create test organization first
+        SysOrg testOrg = orgRepository.findAll().stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    SysOrg org = new SysOrg();
+                    org.setName("测试组织");
+                    org.setType(OrgType.FUNCTIONAL_DEPT);
+                    org.setIsActive(true);
+                    org.setSortOrder(1);
+                    return orgRepository.save(org);
+                });
+
         // Get or create a test user
         testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
@@ -50,12 +68,7 @@ class AuthServiceTest {
             user.setPasswordHash(passwordEncoder.encode(testPassword));
             user.setRealName("Test User");
             user.setIsActive(true);
-            // Get first org for test user
-            user.setOrg(userRepository.findAll().stream()
-                    .filter(u -> u.getOrg() != null)
-                    .map(SysUser::getOrg)
-                    .findFirst()
-                    .orElseThrow());
+            user.setOrg(testOrg);
             return userRepository.save(user);
         });
     }

@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
  * @see <a href="design.md#P1">Property P1: 环境变量配置完整性</a>
  */
 @Component
+@Profile("!test") // 不在测试环境中运行
 @Order(1) // 确保在其他 ApplicationRunner 之前执行
 public class EnvConfigValidator implements ApplicationRunner {
 

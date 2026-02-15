@@ -1,5 +1,6 @@
 package com.sism.vo;
 
+import com.sism.enums.IndicatorStatus;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -31,6 +32,13 @@ public class IndicatorVO {
     private BigDecimal weight;  // 即 weightPercent
     private String taskName;  // 任务名称（从 strategic_task 获取，如果为空则生成默认名称）
     private Boolean canWithdraw;  // 是否可撤回（用于下发/撤回功能）
+    
+    // 扩展字段（用于测试和高级功能）
+    private IndicatorStatus status;  // 指标状态
+    private Boolean isQualitative;  // 是否定性指标
+    private String type1;  // 类型1 (定量/定性)
+    private String type2;  // 类型2 (基础性/发展性)
+    private Boolean isStrategic;  // 是否战略指标（兼容旧测试）
     
     // 关联数据（可选）
     private List<IndicatorVO> childIndicators;

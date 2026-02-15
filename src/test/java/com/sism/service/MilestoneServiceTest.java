@@ -8,8 +8,12 @@ import com.sism.enums.IndicatorStatus;
 import com.sism.enums.MilestoneStatus;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
+import com.sism.repository.AssessmentCycleRepository;
 import com.sism.repository.IndicatorRepository;
 import com.sism.repository.MilestoneRepository;
+import com.sism.repository.SysOrgRepository;
+import com.sism.repository.TaskRepository;
+import com.sism.util.TestDataFactory;
 import com.sism.vo.MilestoneVO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,15 +50,25 @@ class MilestoneServiceTest {
     @Autowired
     private IndicatorRepository indicatorRepository;
 
+    @Autowired
+    private TaskRepository taskRepository;
+
+    @Autowired
+    private SysOrgRepository orgRepository;
+
+    @Autowired
+    private AssessmentCycleRepository cycleRepository;
+
     private Indicator testIndicator;
+    private Milestone testMilestone;
 
     @BeforeEach
     void setUp() {
-        // Get existing active indicator from database
-        testIndicator = indicatorRepository.findAll().stream()
-                .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("No active indicators found in test database"));
+        // Create test data
+        testIndicator = TestDataFactory.createTestIndicator(indicatorRepository, taskRepository, 
+                                                            cycleRepository, orgRepository);
+        testMilestone = TestDataFactory.createTestMilestone(milestoneRepository, indicatorRepository,
+                                                            taskRepository, cycleRepository, orgRepository);
     }
 
     @Nested
@@ -64,17 +78,15 @@ class MilestoneServiceTest {
         @Test
         @DisplayName("Should return milestone when exists")
         void shouldReturnMilestoneWhenExists() {
-            // Given
-            Milestone existingMilestone = milestoneRepository.findAll().stream()
-                    .findFirst()
-                    .orElseThrow();
+            // Given - use the test milestone created in setUp
+            Long existingId = testMilestone.getMilestoneId();
 
             // When
-            MilestoneVO result = milestoneService.getMilestoneById(existingMilestone.getMilestoneId());
+            MilestoneVO result = milestoneService.getMilestoneById(existingId);
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getMilestoneId()).isEqualTo(existingMilestone.getMilestoneId());
+            assertThat(result.getMilestoneId()).isEqualTo(existingId);
         }
 
         @Test
@@ -140,7 +152,7 @@ class MilestoneServiceTest {
             request.setMilestoneName(uniqueName);
             request.setMilestoneDesc("Test milestone description");
             request.setDueDate(LocalDate.now().plusMonths(3));
-            request.setWeightPercent(new BigDecimal("25.00"));
+            request.setTargetProgress(25);
             request.setSortOrder(1);
 
             // When
@@ -177,7 +189,7 @@ class MilestoneServiceTest {
             request1.setIndicatorId(testIndicator.getIndicatorId());
             request1.setMilestoneName(duplicateName);
             request1.setDueDate(LocalDate.now().plusMonths(1));
-            request1.setWeightPercent(new BigDecimal("10.00"));
+            request1.setTargetProgress(10);
 
             milestoneService.createMilestone(request1);
 
@@ -186,7 +198,7 @@ class MilestoneServiceTest {
             request2.setIndicatorId(testIndicator.getIndicatorId());
             request2.setMilestoneName(duplicateName);
             request2.setDueDate(LocalDate.now().plusMonths(2));
-            request2.setWeightPercent(new BigDecimal("10.00"));
+            request2.setTargetProgress(10);
 
             // When/Then
             assertThatThrownBy(() -> milestoneService.createMilestone(request2))
@@ -209,7 +221,7 @@ class MilestoneServiceTest {
             createRequest.setMilestoneName(uniqueName);
             createRequest.setMilestoneDesc("Original description");
             createRequest.setDueDate(LocalDate.now().plusMonths(1));
-            createRequest.setWeightPercent(new BigDecimal("10.00"));
+            createRequest.setTargetProgress(10);
 
             MilestoneVO created = milestoneService.createMilestone(createRequest);
 
@@ -233,7 +245,7 @@ class MilestoneServiceTest {
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
             createRequest.setMilestoneName(uniqueName);
             createRequest.setDueDate(LocalDate.now().plusMonths(1));
-            createRequest.setWeightPercent(new BigDecimal("10.00"));
+            createRequest.setTargetProgress(10);
 
             MilestoneVO created = milestoneService.createMilestone(createRequest);
 
@@ -262,7 +274,7 @@ class MilestoneServiceTest {
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
             createRequest.setMilestoneName(uniqueName);
             createRequest.setDueDate(LocalDate.now().plusMonths(1));
-            createRequest.setWeightPercent(new BigDecimal("5.00"));
+            createRequest.setTargetProgress(5);
 
             MilestoneVO created = milestoneService.createMilestone(createRequest);
             Long milestoneId = created.getMilestoneId();
@@ -288,7 +300,7 @@ class MilestoneServiceTest {
             createRequest.setIndicatorId(testIndicator.getIndicatorId());
             createRequest.setMilestoneName(uniqueName);
             createRequest.setDueDate(LocalDate.now().plusMonths(1));
-            createRequest.setWeightPercent(new BigDecimal("10.00"));
+            createRequest.setTargetProgress(10);
 
             MilestoneVO created = milestoneService.createMilestone(createRequest);
 

@@ -15,8 +15,58 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Dashboard Controller
- * Provides dashboard summary and statistics
+ * Dashboard Controller for SISM (Strategic Indicator Management System).
+ * 
+ * <p>This controller provides aggregated statistics and summary data for the
+ * system dashboard. It calculates real-time metrics for strategic indicator
+ * completion, departmental performance, and alert status.
+ * 
+ * <h2>Dashboard Metrics</h2>
+ * <ul>
+ *   <li><b>Completion Rate</b>: Percentage of completed indicators</li>
+ *   <li><b>Total Score</b>: Weighted average progress (max 120 points)</li>
+ *   <li><b>Warning Count</b>: Number of indicators requiring attention</li>
+ *   <li><b>Alert Distribution</b>: Severe, moderate, and normal indicators</li>
+ * </ul>
+ * 
+ * <h2>Alert Severity Levels</h2>
+ * <ul>
+ *   <li><b>Severe</b>: Progress < 30% (requires immediate action)</li>
+ *   <li><b>Moderate</b>: Progress 30-59% (needs attention)</li>
+ *   <li><b>Normal</b>: Progress >= 60% (on track)</li>
+ * </ul>
+ * 
+ * <h2>Department Progress</h2>
+ * <p>Calculates average progress and completion statistics for each department,
+ * enabling comparative analysis and performance tracking across organizational units.
+ * 
+ * <h2>API Endpoints</h2>
+ * <ul>
+ *   <li>GET /api/dashboard/summary - Overall system summary</li>
+ *   <li>GET /api/dashboard/department-progress - Department-level statistics</li>
+ * </ul>
+ * 
+ * <h2>Response Example</h2>
+ * <pre>
+ * {
+ *   "completionRate": 75.5,
+ *   "totalScore": 90.6,
+ *   "warningCount": 12,
+ *   "totalIndicators": 100,
+ *   "completedIndicators": 75,
+ *   "alertIndicators": {
+ *     "severe": 5,
+ *     "moderate": 7,
+ *     "normal": 88
+ *   }
+ * }
+ * </pre>
+ * 
+ * @author SISM Development Team
+ * @version 1.0
+ * @since 1.0
+ * @see com.sism.service.IndicatorService
+ * @see com.sism.service.SysOrgService
  */
 @Slf4j
 @RestController

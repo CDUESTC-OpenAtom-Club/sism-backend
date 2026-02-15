@@ -6,6 +6,7 @@ import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.SysOrgRepository;
 import com.sism.vo.OrgTreeVO;
 import com.sism.vo.SysOrgVO;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,31 @@ class OrgServiceTest {
 
     @Autowired
     private SysOrgRepository orgRepository;
+
+    @BeforeEach
+    void setUp() {
+        // Create test data for each test
+        SysOrg strategicDept = new SysOrg();
+        strategicDept.setName("战略发展部");
+        strategicDept.setType(OrgType.STRATEGY_DEPT);
+        strategicDept.setIsActive(true);
+        strategicDept.setSortOrder(1);
+        orgRepository.save(strategicDept);
+
+        SysOrg functionalDept = new SysOrg();
+        functionalDept.setName("职能部门");
+        functionalDept.setType(OrgType.FUNCTIONAL_DEPT);
+        functionalDept.setIsActive(true);
+        functionalDept.setSortOrder(2);
+        orgRepository.save(functionalDept);
+
+        SysOrg college = new SysOrg();
+        college.setName("二级学院");
+        college.setType(OrgType.COLLEGE);
+        college.setIsActive(true);
+        college.setSortOrder(3);
+        orgRepository.save(college);
+    }
 
     @Nested
     @DisplayName("getOrgById Tests")

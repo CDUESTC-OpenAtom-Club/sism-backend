@@ -24,10 +24,41 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 
 /**
- * Authentication Controller
- * Handles login, logout, token refresh, and current user operations
+ * Authentication Controller for SISM (Strategic Indicator Management System).
  * 
- * Requirements: 8.1, 1.2.2, 1.2.4, 1.2.5
+ * <p>This controller handles all authentication and authorization operations including:
+ * <ul>
+ *   <li>User login with JWT token generation</li>
+ *   <li>User logout with token invalidation</li>
+ *   <li>Access token refresh using refresh tokens</li>
+ *   <li>Current user information retrieval</li>
+ * </ul>
+ * 
+ * <h2>Security Features</h2>
+ * <ul>
+ *   <li><b>JWT Authentication</b>: Access tokens for API authentication</li>
+ *   <li><b>Refresh Token Rotation</b>: Automatic token rotation on refresh</li>
+ *   <li><b>HttpOnly Cookies</b>: Secure refresh token storage</li>
+ *   <li><b>CSRF Protection</b>: SameSite=Strict cookie attribute</li>
+ * </ul>
+ * 
+ * <h2>API Endpoints</h2>
+ * <ul>
+ *   <li>POST /api/auth/login - User authentication</li>
+ *   <li>POST /api/auth/logout - Session termination</li>
+ *   <li>POST /api/auth/refresh - Token refresh</li>
+ *   <li>GET /api/auth/me - Current user info</li>
+ * </ul>
+ * 
+ * <h2>Token Management</h2>
+ * <p>Access tokens are short-lived (15 minutes) and returned in response body.
+ * Refresh tokens are long-lived (7 days) and stored in HttpOnly cookies for security.
+ * 
+ * @author SISM Development Team
+ * @version 1.0
+ * @since 1.0
+ * @see com.sism.service.AuthService
+ * @see com.sism.service.RefreshTokenService
  */
 @Slf4j
 @RestController
@@ -58,19 +89,46 @@ public class AuthController {
     private Long accessTokenExpiration;
 
     /**
-     * User login
-     * POST /api/auth/login
+     * Authenticates a user and generates JWT tokens.
      * 
-     * Generates both Access Token and Refresh Token.
-     * Access Token is returned in response body.
-     * Refresh Token is set as HttpOnly cookie.
+     * <p>This endpoint validates user credentials and generates both an access token
+     * and a refresh token. The access token is returned in the response body for
+     * use in subsequent API calls. The refresh token is set as an HttpOnly cookie
+     * for enhanced security.
      * 
-     * @param request login credentials
-     * @param httpRequest HTTP request for device info
-     * @param httpResponse HTTP response for setting cookie
-     * @return JWT token and user information
+     * <h3>Security Features</h3>
+     * <ul>
+     *   <li>Password validation using BCrypt</li>
+     *   <li>Access token (15 min expiry) in response body</li>
+     *   <li>Refresh token (7 days expiry) in HttpOnly cookie</li>
+     *   <li>Device fingerprinting via User-Agent</li>
+     *   <li>IP address tracking for security audit</li>
+     * </ul>
      * 
-     * Requirements: 1.2.2 Refresh Token 使用 HttpOnly Cookie 存储
+     * <h3>Response Structure</h3>
+     * <pre>
+     * {
+     *   "code": 200,
+     *   "message": "Login successful",
+     *   "data": {
+     *     "token": "eyJhbGciOiJIUzI1NiIs...",
+     *     "expiresIn": 900,
+     *     "user": {
+     *       "id": 1,
+     *       "username": "admin",
+     *       "role": "strategic_dept"
+     *     }
+     *   }
+     * }
+     * </pre>
+     * 
+     * @param request the login credentials containing username and password
+     * @param httpRequest the HTTP request for extracting device info and IP address
+     * @param httpResponse the HTTP response for setting refresh token cookie
+     * @return ResponseEntity containing JWT token and user information
+     * @throws org.springframework.security.authentication.BadCredentialsException if credentials are invalid
+     * @see com.sism.dto.LoginRequest
+     * @see com.sism.vo.LoginResponse
      */
     @PostMapping("/login")
     @Operation(summary = "User login", description = "Authenticate user and return JWT token with refresh token cookie")
@@ -107,18 +165,31 @@ public class AuthController {
     }
 
     /**
-     * User logout
-     * POST /api/auth/logout
+     * Logs out the current user and invalidates all tokens.
      * 
-     * Invalidates both Access Token and Refresh Token.
-     * Clears the refresh token cookie.
+     * <p>This endpoint performs a complete logout by:
+     * <ul>
+     *   <li>Invalidating the access token (added to blacklist)</li>
+     *   <li>Revoking the refresh token from database</li>
+     *   <li>Clearing the refresh token cookie</li>
+     * </ul>
      * 
-     * @param authorization JWT token from header
-     * @param httpRequest HTTP request for getting refresh token cookie
-     * @param httpResponse HTTP response for clearing cookie
-     * @return success message
+     * <p>After logout, both the access token and refresh token become unusable.
+     * The user must login again to obtain new tokens.
      * 
-     * Requirements: 1.2.5 登出时同时清除 Access Token 和 Refresh Token
+     * <h3>Security Notes</h3>
+     * <ul>
+     *   <li>Access token is blacklisted until its natural expiration</li>
+     *   <li>Refresh token is permanently revoked in database</li>
+     *   <li>Cookie is cleared with Max-Age=0</li>
+     * </ul>
+     * 
+     * @param authorization the Bearer token from Authorization header (optional)
+     * @param httpRequest the HTTP request for extracting refresh token cookie
+     * @param httpResponse the HTTP response for clearing the cookie
+     * @return ResponseEntity with success message
+     * @see com.sism.service.AuthService#logout(String)
+     * @see com.sism.service.RefreshTokenService#revokeToken(String)
      */
     @PostMapping("/logout")
     @Operation(summary = "User logout", description = "Invalidate current JWT token and refresh token")
@@ -147,17 +218,43 @@ public class AuthController {
     }
 
     /**
-     * Refresh Access Token
-     * POST /api/auth/refresh
+     * Refreshes the access token using a valid refresh token.
      * 
-     * Uses the Refresh Token from HttpOnly cookie to generate a new Access Token.
-     * Implements token rotation: old refresh token is revoked, new one is issued.
+     * <p>This endpoint implements token rotation for enhanced security:
+     * <ol>
+     *   <li>Validates the refresh token from HttpOnly cookie</li>
+     *   <li>Revokes the old refresh token</li>
+     *   <li>Generates a new access token</li>
+     *   <li>Generates a new refresh token</li>
+     *   <li>Sets the new refresh token in cookie</li>
+     * </ol>
      * 
-     * @param httpRequest HTTP request for getting refresh token cookie
-     * @param httpResponse HTTP response for setting new cookie
-     * @return new access token and user information
+     * <h3>Token Rotation Benefits</h3>
+     * <ul>
+     *   <li>Limits the window of opportunity for token theft</li>
+     *   <li>Detects token reuse (potential security breach)</li>
+     *   <li>Provides automatic session extension</li>
+     * </ul>
      * 
-     * Requirements: 1.2.2, 1.2.4 页面刷新后能通过 Refresh Token 恢复会话
+     * <h3>Use Cases</h3>
+     * <ul>
+     *   <li>Access token expired (15 minutes)</li>
+     *   <li>Page refresh/reload</li>
+     *   <li>Session recovery after browser restart</li>
+     * </ul>
+     * 
+     * <h3>Error Scenarios</h3>
+     * <ul>
+     *   <li>401: Refresh token not found in cookie</li>
+     *   <li>401: Refresh token expired or revoked</li>
+     *   <li>401: Refresh token reuse detected</li>
+     * </ul>
+     * 
+     * @param httpRequest the HTTP request for extracting refresh token cookie
+     * @param httpResponse the HTTP response for setting new refresh token cookie
+     * @return ResponseEntity containing new access token and user information
+     * @throws com.sism.exception.UnauthorizedException if refresh token is invalid or expired
+     * @see com.sism.service.RefreshTokenService#refreshTokens(String, String, String)
      */
     @PostMapping("/refresh")
     @Operation(summary = "Refresh access token", description = "Use refresh token to get a new access token")
@@ -201,11 +298,35 @@ public class AuthController {
     }
 
     /**
-     * Get current user information
-     * GET /api/auth/me
+     * Retrieves information about the currently authenticated user.
      * 
-     * @param authorization JWT token from header
-     * @return current user information
+     * <p>This endpoint extracts the user information from the JWT token
+     * in the Authorization header and returns the user's profile data.
+     * 
+     * <h3>Required Header</h3>
+     * <pre>
+     * Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+     * </pre>
+     * 
+     * <h3>Response Structure</h3>
+     * <pre>
+     * {
+     *   "code": 200,
+     *   "data": {
+     *     "id": 1,
+     *     "username": "admin",
+     *     "realName": "Administrator",
+     *     "role": "strategic_dept",
+     *     "orgId": 1,
+     *     "orgName": "Strategic Development Department"
+     *   }
+     * }
+     * </pre>
+     * 
+     * @param authorization the Bearer token from Authorization header (required)
+     * @return ResponseEntity containing current user information
+     * @throws com.sism.exception.UnauthorizedException if token is invalid or expired
+     * @see com.sism.vo.UserVO
      */
     @GetMapping("/me")
     @Operation(summary = "Get current user", description = "Get information about the currently authenticated user")

@@ -188,7 +188,7 @@ public class Indicator {
     /**
      * 指标所属年份
      */
-    @Column(name = "year")
+    @Column(name = "`year`")  // Quoted for H2 compatibility (reserved keyword)
     private Integer year;
 
     // 关联关系 (用于Service层查询)

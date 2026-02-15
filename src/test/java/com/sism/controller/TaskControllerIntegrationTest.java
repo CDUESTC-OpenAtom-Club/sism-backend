@@ -7,6 +7,7 @@ import com.sism.entity.AssessmentCycle;
 import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
 import com.sism.repository.*;
+import com.sism.util.TestDataFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -44,7 +45,7 @@ class TaskControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
+    private SysUserRepository userRepository;
 
     @Autowired
     private SysOrgRepository orgRepository;
@@ -62,26 +63,25 @@ class TaskControllerIntegrationTest {
     private StrategicTask testTask;
     private SysOrg testOrg;
     private AssessmentCycle testCycle;
+    private SysUser testUser;
 
     @BeforeEach
     void setUp() throws Exception {
-        // Get or create test user and login
-        SysUser testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
+        // Create test data using TestDataFactory
+        testTask = TestDataFactory.createTestTask(taskRepository, cycleRepository, orgRepository);
+        testOrg = testTask.getOrg();
+        testCycle = cycleRepository.findById(testTask.getCycleId()).orElseThrow();
+        
+        // Create test user with encoded password
+        testUser = userRepository.findByUsername("testuser").orElseGet(() -> {
             SysUser user = new SysUser();
             user.setUsername("testuser");
             user.setPasswordHash(passwordEncoder.encode("testPassword123"));
             user.setRealName("Test User");
             user.setIsActive(true);
-            user.setOrg(orgRepository.findAll().stream().findFirst().orElseThrow());
+            user.setOrg(testOrg);
             return userRepository.save(user);
         });
-
-        // Get test org and cycle
-        testOrg = orgRepository.findAll().stream().findFirst().orElseThrow();
-        testCycle = cycleRepository.findAll().stream().findFirst().orElseThrow();
-
-        // Get test task
-        testTask = taskRepository.findAll().stream().findFirst().orElseThrow();
 
         // Login to get token
         authToken = loginAndGetToken(testUser.getUsername(), "testPassword123");

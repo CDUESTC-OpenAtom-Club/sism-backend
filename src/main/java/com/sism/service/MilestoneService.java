@@ -221,6 +221,7 @@ public class MilestoneService {
         milestone.setMilestoneName(request.getMilestoneName());
         milestone.setMilestoneDesc(request.getMilestoneDesc());
         milestone.setDueDate(request.getDueDate());
+        milestone.setTargetProgress(request.getTargetProgress() != null ? request.getTargetProgress() : 0);
         milestone.setStatus(MilestoneStatus.NOT_STARTED);
         milestone.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
         milestone.setInheritedFrom(inheritedFrom);
