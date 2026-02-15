@@ -32,11 +32,11 @@ jobs:
         run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
       - name: Apply Flyway Migrations
-        run: mvn flyway:migrate -B
-        env:
-          DB_URL: ${{ secrets.DB_URL }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          mvn flyway:migrate -B \
+            -Dflyway.url="${{ secrets.DB_URL }}" \
+            -Dflyway.user="${{ secrets.DB_USERNAME }}" \
+            -Dflyway.password="${{ secrets.DB_PASSWORD }}"
 
       - name: Setup SSH
         run: |
