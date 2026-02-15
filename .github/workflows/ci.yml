@@ -84,19 +84,10 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Validate Flyway migrations
+      - name: Check Flyway migration status (before)
         run: |
-          echo "🔍 Validating Flyway migrations against test database..."
-          mvn flyway:validate -B
-        env:
-          DB_URL: jdbc:postgresql://localhost:5432/sism_test
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
-
-      - name: Run Flyway info
-        run: |
-          echo "📋 Flyway migration status:"
-          mvn flyway:info -B
+          echo "📋 Checking Flyway migration status before applying..."
+          mvn flyway:info -B || echo "No migrations applied yet"
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
           DB_USERNAME: postgres
@@ -106,6 +97,24 @@ jobs:
         run: |
           echo "🚀 Applying migrations to test database..."
           mvn flyway:migrate -B
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/sism_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+
+      - name: Validate Flyway migrations
+        run: |
+          echo "🔍 Validating Flyway migrations against test database..."
+          mvn flyway:validate -B
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/sism_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+
+      - name: Check Flyway migration status (after)
+        run: |
+          echo "📋 Final Flyway migration status:"
+          mvn flyway:info -B
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
           DB_USERNAME: postgres

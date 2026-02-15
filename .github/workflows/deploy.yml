@@ -31,10 +31,22 @@ jobs:
       - name: Build with Maven
         run: mvn package -B -DskipTests
 
-      - name: Validate Flyway Migrations
+      - name: Apply and Validate Flyway Migrations
         run: |
+          echo "📋 Checking migration status (before)..."
+          mvn flyway:info -B || echo "No migrations applied yet"
+          
+          echo ""
+          echo "🚀 Applying migrations to production database..."
+          mvn flyway:migrate -B
+          
+          echo ""
           echo "🔍 Validating Flyway migrations..."
           mvn flyway:validate -B
+          
+          echo ""
+          echo "📋 Final migration status:"
+          mvn flyway:info -B
         env:
           DB_URL: ${{ secrets.DB_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
