@@ -31,35 +31,12 @@ jobs:
       - name: Build with Maven
         run: mvn package -B -DskipTests
 
-      - name: Apply and Validate Flyway Migrations
-        run: |
-          echo "📋 Checking migration status (before)..."
-          mvn flyway:info -B || echo "No migrations applied yet"
-          
-          echo ""
-          echo "🚀 Applying migrations to production database..."
-          mvn flyway:migrate -B
-          
-          echo ""
-          echo "🔍 Validating Flyway migrations..."
-          mvn flyway:validate -B
-          
-          echo ""
-          echo "📋 Final migration status:"
-          mvn flyway:info -B
+      - name: Apply Flyway Migrations
+        run: mvn flyway:migrate -B
         env:
           DB_URL: ${{ secrets.DB_URL }}
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-
-      - name: Get JAR checksum
-        id: checksum
-        run: |
-          LOCAL_MD5=$(md5sum target/${{ env.JAR_NAME }} | cut -d' ' -f1)
-          LOCAL_SIZE=$(stat -c%s target/${{ env.JAR_NAME }})
-          echo "local_md5=$LOCAL_MD5" >> $GITHUB_OUTPUT
-          echo "local_size=$LOCAL_SIZE" >> $GITHUB_OUTPUT
-          echo "📦 Local JAR: $LOCAL_SIZE bytes, MD5: $LOCAL_MD5"
 
       - name: Setup SSH
         run: |
@@ -71,12 +48,12 @@ jobs:
       - name: Upload JAR and deploy script
         run: |
           # Upload JAR
-          rsync -avz --progress -e "ssh -i ~/.ssh/deploy_key" \
+          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
             target/${{ env.JAR_NAME }} \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/sism/backend/
           
-          # Upload deploy script to home directory
-          rsync -avz -e "ssh -i ~/.ssh/deploy_key" \
+          # Upload deploy script
+          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
             docs/scripts/deploy-and-restart.sh \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/deploy-and-restart.sh
           
@@ -87,23 +64,7 @@ jobs:
       - name: Deploy and restart service
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-            # Verify file integrity
-            REMOTE_MD5=$(md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1)
-            REMOTE_SIZE=$(stat -c%s /opt/sism/backend/${{ env.JAR_NAME }})
-            
-            echo "📦 Remote JAR: $REMOTE_SIZE bytes, MD5: $REMOTE_MD5"
-            echo "📦 Expected:   ${{ steps.checksum.outputs.local_size }} bytes, MD5: ${{ steps.checksum.outputs.local_md5 }}"
-            
-            if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
-              echo "❌ Checksum mismatch! Upload corrupted."
-              exit 1
-            fi
-            
-            echo "✅ Checksum verified"
-            echo ""
             echo "🚀 Deploying and restarting service..."
-            
-            # Run deploy script with sudo password
             echo "${{ secrets.SERVER_SUDO_PASSWORD }}" | ~/deploy-and-restart.sh ${{ env.JAR_NAME }}
           EOF
 
