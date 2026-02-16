@@ -55,7 +55,7 @@ jobs:
       - name: Stop backend service
         run: |
           ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "sudo systemctl stop sism-backend || true"
+            "systemctl stop sism-backend || true"
 
       - name: Upload JAR to temp directory
         run: |
@@ -65,56 +65,48 @@ jobs:
       
       - name: Move JAR to deployment directory
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << EOF
-            # Backup old JAR if exists
-            if [ -f /opt/sism/backend/${{ env.JAR_NAME }} ]; then
-              sudo mv /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}.old
-            fi
-            
-            # Move new JAR to deployment directory
-            sudo mv /tmp/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}
-            sudo chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}
-            sudo chmod 775 /opt/sism/backend/${{ env.JAR_NAME }}
-          EOF
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "[ -f /opt/sism/backend/${{ env.JAR_NAME }} ] && mv /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}.old || true; \
+             mv /tmp/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}; \
+             chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}; \
+             chmod 775 /opt/sism/backend/${{ env.JAR_NAME }}"
 
-      - name: Verify upload and restart
+      - name: Verify checksum
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << EOF
-            # Verify file integrity
-            REMOTE_MD5=\$(md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1)
-            REMOTE_SIZE=\$(stat -c%s /opt/sism/backend/${{ env.JAR_NAME }})
-            
-            echo "📦 Remote JAR: \$REMOTE_SIZE bytes, MD5: \$REMOTE_MD5"
-            echo "📦 Expected:   ${{ steps.checksum.outputs.local_size }} bytes, MD5: ${{ steps.checksum.outputs.local_md5 }}"
-            
-            if [ "\$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
-              echo "❌ Checksum mismatch! Upload corrupted."
-              exit 1
-            fi
-            echo "✅ Checksum verified"
-            
-            # Update symlink and restart
-            sudo ln -sf /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/sism-backend.jar
-            sudo systemctl start sism-backend
-            
-            # Wait for startup
-            echo "⏳ Waiting for service to start..."
-            sleep 15
-            
-            # Health check with retries
-            for i in 1 2 3; do
-              if curl -sf http://localhost:8080/api/actuator/health > /dev/null; then
-                echo "✅ Backend deployed and healthy"
-                exit 0
-              fi
-              echo "⏳ Retry \$i/3..."
-              sleep 5
-            done
-            
-            echo "❌ Health check failed"
-            sudo journalctl -u sism-backend -n 30 --no-pager
+          REMOTE_MD5=$(ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1")
+          echo "📦 Remote MD5: $REMOTE_MD5"
+          echo "📦 Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
+          if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
+            echo "❌ Checksum mismatch!"
             exit 1
-          EOF
+          fi
+          echo "✅ Checksum verified"
+
+      - name: Update symlink and restart service
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "ln -sf /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/sism-backend.jar && \
+             systemctl start sism-backend"
+
+      - name: Wait for service startup
+        run: sleep 15
+
+      - name: Health check
+        run: |
+          for i in 1 2 3; do
+            if ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+              "curl -sf http://localhost:8080/api/actuator/health > /dev/null"; then
+              echo "✅ Backend deployed and healthy"
+              exit 0
+            fi
+            echo "⏳ Health check retry $i/3..."
+            sleep 5
+          done
+          echo "❌ Health check failed"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "journalctl -u sism-backend -n 30 --no-pager"
+          exit 1
 
       - name: Cleanup
         if: always()
