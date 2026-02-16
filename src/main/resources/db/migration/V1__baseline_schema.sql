@@ -849,7 +849,7 @@ ALTER SEQUENCE public.sys_role_permission_id_seq OWNED BY public.sys_role_permis
 
 ALTER SEQUENCE public.sys_user_role_id_seq OWNED BY public.sys_user_role.id;
 
-ALTER SEQUENCE public.task_id_seq OWNED BY public.task.id;
+ALTER SEQUENCE public.sys_task_id_seq OWNED BY public.sys_task.id;
 
 ALTER SEQUENCE public.task_plan_assessment_cycle_id_seq OWNED BY public.plan.cycle_id;
 
