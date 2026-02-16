@@ -20,15 +20,15 @@ public class JpaConfigurationTest {
     private Environment environment;
 
     /**
-     * 验证测试环境 ddl-auto 配置为 validate
+     * 验证测试环境 ddl-auto 配置为 create-drop
      */
     @Test
     public void verifyDdlAutoConfigurationInTest() {
         String ddlAuto = environment.getProperty("spring.jpa.hibernate.ddl-auto");
         
         assertThat(ddlAuto)
-            .as("测试环境应该使用 ddl-auto: validate")
-            .isEqualTo("validate");
+            .as("测试环境应该使用 ddl-auto: create-drop")
+            .isEqualTo("create-drop");
         
         System.out.println("✓ 测试环境 ddl-auto 配置正确: " + ddlAuto);
     }
@@ -59,9 +59,10 @@ public class JpaConfigurationTest {
     public void verifyDatabaseDialect() {
         String dialect = environment.getProperty("spring.jpa.database-platform");
         
+        // 测试环境使用 H2，生产环境使用 PostgreSQL
         assertThat(dialect)
-            .as("应该使用 PostgreSQL 方言")
-            .isEqualTo("org.hibernate.dialect.PostgreSQLDialect");
+            .as("测试环境应该使用 H2 方言")
+            .isEqualTo("org.hibernate.dialect.H2Dialect");
         
         System.out.println("✓ 数据库方言配置正确: " + dialect);
     }
@@ -74,14 +75,15 @@ public class JpaConfigurationTest {
         String url = environment.getProperty("spring.datasource.url");
         String driverClassName = environment.getProperty("spring.datasource.driver-class-name");
         
+        // 测试环境使用 H2 内存数据库
         assertThat(url)
             .as("数据源 URL 应该配置")
             .isNotNull()
-            .contains("postgresql");
+            .contains("h2:mem");
         
         assertThat(driverClassName)
-            .as("应该使用 PostgreSQL 驱动")
-            .isEqualTo("org.postgresql.Driver");
+            .as("测试环境应该使用 H2 驱动")
+            .isEqualTo("org.h2.Driver");
         
         System.out.println("✓ 数据源配置正确");
         System.out.println("  URL: " + url);
