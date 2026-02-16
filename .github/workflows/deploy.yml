@@ -59,7 +59,12 @@ jobs:
 
       - name: Upload JAR with rsync
         run: |
-          rsync -avz --progress -e "ssh -i ~/.ssh/deploy_key" \
+          # Use --temp-dir to avoid permission issues with in-place temp files
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "mkdir -p /tmp/sism-deploy && chmod 777 /tmp/sism-deploy"
+          
+          rsync -avz --progress --temp-dir=/tmp/sism-deploy \
+            -e "ssh -i ~/.ssh/deploy_key" \
             target/${{ env.JAR_NAME }} \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/sism/backend/
 
