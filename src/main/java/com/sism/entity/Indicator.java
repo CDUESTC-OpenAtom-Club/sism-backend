@@ -80,6 +80,7 @@ public class Indicator {
     private Integer progress;
 
     @Column(name="is_deleted", nullable=false)
+    @Builder.Default
     private Boolean isDeleted = false;
 
     /**
@@ -87,6 +88,7 @@ public class Indicator {
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
+    @Builder.Default
     private IndicatorStatus status = IndicatorStatus.ACTIVE;
 
     // ==================== 扩展字段 (前端数据对齐 2026-01-19) ====================
@@ -195,4 +197,17 @@ public class Indicator {
     @OneToMany(mappedBy = "indicator", cascade = CascadeType.ALL)
     @Builder.Default
     private List<Milestone> milestones = new ArrayList<>();
+
+    /**
+     * Set default values before persisting
+     */
+    @PrePersist
+    protected void onCreate() {
+        if (status == null) {
+            status = IndicatorStatus.ACTIVE;
+        }
+        if (isDeleted == null) {
+            isDeleted = false;
+        }
+    }
 }

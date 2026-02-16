@@ -237,8 +237,18 @@ public class IndicatorService {
      */
     @Transactional
     public void deleteIndicator(Long indicatorId) {
-        Indicator indicator = findIndicatorById(indicatorId);
+        // Find indicator without filtering by isDeleted to check if it's already archived
+        Indicator indicator = indicatorRepository.findById(indicatorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Indicator", indicatorId));
+        
+        // Check if already archived
+        if (indicator.getStatus() == IndicatorStatus.ARCHIVED) {
+            throw new BusinessException("Indicator is already archived and cannot be deleted again");
+        }
+        
+        // Soft delete: set both isDeleted and status
         indicator.setIsDeleted(true);
+        indicator.setStatus(IndicatorStatus.ARCHIVED);
         indicator.setUpdatedAt(LocalDateTime.now());
         indicatorRepository.save(indicator);
     }
