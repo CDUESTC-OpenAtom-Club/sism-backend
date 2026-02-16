@@ -86,7 +86,7 @@ jobs:
 
       - name: Check Flyway migration status (before)
         run: |
-          echo "📋 Checking Flyway migration status before applying..."
+          echo "[INFO] Checking Flyway migration status before applying..."
           mvn flyway:info -B || echo "No migrations applied yet"
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
@@ -95,7 +95,7 @@ jobs:
 
       - name: Apply migrations to test database
         run: |
-          echo "🚀 Applying migrations to test database..."
+          echo "[INFO] Applying migrations to test database..."
           mvn flyway:migrate -B
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
@@ -104,7 +104,7 @@ jobs:
 
       - name: Validate Flyway migrations
         run: |
-          echo "🔍 Validating Flyway migrations against test database..."
+          echo "[INFO] Validating Flyway migrations against test database..."
           mvn flyway:validate -B
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
@@ -113,7 +113,7 @@ jobs:
 
       - name: Check Flyway migration status (after)
         run: |
-          echo "📋 Final Flyway migration status:"
+          echo "[INFO] Final Flyway migration status:"
           mvn flyway:info -B
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
@@ -141,10 +141,10 @@ jobs:
 
       - name: Check for compilation warnings
         run: |
-          echo "⚠️ Checking for compilation warnings..."
+          echo "[INFO] Checking for compilation warnings..."
           mvn clean compile -B 2>&1 | tee compile.log
           if grep -i "warning" compile.log; then
-            echo "⚠️ Compilation warnings found (non-blocking)"
+            echo "[WARN] Compilation warnings found (non-blocking)"
           else
-            echo "✅ No compilation warnings"
+            echo "[INFO] No compilation warnings"
           fi

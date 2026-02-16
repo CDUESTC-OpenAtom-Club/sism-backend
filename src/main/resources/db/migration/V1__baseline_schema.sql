@@ -774,7 +774,7 @@ ALTER TABLE ONLY public.indicator
     ADD CONSTRAINT indicator_parent_indicator_id_fkey FOREIGN KEY (parent_indicator_id) REFERENCES public.indicator(id);
 
 ALTER TABLE ONLY public.indicator
-    ADD CONSTRAINT indicator_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.task(id);
+    ADD CONSTRAINT indicator_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.sys_task(id);
 
 ALTER TABLE ONLY public.indicator_milestone
     ADD CONSTRAINT milestone_indicator_id_fkey FOREIGN KEY (indicator_id) REFERENCES public.indicator(id);

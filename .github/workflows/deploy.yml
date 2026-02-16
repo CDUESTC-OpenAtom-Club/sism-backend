@@ -40,7 +40,7 @@ jobs:
           LOCAL_SIZE=$(stat -c%s target/${{ env.JAR_NAME }})
           echo "local_md5=$LOCAL_MD5" >> $GITHUB_OUTPUT
           echo "local_size=$LOCAL_SIZE" >> $GITHUB_OUTPUT
-          echo "📦 Local JAR: $LOCAL_SIZE bytes, MD5: $LOCAL_MD5"
+          echo "[INFO] Local JAR: $LOCAL_SIZE bytes, MD5: $LOCAL_MD5"
 
       - name: Setup SSH
         run: |
@@ -52,7 +52,7 @@ jobs:
       - name: Configure server sudoers (one-time setup)
         run: |
           # Skip - already configured on server
-          echo "✅ Server sudoers already configured"
+          echo "[INFO] Server sudoers already configured"
 
       - name: Stop backend service
         run: |
@@ -75,13 +75,13 @@ jobs:
         run: |
           REMOTE_MD5=$(ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1")
-          echo "📦 Remote MD5: $REMOTE_MD5"
-          echo "📦 Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
+          echo "[INFO] Remote MD5: $REMOTE_MD5"
+          echo "[INFO] Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
           if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
-            echo "❌ Checksum mismatch!"
+            echo "[ERROR] Checksum mismatch!"
             exit 1
           fi
-          echo "✅ Checksum verified"
+          echo "[INFO] Checksum verified"
 
       - name: Update symlink and restart service
         run: |
@@ -97,13 +97,13 @@ jobs:
           for i in 1 2 3; do
             if ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
               "curl -sf http://localhost:8080/api/actuator/health > /dev/null"; then
-              echo "✅ Backend deployed and healthy"
+              echo "[INFO] Backend deployed and healthy"
               exit 0
             fi
-            echo "⏳ Health check retry $i/3..."
+            echo "[INFO] Health check retry $i/3..."
             sleep 5
           done
-          echo "❌ Health check failed"
+          echo "[ERROR] Health check failed"
           ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "journalctl -u sism-backend -n 30 --no-pager"
           exit 1
