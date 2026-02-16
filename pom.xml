@@ -263,6 +263,9 @@
                         <include>**/*PropertyTest.java</include>
                     </includes>
                     <useModulePath>false</useModulePath>
+                    <!-- Treat assumption violations as skipped tests, not errors -->
+                    <trimStackTrace>false</trimStackTrace>
+                    <printSummary>true</printSummary>
                 </configuration>
             </plugin>
             
