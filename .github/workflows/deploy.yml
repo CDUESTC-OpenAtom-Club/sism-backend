@@ -48,9 +48,9 @@ jobs:
             target/${{ env.JAR_NAME }} \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/sism/backend/
           
-          # Upload deploy script
+          # Upload deploy script (no password version)
           rsync -az -e "ssh -i ~/.ssh/deploy_key" \
-            docs/scripts/deploy-and-restart.sh \
+            docs/scripts/deploy-and-restart-nopasswd.sh \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/deploy-and-restart.sh
           
           # Make script executable
@@ -59,10 +59,8 @@ jobs:
 
       - name: Deploy and restart service
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-            echo "🚀 Deploying and restarting service..."
-            echo "${{ secrets.SERVER_SUDO_PASSWORD }}" | ~/deploy-and-restart.sh ${{ env.JAR_NAME }}
-          EOF
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "~/deploy-and-restart.sh ${{ env.JAR_NAME }}"
 
       - name: Cleanup
         if: always()
