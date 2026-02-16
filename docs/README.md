@@ -12,21 +12,8 @@
 - **TaskController-API文档.md** - 任务管理 API 文档
 - **production-fix-2026-02-16.md** - 最新生产环境修复记录
 
-### 📂 audit/ - 代码审计和清单
-
-持续维护的代码清单文档：
-
-- **README.md** - 审计目录说明
-- **controller-inventory.md** - Controller 层清单
-- **dto-vo-inventory.md** - DTO/VO 清单
-- **entity-inventory.md** - Entity 实体清单
-- **repository-inventory.md** - Repository 数据访问层清单
-- **service-inventory.md** - Service 业务逻辑层清单
-- **dependency-graph.md** - 组件依赖关系图
-
 ### 📂 deployment/ - 部署相关
 
-- **fix-sudo-permissions.md** - 部署工作流 sudo 权限配置指南
 - **springdoc-requirement.md** - SpringDoc/Swagger 部署要求说明
 
 ### 📂 scripts/ - 运维脚本
@@ -84,10 +71,9 @@
 
 ### 保留的文档类型
 
-1. **持续维护的清单** - audit/ 目录下的清单文档
-2. **核心技术文档** - API 文档、数据库文档
-3. **部署运维文档** - 部署指南、脚本说明
-4. **最新的修复记录** - 生产环境问题修复文档
+1. **核心技术文档** - API 文档、数据库文档
+2. **部署运维文档** - 部署指南、脚本说明
+3. **最新的修复记录** - 生产环境问题修复文档
 
 ### 归档的文档类型
 
@@ -121,11 +107,8 @@
 ### 开发相关
 - [数据库表索引](./database-tables-index.md)
 - [Flyway 迁移指南](./flyway-migration-guide.md)
-- [Controller 清单](./audit/controller-inventory.md)
-- [Entity 清单](./audit/entity-inventory.md)
 
 ### 部署相关
-- [部署权限配置](./deployment/fix-sudo-permissions.md)
 - [SpringDoc 要求](./deployment/springdoc-requirement.md)
 - [部署脚本](./scripts/deploy-and-restart-nopasswd.sh)
 
