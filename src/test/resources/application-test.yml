@@ -22,6 +22,11 @@ spring:
     init:
       mode: never  # Don't run schema.sql or data.sql
 
+# Server configuration - match production context path
+server:
+  servlet:
+    context-path: /api
+
 # Logging for tests
 logging:
   level:

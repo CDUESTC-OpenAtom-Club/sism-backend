@@ -1,6 +1,7 @@
 package com.sism.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sism.config.TestSecurityConfig;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
 import com.sism.entity.SysOrg;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -35,9 +37,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class AuthControllerIntegrationTest {
 
     @Autowired
