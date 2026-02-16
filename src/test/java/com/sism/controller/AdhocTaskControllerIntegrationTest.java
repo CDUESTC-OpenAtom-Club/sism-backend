@@ -1,5 +1,7 @@
 package com.sism.controller;
 
+import com.sism.config.TestSecurityConfig;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.AdhocTaskCreateRequest;
 import com.sism.dto.LoginRequest;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -39,9 +42,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class AdhocTaskControllerIntegrationTest {
 
     @Autowired
@@ -115,7 +119,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return adhoc task by ID")
         void shouldReturnAdhocTaskById() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/{id}", testAdhocTask.getAdhocTaskId())
+            mockMvc.perform(get("/adhoc-tasks/{id}", testAdhocTask.getAdhocTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -125,7 +129,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return 404 for non-existent adhoc task")
         void shouldReturn404ForNonExistentAdhocTask() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/{id}", 999999L)
+            mockMvc.perform(get("/adhoc-tasks/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isNotFound());
         }
@@ -138,7 +142,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return adhoc tasks by cycle ID")
         void shouldReturnAdhocTasksByCycleId() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/cycle/{cycleId}", testCycle.getCycleId())
+            mockMvc.perform(get("/adhoc-tasks/cycle/{cycleId}", testCycle.getCycleId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -153,7 +157,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return adhoc tasks by creator org ID")
         void shouldReturnAdhocTasksByCreatorOrgId() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/creator/{creatorOrgId}", testOrg.getId())
+            mockMvc.perform(get("/adhoc-tasks/creator/{creatorOrgId}", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -168,7 +172,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return adhoc tasks by status")
         void shouldReturnAdhocTasksByStatus() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/status/{status}", AdhocTaskStatus.DRAFT)
+            mockMvc.perform(get("/adhoc-tasks/status/{status}", AdhocTaskStatus.DRAFT)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -183,7 +187,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should search adhoc tasks by keyword")
         void shouldSearchAdhocTasksByKeyword() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/search")
+            mockMvc.perform(get("/adhoc-tasks/search")
                             .param("keyword", "Test")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -199,7 +203,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return overdue adhoc tasks")
         void shouldReturnOverdueAdhocTasks() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/overdue")
+            mockMvc.perform(get("/adhoc-tasks/overdue")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -223,7 +227,7 @@ class AdhocTaskControllerIntegrationTest {
             request.setDueAt(LocalDate.now().plusMonths(2));
             request.setTargetOrgIds(List.of(testOrg.getId()));
 
-            mockMvc.perform(post("/api/adhoc-tasks")
+            mockMvc.perform(post("/adhoc-tasks")
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -252,7 +256,7 @@ class AdhocTaskControllerIntegrationTest {
             draftTask.setIncludeInAlert(false);
             draftTask = adhocTaskRepository.save(draftTask);
 
-            mockMvc.perform(post("/api/adhoc-tasks/{id}/open", draftTask.getAdhocTaskId())
+            mockMvc.perform(post("/adhoc-tasks/{id}/open", draftTask.getAdhocTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -271,7 +275,7 @@ class AdhocTaskControllerIntegrationTest {
             testAdhocTask.setStatus(AdhocTaskStatus.OPEN);
             adhocTaskRepository.save(testAdhocTask);
 
-            mockMvc.perform(post("/api/adhoc-tasks/{id}/close", testAdhocTask.getAdhocTaskId())
+            mockMvc.perform(post("/adhoc-tasks/{id}/close", testAdhocTask.getAdhocTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -286,7 +290,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should archive adhoc task")
         void shouldArchiveAdhocTask() throws Exception {
-            mockMvc.perform(post("/api/adhoc-tasks/{id}/archive", testAdhocTask.getAdhocTaskId())
+            mockMvc.perform(post("/adhoc-tasks/{id}/archive", testAdhocTask.getAdhocTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -313,7 +317,7 @@ class AdhocTaskControllerIntegrationTest {
             taskToDelete.setIncludeInAlert(false);
             taskToDelete = adhocTaskRepository.save(taskToDelete);
 
-            mockMvc.perform(delete("/api/adhoc-tasks/{id}", taskToDelete.getAdhocTaskId())
+            mockMvc.perform(delete("/adhoc-tasks/{id}", taskToDelete.getAdhocTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0));
@@ -327,7 +331,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return target organizations for adhoc task")
         void shouldReturnTargetOrganizations() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/{id}/targets", testAdhocTask.getAdhocTaskId())
+            mockMvc.perform(get("/adhoc-tasks/{id}/targets", testAdhocTask.getAdhocTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -342,7 +346,7 @@ class AdhocTaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return mapped indicators for adhoc task")
         void shouldReturnMappedIndicators() throws Exception {
-            mockMvc.perform(get("/api/adhoc-tasks/{id}/indicators", testAdhocTask.getAdhocTaskId())
+            mockMvc.perform(get("/adhoc-tasks/{id}/indicators", testAdhocTask.getAdhocTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -355,7 +359,7 @@ class AdhocTaskControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

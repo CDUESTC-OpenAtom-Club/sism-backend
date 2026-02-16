@@ -22,10 +22,12 @@ spring:
     init:
       mode: never  # Don't run schema.sql or data.sql
 
-# Server configuration - match production context path
+# Server configuration - no context path for tests to simplify URL mapping
+# In tests, controllers are accessed directly at their @RequestMapping path
+# e.g., /auth/login instead of /api/auth/login
 server:
   servlet:
-    context-path: /api
+    context-path: ""
 
 # Logging for tests
 logging:

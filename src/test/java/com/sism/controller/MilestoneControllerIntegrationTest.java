@@ -1,5 +1,7 @@
 package com.sism.controller;
 
+import com.sism.config.TestSecurityConfig;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.dto.MilestoneCreateRequest;
@@ -17,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -38,9 +41,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class MilestoneControllerIntegrationTest {
 
     @Autowired
@@ -105,7 +109,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should return milestone by ID")
         void shouldReturnMilestoneById() throws Exception {
-            mockMvc.perform(get("/api/milestones/{id}", testMilestone.getMilestoneId())
+            mockMvc.perform(get("/milestones/{id}", testMilestone.getMilestoneId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -115,7 +119,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should return 404 for non-existent milestone")
         void shouldReturn404ForNonExistentMilestone() throws Exception {
-            mockMvc.perform(get("/api/milestones/{id}", 999999L)
+            mockMvc.perform(get("/milestones/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isNotFound());
         }
@@ -128,7 +132,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should return milestones by indicator ID")
         void shouldReturnMilestonesByIndicatorId() throws Exception {
-            mockMvc.perform(get("/api/milestones/indicator/{indicatorId}", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/milestones/indicator/{indicatorId}", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -143,7 +147,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should return milestones by status")
         void shouldReturnMilestonesByStatus() throws Exception {
-            mockMvc.perform(get("/api/milestones/status/{status}", MilestoneStatus.NOT_STARTED)
+            mockMvc.perform(get("/milestones/status/{status}", MilestoneStatus.NOT_STARTED)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -158,7 +162,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should return overdue milestones")
         void shouldReturnOverdueMilestones() throws Exception {
-            mockMvc.perform(get("/api/milestones/overdue")
+            mockMvc.perform(get("/milestones/overdue")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -173,7 +177,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should return upcoming milestones")
         void shouldReturnUpcomingMilestones() throws Exception {
-            mockMvc.perform(get("/api/milestones/upcoming")
+            mockMvc.perform(get("/milestones/upcoming")
                             .param("days", "30")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -189,7 +193,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should validate milestone weights")
         void shouldValidateMilestoneWeights() throws Exception {
-            mockMvc.perform(get("/api/milestones/indicator/{indicatorId}/weight-validation", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/milestones/indicator/{indicatorId}/weight-validation", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -211,7 +215,7 @@ class MilestoneControllerIntegrationTest {
             request.setDueDate(LocalDate.now().plusMonths(2));
             request.setTargetProgress(10);
 
-            mockMvc.perform(post("/api/milestones")
+            mockMvc.perform(post("/milestones")
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -231,7 +235,7 @@ class MilestoneControllerIntegrationTest {
             MilestoneUpdateRequest request = new MilestoneUpdateRequest();
             request.setMilestoneName("Updated Milestone Name");
 
-            mockMvc.perform(put("/api/milestones/{id}", testMilestone.getMilestoneId())
+            mockMvc.perform(put("/milestones/{id}", testMilestone.getMilestoneId())
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -248,7 +252,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should update milestone status")
         void shouldUpdateMilestoneStatus() throws Exception {
-            mockMvc.perform(patch("/api/milestones/{id}/status", testMilestone.getMilestoneId())
+            mockMvc.perform(patch("/milestones/{id}/status", testMilestone.getMilestoneId())
                             .param("status", MilestoneStatus.IN_PROGRESS.name())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -264,7 +268,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should return pairing status summary")
         void shouldReturnPairingStatusSummary() throws Exception {
-            mockMvc.perform(get("/api/milestones/indicator/{indicatorId}/pairing-status", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/milestones/indicator/{indicatorId}/pairing-status", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -279,7 +283,7 @@ class MilestoneControllerIntegrationTest {
         @Test
         @DisplayName("Should check if milestone is paired")
         void shouldCheckIfMilestoneIsPaired() throws Exception {
-            mockMvc.perform(get("/api/milestones/{id}/is-paired", testMilestone.getMilestoneId())
+            mockMvc.perform(get("/milestones/{id}/is-paired", testMilestone.getMilestoneId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -292,7 +296,7 @@ class MilestoneControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

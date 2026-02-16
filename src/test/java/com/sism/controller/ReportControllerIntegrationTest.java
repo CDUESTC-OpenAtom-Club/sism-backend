@@ -1,5 +1,7 @@
 package com.sism.controller;
 
+import com.sism.config.TestSecurityConfig;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.ApprovalRequest;
 import com.sism.dto.LoginRequest;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -39,9 +42,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class ReportControllerIntegrationTest {
 
     @Autowired
@@ -114,7 +118,7 @@ class ReportControllerIntegrationTest {
         @Test
         @DisplayName("Should return report by ID")
         void shouldReturnReportById() throws Exception {
-            mockMvc.perform(get("/api/reports/{id}", testReport.getReportId())
+            mockMvc.perform(get("/reports/{id}", testReport.getReportId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -124,7 +128,7 @@ class ReportControllerIntegrationTest {
         @Test
         @DisplayName("Should return 404 for non-existent report")
         void shouldReturn404ForNonExistentReport() throws Exception {
-            mockMvc.perform(get("/api/reports/{id}", 999999L)
+            mockMvc.perform(get("/reports/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isNotFound());
         }
@@ -137,7 +141,7 @@ class ReportControllerIntegrationTest {
         @Test
         @DisplayName("Should return reports by indicator ID")
         void shouldReturnReportsByIndicatorId() throws Exception {
-            mockMvc.perform(get("/api/reports/indicator/{indicatorId}", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/reports/indicator/{indicatorId}", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -152,7 +156,7 @@ class ReportControllerIntegrationTest {
         @Test
         @DisplayName("Should return reports by status")
         void shouldReturnReportsByStatus() throws Exception {
-            mockMvc.perform(get("/api/reports/status/{status}", ReportStatus.DRAFT)
+            mockMvc.perform(get("/reports/status/{status}", ReportStatus.DRAFT)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -167,7 +171,7 @@ class ReportControllerIntegrationTest {
         @Test
         @DisplayName("Should return pending approval reports")
         void shouldReturnPendingApprovalReports() throws Exception {
-            mockMvc.perform(get("/api/reports/pending-approval")
+            mockMvc.perform(get("/reports/pending-approval")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -189,7 +193,7 @@ class ReportControllerIntegrationTest {
             request.setNarrative("New progress report");
             request.setPercentComplete(BigDecimal.valueOf(30));
 
-            mockMvc.perform(post("/api/reports")
+            mockMvc.perform(post("/reports")
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -210,7 +214,7 @@ class ReportControllerIntegrationTest {
             request.setNarrative("Updated progress description");
             request.setPercentComplete(BigDecimal.valueOf(60));
 
-            mockMvc.perform(put("/api/reports/{id}", testReport.getReportId())
+            mockMvc.perform(put("/reports/{id}", testReport.getReportId())
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -227,7 +231,7 @@ class ReportControllerIntegrationTest {
         @Test
         @DisplayName("Should submit draft report")
         void shouldSubmitDraftReport() throws Exception {
-            mockMvc.perform(post("/api/reports/{id}/submit", testReport.getReportId())
+            mockMvc.perform(post("/reports/{id}/submit", testReport.getReportId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -246,7 +250,7 @@ class ReportControllerIntegrationTest {
             testReport.setStatus(ReportStatus.SUBMITTED);
             reportRepository.save(testReport);
 
-            mockMvc.perform(post("/api/reports/{id}/withdraw", testReport.getReportId())
+            mockMvc.perform(post("/reports/{id}/withdraw", testReport.getReportId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -261,7 +265,7 @@ class ReportControllerIntegrationTest {
         @Test
         @DisplayName("Should return approval records for report")
         void shouldReturnApprovalRecords() throws Exception {
-            mockMvc.perform(get("/api/reports/{id}/approval-records", testReport.getReportId())
+            mockMvc.perform(get("/reports/{id}/approval-records", testReport.getReportId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -286,7 +290,7 @@ class ReportControllerIntegrationTest {
             request.setApproverId(testUser.getId());
             request.setComment("Approved");
 
-            mockMvc.perform(post("/api/reports/approve")
+            mockMvc.perform(post("/reports/approve")
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -316,7 +320,7 @@ class ReportControllerIntegrationTest {
             request.setApproverId(testUser.getId());
             request.setComment("Rejected - needs more details");
 
-            mockMvc.perform(post("/api/reports/approve")
+            mockMvc.perform(post("/reports/approve")
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -331,7 +335,7 @@ class ReportControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

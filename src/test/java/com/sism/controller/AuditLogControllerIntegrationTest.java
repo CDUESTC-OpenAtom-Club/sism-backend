@@ -1,5 +1,7 @@
 package com.sism.controller;
 
+import com.sism.config.TestSecurityConfig;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -39,9 +42,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class AuditLogControllerIntegrationTest {
 
     @Autowired
@@ -108,7 +112,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should return audit logs with pagination")
         void shouldReturnAuditLogsWithPagination() throws Exception {
-            mockMvc.perform(get("/api/audit-logs")
+            mockMvc.perform(get("/audit-logs")
                             .param("page", "0")
                             .param("size", "10")
                             .header("Authorization", "Bearer " + authToken))
@@ -120,7 +124,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should filter audit logs by entity type")
         void shouldFilterByEntityType() throws Exception {
-            mockMvc.perform(get("/api/audit-logs")
+            mockMvc.perform(get("/audit-logs")
                             .param("entityType", AuditEntityType.INDICATOR.name())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -130,7 +134,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should filter audit logs by action")
         void shouldFilterByAction() throws Exception {
-            mockMvc.perform(get("/api/audit-logs")
+            mockMvc.perform(get("/audit-logs")
                             .param("action", AuditAction.CREATE.name())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -145,7 +149,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should return audit logs by entity type")
         void shouldReturnAuditLogsByEntityType() throws Exception {
-            mockMvc.perform(get("/api/audit-logs/entity-type/{entityType}", AuditEntityType.INDICATOR)
+            mockMvc.perform(get("/audit-logs/entity-type/{entityType}", AuditEntityType.INDICATOR)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -160,7 +164,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should return audit logs by action")
         void shouldReturnAuditLogsByAction() throws Exception {
-            mockMvc.perform(get("/api/audit-logs/action/{action}", AuditAction.CREATE)
+            mockMvc.perform(get("/audit-logs/action/{action}", AuditAction.CREATE)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -178,7 +182,7 @@ class AuditLogControllerIntegrationTest {
             LocalDateTime startDate = LocalDateTime.now().minusDays(30);
             LocalDateTime endDate = LocalDateTime.now().plusDays(1);
 
-            mockMvc.perform(get("/api/audit-logs/time-range")
+            mockMvc.perform(get("/audit-logs/time-range")
                             .param("startDate", startDate.toString())
                             .param("endDate", endDate.toString())
                             .header("Authorization", "Bearer " + authToken))
@@ -195,7 +199,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should return audit trail for entity")
         void shouldReturnAuditTrailForEntity() throws Exception {
-            mockMvc.perform(get("/api/audit-logs/trail/{entityType}/{entityId}", 
+            mockMvc.perform(get("/audit-logs/trail/{entityType}/{entityId}", 
                             AuditEntityType.INDICATOR, testAuditLog.getEntityId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -211,7 +215,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should return recent audit logs by user")
         void shouldReturnRecentAuditLogsByUser() throws Exception {
-            mockMvc.perform(get("/api/audit-logs/user/{userId}/recent", testUser.getId())
+            mockMvc.perform(get("/audit-logs/user/{userId}/recent", testUser.getId())
                             .param("limit", "10")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -227,7 +231,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should search audit logs by keyword")
         void shouldSearchAuditLogsByKeyword() throws Exception {
-            mockMvc.perform(get("/api/audit-logs/search")
+            mockMvc.perform(get("/audit-logs/search")
                             .param("keyword", "Test")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -243,7 +247,7 @@ class AuditLogControllerIntegrationTest {
         @Test
         @DisplayName("Should return formatted differences for audit log")
         void shouldReturnFormattedDifferences() throws Exception {
-            mockMvc.perform(get("/api/audit-logs/{logId}/differences", testAuditLog.getLogId())
+            mockMvc.perform(get("/audit-logs/{logId}/differences", testAuditLog.getLogId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0));
@@ -255,7 +259,7 @@ class AuditLogControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

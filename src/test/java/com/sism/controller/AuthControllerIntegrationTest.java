@@ -89,7 +89,7 @@ class AuthControllerIntegrationTest {
             request.setUsername(testUser.getUsername());
             request.setPassword(testPassword);
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
@@ -105,7 +105,7 @@ class AuthControllerIntegrationTest {
             request.setUsername("nonexistent");
             request.setPassword("anypassword");
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
@@ -118,7 +118,7 @@ class AuthControllerIntegrationTest {
             request.setUsername(testUser.getUsername());
             request.setPassword("wrongpassword");
 
-            mockMvc.perform(post("/api/auth/login")
+            mockMvc.perform(post("/auth/login")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isUnauthorized());
@@ -126,14 +126,14 @@ class AuthControllerIntegrationTest {
     }
 
     @Nested
-    @DisplayName("POST /api/auth/logout")
+    @DisplayName("POST /auth/logout")
     class LogoutEndpointTests {
 
         @Test
         @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return 200 for logout with valid token")
         void shouldReturn200ForLogoutWithValidToken() throws Exception {
-            mockMvc.perform(post("/api/auth/logout"))
+            mockMvc.perform(post("/auth/logout"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0));
         }
@@ -141,20 +141,37 @@ class AuthControllerIntegrationTest {
         @Test
         @DisplayName("Should return 200 for logout without token")
         void shouldReturn200ForLogoutWithoutToken() throws Exception {
-            mockMvc.perform(post("/api/auth/logout"))
+            mockMvc.perform(post("/auth/logout"))
                     .andExpect(status().isOk());
         }
     }
 
     @Nested
-    @DisplayName("GET /api/auth/me")
+    @DisplayName("GET /auth/me")
     class GetCurrentUserEndpointTests {
 
         @Test
-        @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return current user for valid token")
         void shouldReturnCurrentUserForValidToken() throws Exception {
-            mockMvc.perform(get("/api/auth/me"))
+            // First login to get a valid token
+            LoginRequest loginRequest = new LoginRequest();
+            loginRequest.setUsername(testUser.getUsername());
+            loginRequest.setPassword(testPassword);
+
+            MvcResult loginResult = mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(loginRequest)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String responseBody = loginResult.getResponse().getContentAsString();
+            // Parse the ApiResponse wrapper
+            com.fasterxml.jackson.databind.JsonNode jsonNode = objectMapper.readTree(responseBody);
+            String token = jsonNode.get("data").get("token").asText();
+
+            // Use the token to get current user
+            mockMvc.perform(get("/auth/me")
+                            .header("Authorization", "Bearer " + token))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data.username").value(testUser.getUsername()));
@@ -163,14 +180,14 @@ class AuthControllerIntegrationTest {
         @Test
         @DisplayName("Should return 500 for missing token")
         void shouldReturn500ForMissingToken() throws Exception {
-            mockMvc.perform(get("/api/auth/me"))
+            mockMvc.perform(get("/auth/me"))
                     .andExpect(status().isInternalServerError());
         }
 
         @Test
         @DisplayName("Should return 401 for invalid token")
         void shouldReturn401ForInvalidToken() throws Exception {
-            mockMvc.perform(get("/api/auth/me")
+            mockMvc.perform(get("/auth/me")
                             .header("Authorization", "Bearer invalid.token.here"))
                     .andExpect(status().isUnauthorized());
         }

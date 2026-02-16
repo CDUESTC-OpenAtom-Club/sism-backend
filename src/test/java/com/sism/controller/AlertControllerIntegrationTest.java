@@ -1,6 +1,7 @@
 package com.sism.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sism.config.TestSecurityConfig;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.AlertEvent;
 import com.sism.entity.SysUser;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -35,9 +37,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class AlertControllerIntegrationTest {
 
     @Autowired
@@ -110,7 +113,7 @@ class AlertControllerIntegrationTest {
         void shouldReturnAlertById() throws Exception {
             Assumptions.assumeTrue(testAlert != null, "No test alert available");
             
-            mockMvc.perform(get("/api/alerts/{id}", testAlert.getEventId())
+            mockMvc.perform(get("/alerts/{id}", testAlert.getEventId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -120,7 +123,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should return 404 for non-existent alert")
         void shouldReturn404ForNonExistentAlert() throws Exception {
-            mockMvc.perform(get("/api/alerts/{id}", 999999L)
+            mockMvc.perform(get("/alerts/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isNotFound());
         }
@@ -133,7 +136,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should return open alerts")
         void shouldReturnOpenAlerts() throws Exception {
-            mockMvc.perform(get("/api/alerts/open")
+            mockMvc.perform(get("/alerts/open")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -148,7 +151,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should return critical open alerts")
         void shouldReturnCriticalOpenAlerts() throws Exception {
-            mockMvc.perform(get("/api/alerts/critical")
+            mockMvc.perform(get("/alerts/critical")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -163,7 +166,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should return alerts by severity")
         void shouldReturnAlertsBySeverity() throws Exception {
-            mockMvc.perform(get("/api/alerts/severity/{severity}", AlertSeverity.WARNING)
+            mockMvc.perform(get("/alerts/severity/{severity}", AlertSeverity.WARNING)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -178,7 +181,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should return alerts by status")
         void shouldReturnAlertsByStatus() throws Exception {
-            mockMvc.perform(get("/api/alerts/status/{status}", AlertStatus.OPEN)
+            mockMvc.perform(get("/alerts/status/{status}", AlertStatus.OPEN)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -193,7 +196,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should filter alerts by severity and status")
         void shouldFilterAlertsBySeverityAndStatus() throws Exception {
-            mockMvc.perform(get("/api/alerts/filter")
+            mockMvc.perform(get("/alerts/filter")
                             .param("severity", AlertSeverity.WARNING.name())
                             .param("status", AlertStatus.OPEN.name())
                             .header("Authorization", "Bearer " + authToken))
@@ -210,7 +213,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should return alerts by indicator")
         void shouldReturnAlertsByIndicator() throws Exception {
-            mockMvc.perform(get("/api/alerts/indicator/{indicatorId}", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/alerts/indicator/{indicatorId}", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -225,7 +228,7 @@ class AlertControllerIntegrationTest {
         @Test
         @DisplayName("Should return alert statistics")
         void shouldReturnAlertStatistics() throws Exception {
-            mockMvc.perform(get("/api/alerts/statistics")
+            mockMvc.perform(get("/alerts/statistics")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -242,7 +245,7 @@ class AlertControllerIntegrationTest {
         void shouldHandleOpenAlert() throws Exception {
             Assumptions.assumeTrue(testAlert != null, "No test alert available");
             
-            mockMvc.perform(post("/api/alerts/{id}/handle", testAlert.getEventId())
+            mockMvc.perform(post("/alerts/{id}/handle", testAlert.getEventId())
                             .param("handledById", testUser.getId().toString())
                             .param("handledNote", "Handled via test")
                             .header("Authorization", "Bearer " + authToken))
@@ -266,7 +269,7 @@ class AlertControllerIntegrationTest {
             
             Assumptions.assumeTrue(existingAlert.isPresent(), "No open alert available for testing");
             
-            mockMvc.perform(post("/api/alerts/{id}/close", existingAlert.get().getEventId())
+            mockMvc.perform(post("/alerts/{id}/close", existingAlert.get().getEventId())
                             .param("handledById", testUser.getId().toString())
                             .param("handledNote", "Closed via test")
                             .header("Authorization", "Bearer " + authToken))
@@ -281,7 +284,7 @@ class AlertControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

@@ -1,5 +1,7 @@
 package com.sism.controller;
 
+import com.sism.config.TestSecurityConfig;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -44,9 +47,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class IndicatorControllerIntegrationTest {
 
     @Autowired
@@ -109,7 +113,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return all active indicators")
         void shouldReturnAllActiveIndicators() throws Exception {
-            mockMvc.perform(get("/api/indicators")
+            mockMvc.perform(get("/indicators")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -119,7 +123,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return 401 without authentication")
         void shouldReturn401WithoutAuth() throws Exception {
-            mockMvc.perform(get("/api/indicators"))
+            mockMvc.perform(get("/indicators"))
                     .andExpect(status().isForbidden());
         }
 
@@ -130,7 +134,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return indicators with all frontend-required fields")
         void shouldReturnIndicatorsWithAllFrontendFields() throws Exception {
-            mockMvc.perform(get("/api/indicators")
+            mockMvc.perform(get("/indicators")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -171,7 +175,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return indicator by ID")
         void shouldReturnIndicatorById() throws Exception {
-            mockMvc.perform(get("/api/indicators/{id}", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/indicators/{id}", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -181,7 +185,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return 404 for non-existent indicator")
         void shouldReturn404ForNonExistentIndicator() throws Exception {
-            mockMvc.perform(get("/api/indicators/{id}", 999999L)
+            mockMvc.perform(get("/indicators/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isNotFound());
         }
@@ -193,7 +197,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return indicator detail with milestones and nested data")
         void shouldReturnIndicatorDetailWithMilestones() throws Exception {
-            mockMvc.perform(get("/api/indicators/{id}", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/indicators/{id}", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -222,7 +226,7 @@ class IndicatorControllerIntegrationTest {
         @DisplayName("Should return milestones with all required fields when present")
         void shouldReturnMilestonesWithRequiredFields() throws Exception {
             // First check if indicator has milestones
-            MvcResult result = mockMvc.perform(get("/api/indicators/{id}", testIndicator.getIndicatorId())
+            MvcResult result = mockMvc.perform(get("/indicators/{id}", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andReturn();
@@ -250,7 +254,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return indicators by task ID")
         void shouldReturnIndicatorsByTaskId() throws Exception {
-            mockMvc.perform(get("/api/indicators/task/{taskId}", testTask.getTaskId())
+            mockMvc.perform(get("/indicators/task/{taskId}", testTask.getTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -265,7 +269,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return indicators by owner org ID")
         void shouldReturnIndicatorsByOwnerOrgId() throws Exception {
-            mockMvc.perform(get("/api/indicators/owner/{ownerOrgId}", testOrg.getId())
+            mockMvc.perform(get("/indicators/owner/{ownerOrgId}", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -280,7 +284,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should search indicators by keyword")
         void shouldSearchIndicatorsByKeyword() throws Exception {
-            mockMvc.perform(get("/api/indicators/search")
+            mockMvc.perform(get("/indicators/search")
                             .param("keyword", "Test")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -305,7 +309,7 @@ class IndicatorControllerIntegrationTest {
             request.setWeightPercent(BigDecimal.valueOf(5));
             request.setYear(2025);
 
-            mockMvc.perform(post("/api/indicators")
+            mockMvc.perform(post("/indicators")
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -325,7 +329,7 @@ class IndicatorControllerIntegrationTest {
             IndicatorUpdateRequest request = new IndicatorUpdateRequest();
             request.setIndicatorDesc("Updated Indicator Description");
 
-            mockMvc.perform(put("/api/indicators/{id}", testIndicator.getIndicatorId())
+            mockMvc.perform(put("/indicators/{id}", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -340,7 +344,7 @@ class IndicatorControllerIntegrationTest {
             IndicatorUpdateRequest request = new IndicatorUpdateRequest();
             request.setIndicatorDesc("Updated Description");
 
-            mockMvc.perform(put("/api/indicators/{id}", 999999L)
+            mockMvc.perform(put("/indicators/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(request)))
@@ -370,7 +374,7 @@ class IndicatorControllerIntegrationTest {
             toDelete.setIsDeleted(false);
             toDelete = indicatorRepository.save(toDelete);
 
-            mockMvc.perform(delete("/api/indicators/{id}", toDelete.getIndicatorId())
+            mockMvc.perform(delete("/indicators/{id}", toDelete.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0));
@@ -384,7 +388,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should check distribution eligibility")
         void shouldCheckDistributionEligibility() throws Exception {
-            mockMvc.perform(get("/api/indicators/{id}/distribution-eligibility", testIndicator.getIndicatorId())
+            mockMvc.perform(get("/indicators/{id}/distribution-eligibility", testIndicator.getIndicatorId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -403,7 +407,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should filter indicators by type1 (定性)")
         void shouldFilterByType1Qualitative() throws Exception {
-            mockMvc.perform(get("/api/indicators/filter")
+            mockMvc.perform(get("/indicators/filter")
                             .param("type1", "定性")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -414,7 +418,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should filter indicators by type1 (定量)")
         void shouldFilterByType1Quantitative() throws Exception {
-            mockMvc.perform(get("/api/indicators/filter")
+            mockMvc.perform(get("/indicators/filter")
                             .param("type1", "定量")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -425,7 +429,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should filter indicators by type2 (发展性)")
         void shouldFilterByType2Development() throws Exception {
-            mockMvc.perform(get("/api/indicators/filter")
+            mockMvc.perform(get("/indicators/filter")
                             .param("type2", "发展性")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -436,7 +440,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should filter indicators by type2 (基础性)")
         void shouldFilterByType2Basic() throws Exception {
-            mockMvc.perform(get("/api/indicators/filter")
+            mockMvc.perform(get("/indicators/filter")
                             .param("type2", "基础性")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -447,7 +451,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should filter indicators by status")
         void shouldFilterByStatus() throws Exception {
-            mockMvc.perform(get("/api/indicators/filter")
+            mockMvc.perform(get("/indicators/filter")
                             .param("status", "ACTIVE")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -458,7 +462,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should filter indicators by combined type1 and type2")
         void shouldFilterByCombinedTypes() throws Exception {
-            mockMvc.perform(get("/api/indicators/filter")
+            mockMvc.perform(get("/indicators/filter")
                             .param("type1", "定量")
                             .param("type2", "发展性")
                             .header("Authorization", "Bearer " + authToken))
@@ -470,7 +474,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should return all active indicators when no filter specified")
         void shouldReturnAllWhenNoFilter() throws Exception {
-            mockMvc.perform(get("/api/indicators/filter")
+            mockMvc.perform(get("/indicators/filter")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -485,7 +489,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should get qualitative indicators")
         void shouldGetQualitativeIndicators() throws Exception {
-            mockMvc.perform(get("/api/indicators/qualitative")
+            mockMvc.perform(get("/indicators/qualitative")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -495,7 +499,7 @@ class IndicatorControllerIntegrationTest {
         @Test
         @DisplayName("Should get quantitative indicators")
         void shouldGetQuantitativeIndicators() throws Exception {
-            mockMvc.perform(get("/api/indicators/quantitative")
+            mockMvc.perform(get("/indicators/quantitative")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -508,7 +512,7 @@ class IndicatorControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

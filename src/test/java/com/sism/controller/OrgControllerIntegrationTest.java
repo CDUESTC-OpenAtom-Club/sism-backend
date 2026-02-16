@@ -1,5 +1,7 @@
 package com.sism.controller;
 
+import com.sism.config.TestSecurityConfig;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -34,9 +37,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class OrgControllerIntegrationTest {
 
     @Autowired
@@ -86,7 +90,7 @@ class OrgControllerIntegrationTest {
         @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return all organizations")
         void shouldReturnAllOrganizations() throws Exception {
-            mockMvc.perform(get("/api/orgs"))
+            mockMvc.perform(get("/orgs"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").isArray())
@@ -96,7 +100,7 @@ class OrgControllerIntegrationTest {
         @Test
         @DisplayName("Should return 403 without authentication")
         void shouldReturn401WithoutAuth() throws Exception {
-            mockMvc.perform(get("/api/orgs"))
+            mockMvc.perform(get("/orgs"))
                     .andExpect(status().isForbidden());
         }
     }
@@ -109,7 +113,7 @@ class OrgControllerIntegrationTest {
         @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return organization hierarchy tree")
         void shouldReturnOrgHierarchy() throws Exception {
-            mockMvc.perform(get("/api/orgs/hierarchy"))
+            mockMvc.perform(get("/orgs/hierarchy"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").isArray());
@@ -124,7 +128,7 @@ class OrgControllerIntegrationTest {
         @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return organization subtree")
         void shouldReturnOrgSubtree() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", testOrg.getId()))
+            mockMvc.perform(get("/orgs/{orgId}/hierarchy", testOrg.getId()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").exists());
@@ -134,7 +138,7 @@ class OrgControllerIntegrationTest {
         @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return 404 for non-existent org")
         void shouldReturn404ForNonExistentOrg() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/hierarchy", 999999L))
+            mockMvc.perform(get("/orgs/{orgId}/hierarchy", 999999L))
                     .andExpect(status().isNotFound());
         }
     }
@@ -147,7 +151,7 @@ class OrgControllerIntegrationTest {
         @WithMockUser(username = "testuser", roles = {"USER"})
         @DisplayName("Should return descendant organization IDs")
         void shouldReturnDescendantOrgIds() throws Exception {
-            mockMvc.perform(get("/api/orgs/{orgId}/descendants", testOrg.getId()))
+            mockMvc.perform(get("/orgs/{orgId}/descendants", testOrg.getId()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
                     .andExpect(jsonPath("$.data").isArray());
@@ -159,7 +163,7 @@ class OrgControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

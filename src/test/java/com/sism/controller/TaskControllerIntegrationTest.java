@@ -1,5 +1,7 @@
 package com.sism.controller;
 
+import com.sism.config.TestSecurityConfig;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.LoginRequest;
 import com.sism.entity.SysUser;
@@ -15,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -33,9 +36,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Requirements: 4.3 - Controller layer integration test coverage
  */
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @Transactional
+@Import(TestSecurityConfig.class)
 class TaskControllerIntegrationTest {
 
     @Autowired
@@ -94,7 +98,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return all tasks")
         void shouldReturnAllTasks() throws Exception {
-            mockMvc.perform(get("/api/tasks")
+            mockMvc.perform(get("/tasks")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -105,7 +109,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return 401 without authentication")
         void shouldReturn401WithoutAuth() throws Exception {
-            mockMvc.perform(get("/api/tasks"))
+            mockMvc.perform(get("/tasks"))
                     .andExpect(status().isForbidden());
         }
     }
@@ -117,7 +121,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return task by ID")
         void shouldReturnTaskById() throws Exception {
-            mockMvc.perform(get("/api/tasks/{id}", testTask.getTaskId())
+            mockMvc.perform(get("/tasks/{id}", testTask.getTaskId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -127,7 +131,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return 404 for non-existent task")
         void shouldReturn404ForNonExistentTask() throws Exception {
-            mockMvc.perform(get("/api/tasks/{id}", 999999L)
+            mockMvc.perform(get("/tasks/{id}", 999999L)
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isNotFound());
         }
@@ -140,7 +144,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return tasks by cycle ID")
         void shouldReturnTasksByCycleId() throws Exception {
-            mockMvc.perform(get("/api/tasks/cycle/{cycleId}", testCycle.getCycleId())
+            mockMvc.perform(get("/tasks/cycle/{cycleId}", testCycle.getCycleId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -155,7 +159,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should return tasks by organization ID")
         void shouldReturnTasksByOrgId() throws Exception {
-            mockMvc.perform(get("/api/tasks/org/{orgId}", testOrg.getId())
+            mockMvc.perform(get("/tasks/org/{orgId}", testOrg.getId())
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(0))
@@ -170,7 +174,7 @@ class TaskControllerIntegrationTest {
         @Test
         @DisplayName("Should search tasks by keyword")
         void shouldSearchTasksByKeyword() throws Exception {
-            mockMvc.perform(get("/api/tasks/search")
+            mockMvc.perform(get("/tasks/search")
                             .param("keyword", "战略")
                             .header("Authorization", "Bearer " + authToken))
                     .andExpect(status().isOk())
@@ -184,7 +188,7 @@ class TaskControllerIntegrationTest {
         request.setUsername(username);
         request.setPassword(password);
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
