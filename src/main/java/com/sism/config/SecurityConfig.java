@@ -55,6 +55,8 @@ public class SecurityConfig {
                 // Health check endpoint (frontend monitoring)
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/health/**").permitAll()
+                // Organization endpoints (needed for dashboard initialization)
+                .requestMatchers("/organizations/**").permitAll()
                 // Swagger/OpenAPI documentation - multiple patterns for compatibility
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui.html").permitAll()

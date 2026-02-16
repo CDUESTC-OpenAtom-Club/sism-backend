@@ -149,6 +149,19 @@ public class DashboardController {
     }
 
     /**
+     * Get dashboard stats (alias for summary)
+     * GET /api/dashboard/stats
+     */
+    @GetMapping("/stats")
+    @Operation(summary = "Get dashboard stats", description = "Retrieve dashboard statistics (alias for summary)")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardStats(
+            @RequestParam(required = false) Integer year) {
+        log.info("Fetching dashboard stats for year: {}", year);
+        // For now, return same as summary (year filtering can be added later)
+        return getDashboardSummary();
+    }
+
+    /**
      * Get department progress
      * GET /api/dashboard/department-progress
      */
