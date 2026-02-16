@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 public class StrategicTask {
 
     @Id
-    @SequenceGenerator(name="Task_IdSeq", sequenceName="public.task_id_seq", allocationSize=1)
+    @SequenceGenerator(name="Task_IdSeq", sequenceName="public.sys_task_id_seq", allocationSize=1)
     @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="Task_IdSeq")
     @Column(name="task_id")
     private Long taskId;
