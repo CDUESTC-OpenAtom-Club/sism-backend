@@ -17,11 +17,6 @@ jobs:
     name: Build and Deploy Backend
     runs-on: ubuntu-latest
     
-    env:
-      DB_URL: ${{ secrets.DB_URL }}
-      DB_USERNAME: ${{ secrets.DB_USERNAME }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -36,8 +31,8 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
-      - name: Apply Flyway Migrations
-        run: mvn flyway:migrate -B
+      # Note: Flyway migrations are handled on the server, not in CI
+      # The production database is already initialized and managed separately
 
       - name: Setup SSH
         run: |
