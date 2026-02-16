@@ -62,12 +62,19 @@ scripts/            # 数据同步与维护脚本
 │       ├── sync-indicator.js
 │       ├── sync-milestone.js
 │       └── sync-task.js
-└── maintenance/    # 数据维护
-    ├── add-college-users.js
-    ├── fix-college-passwords.js
-    ├── fix-data-completeness.js
-    ├── update-remarks.js
-    └── verify-data-consistency.cjs
+├── maintenance/    # 数据维护
+│   └── verify-data-consistency.cjs
+├── deployment/     # 部署脚本
+│   ├── deploy-and-restart-nopasswd.sh
+│   ├── setup-sudoers.sh
+│   ├── health-check.sh
+│   ├── backup-database.sh
+│   ├── restore-database.sh
+│   ├── init-database.sh
+│   ├── quick-setup.sh
+│   └── deploy.sh
+└── archive/        # 归档的一次性脚本
+    └── 2026-02-one-time-fixes/
 ```
 
 ## 快速开始
@@ -428,15 +435,11 @@ node scripts/sync/verify.js
 ### 数据维护
 
 ```bash
-# 添加二级学院用户
-node scripts/maintenance/add-college-users.js
-
-# 修复密码
-node scripts/maintenance/fix-college-passwords.js
-
-# 修复数据完整性
-node scripts/maintenance/fix-data-completeness.js
+# 验证前后端数据一致性
+node scripts/maintenance/verify-data-consistency.cjs
 ```
+
+**注意**: 一次性修复脚本（fix-*、add-*、update-*）已归档到 `scripts/archive/2026-02-one-time-fixes/`
 
 ## 测试
 

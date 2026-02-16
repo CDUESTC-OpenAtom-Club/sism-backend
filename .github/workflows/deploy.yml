@@ -31,8 +31,14 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
-      # Note: Flyway migrations are handled on the server, not in CI
-      # The production database is already initialized and managed separately
+      - name: Get JAR checksum
+        id: checksum
+        run: |
+          LOCAL_MD5=$(md5sum target/${{ env.JAR_NAME }} | cut -d' ' -f1)
+          LOCAL_SIZE=$(stat -c%s target/${{ env.JAR_NAME }})
+          echo "local_md5=$LOCAL_MD5" >> $GITHUB_OUTPUT
+          echo "local_size=$LOCAL_SIZE" >> $GITHUB_OUTPUT
+          echo "📦 Local JAR: $LOCAL_SIZE bytes, MD5: $LOCAL_MD5"
 
       - name: Setup SSH
         run: |
@@ -41,26 +47,60 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Upload JAR and deploy script
+      - name: Configure server sudoers (one-time setup)
         run: |
-          # Upload JAR
-          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
+          # Skip - already configured on server
+          echo "✅ Server sudoers already configured"
+
+      - name: Stop backend service
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "sudo systemctl stop sism-backend || true"
+
+      - name: Upload JAR with rsync
+        run: |
+          rsync -avz --progress -e "ssh -i ~/.ssh/deploy_key" \
             target/${{ env.JAR_NAME }} \
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/sism/backend/
-          
-          # Upload deploy script (no password version)
-          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
-            docs/scripts/deploy-and-restart-nopasswd.sh \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/deploy-and-restart.sh
-          
-          # Make script executable
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "chmod +x ~/deploy-and-restart.sh"
 
-      - name: Deploy and restart service
+      - name: Verify upload and restart
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
-            "~/deploy-and-restart.sh ${{ env.JAR_NAME }}"
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << EOF
+            # Verify file integrity
+            REMOTE_MD5=\$(md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1)
+            REMOTE_SIZE=\$(stat -c%s /opt/sism/backend/${{ env.JAR_NAME }})
+            
+            echo "📦 Remote JAR: \$REMOTE_SIZE bytes, MD5: \$REMOTE_MD5"
+            echo "📦 Expected:   ${{ steps.checksum.outputs.local_size }} bytes, MD5: ${{ steps.checksum.outputs.local_md5 }}"
+            
+            if [ "\$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
+              echo "❌ Checksum mismatch! Upload corrupted."
+              exit 1
+            fi
+            echo "✅ Checksum verified"
+            
+            # Update symlink and restart
+            sudo ln -sf /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/sism-backend.jar
+            sudo systemctl start sism-backend
+            
+            # Wait for startup
+            echo "⏳ Waiting for service to start..."
+            sleep 15
+            
+            # Health check with retries
+            for i in 1 2 3; do
+              if curl -sf http://localhost:8080/api/actuator/health > /dev/null; then
+                echo "✅ Backend deployed and healthy"
+                exit 0
+              fi
+              echo "⏳ Retry \$i/3..."
+              sleep 5
+            done
+            
+            echo "❌ Health check failed"
+            sudo journalctl -u sism-backend -n 30 --no-pager
+            exit 1
+          EOF
 
       - name: Cleanup
         if: always()

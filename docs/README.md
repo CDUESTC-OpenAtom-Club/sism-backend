@@ -16,20 +16,6 @@
 
 - **springdoc-requirement.md** - SpringDoc/Swagger 部署要求说明
 
-### 📂 scripts/ - 运维脚本
-
-自动化部署和运维脚本：
-
-- **deploy-and-restart-nopasswd.sh** - 无密码部署脚本（推荐）
-- **deploy-and-restart.sh** - 标准部署脚本
-- **setup-sudoers.sh** - 配置 sudoers 权限
-- **health-check.sh** - 健康检查脚本
-- **backup-database.sh** - 数据库备份脚本
-- **restore-database.sh** - 数据库恢复脚本
-- **init-database.sh** - 数据库初始化脚本
-- **quick-setup.sh** - 快速环境搭建脚本
-- 其他运维脚本...
-
 ### 📂 nginx/ - Nginx 配置
 
 - **sism.conf** - SISM 项目 Nginx 配置文件
@@ -53,10 +39,6 @@
 - `sys_org-table.md` - 组织表
 - 其他 40+ 张表的文档...
 
-### 📂 architecture/ - 架构设计
-
-- **adr/** - Architecture Decision Records (架构决策记录)
-
 ### 📂 archive/ - 归档文档
 
 已完成任务的临时文档归档：
@@ -66,6 +48,12 @@
   - 外键删除报告
   - 审计临时报告
   - 数据库修改说明
+- **2026-02-architecture-refactoring/** - 架构重构项目ADR文档
+  - 12个架构决策记录（ADR-001 到 ADR-012）
+  - ADR总结和完成报告
+- **2026-02-deprecated-scripts/** - 已废弃的运维脚本
+  - 旧版部署脚本
+  - 已替代的服务管理脚本
 
 ## 📝 文档维护原则
 
@@ -110,7 +98,7 @@
 
 ### 部署相关
 - [SpringDoc 要求](./deployment/springdoc-requirement.md)
-- [部署脚本](./scripts/deploy-and-restart-nopasswd.sh)
+- 部署脚本位于 `../../scripts/deployment/`
 
 ### API 文档
 - [指标管理 API](./IndicatorController-API文档.md)
