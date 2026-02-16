@@ -11,6 +11,8 @@ on:
 env:
   JAVA_VERSION: '17'
   JAR_NAME: sism-backend-1.0.0.jar
+  SERVER_USER: root
+  SERVER_HOST: 175.24.139.148
 
 jobs:
   build-and-deploy:
@@ -45,7 +47,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Configure server sudoers (one-time setup)
         run: |
@@ -54,18 +56,18 @@ jobs:
 
       - name: Stop backend service
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "systemctl stop sism-backend || true"
 
       - name: Upload JAR to temp directory
         run: |
           # Upload to /tmp first to avoid permission issues
           scp -i ~/.ssh/deploy_key target/${{ env.JAR_NAME }} \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}
+            ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}
       
       - name: Move JAR to deployment directory
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "[ -f /opt/sism/backend/${{ env.JAR_NAME }} ] && mv /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}.old || true; \
              mv /tmp/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}; \
              chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}; \
@@ -73,7 +75,7 @@ jobs:
 
       - name: Verify checksum
         run: |
-          REMOTE_MD5=$(ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          REMOTE_MD5=$(ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "md5sum /opt/sism/backend/${{ env.JAR_NAME }} | cut -d' ' -f1")
           echo "📦 Remote MD5: $REMOTE_MD5"
           echo "📦 Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
@@ -85,7 +87,7 @@ jobs:
 
       - name: Update symlink and restart service
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "ln -sf /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/sism-backend.jar && \
              systemctl start sism-backend"
 
@@ -95,7 +97,7 @@ jobs:
       - name: Health check
         run: |
           for i in 1 2 3; do
-            if ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            if ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
               "curl -sf http://localhost:8080/api/actuator/health > /dev/null"; then
               echo "✅ Backend deployed and healthy"
               exit 0
@@ -104,7 +106,7 @@ jobs:
             sleep 5
           done
           echo "❌ Health check failed"
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "journalctl -u sism-backend -n 30 --no-pager"
           exit 1
 
