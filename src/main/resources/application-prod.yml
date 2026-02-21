@@ -32,6 +32,25 @@ spring:
   sql:
     init:
       mode: never  # 生产环境禁止自动执行 SQL 脚本
+  
+  # Redis Configuration for Production
+  # 生产环境Redis配置,用于分布式限流、Token黑名单和幂等性服务
+  # 参考: Requirements 1.1, 1.6, 1.7
+  data:
+    redis:
+      enabled: ${REDIS_ENABLED:false}  # 通过环境变量启用Redis
+      host: ${REDIS_HOST}              # Redis主机地址(必须配置)
+      port: ${REDIS_PORT:6379}         # Redis端口
+      password: ${REDIS_PASSWORD}      # Redis密码(必须配置)
+      database: ${REDIS_DATABASE:0}    # Redis数据库索引
+      timeout: ${REDIS_TIMEOUT:3000}   # 连接超时时间(毫秒)
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:20}  # 连接池最大连接数
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}      # 连接池最大空闲连接数
+          min-idle: ${REDIS_POOL_MIN_IDLE:5}       # 连接池最小空闲连接数
+          max-wait: ${REDIS_POOL_MAX_WAIT:3000}    # 连接池最大阻塞等待时间(毫秒)
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100}
 
 # Logging Configuration for Production
 logging:
@@ -136,6 +155,9 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+    # Redis健康检查(仅在Redis启用时生效)
+    redis:
+      enabled: ${REDIS_ENABLED:false}
   info:
     env:
       enabled: true

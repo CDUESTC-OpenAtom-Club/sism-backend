@@ -1,6 +1,7 @@
 package com.sism.entity;
 
 import com.sism.enums.TaskType;
+import com.sism.vo.TaskVO;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -62,4 +63,56 @@ public class StrategicTask {
 
     @Column(name="is_deleted", nullable=false)
     private Boolean isDeleted;
+
+    // ==================== toDTO Method ====================
+
+    /**
+     * Convert this StrategicTask entity to TaskVO
+     *
+     * **Validates: Requirements 4.2**
+     *
+     * @return TaskVO with all field mappings
+     */
+    public TaskVO toDTO() {
+        return new TaskVO(
+            this.taskId,
+            this.planId,
+            this.cycleId,
+            null, // cycleName - should be set by caller
+            null, // year - should be set by caller
+            this.taskName,
+            this.taskDesc,
+            this.taskType,
+            this.sortOrder,
+            this.remark,
+            this.createdAt,
+            this.updatedAt
+        );
+    }
+
+    /**
+     * Convert this StrategicTask entity to TaskVO with cycle info
+     *
+     * **Validates: Requirements 4.2**
+     *
+     * @param cycleName Cycle name to include
+     * @param year      Year to include
+     * @return TaskVO with all field mappings
+     */
+    public TaskVO toDTO(String cycleName, Integer year) {
+        return new TaskVO(
+            this.taskId,
+            this.planId,
+            this.cycleId,
+            cycleName,
+            year,
+            this.taskName,
+            this.taskDesc,
+            this.taskType,
+            this.sortOrder,
+            this.remark,
+            this.createdAt,
+            this.updatedAt
+        );
+    }
 }

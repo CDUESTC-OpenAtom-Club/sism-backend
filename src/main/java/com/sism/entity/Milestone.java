@@ -1,12 +1,13 @@
 package com.sism.entity;
 
 import com.sism.enums.MilestoneStatus;
+import com.sism.vo.MilestoneVO;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Milestone entity
@@ -62,4 +63,60 @@ public class Milestone extends BaseEntity {
      */
     @Column(name = "is_paired")
     private Boolean isPaired = false;
+
+    // ==================== toDTO Method ====================
+
+    /**
+     * Convert this Milestone entity to MilestoneVO
+     *
+     * **Validates: Requirements 4.2**
+     *
+     * @return MilestoneVO with all field mappings
+     */
+    public MilestoneVO toDTO() {
+        return new MilestoneVO(
+            this.milestoneId,
+            this.indicator != null ? this.indicator.getIndicatorId() : null,
+            null, // indicatorDesc - should be set by caller
+            this.milestoneName,
+            this.milestoneDesc,
+            this.dueDate,
+            null, // weightPercent - should be set by caller
+            this.status,
+            this.sortOrder,
+            this.inheritedFrom != null ? this.inheritedFrom.getMilestoneId() : null,
+            this.createdAt,
+            this.updatedAt,
+            this.targetProgress,
+            this.isPaired
+        );
+    }
+
+    /**
+     * Convert this Milestone entity to MilestoneVO with indicator info
+     *
+     * **Validates: Requirements 4.2**
+     *
+     * @param indicatorDesc Indicator description to include
+     * @param weightPercent Weight percentage to include
+     * @return MilestoneVO with all field mappings
+     */
+    public MilestoneVO toDTO(String indicatorDesc, BigDecimal weightPercent) {
+        return new MilestoneVO(
+            this.milestoneId,
+            this.indicator != null ? this.indicator.getIndicatorId() : null,
+            indicatorDesc,
+            this.milestoneName,
+            this.milestoneDesc,
+            this.dueDate,
+            weightPercent,
+            this.status,
+            this.sortOrder,
+            this.inheritedFrom != null ? this.inheritedFrom.getMilestoneId() : null,
+            this.createdAt,
+            this.updatedAt,
+            this.targetProgress,
+            this.isPaired
+        );
+    }
 }

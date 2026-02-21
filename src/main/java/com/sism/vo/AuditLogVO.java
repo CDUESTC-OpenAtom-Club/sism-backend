@@ -2,7 +2,6 @@ package com.sism.vo;
 
 import com.sism.enums.AuditAction;
 import com.sism.enums.AuditEntityType;
-import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -10,74 +9,59 @@ import java.util.Map;
 /**
  * Value Object for audit log data
  * Used for API responses when querying audit logs
- * 
+ *
  * Requirements: 7.5 - Support viewing audit logs
+ * Converted to record for immutability and simplicity
+ * **Validates: Requirements 4.1**
+ *
+ * @param logId          Audit log ID
+ * @param entityType     Type of entity being audited
+ * @param entityId       ID of the entity being audited
+ * @param action         Action performed (CREATE, UPDATE, DELETE, APPROVE, ARCHIVE, RESTORE)
+ * @param beforeJson      JSON snapshot of data before the change
+ * @param afterJson       JSON snapshot of data after the change
+ * @param changedFields   Map of changed fields with before/after values
+ * @param reason          Reason or comments for the action
+ * @param actorUserId     ID of the user who performed the action
+ * @param actorUserName   Name of the user who performed the action
+ * @param actorOrgId      ID of the organization of the actor
+ * @param actorOrgName    Name of the organization of the actor
+ * @param createdAt       Timestamp when the audit log was created
  */
-@Data
-public class AuditLogVO {
-
+public record AuditLogVO(
+    Long logId,
+    AuditEntityType entityType,
+    Long entityId,
+    AuditAction action,
+    Map<String, Object> beforeJson,
+    Map<String, Object> afterJson,
+    Map<String, Object> changedFields,
+    String reason,
+    Long actorUserId,
+    String actorUserName,
+    Long actorOrgId,
+    String actorOrgName,
+    LocalDateTime createdAt
+) {
     /**
-     * Audit log ID
+     * Compact constructor with validation and defensive copying
      */
-    private Long logId;
-
-    /**
-     * Type of entity being audited
-     */
-    private AuditEntityType entityType;
-
-    /**
-     * ID of the entity being audited
-     */
-    private Long entityId;
-
-    /**
-     * Action performed (CREATE, UPDATE, DELETE, APPROVE, ARCHIVE, RESTORE)
-     */
-    private AuditAction action;
-
-    /**
-     * JSON snapshot of data before the change
-     */
-    private Map<String, Object> beforeJson;
-
-    /**
-     * JSON snapshot of data after the change
-     */
-    private Map<String, Object> afterJson;
-
-    /**
-     * Map of changed fields with before/after values
-     */
-    private Map<String, Object> changedFields;
-
-    /**
-     * Reason or comments for the action
-     */
-    private String reason;
-
-    /**
-     * ID of the user who performed the action
-     */
-    private Long actorUserId;
-
-    /**
-     * Name of the user who performed the action
-     */
-    private String actorUserName;
-
-    /**
-     * ID of the organization of the actor
-     */
-    private Long actorOrgId;
-
-    /**
-     * Name of the organization of the actor
-     */
-    private String actorOrgName;
-
-    /**
-     * Timestamp when the audit log was created
-     */
-    private LocalDateTime createdAt;
+    public AuditLogVO {
+        if (entityType == null) {
+            throw new IllegalArgumentException("Entity type cannot be null");
+        }
+        if (action == null) {
+            throw new IllegalArgumentException("Action cannot be null");
+        }
+        // Create defensive copies for mutable maps
+        if (beforeJson != null) {
+            beforeJson = Map.copyOf(beforeJson);
+        }
+        if (afterJson != null) {
+            afterJson = Map.copyOf(afterJson);
+        }
+        if (changedFields != null) {
+            changedFields = Map.copyOf(changedFields);
+        }
+    }
 }

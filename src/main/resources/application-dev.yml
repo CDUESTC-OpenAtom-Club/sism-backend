@@ -1,42 +1,42 @@
+# Development Environment Configuration
+# 开发环境配置文件
+
 spring:
   # Development Database Configuration
-  # 开发环境使用实际数据库连接
-  # 参考: Requirements 1.1.2
   datasource:
-    # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
-    url: jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified
-    username: postgres
-    password: 64378561huaW
+    url: ${DB_URL:jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:64378561huaW}
   
   # JPA Configuration for Development
   jpa:
     show-sql: true
     hibernate:
-      ddl-auto: none  # 使用手动迁移脚本，不自动修改表结构
+      ddl-auto: none
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        javax:
-          persistence:
-            validation:
-              mode: none
   
-  # SQL Initialization for Development (可选)
-  # 如需自动执行初始化脚本，取消注释以下配置
-  # sql:
-  #   init:
-  #     mode: always
-  #     schema-locations: classpath:schema.sql
-  #     data-locations: classpath:data.sql
-  #     continue-on-error: false
+  # Redis Configuration for Development
+  # 开发环境可以启用Redis进行测试
+  data:
+    redis:
+      enabled: ${REDIS_ENABLED:false}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:5000}
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1
 
-# JWT Configuration for Development
-# 开发环境使用默认密钥，生产环境必须修改
-jwt:
-  secret: sism-dev-secret-key-change-in-production-at-least-256-bits-long-for-security
-  expiration: ${JWT_EXPIRATION:86400000}  # 24 hours
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days
+# Redis Feature Toggle for Development
+redis:
+  enabled: ${REDIS_ENABLED:false}  # 开发环境默认禁用，可通过环境变量启用
 
 # Logging Configuration for Development
 logging:
@@ -47,23 +47,33 @@ logging:
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-  file:
-    path: logs
-    name: logs/sism-dev.log
+    org.springframework.data.redis: DEBUG
 
-# Development CORS Configuration
+# Development CORS Configuration (允许本地前端开发服务器)
 app:
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:3001,http://127.0.0.1:5173,http://127.0.0.1:3000,http://127.0.0.1:3001
+    allowed-origins: http://localhost:5173,http://localhost:3000,http://localhost:8080
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature,X-Idempotency-Key
+    allow-credentials: true
+    max-age: 3600
 
-# Rate Limit Configuration for Development
-# 开发环境使用更宽松的限制
-rate-limit:
-  enabled: true
-  storage: memory
-  login:
-    limit: 10  # 开发环境放宽登录限制
-    window-seconds: 60
-  api:
-    limit: 1000  # 开发环境放宽 API 限制
-    window-seconds: 60
+# SpringDoc Configuration for Development (启用Swagger UI)
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+# Actuator Configuration for Development
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    redis:
+      enabled: ${REDIS_ENABLED:false}

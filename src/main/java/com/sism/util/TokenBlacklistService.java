@@ -10,10 +10,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * Service for managing JWT token blacklist
  * Used to invalidate tokens on logout
  * 
- * Note: In production, consider using Redis for distributed blacklist
+ * Note: This class is now managed by ServiceAutoConfiguration
+ * In production, consider using RedisTokenBlacklist for distributed blacklist
  */
 @Slf4j
-@Service
 public class TokenBlacklistService {
 
     // Token blacklist (in-memory, consider Redis for production)

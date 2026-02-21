@@ -2,6 +2,8 @@ package com.sism.entity;
 
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
+import com.sism.vo.IndicatorVO;
+import com.sism.vo.MilestoneVO;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -11,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Indicator entity - simplified to match actual database schema
@@ -209,5 +212,96 @@ public class Indicator {
         if (isDeleted == null) {
             isDeleted = false;
         }
+    }
+
+    // ==================== toDTO Method ====================
+
+    /**
+     * Convert this Indicator entity to IndicatorVO
+     *
+     * **Validates: Requirements 4.2**
+     *
+     * @return IndicatorVO with all field mappings
+     */
+    public IndicatorVO toDTO() {
+        return new IndicatorVO(
+            this.indicatorId,
+            this.taskId,
+            this.parentIndicatorId,
+            this.indicatorDesc,
+            this.weightPercent,
+            this.sortOrder,
+            this.remark,
+            this.type,
+            this.progress,
+            this.createdAt,
+            this.updatedAt,
+            this.year,
+            this.ownerDept,
+            this.responsibleDept,
+            this.weightPercent, // weight alias
+            null, // taskName - should be set by caller
+            this.canWithdraw,
+            this.status,
+            this.isQualitative,
+            this.type1,
+            this.type2,
+            null, // isStrategic - computed field
+            this.childIndicators != null
+                ? this.childIndicators.stream()
+                    .map(Indicator::toDTO)
+                    .collect(Collectors.toList())
+                : List.of(),
+            this.milestones != null
+                ? this.milestones.stream()
+                    .map(Milestone::toDTO)
+                    .collect(Collectors.toList())
+                : List.of()
+        );
+    }
+
+    /**
+     * Convert this Indicator entity to IndicatorVO with task name
+     *
+     * **Validates: Requirements 4.2**
+     *
+     * @param taskName Task name to include
+     * @return IndicatorVO with all field mappings
+     */
+    public IndicatorVO toDTO(String taskName) {
+        return new IndicatorVO(
+            this.indicatorId,
+            this.taskId,
+            this.parentIndicatorId,
+            this.indicatorDesc,
+            this.weightPercent,
+            this.sortOrder,
+            this.remark,
+            this.type,
+            this.progress,
+            this.createdAt,
+            this.updatedAt,
+            this.year,
+            this.ownerDept,
+            this.responsibleDept,
+            this.weightPercent, // weight alias
+            taskName,
+            this.canWithdraw,
+            this.status,
+            this.isQualitative,
+            this.type1,
+            this.type2,
+            this.level == IndicatorLevel.STRAT_TO_FUNC, // isStrategic
+            this.childIndicators != null
+                ? this.childIndicators.stream()
+                    .map(Indicator::toDTO)
+                    .collect(Collectors.toList())
+                : List.of(),
+            this.milestones != null
+                ? this.milestones.stream()
+                    .map(Milestone::toDTO)
+                    .collect(Collectors.toList())
+                : List.of()
+        );
     }
 }

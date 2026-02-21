@@ -20,12 +20,13 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  * 
  * 适用于单机部署场景，无需额外配置。
  * 
+ * 注意: 此类不再使用 @Service 注解，由 ServiceAutoConfiguration 管理
+ * 
  * **Property P9**: 在时间窗口内，请求次数超过限制时返回 429
  * 
  * **Validates: Requirements 2.3.2, 2.3.3, 2.3.4, 2.3.5**
  */
 @Slf4j
-@Service
 public class InMemoryRateLimiter implements RateLimiter {
 
     /**

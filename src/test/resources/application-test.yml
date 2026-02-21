@@ -21,6 +21,21 @@ spring:
   sql:
     init:
       mode: never  # Don't run schema.sql or data.sql
+  
+  # Redis configuration for tests - DISABLED by default
+  # Enable only for Redis-specific tests
+  data:
+    redis:
+      enabled: false
+      host: localhost
+      port: 6379
+      password: 
+      database: 0
+      timeout: 5000
+
+# Redis Feature Toggle for tests - DISABLED
+redis:
+  enabled: false
 
 # Server configuration - no context path for tests to simplify URL mapping
 # In tests, controllers are accessed directly at their @RequestMapping path

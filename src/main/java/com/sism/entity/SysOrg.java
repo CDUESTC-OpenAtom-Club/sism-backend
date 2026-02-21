@@ -1,6 +1,7 @@
 package com.sism.entity;
 
 import com.sism.enums.OrgType;
+import com.sism.vo.OrgVO;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.Getter;
@@ -39,4 +40,23 @@ public class SysOrg extends BaseEntity {
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;
+
+    // ==================== toDTO Method ====================
+
+    /**
+     * Convert this SysOrg entity to OrgVO
+     *
+     * **Validates: Requirements 4.2**
+     *
+     * @return OrgVO with all field mappings
+     */
+    public OrgVO toDTO() {
+        return new OrgVO(
+            this.id,
+            this.name,
+            this.type,
+            this.isActive,
+            this.sortOrder
+        );
+    }
 }

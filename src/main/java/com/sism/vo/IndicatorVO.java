@@ -1,46 +1,114 @@
 package com.sism.vo;
 
 import com.sism.enums.IndicatorStatus;
-import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Value Object for indicator response - Simplified to match database
+ * Value Object for indicator response
+ * Simplified to match database structure
+ *
+ * Converted to record for immutability and simplicity
+ * **Validates: Requirements 4.1**
+ *
+ * Note: Nested collections (childIndicators, milestones) are defensive copies
+ * to maintain immutability guarantees
+ *
+ * @param indicatorId         Indicator ID
+ * @param taskId              Task ID
+ * @param parentIndicatorId   Parent indicator ID
+ * @param indicatorDesc       Indicator description
+ * @param weightPercent       Weight percentage
+ * @param sortOrder           Sort order
+ * @param remark              Remark
+ * @param type                Type field
+ * @param progress            Progress value
+ * @param createdAt           Creation timestamp
+ * @param updatedAt           Update timestamp
+ * @param year                Assessment year (from task -> plan -> cycle)
+ * @param ownerDept           Owner department
+ * @param responsibleDept     Responsible department
+ * @param weight              Alias for weightPercent
+ * @param taskName            Task name
+ * @param canWithdraw         Whether can be withdrawn
+ * @param status              Indicator status
+ * @param isQualitative       Whether is qualitative indicator
+ * @param type1               Type 1 (定量/定性)
+ * @param type2               Type 2 (基础性/发展性)
+ * @param isStrategic         Whether is strategic indicator
+ * @param childIndicators     Child indicators list
+ * @param milestones          Milestones list
  */
-@Data
-public class IndicatorVO {
+public record IndicatorVO(
+    Long indicatorId,
+    Long taskId,
+    Long parentIndicatorId,
+    String indicatorDesc,
+    BigDecimal weightPercent,
+    Integer sortOrder,
+    String remark,
+    String type,
+    Integer progress,
+    LocalDateTime createdAt,
+    LocalDateTime updatedAt,
+    Integer year,
+    String ownerDept,
+    String responsibleDept,
+    BigDecimal weight,
+    String taskName,
+    Boolean canWithdraw,
+    IndicatorStatus status,
+    Boolean isQualitative,
+    String type1,
+    String type2,
+    Boolean isStrategic,
+    List<IndicatorVO> childIndicators,
+    List<MilestoneVO> milestones
+) {
+    /**
+     * Compact constructor with validation and defensive copying
+     */
+    public IndicatorVO {
+        if (indicatorDesc == null || indicatorDesc.isBlank()) {
+            throw new IllegalArgumentException("Indicator description cannot be null or blank");
+        }
+        // Create defensive copies for mutable collections
+        if (childIndicators == null) {
+            childIndicators = List.of();
+        } else {
+            childIndicators = List.copyOf(childIndicators);
+        }
+        if (milestones == null) {
+            milestones = List.of();
+        } else {
+            milestones = List.copyOf(milestones);
+        }
+    }
 
-    private Long indicatorId;
-    private Long taskId;
-    private Long parentIndicatorId;
-    private String indicatorDesc;
-    private BigDecimal weightPercent;
-    private Integer sortOrder;
-    private String remark;
-    private String type;
-    private Integer progress;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-    
-    // 前端需要的关联字段
-    private Integer year;  // 从 task -> plan -> cycle 获取
-    private String ownerDept;  // 从 task -> plan -> createdByOrg 获取
-    private String responsibleDept;  // 从 task -> plan -> targetOrg 获取
-    private BigDecimal weight;  // 即 weightPercent
-    private String taskName;  // 任务名称（从 strategic_task 获取，如果为空则生成默认名称）
-    private Boolean canWithdraw;  // 是否可撤回（用于下发/撤回功能）
-    
-    // 扩展字段（用于测试和高级功能）
-    private IndicatorStatus status;  // 指标状态
-    private Boolean isQualitative;  // 是否定性指标
-    private String type1;  // 类型1 (定量/定性)
-    private String type2;  // 类型2 (基础性/发展性)
-    private Boolean isStrategic;  // 是否战略指标（兼容旧测试）
-    
-    // 关联数据（可选）
-    private List<IndicatorVO> childIndicators;
-    private List<MilestoneVO> milestones;
+    /**
+     * Canonical constructor for backward compatibility
+     * Sets all optional fields to null
+     */
+    public IndicatorVO(
+        Long indicatorId,
+        Long taskId,
+        Long parentIndicatorId,
+        String indicatorDesc,
+        BigDecimal weightPercent,
+        Integer sortOrder,
+        String remark,
+        String type,
+        Integer progress,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+        this(
+            indicatorId, taskId, parentIndicatorId, indicatorDesc,
+            weightPercent, sortOrder, remark, type, progress,
+            createdAt, updatedAt, null, null, null, null,
+            null, null, null, null, null, null, null, null, null
+        );
+    }
 }
