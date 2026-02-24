@@ -306,38 +306,37 @@ public class MilestoneService {
 
     /**
      * Calculate total weight percentage for an indicator
-     * Requirements: 5.1 - Calculate total weight of all milestones
-     * 
+     * Note: weight_percent field has been removed from the database schema.
+     * Milestones no longer use a weight-based system.
+     *
      * @param indicatorId indicator ID
-     * @return total weight percentage
+     * @return always returns ZERO (weight system deprecated)
      */
     public BigDecimal calculateTotalWeight(Long indicatorId) {
-        // TODO: weight_percent字段已从数据库移除，暂时返回0
         return BigDecimal.ZERO;
     }
 
     /**
      * Validate weight sum and return validation result
-     * Requirements: 5.2 - Display warning if weight sum is not 100%
-     * Requirements: 5.4 - Block submission if weights incomplete (warning only, not blocking save)
-     * 
+     * Note: weight_percent field has been removed from the database schema.
+     * This method always returns a valid result for backward compatibility.
+     *
      * @param indicatorId indicator ID
-     * @return weight validation result
+     * @return weight validation result (always valid)
      */
     public WeightValidationResult validateWeightSum(Long indicatorId) {
-        // TODO: weight_percent字段已从数据库移除，暂时跳过验证
         return new WeightValidationResult(true, BigDecimal.ZERO, WEIGHT_SUM_TARGET);
     }
 
     /**
      * Check if indicator has complete milestone weights
-     * Requirements: 5.4 - Check if weights are complete for submission
-     * 
+     * Note: weight_percent field has been removed from the database schema.
+     * This method always returns true for backward compatibility.
+     *
      * @param indicatorId indicator ID
-     * @return true if weights sum to 100%
+     * @return always returns true (weight system deprecated)
      */
     public boolean hasCompleteWeights(Long indicatorId) {
-        // TODO: weight_percent字段已从数据库移除，暂时返回true
         return true;
     }
 

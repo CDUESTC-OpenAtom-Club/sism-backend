@@ -66,16 +66,8 @@ public interface MilestoneRepository extends JpaRepository<Milestone, Long> {
      */
     @Query("SELECT m FROM Milestone m WHERE m.dueDate BETWEEN :startDate AND :endDate " +
            "AND m.status NOT IN ('COMPLETED', 'CANCELED')")
-    List<Milestone> findUpcomingMilestones(@Param("startDate") LocalDate startDate, 
+    List<Milestone> findUpcomingMilestones(@Param("startDate") LocalDate startDate,
                                             @Param("endDate") LocalDate endDate);
-
-    /**
-     * Calculate total weight percentage for an indicator
-     */
-    // TODO: weight_percent字段已从数据库移除，此方法暂时注释
-    // @Query("SELECT COALESCE(SUM(m.weightPercent), 0) FROM Milestone m " +
-    //        "WHERE m.indicator.indicatorId = :indicatorId")
-    // BigDecimal calculateTotalWeightByIndicator(@Param("indicatorId") Long indicatorId);
 
     /**
      * Count milestones by indicator ID

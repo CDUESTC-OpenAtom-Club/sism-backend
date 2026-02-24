@@ -147,12 +147,12 @@ public class IndicatorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Target Organization", request.getTargetOrgId()));
 
         // Parse level from string to enum
-        IndicatorLevel level = IndicatorLevel.STRAT_TO_FUNC; // default
+        IndicatorLevel level = IndicatorLevel.PRIMARY; // default
         if (request.getLevel() != null) {
             try {
                 level = IndicatorLevel.valueOf(request.getLevel());
             } catch (IllegalArgumentException e) {
-                log.warn("Invalid level value: {}, using default STRAT_TO_FUNC", request.getLevel());
+                log.warn("Invalid level value: {}, using default PRIMARY", request.getLevel());
             }
         }
 
@@ -344,7 +344,7 @@ public class IndicatorService {
         vo.setIsQualitative(indicator.getIsQualitative());
         vo.setType1(indicator.getType1());
         vo.setType2(indicator.getType2());
-        vo.setIsStrategic(indicator.getLevel() == IndicatorLevel.STRAT_TO_FUNC);
+        vo.setIsStrategic(indicator.getLevel() == IndicatorLevel.PRIMARY);
         
         // 生成任务名称
         vo.setTaskName(generateTaskName(indicator));
@@ -537,15 +537,15 @@ public class IndicatorService {
      */
     public DistributionEligibility checkDistributionEligibility(Long indicatorId) {
         Indicator indicator = findIndicatorById(indicatorId);
-        
-        boolean canDistribute = indicator.getStatus() == IndicatorStatus.ACTIVE 
-                && indicator.getLevel() == com.sism.enums.IndicatorLevel.STRAT_TO_FUNC;
-        
+
+        boolean canDistribute = indicator.getStatus() == IndicatorStatus.ACTIVE
+                && indicator.getLevel() == com.sism.enums.IndicatorLevel.PRIMARY;
+
         String reason = "";
         if (indicator.getStatus() != IndicatorStatus.ACTIVE) {
             reason = "指标状态不是 ACTIVE";
-        } else if (indicator.getLevel() != com.sism.enums.IndicatorLevel.STRAT_TO_FUNC) {
-            reason = "只有 STRAT_TO_FUNC 级别的指标可以下发";
+        } else if (indicator.getLevel() != com.sism.enums.IndicatorLevel.PRIMARY) {
+            reason = "只有 PRIMARY 级别的指标可以下发";
         }
 
         int existingDistributions = indicatorRepository.findByParentIndicatorIdDirect(indicatorId).size();

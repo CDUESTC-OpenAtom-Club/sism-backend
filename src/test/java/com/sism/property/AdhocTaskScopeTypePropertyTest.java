@@ -248,9 +248,9 @@ public class AdhocTaskScopeTypePropertyTest {
         // Get indicators issued by the creator organization
         List<Indicator> issuedIndicators = getIndicatorsIssuedByOrg(creatorOrg.getId());
 
-        // Filter to secondary level indicators (FUNC_TO_COLLEGE) if any exist
+        // Filter to secondary level indicators (SECONDARY) if any exist
         List<Indicator> secondaryIndicators = issuedIndicators.stream()
-                .filter(ind -> ind.getLevel() == IndicatorLevel.FUNC_TO_COLLEGE)
+                .filter(ind -> ind.getLevel() == IndicatorLevel.SECONDARY)
                 .collect(Collectors.toList());
 
         // Expected indicators: secondary if available, otherwise all issued

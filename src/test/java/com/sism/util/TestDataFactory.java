@@ -120,7 +120,7 @@ public class TestDataFactory {
                 .ownerOrg(org)
                 .targetOrg(org)
                 .indicatorDesc("测试指标描述")
-                .level(IndicatorLevel.STRAT_TO_FUNC)
+                .level(IndicatorLevel.PRIMARY)
                 .status(IndicatorStatus.ACTIVE)
                 .weightPercent(new java.math.BigDecimal("100"))
                 .sortOrder(1)

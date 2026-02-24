@@ -158,7 +158,7 @@ class IndicatorServiceTest {
             request.setTaskId(testTask.getTaskId());
             request.setOwnerOrgId(testOwnerOrg.getId());
             request.setTargetOrgId(testTargetOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            request.setLevel(IndicatorLevel.PRIMARY.name());
             request.setIndicatorDesc("Test Indicator Description");
             request.setWeightPercent(new BigDecimal("25.00"));
             request.setYear(2025);
@@ -182,7 +182,7 @@ class IndicatorServiceTest {
             request.setTaskId(999999L);
             request.setOwnerOrgId(testOwnerOrg.getId());
             request.setTargetOrgId(testTargetOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            request.setLevel(IndicatorLevel.PRIMARY.name());
             request.setIndicatorDesc("Test");
 
             // When/Then
@@ -199,7 +199,7 @@ class IndicatorServiceTest {
             request.setTaskId(testTask.getTaskId());
             request.setOwnerOrgId(999999L);
             request.setTargetOrgId(testTargetOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            request.setLevel(IndicatorLevel.PRIMARY.name());
             request.setIndicatorDesc("Test");
 
             // When/Then
@@ -296,7 +296,7 @@ class IndicatorServiceTest {
             createRequest.setTaskId(testTask.getTaskId());
             createRequest.setOwnerOrgId(testOwnerOrg.getId());
             createRequest.setTargetOrgId(testTargetOrg.getId());
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            createRequest.setLevel(IndicatorLevel.PRIMARY.name());
             createRequest.setIndicatorDesc("Indicator to delete");
             createRequest.setWeightPercent(new BigDecimal("10.00"));
             createRequest.setYear(2025);
@@ -326,7 +326,7 @@ class IndicatorServiceTest {
                 createRequest.setTaskId(testTask.getTaskId());
                 createRequest.setOwnerOrgId(testOwnerOrg.getId());
                 createRequest.setTargetOrgId(testTargetOrg.getId());
-                createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+                createRequest.setLevel(IndicatorLevel.PRIMARY.name());
                 createRequest.setIndicatorDesc("To archive");
                 createRequest.setWeightPercent(new BigDecimal("5.00"));
                 createRequest.setYear(2025);
@@ -357,7 +357,7 @@ class IndicatorServiceTest {
             createRequest.setTaskId(testTask.getTaskId());
             createRequest.setOwnerOrgId(testOwnerOrg.getId());
             createRequest.setTargetOrgId(testTargetOrg.getId());
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            createRequest.setLevel(IndicatorLevel.PRIMARY.name());
             createRequest.setIndicatorDesc("UniqueSearchKeyword123");
             createRequest.setWeightPercent(new BigDecimal("5.00"));
             createRequest.setYear(2025);
@@ -383,7 +383,7 @@ class IndicatorServiceTest {
             // Given
             Indicator stratToFuncIndicator = indicatorRepository.findAll().stream()
                     .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
-                    .filter(i -> i.getLevel() == IndicatorLevel.STRAT_TO_FUNC)
+                    .filter(i -> i.getLevel() == IndicatorLevel.PRIMARY)
                     .findFirst()
                     .orElse(null);
 
@@ -398,12 +398,12 @@ class IndicatorServiceTest {
         }
 
         @Test
-        @DisplayName("Should not allow distribution of FUNC_TO_COLLEGE level indicators")
+        @DisplayName("Should not allow distribution of SECONDARY level indicators")
         void shouldNotAllowDistributionOfFuncToCollegeIndicators() {
             // Given
             Indicator funcToCollegeIndicator = indicatorRepository.findAll().stream()
                     .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
-                    .filter(i -> i.getLevel() == IndicatorLevel.FUNC_TO_COLLEGE)
+                    .filter(i -> i.getLevel() == IndicatorLevel.SECONDARY)
                     .findFirst()
                     .orElse(null);
 
@@ -414,7 +414,7 @@ class IndicatorServiceTest {
 
                 // Then
                 assertThat(eligibility.canDistribute()).isFalse();
-                assertThat(eligibility.reason()).contains("STRAT_TO_FUNC");
+                assertThat(eligibility.reason()).contains("PRIMARY");
             }
         }
     }

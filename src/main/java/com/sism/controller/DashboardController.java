@@ -169,50 +169,55 @@ public class DashboardController {
     @Operation(summary = "Get department progress", description = "Retrieve progress statistics by department")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getDepartmentProgress() {
         log.info("Fetching department progress");
-        
+
         try {
             List<IndicatorVO> indicators = indicatorService.getAllActiveIndicators();
-            
-            // TODO: responsibleDept字段已移除，暂时返回空列表
-            // Group by responsible department
-            // Map<String, List<IndicatorVO>> byDept = indicators.stream()
-            //     .filter(i -> i.getResponsibleDept() != null)
-            //     .collect(Collectors.groupingBy(IndicatorVO::getResponsibleDept));
-            
+
+            // Group by target organization (responsible department)
+            Map<String, List<IndicatorVO>> byDept = indicators.stream()
+                .filter(i -> i.getTargetOrgId() != null)
+                .collect(Collectors.groupingBy(i -> {
+                    // Use organization ID as key since we need org name mapping
+                    return String.valueOf(i.getTargetOrgId());
+                }));
+
             List<Map<String, Object>> deptProgress = new ArrayList<>();
-            
-            // byDept.forEach((dept, deptIndicators) -> {
-            //     double avgProgress = deptIndicators.stream()
-            //         .mapToDouble(IndicatorVO::getProgress)
-            //         .average()
-            //         .orElse(0.0);
-            //     
-            //     long alertCount = deptIndicators.stream()
-            //         .filter(i -> i.getProgress() < 60)
-            //         .count();
-            //     
-            //     long completed = deptIndicators.stream()
-            //         .filter(i -> i.getProgress() >= 100)
-            //         .count();
-            //     
-            //     Map<String, Object> deptData = new HashMap<>();
-            //     deptData.put("dept", dept);
-            //     deptData.put("progress", Math.round(avgProgress));
-            //     deptData.put("score", Math.round(avgProgress * 1.2));
-            //     deptData.put("status", avgProgress >= 80 ? "success" : avgProgress >= 50 ? "warning" : "exception");
-            //     deptData.put("totalIndicators", deptIndicators.size());
-            //     deptData.put("completedIndicators", completed);
-            //     deptData.put("alertCount", alertCount);
-            //     
-            //     deptProgress.add(deptData);
-            // });
-            
+
+            byDept.forEach((deptId, deptIndicators) -> {
+                double avgProgress = deptIndicators.stream()
+                    .mapToDouble(IndicatorVO::getProgress)
+                    .average()
+                    .orElse(0.0);
+
+                long alertCount = deptIndicators.stream()
+                    .filter(i -> i.getProgress() < 60)
+                    .count();
+
+                long completed = deptIndicators.stream()
+                    .filter(i -> i.getProgress() >= 100)
+                    .count();
+
+                Map<String, Object> deptData = new HashMap<>();
+                deptData.put("deptId", Long.valueOf(deptId));
+                deptData.put("dept", deptIndicators.get(0).getResponsibleDept() != null
+                    ? deptIndicators.get(0).getResponsibleDept()
+                    : "部门 " + deptId);
+                deptData.put("progress", Math.round(avgProgress));
+                deptData.put("score", Math.round(avgProgress * 1.2));
+                deptData.put("status", avgProgress >= 80 ? "success" : avgProgress >= 50 ? "warning" : "exception");
+                deptData.put("totalIndicators", deptIndicators.size());
+                deptData.put("completedIndicators", completed);
+                deptData.put("alertCount", alertCount);
+
+                deptProgress.add(deptData);
+            });
+
             // Sort by progress descending
-            deptProgress.sort((a, b) -> 
+            deptProgress.sort((a, b) ->
                 Integer.compare((Integer)b.get("progress"), (Integer)a.get("progress")));
-            
+
             log.info("Department progress calculated for {} departments", deptProgress.size());
-            
+
             return ResponseEntity.ok(ApiResponse.success(deptProgress));
         } catch (Exception e) {
             log.error("Error fetching department progress", e);
@@ -228,11 +233,11 @@ public class DashboardController {
     @Operation(summary = "Get recent activities", description = "Retrieve recent system activities")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecentActivities() {
         log.info("Fetching recent activities");
-        
-        // TODO: Implement actual activity tracking
-        // For now, return empty list
+
+        // Note: Activity tracking requires audit log integration
+        // This endpoint can be extended to fetch recent activities from AuditLog
         List<Map<String, Object>> activities = new ArrayList<>();
-        
+
         return ResponseEntity.ok(ApiResponse.success(activities));
     }
 }

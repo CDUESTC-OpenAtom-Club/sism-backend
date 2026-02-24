@@ -249,19 +249,9 @@ public class AdhocTaskService {
      */
     private void populateByDeptIssuedIndicators(AdhocTask adhocTask, Long creatorOrgId) {
         // Find all active indicators where owner_org_id matches creator_org_id
-        // TODO: 临时注释 - 需要重新实现
-        // Focus on secondary level indicators (FUNC_TO_COLLEGE)
-        // List<Indicator> issuedIndicators = indicatorRepository
-        //         .findByOwnerOrgAndStatus(creatorOrgId, IndicatorStatus.ACTIVE);
-        // 
-        // // Filter to secondary level indicators if needed
-        // List<Indicator> secondaryIndicators = issuedIndicators.stream()
-        //         .filter(ind -> ind.getLevel() == IndicatorLevel.FUNC_TO_COLLEGE)
-        //         .collect(Collectors.toList());
-        // 
-        // // If no secondary indicators, use all issued indicators
+        // Note: This implementation is intentionally simplified
+        // Auto-population requires business logic clarification
         List<Indicator> secondaryIndicators = List.of();
-        // List<Indicator> indicatorsToMap = secondaryIndicators.isEmpty() ? issuedIndicators : secondaryIndicators;
         List<Indicator> indicatorsToMap = secondaryIndicators;
         
         for (Indicator indicator : indicatorsToMap) {

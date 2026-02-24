@@ -305,7 +305,7 @@ class IndicatorControllerIntegrationTest {
             request.setTaskId(testTask.getTaskId());
             request.setOwnerOrgId(testOrg.getId());
             request.setTargetOrgId(testOrg.getId());
-            request.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            request.setLevel(IndicatorLevel.PRIMARY.name());
             request.setWeightPercent(BigDecimal.valueOf(5));
             request.setYear(2025);
 
@@ -365,7 +365,7 @@ class IndicatorControllerIntegrationTest {
             toDelete.setTaskId(testTask.getTaskId());
             toDelete.setOwnerOrg(testOrg);
             toDelete.setTargetOrg(testOrg);
-            toDelete.setLevel(IndicatorLevel.STRAT_TO_FUNC);
+            toDelete.setLevel(IndicatorLevel.PRIMARY);
             toDelete.setStatus(IndicatorStatus.ACTIVE);
             toDelete.setWeightPercent(BigDecimal.valueOf(5));
             toDelete.setYear(2025);

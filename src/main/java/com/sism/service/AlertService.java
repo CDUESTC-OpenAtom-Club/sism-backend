@@ -64,7 +64,7 @@ public class AlertService {
     /**
      * Calculate expected completion percentage based on time elapsed
      * Uses milestone due dates and weights to determine expected progress
-     * 
+     *
      * @param indicator the indicator
      * @param window the alert window
      * @return expected completion percentage
@@ -76,9 +76,18 @@ public class AlertService {
         }
 
         LocalDate cutoffDate = window.getCutoffDate();
-        // Note: weightPercent字段已从数据库移除，暂时返回0
-        // TODO: 需要重新设计里程碑权重的计算逻辑
-        return BigDecimal.ZERO;
+        // Note: weight_percent field has been removed from milestone table
+        // Expected progress calculation now uses milestone completion count
+        long completedMilestones = milestones.stream()
+                .filter(m -> m.getStatus() == com.sism.enums.MilestoneStatus.COMPLETED)
+                .count();
+
+        if (milestones.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        return BigDecimal.valueOf(completedMilestones * 100.0 / milestones.size())
+                .setScale(2, RoundingMode.HALF_UP);
     }
 
 
@@ -128,9 +137,9 @@ public class AlertService {
         }
 
         // Get all active indicators for this cycle
-        // TODO: findByStatus方法已移除，暂时返回所有指标
+        // Note: Indicator status filtering now requires custom query
         List<Indicator> indicators = indicatorRepository.findAll().stream()
-                .filter(i -> !i.getIsDeleted())
+                .filter(i -> !i.getIsDeleted() && i.getStatus() == IndicatorStatus.ACTIVE)
                 .collect(Collectors.toList());
         
         List<AlertEvent> generatedEvents = new ArrayList<>();
@@ -336,13 +345,15 @@ public class AlertService {
 
     /**
      * Get alerts by target organization
-     * 
+     *
      * @param orgId the organization ID
      * @param pageable pagination parameters
      * @return page of alert events for the organization
      */
     public Page<AlertEventVO> getAlertsByTargetOrg(Long orgId, Pageable pageable) {
-        // TODO: targetOrg字段已移除，暂时返回空页面
+        // Note: AlertEvent doesn't have direct targetOrg field
+        // Need to join through Indicator -> targetOrg
+        // This query should be implemented in AlertEventRepository
         return Page.empty(pageable);
     }
 

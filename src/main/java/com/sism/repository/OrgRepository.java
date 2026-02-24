@@ -12,43 +12,53 @@ import java.util.Optional;
 
 /**
  * Repository interface for SysOrg entity
- * Provides data access methods for organization management
+ *
+ * @deprecated Use {@link SysOrgRepository} instead. This interface is kept for backward compatibility
+ * and will be removed in a future version. All functionality has been moved to SysOrgRepository.
  */
+@Deprecated(since = "1.0", forRemoval = true)
 @Repository
 public interface OrgRepository extends JpaRepository<SysOrg, Long> {
 
     /**
-     * Find organization by name
+     * @deprecated Use {@link SysOrgRepository#findByName(String)} instead
      */
+    @Deprecated(forRemoval = true)
     Optional<SysOrg> findByName(String name);
 
     /**
-     * Find all organizations by type
+     * @deprecated Use {@link SysOrgRepository#findByType(OrgType)} instead
      */
+    @Deprecated(forRemoval = true)
     List<SysOrg> findByType(OrgType type);
 
     /**
-     * Find all active organizations
+     * @deprecated Use {@link SysOrgRepository#findByIsActiveTrue()} instead
      */
+    @Deprecated(forRemoval = true)
     List<SysOrg> findByIsActiveTrue();
 
     /**
-     * Find all organizations by type and active status
+     * @deprecated Use {@link SysOrgRepository#findByTypeAndIsActiveTrue(OrgType)} instead
      */
+    @Deprecated(forRemoval = true)
     List<SysOrg> findByTypeAndIsActiveTrue(OrgType type);
 
     /**
-     * Check if organization exists by name
+     * @deprecated Use {@link SysOrgRepository#existsByName(String)} instead
      */
+    @Deprecated(forRemoval = true)
     boolean existsByName(String name);
 
     /**
-     * Find organizations ordered by sort order
+     * @deprecated Use {@link SysOrgRepository#findAllByOrderBySortOrderAsc()} instead
      */
+    @Deprecated(forRemoval = true)
     List<SysOrg> findAllByOrderBySortOrderAsc();
 
     /**
-     * Find organizations by type ordered by sort order
+     * @deprecated Use {@link SysOrgRepository#findByTypeAndIsActiveTrue(OrgType)} and sort manually instead
      */
+    @Deprecated(forRemoval = true)
     List<SysOrg> findByTypeOrderBySortOrderAsc(OrgType type);
 }

@@ -1,7 +1,7 @@
 spring:
   application:
     name: sism-backend
-  
+
   # Database Configuration
   # 开发环境使用硬编码配置，生产环境通过环境变量覆盖
   datasource:
@@ -35,7 +35,7 @@ spring:
   
   # Flyway Configuration
   flyway:
-    enabled: true
+    enabled: false  # 远程数据库已初始化，禁用迁移
     baseline-on-migrate: true
     baseline-version: 1.0
     locations: classpath:db/migration
@@ -75,7 +75,7 @@ spring:
 
 # Server Configuration
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   servlet:
     context-path: /api
   compression:

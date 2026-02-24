@@ -247,7 +247,7 @@ public class IndicatorCrudAuditPropertyTest {
         createRequest.setIndicatorDesc(originalDesc);
         createRequest.setWeightPercent(originalWeight);
         createRequest.setYear(year);
-        createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+        createRequest.setLevel(IndicatorLevel.PRIMARY.name());
         createRequest.setSortOrder(1);
 
         IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest);
@@ -427,7 +427,7 @@ public class IndicatorCrudAuditPropertyTest {
             createRequest.setIndicatorDesc(originalDesc);
             createRequest.setWeightPercent(weight);
             createRequest.setYear(year);
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            createRequest.setLevel(IndicatorLevel.PRIMARY.name());
             createRequest.setSortOrder(1);
 
             IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest);
@@ -515,7 +515,7 @@ public class IndicatorCrudAuditPropertyTest {
             createRequest.setIndicatorDesc(description);
             createRequest.setWeightPercent(BigDecimal.valueOf(50));
             createRequest.setYear(year);
-            createRequest.setLevel(IndicatorLevel.STRAT_TO_FUNC.name());
+            createRequest.setLevel(IndicatorLevel.PRIMARY.name());
             createRequest.setSortOrder(1);
 
             IndicatorVO createdIndicator = indicatorService.createIndicator(createRequest);

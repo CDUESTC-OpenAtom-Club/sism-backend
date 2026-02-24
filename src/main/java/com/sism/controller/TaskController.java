@@ -102,7 +102,12 @@ public class TaskController {
     @Operation(summary = "Get tasks by cycle", description = "Retrieve tasks for a specific assessment cycle")
     public ResponseEntity<ApiResponse<List<TaskVO>>> getTasksByCycleId(
             @Parameter(description = "Assessment cycle ID") @PathVariable Long cycleId) {
-        // TODO: 需要通过plan表关联cycle，暂时返回空列表
+        log.info("Fetching tasks for cycle: {}", cycleId);
+
+        // Note: Direct Task-Cycle relationship requires Plan table join
+        // Plan table has cycle_id, but Task doesn't directly link to Plan
+        // This query needs to be implemented via: Plan -> Indicator -> Task
+        // For now, return empty list until schema relationship is established
         return ResponseEntity.ok(ApiResponse.success(List.of()));
     }
 
@@ -114,7 +119,12 @@ public class TaskController {
     @Operation(summary = "Get tasks by organization", description = "Retrieve tasks for a specific organization")
     public ResponseEntity<ApiResponse<List<TaskVO>>> getTasksByOrgId(
             @Parameter(description = "Organization ID") @PathVariable Long orgId) {
-        // TODO: 需要通过plan表关联org，暂时返回空列表
+        log.info("Fetching tasks for organization: {}", orgId);
+
+        // Note: Direct Task-Org relationship requires Plan table join
+        // Plan table has target_org_id, but Task doesn't directly link to Plan
+        // This query needs to be implemented via: Plan -> Indicator -> Task
+        // For now, return empty list until schema relationship is established
         return ResponseEntity.ok(ApiResponse.success(List.of()));
     }
 

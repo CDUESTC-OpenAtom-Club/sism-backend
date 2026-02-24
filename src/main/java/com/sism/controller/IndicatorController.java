@@ -300,15 +300,15 @@ public class IndicatorController {
      * Check if an indicator can be distributed
      * GET /api/indicators/{id}/distribution-eligibility
      */
-    // TODO: 暂时注释掉，等重写完成后恢复
-    // @GetMapping("/{id}/distribution-eligibility")
-    // @Operation(summary = "Check distribution eligibility", 
-    //            description = "Check if an indicator can be distributed to child organizations")
-    // public ResponseEntity<ApiResponse<IndicatorService.DistributionEligibility>> checkDistributionEligibility(
-    //         @Parameter(description = "Indicator ID") @PathVariable Long id) {
-    //     IndicatorService.DistributionEligibility eligibility = indicatorService.checkDistributionEligibility(id);
-    //     return ResponseEntity.ok(ApiResponse.success(eligibility));
-    // }
+    @GetMapping("/{id}/distribution-eligibility")
+    @Operation(summary = "Check distribution eligibility",
+               description = "Check if an indicator can be distributed to child organizations")
+    public ResponseEntity<ApiResponse<IndicatorService.DistributionEligibility>> checkDistributionEligibility(
+         @Parameter(description = "Indicator ID") @PathVariable Long id) {
+        log.info("Checking distribution eligibility for indicator: {}", id);
+        IndicatorService.DistributionEligibility eligibility = indicatorService.checkDistributionEligibility(id);
+        return ResponseEntity.ok(ApiResponse.success(eligibility));
+    }
 
     // ==================== Indicator Filtering APIs (指标过滤) ====================
 

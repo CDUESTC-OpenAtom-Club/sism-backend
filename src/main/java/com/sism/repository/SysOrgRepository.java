@@ -11,6 +11,7 @@ import java.util.Optional;
 
 /**
  * System Organization Repository
+ * Primary repository for organization-related data access
  */
 @Repository
 public interface SysOrgRepository extends JpaRepository<SysOrg, Long> {
@@ -44,6 +45,11 @@ public interface SysOrgRepository extends JpaRepository<SysOrg, Long> {
      * Find all active organizations ordered by sort order
      */
     List<SysOrg> findByIsActiveTrueOrderBySortOrderAsc();
+
+    /**
+     * Find organizations by type ordered by sort order
+     */
+    List<SysOrg> findByTypeOrderBySortOrderAsc(OrgType type);
 
     /**
      * Check if organization name exists
