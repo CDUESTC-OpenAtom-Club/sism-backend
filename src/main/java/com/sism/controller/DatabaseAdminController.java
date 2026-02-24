@@ -1,5 +1,6 @@
 package com.sism.controller;
 
+import com.sism.service.DatabaseAdminService;
 import com.sism.util.DatabaseDataChecker;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +24,7 @@ import java.util.*;
 public class DatabaseAdminController {
 
     private final DatabaseDataChecker checker;
+    private final DatabaseAdminService adminService;
 
     /**
      * Get all table information
@@ -87,27 +89,8 @@ public class DatabaseAdminController {
     public ResponseEntity<Map<String, Object>> getFullReport() {
         log.warn("DEBUG: Generating full database report");
 
-        Map<String, Long> counts = checker.getAllTableCounts();
-        Map<String, Object> quality = checker.checkDataQuality();
-        Map<String, Object> samples = checker.sampleData();
-        List<Map<String, Object>> tables = checker.getAllTables();
+        Map<String, Object> report = adminService.getDatabaseReport();
 
-        // Calculate statistics
-        long totalRecords = counts.values().stream().mapToLong(Long::longValue).sum();
-        long emptyTables = counts.values().stream().filter(c -> c == 0).count();
-        long tablesWithData = counts.size() - emptyTables;
-
-        return ResponseEntity.ok(Map.of(
-            "summary", Map.of(
-                "totalTables", counts.size(),
-                "tablesWithData", tablesWithData,
-                "emptyTables", emptyTables,
-                "totalRecords", totalRecords
-            ),
-            "tableCounts", counts,
-            "dataQuality", quality,
-            "sampleData", samples,
-            "tableDetails", tables
-        ));
+        return ResponseEntity.ok(report);
     }
 }
