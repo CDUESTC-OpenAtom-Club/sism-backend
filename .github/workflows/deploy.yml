@@ -110,7 +110,7 @@ jobs:
         run: |
           for i in 1 2 3; do
             if ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-              "curl -sf http://localhost:3500/api/actuator/health > /dev/null"; then
+              "curl -sf http://localhost:8080/api/actuator/health > /dev/null"; then
               echo "[INFO] Backend deployed and healthy"
               exit 0
             fi
