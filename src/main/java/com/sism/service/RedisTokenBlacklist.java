@@ -17,19 +17,21 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Redis实现的Token黑名单服务
- * 
+ *
  * 使用Redis存储失效的JWT Token:
  * - 使用token作为key存储到Redis
  * - 设置TTL为token的过期时间
  * - 支持分布式部署场景
- * 
+ *
  * 当Redis不可用时，自动降级到TokenBlacklistService（内存实现）
- * 
+ *
  * **Property 1**: Redis Storage Consistency
- * 
+ *
  * **Validates: Requirements 1.3, 1.5, 1.7**
  */
 @Slf4j
+@Service
+@ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = false)
 public class RedisTokenBlacklist extends TokenBlacklistService {
 
     private static final String TOKEN_BLACKLIST_KEY_PREFIX = "token_blacklist:";

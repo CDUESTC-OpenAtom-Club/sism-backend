@@ -14,23 +14,21 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Redis实现的幂等性服务
- * 
+ *
  * 使用Redis SETNX命令实现幂等性检查:
  * - 使用SETNX原子操作确保同一key只能被设置一次
  * - 设置TTL为24小时，自动清理过期记录
  * - 支持分布式部署场景
- * 
+ *
  * 当Redis不可用时，自动降级到IdempotencyService（数据库实现）
- * 
- * 注意: 此类保留 @Service 注解，因为它与数据库实现有不同的接口
- * 
+ *
  * **Property 1**: Redis Storage Consistency
- * 
+ *
  * **Validates: Requirements 1.4, 1.5, 1.7**
  */
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "redis.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = false)
 public class RedisIdempotencyService {
 
     private static final String IDEMPOTENCY_KEY_PREFIX = "idempotency:";
