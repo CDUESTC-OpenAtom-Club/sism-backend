@@ -287,30 +287,33 @@ public class IndicatorService {
         // 直接组装VO（使用 indicator 表中的字段）
         return indicators.stream()
                 .map(indicator -> {
-                    IndicatorVO vo = new IndicatorVO();
-                    vo.setIndicatorId(indicator.getIndicatorId());
-                    vo.setTaskId(indicator.getTaskId());
-                    vo.setParentIndicatorId(indicator.getParentIndicatorId());
-                    vo.setIndicatorDesc(indicator.getIndicatorDesc());
-                    vo.setWeightPercent(indicator.getWeightPercent());
-                    vo.setWeight(indicator.getWeightPercent());
-                    vo.setSortOrder(indicator.getSortOrder());
-                    vo.setRemark(indicator.getRemark());
-                    vo.setType(indicator.getType());
-                    vo.setProgress(indicator.getProgress());
-                    vo.setCreatedAt(indicator.getCreatedAt());
-                    vo.setUpdatedAt(indicator.getUpdatedAt());
-                    
-                    // 直接使用 indicator 表中的字段
-                    vo.setOwnerDept(indicator.getOwnerDept());
-                    vo.setResponsibleDept(indicator.getResponsibleDept());
-                    vo.setYear(indicator.getYear());
-                    vo.setCanWithdraw(indicator.getCanWithdraw());
-                    
-                    // 生成任务名称
-                    vo.setTaskName(generateTaskName(indicator));
-                    
-                    return vo;
+                    return new IndicatorVO(
+                        indicator.getIndicatorId(),
+                        indicator.getTaskId(),
+                        indicator.getParentIndicatorId(),
+                        indicator.getIndicatorDesc(),
+                        indicator.getWeightPercent(),
+                        indicator.getSortOrder(),
+                        indicator.getRemark(),
+                        indicator.getType(),
+                        indicator.getProgress(),
+                        indicator.getCreatedAt(),
+                        indicator.getUpdatedAt(),
+                        indicator.getYear(),
+                        indicator.getOwnerDept(),
+                        indicator.getResponsibleDept(),
+                        indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null, // targetOrgId - 第15个参数
+                        indicator.getWeightPercent(), // weight - 第16个参数
+                        generateTaskName(indicator), // taskName - 第17个参数
+                        indicator.getCanWithdraw(),
+                        indicator.getStatus(),
+                        indicator.getIsQualitative(),
+                        indicator.getType1(),
+                        indicator.getType2(),
+                        indicator.getLevel() == IndicatorLevel.PRIMARY, // isStrategic
+                        List.of(), // childIndicators
+                        List.of()  // milestones
+                    );
                 })
                 .collect(Collectors.toList());
     }
@@ -319,37 +322,33 @@ public class IndicatorService {
      * Convert Indicator entity to IndicatorVO
      */
     private IndicatorVO toIndicatorVO(Indicator indicator) {
-        IndicatorVO vo = new IndicatorVO();
-        vo.setIndicatorId(indicator.getIndicatorId());
-        vo.setTaskId(indicator.getTaskId());
-        vo.setParentIndicatorId(indicator.getParentIndicatorId());
-        vo.setIndicatorDesc(indicator.getIndicatorDesc());
-        vo.setWeightPercent(indicator.getWeightPercent());
-        vo.setWeight(indicator.getWeightPercent());
-        vo.setSortOrder(indicator.getSortOrder());
-        vo.setRemark(indicator.getRemark());
-        vo.setType(indicator.getType());
-        vo.setProgress(indicator.getProgress());
-        vo.setCreatedAt(indicator.getCreatedAt());
-        vo.setUpdatedAt(indicator.getUpdatedAt());
-        
-        // 直接使用 indicator 表中的字段
-        vo.setOwnerDept(indicator.getOwnerDept());
-        vo.setResponsibleDept(indicator.getResponsibleDept());
-        vo.setYear(indicator.getYear());
-        vo.setCanWithdraw(indicator.getCanWithdraw());
-        
-        // 扩展字段
-        vo.setStatus(indicator.getStatus());
-        vo.setIsQualitative(indicator.getIsQualitative());
-        vo.setType1(indicator.getType1());
-        vo.setType2(indicator.getType2());
-        vo.setIsStrategic(indicator.getLevel() == IndicatorLevel.PRIMARY);
-        
-        // 生成任务名称
-        vo.setTaskName(generateTaskName(indicator));
-
-        return vo;
+        return new IndicatorVO(
+            indicator.getIndicatorId(),
+            indicator.getTaskId(),
+            indicator.getParentIndicatorId(),
+            indicator.getIndicatorDesc(),
+            indicator.getWeightPercent(),
+            indicator.getSortOrder(),
+            indicator.getRemark(),
+            indicator.getType(),
+            indicator.getProgress(),
+            indicator.getCreatedAt(),
+            indicator.getUpdatedAt(),
+            indicator.getYear(),
+            indicator.getOwnerDept(),
+            indicator.getResponsibleDept(),
+            indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null, // targetOrgId - 第15个参数
+            indicator.getWeightPercent(), // weight - 第16个参数
+            generateTaskName(indicator), // taskName - 第17个参数
+            indicator.getCanWithdraw(),
+            indicator.getStatus(),
+            indicator.getIsQualitative(),
+            indicator.getType1(),
+            indicator.getType2(),
+            indicator.getLevel() == IndicatorLevel.PRIMARY, // isStrategic
+            List.of(), // childIndicators
+            List.of()  // milestones
+        );
     }
     
     /**

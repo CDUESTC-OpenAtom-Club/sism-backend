@@ -169,18 +169,24 @@ public class AuthService {
      * Build UserVO from SysUser entity
      */
     private UserVO buildUserVO(SysUser user) {
-        UserVO vo = new UserVO();
-        vo.setUserId(user.getId());
-        vo.setUsername(user.getUsername());
-        vo.setRealName(user.getRealName());
-        vo.setIsActive(user.getIsActive());
+        Long orgId = null;
+        String orgName = null;
+        com.sism.enums.OrgType orgType = null;
         
         if (user.getOrg() != null) {
-            vo.setOrgId(user.getOrg().getId());
-            vo.setOrgName(user.getOrg().getName());
-            vo.setOrgType(user.getOrg().getType());
+            orgId = user.getOrg().getId();
+            orgName = user.getOrg().getName();
+            orgType = user.getOrg().getType();
         }
         
-        return vo;
+        return new UserVO(
+                user.getId(),
+                user.getUsername(),
+                user.getRealName(),
+                user.getIsActive(),
+                orgId,
+                orgName,
+                orgType
+        );
     }
 }

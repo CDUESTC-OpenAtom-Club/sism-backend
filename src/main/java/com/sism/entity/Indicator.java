@@ -239,6 +239,7 @@ public class Indicator {
             this.year,
             this.ownerDept,
             this.responsibleDept,
+            null, // targetOrgId - 需要从targetOrg关联获取
             this.weightPercent, // weight alias
             null, // taskName - should be set by caller
             this.canWithdraw,
@@ -284,6 +285,7 @@ public class Indicator {
             this.year,
             this.ownerDept,
             this.responsibleDept,
+            null, // targetOrgId - 需要从targetOrg关联获取
             this.weightPercent, // weight alias
             taskName,
             this.canWithdraw,

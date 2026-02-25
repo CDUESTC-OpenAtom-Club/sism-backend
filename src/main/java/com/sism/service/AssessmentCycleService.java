@@ -85,15 +85,15 @@ public class AssessmentCycleService {
      * Convert entity to VO
      */
     private AssessmentCycleVO toVO(AssessmentCycle cycle) {
-        return AssessmentCycleVO.builder()
-                .cycleId(cycle.getCycleId())
-                .cycleName(cycle.getCycleName())
-                .year(cycle.getYear())
-                .startDate(cycle.getStartDate())
-                .endDate(cycle.getEndDate())
-                .description(cycle.getDescription())
-                .createdAt(cycle.getCreatedAt())
-                .updatedAt(cycle.getUpdatedAt())
-                .build();
+        return new AssessmentCycleVO(
+                cycle.getCycleId(),
+                cycle.getCycleName(),
+                cycle.getYear(),
+                cycle.getStartDate(),
+                cycle.getEndDate(),
+                cycle.getDescription(),
+                cycle.getCreatedAt(),
+                cycle.getUpdatedAt()
+        );
     }
 }

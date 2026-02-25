@@ -140,30 +140,31 @@ public class AttachmentService {
      * Convert Attachment entity to VO
      */
     private AttachmentVO toAttachmentVO(Attachment attachment) {
-        AttachmentVO vo = new AttachmentVO();
-        vo.setId(attachment.getId());
-        vo.setStorageDriver(attachment.getStorageDriver());
-        vo.setBucket(attachment.getBucket());
-        vo.setObjectKey(attachment.getObjectKey());
-        vo.setPublicUrl(attachment.getPublicUrl());
-        vo.setOriginalName(attachment.getOriginalName());
-        vo.setContentType(attachment.getContentType());
-        vo.setFileExt(attachment.getFileExt());
-        vo.setSizeBytes(attachment.getSizeBytes());
-        vo.setSha256(attachment.getSha256());
-        vo.setEtag(attachment.getEtag());
-        vo.setUploadedBy(attachment.getUploadedBy());
-        vo.setUploadedAt(attachment.getUploadedAt());
-        vo.setRemark(attachment.getRemark());
-        vo.setIsDeleted(attachment.getIsDeleted());
-        vo.setDeletedAt(attachment.getDeletedAt());
-
-        // Get uploader name
+        String uploadedByName = null;
         if (attachment.getUploadedBy() != null) {
-            sysUserRepository.findById(attachment.getUploadedBy())
-                    .ifPresent(user -> vo.setUploadedByName(user.getUsername()));
+            uploadedByName = sysUserRepository.findById(attachment.getUploadedBy())
+                    .map(user -> user.getUsername())
+                    .orElse(null);
         }
 
-        return vo;
+        return new AttachmentVO(
+                attachment.getId(),
+                attachment.getStorageDriver(),
+                attachment.getBucket(),
+                attachment.getObjectKey(),
+                attachment.getPublicUrl(),
+                attachment.getOriginalName(),
+                attachment.getContentType(),
+                attachment.getFileExt(),
+                attachment.getSizeBytes(),
+                attachment.getSha256(),
+                attachment.getEtag(),
+                attachment.getUploadedBy(),
+                uploadedByName,
+                attachment.getUploadedAt(),
+                attachment.getRemark(),
+                attachment.getIsDeleted(),
+                attachment.getDeletedAt()
+        );
     }
 }

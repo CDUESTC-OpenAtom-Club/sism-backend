@@ -162,16 +162,16 @@ public class PlanService {
      * Convert Plan entity to VO
      */
     private PlanVO toPlanVO(Plan plan) {
-        PlanVO vo = new PlanVO();
-        vo.setId(plan.getId());
-        vo.setCycleId(plan.getCycleId());
-        vo.setTargetOrgId(plan.getTargetOrgId());
-        vo.setCreatedByOrgId(plan.getCreatedByOrgId());
-        vo.setPlanLevel(plan.getPlanLevel());
-        vo.setStatus(plan.getStatus());
-        vo.setCreatedAt(plan.getCreatedAt());
-        vo.setUpdatedAt(plan.getUpdatedAt());
-        vo.setIsDeleted(plan.getIsDeleted());
-        return vo;
+        return new PlanVO(
+            plan.getId(),
+            plan.getCycleId(),
+            plan.getTargetOrgId(),
+            plan.getCreatedByOrgId(),
+            plan.getPlanLevel(),
+            plan.getStatus(),
+            plan.getCreatedAt(),
+            plan.getUpdatedAt(),
+            plan.getIsDeleted()
+        );
     }
 }

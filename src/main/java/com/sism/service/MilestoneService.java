@@ -83,36 +83,34 @@ public class MilestoneService {
         // 组装VO
         return milestones.stream()
                 .map(milestone -> {
-                    MilestoneVO vo = new MilestoneVO();
-                    vo.setMilestoneId(milestone.getMilestoneId());
-                    
                     // 从缓存Map中获取indicator
                     Indicator indicator = indicatorMap.get(milestone.getIndicator().getIndicatorId());
-                    if (indicator != null) {
-                        vo.setIndicatorId(indicator.getIndicatorId());
-                        vo.setIndicatorDesc(indicator.getIndicatorDesc());
-                    }
-                    
-                    vo.setMilestoneName(milestone.getMilestoneName());
-                    vo.setMilestoneDesc(milestone.getMilestoneDesc());
-                    vo.setDueDate(milestone.getDueDate());
-                    vo.setStatus(milestone.getStatus());
-                    vo.setSortOrder(milestone.getSortOrder());
                     
                     // 从缓存Map中获取inheritedFrom
+                    Long inheritedFromId = null;
                     if (milestone.getInheritedFrom() != null) {
                         Milestone inherited = inheritedMap.get(milestone.getInheritedFrom().getMilestoneId());
                         if (inherited != null) {
-                            vo.setInheritedFromId(inherited.getMilestoneId());
+                            inheritedFromId = inherited.getMilestoneId();
                         }
                     }
                     
-                    vo.setCreatedAt(milestone.getCreatedAt());
-                    vo.setUpdatedAt(milestone.getUpdatedAt());
-                    vo.setTargetProgress(milestone.getTargetProgress());
-                    vo.setIsPaired(milestone.getIsPaired());
-                    
-                    return vo;
+                    return new MilestoneVO(
+                        milestone.getMilestoneId(),
+                        indicator != null ? indicator.getIndicatorId() : null,
+                        indicator != null ? indicator.getIndicatorDesc() : null,
+                        milestone.getMilestoneName(),
+                        milestone.getMilestoneDesc(),
+                        milestone.getDueDate(),
+                        null, // weightPercent - system deprecated
+                        milestone.getStatus(),
+                        milestone.getSortOrder(),
+                        inheritedFromId,
+                        milestone.getCreatedAt(),
+                        milestone.getUpdatedAt(),
+                        milestone.getTargetProgress(),
+                        milestone.getIsPaired()
+                    );
                 })
                 .collect(Collectors.toList());
     }
@@ -356,26 +354,23 @@ public class MilestoneService {
      * Convert Milestone entity to MilestoneVO
      */
     private MilestoneVO toMilestoneVO(Milestone milestone) {
-        MilestoneVO vo = new MilestoneVO();
-        vo.setMilestoneId(milestone.getMilestoneId());
-        vo.setIndicatorId(milestone.getIndicator().getIndicatorId());
-        vo.setIndicatorDesc(milestone.getIndicator().getIndicatorDesc());
-        vo.setMilestoneName(milestone.getMilestoneName());
-        vo.setMilestoneDesc(milestone.getMilestoneDesc());
-        vo.setDueDate(milestone.getDueDate());
-        vo.setStatus(milestone.getStatus());
-        vo.setSortOrder(milestone.getSortOrder());
-        if (milestone.getInheritedFrom() != null) {
-            vo.setInheritedFromId(milestone.getInheritedFrom().getMilestoneId());
-        }
-        vo.setCreatedAt(milestone.getCreatedAt());
-        vo.setUpdatedAt(milestone.getUpdatedAt());
-        
-        // 新增字段映射 (前端数据对齐)
-        vo.setTargetProgress(milestone.getTargetProgress());
-        vo.setIsPaired(milestone.getIsPaired());
-        
-        return vo;
+        Indicator indicator = milestone.getIndicator();
+        return new MilestoneVO(
+            milestone.getMilestoneId(),
+            indicator != null ? indicator.getIndicatorId() : null,
+            indicator != null ? indicator.getIndicatorDesc() : null,
+            milestone.getMilestoneName(),
+            milestone.getMilestoneDesc(),
+            milestone.getDueDate(),
+            null, // weightPercent - system deprecated
+            milestone.getStatus(),
+            milestone.getSortOrder(),
+            milestone.getInheritedFrom() != null ? milestone.getInheritedFrom().getMilestoneId() : null,
+            milestone.getCreatedAt(),
+            milestone.getUpdatedAt(),
+            milestone.getTargetProgress(),
+            milestone.getIsPaired()
+        );
     }
 
     /**

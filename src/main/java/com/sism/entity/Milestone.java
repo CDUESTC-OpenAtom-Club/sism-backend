@@ -86,8 +86,8 @@ public class Milestone extends BaseEntity {
             this.status,
             this.sortOrder,
             this.inheritedFrom != null ? this.inheritedFrom.getMilestoneId() : null,
-            this.createdAt,
-            this.updatedAt,
+            this.getCreatedAt(),
+            this.getUpdatedAt(),
             this.targetProgress,
             this.isPaired
         );
@@ -114,8 +114,8 @@ public class Milestone extends BaseEntity {
             this.status,
             this.sortOrder,
             this.inheritedFrom != null ? this.inheritedFrom.getMilestoneId() : null,
-            this.createdAt,
-            this.updatedAt,
+            this.getCreatedAt(),
+            this.getUpdatedAt(),
             this.targetProgress,
             this.isPaired
         );

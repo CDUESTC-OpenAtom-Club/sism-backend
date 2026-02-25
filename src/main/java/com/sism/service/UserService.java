@@ -124,20 +124,15 @@ public class UserService {
      * Includes organization information
      */
     private UserVO toUserVO(SysUser user) {
-        UserVO vo = new UserVO();
-        vo.setUserId(user.getId());
-        vo.setUsername(user.getUsername());
-        vo.setRealName(user.getRealName());
-        vo.setIsActive(user.getIsActive());
-        
-        // Include organization information
         SysOrg org = user.getOrg();
-        if (org != null) {
-            vo.setOrgId(org.getId());
-            vo.setOrgName(org.getName());
-            vo.setOrgType(org.getType());
-        }
-        
-        return vo;
+        return new UserVO(
+            user.getId(),
+            user.getUsername(),
+            user.getRealName(),
+            user.getIsActive(),
+            org != null ? org.getId() : null,
+            org != null ? org.getName() : null,
+            org != null ? org.getType() : null
+        );
     }
 }
