@@ -3,6 +3,7 @@ package com.sism.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -11,11 +12,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 /**
  * Security configuration for the application
  * Configures JWT authentication filter chain and security settings
- * 
+ *
  * Requirements: 1.2
  */
 @Configuration
@@ -34,9 +40,32 @@ public class SecurityConfig {
     }
 
     /**
+     * CORS configuration source
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
+        config.setAllowedOrigins(Arrays.asList(
+            "http://localhost:3500",
+            "http://localhost:3000",
+            "http://localhost:5173"
+        ));
+        config.setAllowedHeaders(Arrays.asList("*"));
+        config.setAllowedMethods(Arrays.asList(
+            "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
+        ));
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
+    }
+
+    /**
      * Security filter chain configuration
      * Configures public paths, JWT filter, and CSRF settings
-     * 
+     *
      * Requirements: 1.2 - Configure JWT filter chain
      */
     @Bean
@@ -44,20 +73,37 @@ public class SecurityConfig {
         http
             // Disable CSRF for REST API (frontend-backend separation)
             .csrf(AbstractHttpConfigurer::disable)
+            // Enable CORS with custom configuration
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             // Stateless session management (JWT-based)
-            .sessionManagement(session -> 
+            .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // Configure authorization rules
             .authorizeHttpRequests(auth -> auth
+                // IMPORTANT: Allow OPTIONS requests for CORS preflight FIRST
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Public endpoints - no authentication required
-                // Note: context path is /api, so actual path is /auth/** not /api/auth/**
                 .requestMatchers("/auth/**").permitAll()
-                // Health check endpoint (frontend monitoring)
+                // Health check endpoint
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/health/**").permitAll()
-                // Organization endpoints (needed for dashboard initialization)
+                // Organization endpoints
+                .requestMatchers("/orgs/**").permitAll()
                 .requestMatchers("/organizations/**").permitAll()
-                // Swagger/OpenAPI documentation - multiple patterns for compatibility
+                // Dashboard endpoints
+                .requestMatchers("/dashboard/**").permitAll()
+                // Indicator endpoints
+                .requestMatchers("/indicators/**").permitAll()
+                // Task endpoints
+                .requestMatchers("/tasks/**").permitAll()
+                .requestMatchers("/strategic/**").permitAll()
+                // Milestone endpoints
+                .requestMatchers("/milestones/**").permitAll()
+                // Plan endpoints
+                .requestMatchers("/plans/**").permitAll()
+                // User endpoints
+                .requestMatchers("/users/**").permitAll()
+                // Swagger/OpenAPI documentation
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui.html").permitAll()
                 .requestMatchers("/v3/api-docs/**").permitAll()
@@ -69,9 +115,9 @@ public class SecurityConfig {
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )
-            // Add JWT authentication filter before UsernamePasswordAuthenticationFilter
+            // Add JWT authentication filter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        
+
         return http.build();
     }
 }

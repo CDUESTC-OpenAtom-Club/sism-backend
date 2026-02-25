@@ -48,7 +48,7 @@ jobs:
           echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
-          
+
           # Configure SSH for faster transfers
           cat >> ~/.ssh/config << EOF
           Host ${{ env.SERVER_HOST }}
@@ -75,7 +75,7 @@ jobs:
           # Upload with compression to speed up transfer
           scp -C -i ~/.ssh/deploy_key target/${{ env.JAR_NAME }} \
             ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.upload
-      
+
       - name: Verify and move JAR
         run: |
           ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
@@ -83,13 +83,13 @@ jobs:
             REMOTE_MD5=$(md5sum /tmp/${{ env.JAR_NAME }}.upload | cut -d' ' -f1)
             echo "[INFO] Remote MD5: $REMOTE_MD5"
             echo "[INFO] Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
-            
+
             if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
               echo "[ERROR] Checksum mismatch!"
               rm -f /tmp/${{ env.JAR_NAME }}.upload
               exit 1
             fi
-            
+
             echo "[INFO] Checksum verified, moving to deployment directory"
             mv /tmp/${{ env.JAR_NAME }}.upload /opt/sism/backend/${{ env.JAR_NAME }}
             chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}

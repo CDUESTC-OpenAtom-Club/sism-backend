@@ -16,22 +16,22 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Redis实现的频率限制器
- * 
+ *
  * 使用Redis INCR命令实现计数器:
  * - 使用INCR原子递增计数器
  * - 使用EXPIRE设置时间窗口
  * - 支持分布式部署场景
- * 
+ *
  * 当Redis不可用时，自动降级到InMemoryRateLimiter
- * 
- * 注意: 此类不再使用 @Service 注解，由 ServiceAutoConfiguration 管理
- * 
+ *
  * **Property P9**: 在时间窗口内，请求次数超过限制时返回 429
  * **Property 1**: Redis Storage Consistency
- * 
+ *
  * **Validates: Requirements 1.2, 1.5, 1.7**
  */
 @Slf4j
+@Service
+@ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true", matchIfMissing = false)
 public class RedisRateLimiter implements RateLimiter {
 
     private static final String RATE_LIMIT_KEY_PREFIX = "rate_limit:";

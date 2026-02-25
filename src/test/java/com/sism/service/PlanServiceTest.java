@@ -84,8 +84,8 @@ class PlanServiceTest {
 
         // Assert
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getId()).isEqualTo(1L);
-        assertThat(result.get(0).getIsDeleted()).isFalse();
+        assertThat(result.get(0).id()).isEqualTo(1L);
+        assertThat(result.get(0).isDeleted()).isFalse();
         verify(planRepository).findAll();
     }
 
@@ -99,9 +99,9 @@ class PlanServiceTest {
 
         // Assert
         assertThat(result).isNotNull();
-        assertThat(result.getId()).isEqualTo(1L);
-        assertThat(result.getCycleId()).isEqualTo(100L);
-        assertThat(result.getTargetOrgId()).isEqualTo(200L);
+        assertThat(result.id()).isEqualTo(1L);
+        assertThat(result.cycleId()).isEqualTo(100L);
+        assertThat(result.targetOrgId()).isEqualTo(200L);
         verify(planRepository).findById(1L);
     }
 
@@ -138,7 +138,7 @@ class PlanServiceTest {
 
         // Assert
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getCycleId()).isEqualTo(100L);
+        assertThat(result.get(0).cycleId()).isEqualTo(100L);
         verify(planRepository).findByCycleId(100L);
     }
 
@@ -152,7 +152,7 @@ class PlanServiceTest {
 
         // Assert
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTargetOrgId()).isEqualTo(200L);
+        assertThat(result.get(0).targetOrgId()).isEqualTo(200L);
         verify(planRepository).findByTargetOrgId(200L);
     }
 
@@ -176,7 +176,7 @@ class PlanServiceTest {
 
         // Assert
         assertThat(result).isNotNull();
-        assertThat(result.getCycleId()).isEqualTo(100L);
+        assertThat(result.cycleId()).isEqualTo(100L);
         verify(orgRepository).findById(200L);
         verify(orgRepository).findById(300L);
         verify(planRepository).save(any(Plan.class));

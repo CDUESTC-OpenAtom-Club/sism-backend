@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Audit Instance entity
@@ -75,4 +76,91 @@ public class AuditInstance extends BaseEntity {
     @JoinColumn(name = "initiated_by", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_audit_instance_user"))
     private SysUser initiator;
+
+    // ==================== New Fields for Multi-Level Approval ====================
+
+    /**
+     * Current step order in the approval flow
+     */
+    @Column(name = "current_step_order")
+    private Integer currentStepOrder = 1;
+
+    /**
+     * Submitter's department ID
+     */
+    @Column(name = "submitter_dept_id")
+    private Long submitterDeptId;
+
+    /**
+     * Direct supervisor ID (level 1)
+     */
+    @Column(name = "direct_supervisor_id")
+    private Long directSupervisorId;
+
+    /**
+     * Level-2 supervisor ID
+     */
+    @Column(name = "level2_supervisor_id")
+    private Long level2SupervisorId;
+
+    /**
+     * Superior department ID (for final approval)
+     */
+    @Column(name = "superior_dept_id")
+    private Long superiorDeptId;
+
+    /**
+     * Pending approvers list (for parallel approval tracking)
+     */
+    @Column(name = "pending_approvers", columnDefinition = "BIGINT[]")
+    private List<Long> pendingApprovers;
+
+    /**
+     * Approved approvers list (for parallel approval tracking)
+     */
+    @Column(name = "approved_approvers", columnDefinition = "BIGINT[]")
+    private List<Long> approvedApprovers;
+
+    /**
+     * Rejected approvers list (for parallel approval tracking)
+     */
+    @Column(name = "rejected_approvers", columnDefinition = "BIGINT[]")
+    private List<Long> rejectedApprovers;
+
+    // ==================== Helper Methods ====================
+
+    /**
+     * Check if this is the first approval step
+     */
+    public boolean isFirstStep() {
+        return currentStepOrder != null && currentStepOrder == 1;
+    }
+
+    /**
+     * Check if this is the final approval step
+     */
+    public boolean isFinalStep() {
+        return currentStepOrder != null && currentStepOrder == 3;
+    }
+
+    /**
+     * Check if this approval is still pending
+     */
+    public boolean isPending() {
+        return "PENDING".equalsIgnoreCase(status) || "IN_PROGRESS".equalsIgnoreCase(status);
+    }
+
+    /**
+     * Check if this approval is completed
+     */
+    public boolean isCompleted() {
+        return "APPROVED".equalsIgnoreCase(status) || "REJECTED".equalsIgnoreCase(status);
+    }
+
+    /**
+     * Check if this approval is rejected
+     */
+    public boolean isRejected() {
+        return "REJECTED".equalsIgnoreCase(status);
+    }
 }
