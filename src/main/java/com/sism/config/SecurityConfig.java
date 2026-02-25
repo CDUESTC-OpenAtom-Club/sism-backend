@@ -44,8 +44,10 @@ public class SecurityConfig {
         http
             // Disable CSRF for REST API (frontend-backend separation)
             .csrf(AbstractHttpConfigurer::disable)
+            // Enable CORS
+            .cors(org.springframework.security.config.Customizer.withDefaults())
             // Stateless session management (JWT-based)
-            .sessionManagement(session -> 
+            .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             // Configure authorization rules
             .authorizeHttpRequests(auth -> auth
@@ -71,7 +73,7 @@ public class SecurityConfig {
             )
             // Add JWT authentication filter before UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        
+
         return http.build();
     }
 }
