@@ -55,8 +55,10 @@ jobs:
             User ${{ env.SERVER_USER }}
             IdentityFile ~/.ssh/deploy_key
             Compression yes
-            ServerAliveInterval 60
+            ServerAliveInterval 15
             ServerAliveCountMax 3
+            ConnectTimeout 30
+            TCPKeepAlive yes
           EOF
 
       - name: Configure server sudoers (one-time setup)
@@ -69,26 +71,53 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "systemctl stop sism-backend || true"
 
-      - name: Upload JAR with compression
+      - name: Upload JAR with retry
         run: |
-          # Upload with compression to speed up transfer
-          scp -C -i ~/.ssh/deploy_key target/${{ env.JAR_NAME }} \
-            ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.upload
-      
+          # Upload with retry mechanism
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "[INFO] Upload attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
+
+            if scp -o ConnectTimeout=30 -o ServerAliveInterval=15 \
+                -i ~/.ssh/deploy_key target/${{ env.JAR_NAME }} \
+                ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.upload; then
+              echo "[INFO] Upload successful"
+              exit 0
+            fi
+
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+              echo "[WARN] Upload failed, retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+
+          echo "[ERROR] Upload failed after $MAX_RETRIES attempts"
+          exit 1
+
       - name: Verify and move JAR
         run: |
           ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+            # Check if file exists
+            if [ ! -f /tmp/${{ env.JAR_NAME }}.upload ]; then
+              echo "[ERROR] Uploaded file not found!"
+              ls -la /tmp/*.jar 2>/dev/null || echo "No JAR files in /tmp"
+              exit 1
+            fi
+
             # Verify checksum before moving
             REMOTE_MD5=$(md5sum /tmp/${{ env.JAR_NAME }}.upload | cut -d' ' -f1)
             echo "[INFO] Remote MD5: $REMOTE_MD5"
             echo "[INFO] Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
-            
+
             if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
               echo "[ERROR] Checksum mismatch!"
               rm -f /tmp/${{ env.JAR_NAME }}.upload
               exit 1
             fi
-            
+
             echo "[INFO] Checksum verified, moving to deployment directory"
             mv /tmp/${{ env.JAR_NAME }}.upload /opt/sism/backend/${{ env.JAR_NAME }}
             chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}
