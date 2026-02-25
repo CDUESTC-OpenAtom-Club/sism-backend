@@ -27,7 +27,7 @@ public class ServiceAutoConfiguration {
      */
     @Bean
     @Primary
-    @ConditionalOnProperty(name = "redis.enabled", havingValue = "true")
+    @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true")
     public RateLimiter redisRateLimiter(RedisTemplate<String, Object> redisTemplate) {
         log.info("Configuring RedisRateLimiter (Redis enabled)");
         // Create fallback instance for Redis to use
@@ -39,7 +39,7 @@ public class ServiceAutoConfiguration {
      * 内存频率限制器（当 Redis 禁用时）
      */
     @Bean
-    @ConditionalOnProperty(name = "redis.enabled", havingValue = "false", matchIfMissing = true)
+    @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "false", matchIfMissing = true)
     public RateLimiter inMemoryRateLimiter() {
         log.info("Configuring InMemoryRateLimiter (Redis disabled or not configured)");
         return new InMemoryRateLimiter();
@@ -50,7 +50,7 @@ public class ServiceAutoConfiguration {
      */
     @Bean("tokenBlacklistService")
     @Primary
-    @ConditionalOnProperty(name = "redis.enabled", havingValue = "true")
+    @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "true")
     public TokenBlacklistService redisTokenBlacklist(
             RedisTemplate<String, Object> redisTemplate,
             com.sism.util.JwtUtil jwtUtil) {
@@ -64,7 +64,7 @@ public class ServiceAutoConfiguration {
      * 内存 Token 黑名单（当 Redis 禁用时）
      */
     @Bean("tokenBlacklistService")
-    @ConditionalOnProperty(name = "redis.enabled", havingValue = "false", matchIfMissing = true)
+    @ConditionalOnProperty(name = "spring.data.redis.enabled", havingValue = "false", matchIfMissing = true)
     public TokenBlacklistService inMemoryTokenBlacklist() {
         log.info("Configuring InMemoryTokenBlacklist (Redis disabled or not configured)");
         return new TokenBlacklistService();

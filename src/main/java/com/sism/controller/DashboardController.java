@@ -79,6 +79,128 @@ public class DashboardController {
     private final SysOrgService orgService;
 
     /**
+     * Get complete dashboard data
+     * GET /api/dashboard
+     */
+    @GetMapping
+    @Operation(summary = "Get complete dashboard data", description = "Retrieve all dashboard data including scores, completion rate, and department progress")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardData() {
+        log.info("Fetching complete dashboard data");
+
+        try {
+            // Get all active indicators
+            List<IndicatorVO> indicators = indicatorService.getAllActiveIndicators();
+
+            // Calculate basic statistics
+            int totalIndicators = indicators.size();
+            long completedIndicators = indicators.stream()
+                .filter(ind -> ind.getProgress() >= 100)
+                .count();
+            double avgProgress = indicators.stream()
+                .mapToDouble(IndicatorVO::getProgress)
+                .average()
+                .orElse(0.0);
+
+            // Calculate scores (basic and development)
+            double basicScore = avgProgress * 0.6;  // 60% weight for basic indicators
+            double developmentScore = avgProgress * 0.4;  // 40% weight for development indicators
+            double totalScore = basicScore + developmentScore;
+
+            // Calculate completion rate
+            double completionRate = totalIndicators > 0
+                ? (completedIndicators * 100.0 / totalIndicators)
+                : 0.0;
+
+            // Count alerts by severity
+            Map<String, Long> alertCounts = indicators.stream()
+                .collect(Collectors.groupingBy(
+                    ind -> {
+                        double progress = ind.getProgress();
+                        if (progress < 30) return "severe";
+                        else if (progress < 60) return "moderate";
+                        else return "normal";
+                    },
+                    Collectors.counting()
+                ));
+
+            // Calculate warning count
+            int warningCount = Math.toIntExact(
+                alertCounts.getOrDefault("severe", 0L) +
+                alertCounts.getOrDefault("moderate", 0L)
+            );
+
+            // Prepare alert indicators
+            Map<String, Object> alertIndicators = new HashMap<>();
+            alertIndicators.put("severe", alertCounts.getOrDefault("severe", 0L));
+            alertIndicators.put("moderate", alertCounts.getOrDefault("moderate", 0L));
+            alertIndicators.put("normal", alertCounts.getOrDefault("normal", 0L));
+
+            // Prepare department progress
+            List<Map<String, Object>> departmentProgress = indicators.stream()
+                .collect(Collectors.groupingBy(
+                    ind -> ind.getResponsibleDept() != null ? ind.getResponsibleDept() : "未分配",
+                    Collectors.toList()
+                ))
+                .entrySet().stream()
+                .map(entry -> {
+                    List<IndicatorVO> deptIndicators = entry.getValue();
+                    double deptAvgProgress = deptIndicators.stream()
+                        .mapToDouble(IndicatorVO::getProgress)
+                        .average()
+                        .orElse(0.0);
+
+                    Map<String, Object> deptData = new HashMap<>();
+                    deptData.put("department", entry.getKey());
+                    deptData.put("progress", Math.round(deptAvgProgress));
+                    deptData.put("status",
+                        deptAvgProgress >= 80 ? "success" :
+                        deptAvgProgress >= 50 ? "warning" : "exception");
+                    return deptData;
+                })
+                .collect(Collectors.toList());
+
+            // Prepare tasks by status (placeholder data for now)
+            Map<String, Object> tasksByStatus = new HashMap<>();
+            tasksByStatus.put("draft", 0);
+            tasksByStatus.put("active", totalIndicators);
+            tasksByStatus.put("completed", Math.toIntExact(completedIndicators));
+            tasksByStatus.put("cancelled", 0);
+
+            // Prepare monthly progress (placeholder data)
+            List<Map<String, Object>> monthlyProgress = new ArrayList<>();
+            for (int month = 1; month <= 12; month++) {
+                Map<String, Object> monthData = new HashMap<>();
+                monthData.put("month", month);
+                monthData.put("year", 2026);
+                monthData.put("progress", Math.round(avgProgress * (month / 12.0)));
+                monthData.put("target", 100);
+                monthlyProgress.add(monthData);
+            }
+
+            // Build response
+            Map<String, Object> dashboardData = new HashMap<>();
+            dashboardData.put("totalScore", Math.round(totalScore * 100) / 100.0);
+            dashboardData.put("basicScore", Math.round(basicScore * 100) / 100.0);
+            dashboardData.put("developmentScore", Math.round(developmentScore * 100) / 100.0);
+            dashboardData.put("completionRate", Math.round(completionRate * 100) / 100.0);
+            dashboardData.put("warningCount", warningCount);
+            dashboardData.put("totalIndicators", totalIndicators);
+            dashboardData.put("completedIndicators", Math.toIntExact(completedIndicators));
+            dashboardData.put("alertIndicators", alertIndicators);
+            dashboardData.put("departmentProgress", departmentProgress);
+            dashboardData.put("tasksByStatus", tasksByStatus);
+            dashboardData.put("monthlyProgress", monthlyProgress);
+
+            log.info("Dashboard data calculated successfully");
+            return ResponseEntity.ok(ApiResponse.success(dashboardData));
+
+        } catch (Exception e) {
+            log.error("Error fetching dashboard data", e);
+            throw e;
+        }
+    }
+
+    /**
      * Get dashboard summary
      * GET /api/dashboard/summary
      */
@@ -214,7 +336,7 @@ public class DashboardController {
 
             // Sort by progress descending
             deptProgress.sort((a, b) ->
-                Integer.compare((Integer)b.get("progress"), (Integer)a.get("progress")));
+                Long.compare((Long)b.get("progress"), (Long)a.get("progress")));
 
             log.info("Department progress calculated for {} departments", deptProgress.size());
 
