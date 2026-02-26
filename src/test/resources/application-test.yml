@@ -1,0 +1,66 @@
+# Test Configuration - 使用 H2 内存数据库
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;INIT=CREATE DOMAIN IF NOT EXISTS task_type AS VARCHAR
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop  # Use JPA schema generation for tests
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  
+  flyway:
+    enabled: false  # Disable Flyway for tests, use JPA schema generation
+  
+  sql:
+    init:
+      mode: never  # Don't run schema.sql or data.sql
+  
+  # Redis configuration for tests - DISABLED by default
+  # Enable only for Redis-specific tests
+  data:
+    redis:
+      enabled: false
+      host: localhost
+      port: 6379
+      password: 
+      database: 0
+      timeout: 5000
+
+# Redis Feature Toggle for tests - DISABLED
+redis:
+  enabled: false
+
+# Server configuration - no context path for tests to simplify URL mapping
+# In tests, controllers are accessed directly at their @RequestMapping path
+# e.g., /auth/login instead of /api/auth/login
+server:
+  servlet:
+    context-path: ""
+
+# Logging for tests
+logging:
+  level:
+    root: WARN
+    com.sism: INFO
+    org.hibernate.SQL: DEBUG
+    org.testcontainers: INFO
+
+# Test CORS Configuration
+app:
+  cors:
+    allowed-origins: http://localhost:5173
+
+# JWT Configuration for tests
+jwt:
+  secret: test-secret-key-for-unit-tests-must-be-at-least-256-bits-long-for-security
+  expiration: 86400000
+  refresh-expiration: 604800000
+
+

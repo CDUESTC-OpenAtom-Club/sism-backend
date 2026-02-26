@@ -1,0 +1,184 @@
+spring:
+  # Production Database Configuration
+  # 生产环境所有敏感配置必须从环境变量读取，禁止硬编码默认值
+  # 参考: Requirements 1.1.1, 1.1.2
+  datasource:
+    # stringtype=unspecified allows PostgreSQL to accept string values for native ENUM columns
+    # 注意: DB_URL, DB_USERNAME, DB_PASSWORD 必须通过环境变量配置，无默认值
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:10}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DB_LEAK_DETECTION:60000}
+      pool-name: SismHikariPool
+  
+  # JPA Configuration for Production
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none  # 生产环境: 完全禁用 DDL 自动生成
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          batch_size: 50
+  
+  # SQL Initialization for Production (必须禁用)
+  sql:
+    init:
+      mode: never  # 生产环境禁止自动执行 SQL 脚本
+  
+  # Redis Configuration for Production
+  # 生产环境Redis配置,用于分布式限流、Token黑名单和幂等性服务
+  # 参考: Requirements 1.1, 1.6, 1.7
+  data:
+    redis:
+      enabled: ${REDIS_ENABLED:false}  # 通过环境变量启用Redis
+      host: ${REDIS_HOST}              # Redis主机地址(必须配置)
+      port: ${REDIS_PORT:6379}         # Redis端口
+      password: ${REDIS_PASSWORD}      # Redis密码(必须配置)
+      database: ${REDIS_DATABASE:0}    # Redis数据库索引
+      timeout: ${REDIS_TIMEOUT:3000}   # 连接超时时间(毫秒)
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX_ACTIVE:20}  # 连接池最大连接数
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}      # 连接池最大空闲连接数
+          min-idle: ${REDIS_POOL_MIN_IDLE:5}       # 连接池最小空闲连接数
+          max-wait: ${REDIS_POOL_MAX_WAIT:3000}    # 连接池最大阻塞等待时间(毫秒)
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100}
+
+# Logging Configuration for Production
+logging:
+  level:
+    root: WARN
+    com.sism: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.springframework.boot.actuate: INFO
+  file:
+    path: ${LOG_PATH:/var/log/sism}
+    name: ${LOG_PATH:/var/log/sism}/sism-prod.log
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
+      clean-history-on-start: false
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{requestId:-}] [%X{userId:-}] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{requestId:-}] %-5level %logger{36} - %msg%n"
+
+# Production CORS Configuration
+app:
+  cors:
+    allowed-origins: ${ALLOWED_ORIGINS:https://blackevil.cn}
+    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature,X-Idempotency-Key
+    allow-credentials: true
+    max-age: 3600
+  security:
+    headers:
+      enabled: true
+      frame-options: DENY
+      content-type-options: nosniff
+      xss-protection: 1; mode=block
+      referrer-policy: strict-origin-when-cross-origin
+      permissions-policy: geolocation=(), microphone=(), camera=()
+
+# Rate Limit Configuration for Production
+# 生产环境使用严格的限制
+# 参考: Requirements 2.3.3, 2.3.4, 2.3.5
+rate-limit:
+  enabled: ${RATE_LIMIT_ENABLED:true}
+  storage: ${RATE_LIMIT_STORAGE:memory}  # 可配置为 redis 用于分布式部署
+  login:
+    limit: ${RATE_LIMIT_LOGIN_LIMIT:5}  # 登录接口限制: 5次/分钟
+    window-seconds: ${RATE_LIMIT_LOGIN_WINDOW:60}
+  api:
+    limit: ${RATE_LIMIT_API_LIMIT:100}  # 通用 API 限制: 100次/分钟
+    window-seconds: ${RATE_LIMIT_API_WINDOW:60}
+    
+# JWT Configuration for Production
+# JWT 密钥必须从环境变量读取，禁止硬编码默认值
+# 参考: Requirements 1.1.1
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:28800000}  # 8 hours in production (default)
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days (default)
+
+# Server Configuration for Production
+server:
+  port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+    min-response-size: 1024
+  http2:
+    enabled: true
+  shutdown: graceful
+  tomcat:
+    max-threads: 200
+    min-spare-threads: 20
+    accept-count: 100
+    connection-timeout: 20000
+
+# Spring Boot Actuator Configuration for Health Checks and Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      show-components: when_authorized
+      probes:
+        enabled: true
+    info:
+      enabled: true
+    metrics:
+      enabled: true
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+      threshold: 10485760  # 10MB
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+    # Redis健康检查(仅在Redis启用时生效)
+    redis:
+      enabled: ${REDIS_ENABLED:false}
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+    os:
+      enabled: true
+
+# Application Info for Actuator
+info:
+  app:
+    name: SISM Backend
+    description: Strategic Indicator Management System
+    version: 1.0.0
+  build:
+    artifact: sism-backend
+    group: com.sism
+
+# SpringDoc Configuration for Production (disabled by default)
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
