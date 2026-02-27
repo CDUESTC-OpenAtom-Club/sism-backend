@@ -40,12 +40,19 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     @Value("${app.security.headers.permissions-policy:geolocation=(), microphone=(), camera=()}")
     private String permissionsPolicy;
 
+    @Value("${app.security.headers.csp:default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' http://localhost:8080 http://localhost:3500;}")
+    private String contentSecurityPolicy;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, 
                                     HttpServletResponse response, 
                                     FilterChain filterChain) throws ServletException, IOException {
         
         if (headersEnabled) {
+            // Content-Security-Policy: Controls which resources can be loaded
+            // Allows self, inline scripts, and eval (needed by some dev tools/extensions)
+            response.setHeader("Content-Security-Policy", contentSecurityPolicy);
+
             // X-Frame-Options: Prevents clickjacking attacks
             // SAMEORIGIN allows framing only from same origin
             response.setHeader("X-Frame-Options", frameOptions);

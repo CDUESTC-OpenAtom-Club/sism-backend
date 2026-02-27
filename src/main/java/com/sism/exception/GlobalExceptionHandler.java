@@ -4,6 +4,7 @@ import com.sism.common.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -172,6 +173,36 @@ public class GlobalExceptionHandler {
         
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+    
+    /**
+     * Handle database access exceptions.
+     */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponse<Void>> handleDataAccessException(DataAccessException e) {
+        String requestId = getOrGenerateRequestId();
+        String requestContext = getRequestContext();
+        
+        // Log the full error for server-side debugging
+        log.error("Database access error: message={}, type={}, requestId={}, context=[{}]", 
+                e.getMessage(), 
+                e.getClass().getName(), 
+                requestId,
+                requestContext,
+                e);
+        
+        // Get a user-friendly root cause message if possible
+        Throwable rootCause = e.getRootCause();
+        String detailMessage = (rootCause != null) ? rootCause.getMessage() : e.getMessage();
+        
+        // Create a more descriptive error message for the client
+        String userMessage = "数据库连接异常，请联系管理员。详情: " + detailMessage;
+        
+        ErrorResponse<Void> response = ErrorResponse.of("SYS_003", userMessage, requestId);
+        
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(response);
     }
     

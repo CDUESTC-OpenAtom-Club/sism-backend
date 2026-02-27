@@ -3,16 +3,19 @@ package com.sism.util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
  * Migrate strategic_task table to sys_task
  * This is a one-time migration utility
+ * Only runs when "migration.enabled=true" property is set
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@ConditionalOnProperty(name = "migration.enabled", havingValue = "true")
 public class SysTaskMigration implements CommandLineRunner {
 
     private final JdbcTemplate jdbcTemplate;

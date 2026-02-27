@@ -1,8 +1,8 @@
 # 数据库表结构索引
 
-**生成时间**: 2026-02-15 (基于实际数据库结构更新)
+**生成时间**: 2026-02-27 (基于冗余表清理更新)
 **数据库**: strategic (PostgreSQL @ 175.24.139.148:8386)
-**总表数**: 38 (不含已废弃表)
+**总表数**: 34 (不含已废弃表)
 **外键约束**: 0 个 (V1.9 迁移已全部删除，适配分布式数据库)
 **数据来源**: 实时数据库查询
 
@@ -18,14 +18,16 @@
 | sys_user | 系统用户表 | 9 | 1条 | ✅ 使用中 |
 | indicator | 指标表 | 33 | 711条 | ✅ 使用中 |
 | sys_task | 战略任务表 | 16 | 4条 | ✅ 使用中 |
-| milestone | 里程碑表 | 13 | 0条 | ✅ 使用中 |
 | cycle | 周期表 | 8 | 4条 | ✅ 使用中 |
-| assessment_cycle | 评估周期表 | 8 | 4条 | ✅ 使用中 |
 
-**注**: 以下表已在数据库中重命名（废弃），不再使用：
+**注**: 以下表已在数据库中重命名或废弃，不再使用：
 - ~~`org`~~ → 现使用 `sys_org` (原 `org` 表已重命名为 `org_deprecated`)
 - ~~`app_user`~~ → 现使用 `sys_user` (原 `sys_user` 表数据已移至 `sys_user`，旧表重命名为 `sys_user_deprecated`)
-- ~~`task`~~ → 现使用 `strategic_task` (原 `task` 表已重命名为 `task_deprecated`)
+- ~~`task`~~ → 经 `strategic_task` 迁移至 `sys_task` (原 `task` 表已重命名为 `task_deprecated`)
+- ~~`strategic_task`~~ → 现使用 `sys_task` (数据已迁移，表记录数为 0，已废弃)
+- ~~`strategic_task_backup`~~ → 迁移完成后的备份表，已废弃删除
+- ~~`milestone`~~ → 已被 `indicator_milestone` 替代（0条数据，已废弃）
+- ~~`assessment_cycle`~~ → 已被 `cycle` 替代（数据冗余，已废弃）
 
 ### 计划与报告表 (Plan & Report Tables)
 
@@ -99,17 +101,17 @@
 
 | 分类 | 表数量 | 占比 |
 |------|--------|------|
-| 核心业务表 | 7 | 18.4% |
-| 计划与报告表 | 6 | 15.8% |
-| 审批与审计表 | 6 | 15.8% |
-| 预警与告警表 | 7 | 18.4% |
-| 临时任务表 | 3 | 7.9% |
-| 系统管理表 | 4 | 10.5% |
-| 辅助功能表 | 4 | 10.5% |
-| Flyway 迁移表 | 1 | 2.6% |
-| **总计** | **38** | **100%** |
+| 核心业务表 | 5 | 14.7% |
+| 计划与报告表 | 6 | 17.6% |
+| 审批与审计表 | 6 | 17.6% |
+| 预警与告警表 | 7 | 20.6% |
+| 临时任务表 | 3 | 8.8% |
+| 系统管理表 | 4 | 11.8% |
+| 辅助功能表 | 4 | 11.8% |
+| Flyway 迁移表 | 1 | 2.9% |
+| **总计** | **34** | **100%** |
 
-**注**: 文档中提到的3张已废弃表（`org_deprecated`, `sys_user_deprecated`, `task_deprecated`）未计入此统计。
+**注**: 以下废弃表不计入此统计：`org_deprecated`, `sys_user_deprecated`, `task_deprecated`, `strategic_task`, `strategic_task_backup`, `milestone`, `assessment_cycle`（共7张废弃表）。
 
 ---
 
@@ -120,14 +122,12 @@
 sys_org (系统组织) - 29条数据
   ├── sys_user (系统用户) - 1条数据
   │   ├── indicator (指标) - 711条
-  │   │   ├── milestone (里程碑) - 0条
   │   │   └── indicator_milestone (关联)
-  │   ├── strategic_task (战略任务) - 4条
+  │   ├── sys_task (战略任务) - 4条
   │   ├── plan (计划) - 2条
   │   │   └── plan_report (计划报告)
   │   └── progress_report (进度报告)
   └── cycle (周期) - 4条
-      └── assessment_cycle (评估周期) - 4条
 ```
 
 ### 审批流程链
@@ -181,9 +181,8 @@ alert_rule (告警规则)
 - **指标管理**:
   - `indicator` - 指标表（711条数据）
   - `indicator_milestone` - 指标里程碑关联表
-  - `milestone` - 里程碑表（0条数据）
 - **任务管理**:
-  - `strategic_task` - ✅ **战略任务**（4条数据，关联计划和周期）
+  - `sys_task` - ✅ **战略任务**（4条数据，关联计划和周期）
   - `adhoc_task` - ✅ **临时任务**（0条数据，灵活创建）
 - **计划报告**:
   - `plan` - 计划表（2条数据）
@@ -196,10 +195,9 @@ alert_rule (告警规则)
 - **核心表** (数据量较大):
   - sys_org: 29条
   - indicator: 711条
-  - strategic_task: 4条
+  - sys_task: 4条
   - plan: 2条
   - cycle: 4条
-  - assessment_cycle: 4条
 - **配置表** (数据量小):
   - sys_role, sys_permission, warn_level, alert_rule
 - **日志表** (数据量可能大):
@@ -250,17 +248,31 @@ alert_rule (告警规则)
 - `task` 表重命名为 `task_deprecated`
 - 同步 `cycle` 表数据到 `assessment_cycle` 表
 
+### ✅ V2.0: 冗余表清理 (已完成)
+
+**执行时间**: 2026-02-27
+
+**变更内容**:
+- `strategic_task` 数据迁移至 `sys_task`（4条有效数据），`strategic_task` 标记废弃
+- `strategic_task_backup` 备份表已完成使命，标记废弃删除
+- `milestone` (0条数据) 废弃，功能已由 `indicator_milestone` 关联表替代
+- `assessment_cycle` (冗余数据) 废弃，功能已由 `cycle` 表统一管理
+
+**影响**:
+- 活跃表总数从 38 减少至 34
+- 核心任务表统一为 `sys_task`，命名与 `sys_org`、`sys_user` 风格一致
+
 ---
 
 ## 📋 重要提示
 
 1. **外键约束**: 已全部删除（V1.9），数据完整性由应用层代码保证
-2. **表命名**: 核心实体使用 `Sys` 前缀（`SysOrg`, `SysUser`）
-3. **废弃表**: `org_deprecated`, `sys_user_deprecated`, `task_deprecated` 保留数据但不再使用
-4. **数据同步**: `cycle` 和 `assessment_cycle` 表数据保持同步
-5. **任务表**: 统一使用 `strategic_task`，`adhoc_task` 用于临时灵活任务
+2. **表命名**: 核心实体使用 `Sys` 前缀（`SysOrg`, `SysUser`, `SysTask`）
+3. **废弃表**: `org_deprecated`, `sys_user_deprecated`, `task_deprecated`, `strategic_task`, `strategic_task_backup`, `milestone`, `assessment_cycle` 共7张，保留或已删除，不再使用
+4. **周期表**: 统一使用 `cycle`，`assessment_cycle` 已废弃
+5. **任务表**: 统一使用 `sys_task`，`adhoc_task` 用于临时灵活任务
 
 ---
 
-**文档生成时间**: 2026-02-15
+**文档生成时间**: 2026-02-27
 **下次更新建议**: 补充各个表的详细结构文档

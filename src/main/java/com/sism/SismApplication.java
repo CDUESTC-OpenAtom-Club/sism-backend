@@ -1,6 +1,5 @@
 package com.sism;
 
-import com.sism.config.EnvConfig;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -26,29 +25,53 @@ import java.io.File;
 public class SismApplication implements CommandLineRunner {
 
     public static void main(String[] args) {
+        // 在启动 Spring 容器之前加载 .env 文件中的环境变量
+        // 这样 DataSource 等 Bean 才能正确获取配置
+        loadEnvVariables();
+        
         SpringApplication.run(SismApplication.class, args);
+    }
+
+    private static void loadEnvVariables() {
+        try {
+            // 尝试在多个可能的目录中查找 .env 文件
+            String[] possibleDirs = {
+                System.getProperty("user.dir"),
+                System.getProperty("user.dir") + File.separator + "sism-backend",
+                new File(SismApplication.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParentFile().getParentFile().getParentFile().getAbsolutePath()
+            };
+
+            boolean loaded = false;
+            for (String dir : possibleDirs) {
+                File envFile = new File(dir, ".env");
+                if (envFile.exists()) {
+                    System.out.println(">>> Found .env file at: " + envFile.getAbsolutePath());
+                    io.github.cdimascio.dotenv.Dotenv dotenv = io.github.cdimascio.dotenv.Dotenv.configure()
+                            .directory(dir)
+                            .ignoreIfMissing()
+                            .load();
+
+                    dotenv.entries().forEach(entry -> {
+                        // 始终设置或覆盖系统属性，确保 .env 中的配置优先级高
+                        System.setProperty(entry.getKey(), entry.getValue());
+                    });
+                    
+                    System.out.println(">>> Environment variables loaded from " + dir);
+                    loaded = true;
+                    break;
+                }
+            }
+
+            if (!loaded) {
+                System.out.println(">>> No .env file found in searched locations. Using default configurations.");
+            }
+        } catch (Exception e) {
+            System.err.println("!!! Error during environment variables loading: " + e.getMessage());
+        }
     }
 
     @Override
     public void run(String... args) throws Exception {
-        try {
-            File projectDir = new File(System.getProperty("user.dir"));
-            io.github.cdimascio.dotenv.Dotenv dotenv = io.github.cdimascio.dotenv.Dotenv.configure()
-                    .directory(projectDir.getAbsolutePath())
-                    .ignoreIfMissing()
-                    .load();
-
-            System.out.println("Loaded environment variables from .env file");
-
-            dotenv.entries().forEach(entry -> {
-                System.setProperty(entry.getKey(), entry.getValue());
-                System.out.println("Set system property: " + entry.getKey() + " = " + entry.getValue());
-            });
-
-            System.out.println("Environment variables loaded successfully");
-        } catch (Exception e) {
-            System.err.println("Failed to load environment variables: " + e.getMessage());
-            e.printStackTrace();
-        }
+        // CommandLineRunner logic if needed
     }
 }
