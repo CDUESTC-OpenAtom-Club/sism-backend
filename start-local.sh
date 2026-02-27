@@ -18,6 +18,14 @@ echo ""
 # 切换到脚本所在目录
 cd "$(dirname "$0")"
 
+# 加载 .env 文件（如果存在）
+if [ -f ".env" ]; then
+    echo "→ 加载环境变量从 .env 文件..."
+    export $(grep -v '^#' .env | xargs)
+    echo "✓ 环境变量已加载"
+    echo ""
+fi
+
 # 检查 JAR 文件是否存在
 if [ ! -f "target/sism-backend-1.0.0.jar" ]; then
     echo "⚠ JAR 文件不存在，正在构建..."
@@ -26,8 +34,8 @@ if [ ! -f "target/sism-backend-1.0.0.jar" ]; then
 fi
 
 # 检查是否已有服务在运行
-if lsof -i :8080 > /dev/null 2>&1; then
-    echo "⚠ 端口 8080 已被占用，正在停止旧服务..."
+if lsof -i :${SERVER_PORT:-8080} > /dev/null 2>&1; then
+    echo "⚠ 端口 ${SERVER_PORT:-8080} 已被占用，正在停止旧服务..."
     ps aux | grep "sism-backend-1.0.0.jar" | grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null || true
     sleep 2
 fi
@@ -42,11 +50,11 @@ echo "等待服务就绪..."
 sleep 10
 
 # 检查服务状态
-if curl -s http://localhost:8080/api/actuator/health > /dev/null 2>&1; then
+if curl -s http://localhost:${SERVER_PORT:-8080}/api/actuator/health > /dev/null 2>&1; then
     echo "✓ 服务启动成功！"
     echo ""
-    echo "服务地址: http://localhost:8080"
-    echo "健康检查: http://localhost:8080/api/actuator/health"
+    echo "服务地址: http://localhost:${SERVER_PORT:-8080}"
+    echo "健康检查: http://localhost:${SERVER_PORT:-8080}/api/actuator/health"
     echo "日志文件: /tmp/sism-backend.log"
     echo ""
     echo "查看日志: tail -f /tmp/sism-backend.log"

@@ -1,7 +1,6 @@
 package com.sism.config;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -13,6 +12,9 @@ import java.util.List;
 /**
  * CORS (Cross-Origin Resource Sharing) configuration
  * Allows frontend applications to access backend APIs
+ * 
+ * NOTE: 此配置已禁用，改用 SecurityConfig 中的 CORS 配置
+ * 避免多个 CORS 过滤器冲突导致 "Invalid CORS request" 错误
  * 
  * Requirements: 7.3 - Configure CORS for production domain
  */
@@ -34,47 +36,41 @@ public class CorsConfig {
     @Value("${app.cors.max-age:3600}")
     private long maxAge;
     
-    @Bean
-    public CorsFilter corsFilter() {
-        CorsConfiguration config = new CorsConfiguration();
-        
-        // Allow credentials (cookies, authorization headers)
-        config.setAllowCredentials(allowCredentials);
-        
-        // Parse allowed origins from configuration
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
-        
-        // Use allowedOriginPatterns for wildcard support
-        for (String origin : origins) {
-            String trimmedOrigin = origin.trim();
-            if (trimmedOrigin.contains("*")) {
-                // Use pattern for wildcard origins
-                config.addAllowedOriginPattern(trimmedOrigin);
-            } else {
-                // Use exact origin for non-wildcard
-                config.addAllowedOrigin(trimmedOrigin);
-            }
-        }
-        
-        // Allowed HTTP methods
-        config.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
-        
-        // Allowed headers
-        config.setAllowedHeaders(Arrays.asList(allowedHeaders.split(",")));
-        
-        // Exposed headers (accessible to frontend)
-        config.setExposedHeaders(Arrays.asList(
-            "Authorization",
-            "X-Request-ID",
-            "Content-Disposition"
-        ));
-        
-        // Max age for preflight requests (in seconds)
-        config.setMaxAge(maxAge);
-        
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        
-        return new CorsFilter(source);
-    }
+    // 禁用独立的 CorsFilter，避免与 SecurityConfig 中的 CORS 配置冲突
+    // 多个 CORS 过滤器会导致 "Invalid CORS request" 403 错误
+    //
+    // @Bean
+    // public CorsFilter corsFilter() {
+    //     CorsConfiguration config = new CorsConfiguration();
+    //     
+    //     config.setAllowCredentials(allowCredentials);
+    //     
+    //     List<String> origins = Arrays.asList(allowedOrigins.split(","));
+    //     
+    //     for (String origin : origins) {
+    //         String trimmedOrigin = origin.trim();
+    //         if (trimmedOrigin.contains("*")) {
+    //             config.addAllowedOriginPattern(trimmedOrigin);
+    //         } else {
+    //             config.addAllowedOrigin(trimmedOrigin);
+    //         }
+    //     }
+    //     
+    //     config.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
+    //     
+    //     config.setAllowedHeaders(Arrays.asList(allowedHeaders.split(",")));
+    //     
+    //     config.setExposedHeaders(Arrays.asList(
+    //         "Authorization",
+    //         "X-Request-ID",
+    //         "Content-Disposition"
+    //     ));
+    //     
+    //     config.setMaxAge(maxAge);
+    //     
+    //     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    //     source.registerCorsConfiguration("/**", config);
+    //     
+    //     return new CorsFilter(source);
+    // }
 }
