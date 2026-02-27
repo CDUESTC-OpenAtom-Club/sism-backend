@@ -224,6 +224,18 @@ public class Indicator {
      * @return IndicatorVO with all field mappings
      */
     public IndicatorVO toDTO() {
+        // 如果 ownerDept 为空,从 ownerOrg 关联对象中获取
+        String ownerDeptName = this.ownerDept;
+        if (ownerDeptName == null && this.ownerOrg != null) {
+            ownerDeptName = this.ownerOrg.getName();
+        }
+        
+        // 如果 responsibleDept 为空,从 targetOrg 关联对象中获取
+        String responsibleDeptName = this.responsibleDept;
+        if (responsibleDeptName == null && this.targetOrg != null) {
+            responsibleDeptName = this.targetOrg.getName();
+        }
+        
         return new IndicatorVO(
             this.indicatorId,
             this.taskId,
@@ -237,8 +249,8 @@ public class Indicator {
             this.createdAt,
             this.updatedAt,
             this.year,
-            this.ownerDept,
-            this.responsibleDept,
+            ownerDeptName,
+            responsibleDeptName,
             this.targetOrg != null ? this.targetOrg.getId() : null, // targetOrgId
             this.ownerOrg != null ? this.ownerOrg.getId() : null, // ownerOrgId
             this.weightPercent, // weight alias
@@ -253,7 +265,9 @@ public class Indicator {
             this.actualValue, // actualValue
             this.targetValue, // targetValue
             this.responsiblePerson, // responsiblePerson
-            null, // isStrategic - computed field
+            // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
+            "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
+            this.statusAudit, // statusAudit - JSON string
             this.childIndicators != null
                 ? this.childIndicators.stream()
                     .map(Indicator::toDTO)
@@ -276,6 +290,18 @@ public class Indicator {
      * @return IndicatorVO with all field mappings
      */
     public IndicatorVO toDTO(String taskName) {
+        // 如果 ownerDept 为空,从 ownerOrg 关联对象中获取
+        String ownerDeptName = this.ownerDept;
+        if (ownerDeptName == null && this.ownerOrg != null) {
+            ownerDeptName = this.ownerOrg.getName();
+        }
+        
+        // 如果 responsibleDept 为空,从 targetOrg 关联对象中获取
+        String responsibleDeptName = this.responsibleDept;
+        if (responsibleDeptName == null && this.targetOrg != null) {
+            responsibleDeptName = this.targetOrg.getName();
+        }
+        
         return new IndicatorVO(
             this.indicatorId,
             this.taskId,
@@ -289,8 +315,8 @@ public class Indicator {
             this.createdAt,
             this.updatedAt,
             this.year,
-            this.ownerDept,
-            this.responsibleDept,
+            ownerDeptName,
+            responsibleDeptName,
             this.targetOrg != null ? this.targetOrg.getId() : null, // targetOrgId
             this.ownerOrg != null ? this.ownerOrg.getId() : null, // ownerOrgId
             this.weightPercent, // weight alias
@@ -305,7 +331,9 @@ public class Indicator {
             this.actualValue, // actualValue
             this.targetValue, // targetValue
             this.responsiblePerson, // responsiblePerson
-            this.level == IndicatorLevel.STRAT_TO_FUNC, // isStrategic
+            // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
+            "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
+            this.statusAudit, // statusAudit - JSON string
             this.childIndicators != null
                 ? this.childIndicators.stream()
                     .map(Indicator::toDTO)

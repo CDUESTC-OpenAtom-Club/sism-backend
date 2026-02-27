@@ -254,10 +254,10 @@ public class MilestoneService {
             milestone.setMilestoneDesc(request.getMilestoneDesc());
         }
         if (request.getDueDate() != null) {
-            milestone.setDueDate(request.getDueDate());
+            milestone.setDueDate(LocalDate.parse(request.getDueDate()));
         }
         if (request.getStatus() != null) {
-            milestone.setStatus(request.getStatus());
+            milestone.setStatus(MilestoneStatus.valueOf(request.getStatus()));
         }
         if (request.getSortOrder() != null) {
             milestone.setSortOrder(request.getSortOrder());

@@ -250,7 +250,7 @@ class MilestoneServiceTest {
             MilestoneVO created = milestoneService.createMilestone(createRequest);
 
             MilestoneUpdateRequest updateRequest = new MilestoneUpdateRequest();
-            updateRequest.setStatus(MilestoneStatus.IN_PROGRESS);
+            updateRequest.setStatus(MilestoneStatus.IN_PROGRESS.name());
 
             // When
             MilestoneVO result = milestoneService.updateMilestone(

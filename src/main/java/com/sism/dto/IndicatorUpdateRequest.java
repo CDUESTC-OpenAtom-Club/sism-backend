@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * DTO for updating an indicator - Simplified to match database
@@ -29,4 +30,8 @@ public class IndicatorUpdateRequest {
     private Integer progress;
     
     private Boolean canWithdraw;
+    
+    private List<MilestoneUpdateRequest> milestones;
+    
+    private String statusAudit;  // JSON string for status audit trail
 }

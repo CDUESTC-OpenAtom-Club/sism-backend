@@ -140,4 +140,14 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
      * Find indicators by type1, type2 and status
      */
     List<Indicator> findByType1AndType2AndStatus(String type1, String type2, IndicatorStatus status);
+    
+    /**
+     * Find all indicators with eagerly loaded organization relationships
+     * This avoids N+1 query problem when accessing ownerOrg and targetOrg
+     */
+    @Query("SELECT DISTINCT i FROM Indicator i " +
+           "LEFT JOIN FETCH i.ownerOrg " +
+           "LEFT JOIN FETCH i.targetOrg " +
+           "WHERE i.isDeleted = false OR i.isDeleted IS NULL")
+    List<Indicator> findAllWithOrganizations();
 }

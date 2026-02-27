@@ -47,6 +47,7 @@ public class IndicatorVO {
     private BigDecimal targetValue;  // 新增：目标值
     private String responsiblePerson;  // 新增：责任人
     private Boolean isStrategic;
+    private String statusAudit;  // JSON string for status audit trail
     private List<IndicatorVO> childIndicators;
     private List<MilestoneVO> milestones;
 
@@ -89,6 +90,7 @@ public class IndicatorVO {
         BigDecimal targetValue,
         String responsiblePerson,
         Boolean isStrategic,
+        String statusAudit,
         List<IndicatorVO> childIndicators,
         List<MilestoneVO> milestones
     ) {
@@ -126,6 +128,7 @@ public class IndicatorVO {
         this.targetValue = targetValue;
         this.responsiblePerson = responsiblePerson;
         this.isStrategic = isStrategic;
+        this.statusAudit = statusAudit;
         this.childIndicators = childIndicators != null ? List.copyOf(childIndicators) : List.of();
         this.milestones = milestones != null ? List.copyOf(milestones) : List.of();
     }
@@ -151,7 +154,7 @@ public class IndicatorVO {
             indicatorId, taskId, parentIndicatorId, indicatorDesc,
             weightPercent, sortOrder, remark, type, progress,
             createdAt, updatedAt, null, null, null, null, null,
-            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
         );
     }
 
@@ -186,6 +189,7 @@ public class IndicatorVO {
     public BigDecimal getTargetValue() { return targetValue; }
     public String getResponsiblePerson() { return responsiblePerson; }
     public Boolean getIsStrategic() { return isStrategic; }
+    public String getStatusAudit() { return statusAudit; }
     public List<IndicatorVO> getChildIndicators() { return childIndicators; }
     public List<MilestoneVO> getMilestones() { return milestones; }
 
@@ -226,6 +230,7 @@ public class IndicatorVO {
     public void setTargetValue(BigDecimal targetValue) { this.targetValue = targetValue; }
     public void setResponsiblePerson(String responsiblePerson) { this.responsiblePerson = responsiblePerson; }
     public void setIsStrategic(Boolean isStrategic) { this.isStrategic = isStrategic; }
+    public void setStatusAudit(String statusAudit) { this.statusAudit = statusAudit; }
     public void setChildIndicators(List<IndicatorVO> childIndicators) { 
         this.childIndicators = childIndicators != null ? List.copyOf(childIndicators) : List.of(); 
     }

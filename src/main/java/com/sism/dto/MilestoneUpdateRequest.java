@@ -1,32 +1,32 @@
 package com.sism.dto;
 
-import com.sism.enums.MilestoneStatus;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 
 /**
- * DTO for updating a milestone
+ * DTO for milestone data in indicator update request
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class MilestoneUpdateRequest {
-
-    @Size(max = 200, message = "Milestone name must not exceed 200 characters")
+    
+    private Long milestoneId;  // 0 or null means create new milestone
+    
     private String milestoneName;
-
-    private String milestoneDesc;
-
-    private LocalDate dueDate;
-
+    
+    private String milestoneDesc;  // Optional description
+    
+    private Integer targetProgress;
+    
+    private String dueDate;  // Format: YYYY-MM-DD (String type for easy parsing)
+    
+    private String status;  // NOT_STARTED, IN_PROGRESS, COMPLETED, DELAYED, CANCELED (String type for easy parsing)
+    
     private BigDecimal weightPercent;
-
-    private MilestoneStatus status;
-
+    
     private Integer sortOrder;
 }

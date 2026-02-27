@@ -2,6 +2,7 @@ package com.sism.service;
 
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
+import com.sism.dto.MilestoneUpdateRequest;
 import com.sism.entity.SysUser;
 import com.sism.entity.Indicator;
 import com.sism.entity.Milestone;
@@ -10,9 +11,11 @@ import com.sism.entity.StrategicTask;
 import com.sism.enums.AuditEntityType;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
+import com.sism.enums.MilestoneStatus;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.IndicatorRepository;
+import com.sism.repository.MilestoneRepository;
 import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.repository.UserRepository;
@@ -24,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -59,8 +63,9 @@ public class IndicatorService {
      * Get all indicators (optimized with batch loading)
      */
     public List<IndicatorVO> getAllIndicators() {
-        List<Indicator> indicators = indicatorRepository.findAll();
-        log.info("Found {} total indicators in database", indicators.size());
+        // 使用 JOIN FETCH 查询,避免 N+1 问题
+        List<Indicator> indicators = indicatorRepository.findAllWithOrganizations();
+        log.info("Found {} total indicators in database (with organizations loaded)", indicators.size());
         
         List<Indicator> activeIndicators = indicators.stream()
                 .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
@@ -232,10 +237,103 @@ public class IndicatorService {
             indicator.setCanWithdraw(request.getCanWithdraw());
         }
 
+        // Update status audit if provided
+        if (request.getStatusAudit() != null) {
+            indicator.setStatusAudit(request.getStatusAudit());
+        }
+
+        // Update milestones if provided
+        if (request.getMilestones() != null) {
+            updateIndicatorMilestones(indicator, request.getMilestones());
+        }
+
         indicator.setUpdatedAt(LocalDateTime.now());
         Indicator updatedIndicator = indicatorRepository.save(indicator);
         
         return toIndicatorVO(updatedIndicator);
+    }
+    
+    /**
+     * Update milestones for an indicator
+     * - Delete milestones not in the request
+     * - Update existing milestones
+     * - Create new milestones (milestoneId = 0 or null)
+     */
+    private void updateIndicatorMilestones(Indicator indicator, List<MilestoneUpdateRequest> milestoneRequests) {
+        log.info("[updateIndicatorMilestones] 开始更新指标 {} 的里程碑", indicator.getIndicatorId());
+        log.info("[updateIndicatorMilestones] 收到 {} 个里程碑更新请求", milestoneRequests.size());
+        
+        // Get existing milestones
+        List<Milestone> existingMilestones = milestoneRepository.findByIndicator_IndicatorId(indicator.getIndicatorId());
+        log.info("[updateIndicatorMilestones] 数据库中现有 {} 个里程碑", existingMilestones.size());
+        
+        // Collect IDs from request
+        Set<Long> requestedIds = milestoneRequests.stream()
+                .map(MilestoneUpdateRequest::getMilestoneId)
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toSet());
+        log.info("[updateIndicatorMilestones] 请求中包含的现有里程碑ID: {}", requestedIds);
+        
+        // Delete milestones not in request
+        List<Milestone> toDelete = existingMilestones.stream()
+                .filter(m -> !requestedIds.contains(m.getMilestoneId()))
+                .collect(Collectors.toList());
+        log.info("[updateIndicatorMilestones] 将删除 {} 个里程碑: {}", toDelete.size(), 
+                toDelete.stream().map(Milestone::getMilestoneId).collect(Collectors.toList()));
+        toDelete.forEach(milestoneRepository::delete);
+        
+        // Update or create milestones
+        int updateCount = 0;
+        int createCount = 0;
+        for (MilestoneUpdateRequest req : milestoneRequests) {
+            log.info("[updateIndicatorMilestones] 处理里程碑: milestoneId={}, name={}", 
+                    req.getMilestoneId(), req.getMilestoneName());
+            
+            if (req.getMilestoneId() != null && req.getMilestoneId() > 0) {
+                // Update existing milestone
+                Milestone milestone = milestoneRepository.findById(req.getMilestoneId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Milestone", req.getMilestoneId()));
+                updateMilestoneFromRequest(milestone, req);
+                milestoneRepository.save(milestone);
+                updateCount++;
+                log.info("[updateIndicatorMilestones] 更新了里程碑 {}", req.getMilestoneId());
+            } else {
+                // Create new milestone
+                Milestone newMilestone = new Milestone();
+                newMilestone.setIndicator(indicator);  // Set the indicator relationship
+                updateMilestoneFromRequest(newMilestone, req);
+                Milestone saved = milestoneRepository.save(newMilestone);
+                createCount++;
+                log.info("[updateIndicatorMilestones] 创建了新里程碑，ID={}, name={}", 
+                        saved.getMilestoneId(), saved.getMilestoneName());
+            }
+        }
+        
+        log.info("[updateIndicatorMilestones] 完成更新: 更新了 {} 个，创建了 {} 个，删除了 {} 个", 
+                updateCount, createCount, toDelete.size());
+    }
+    
+    /**
+     * Update milestone fields from request
+     */
+    private void updateMilestoneFromRequest(Milestone milestone, MilestoneUpdateRequest req) {
+        if (req.getMilestoneName() != null) {
+            milestone.setMilestoneName(req.getMilestoneName());
+        }
+        if (req.getTargetProgress() != null) {
+            milestone.setTargetProgress(req.getTargetProgress());
+        }
+        if (req.getDueDate() != null) {
+            milestone.setDueDate(LocalDate.parse(req.getDueDate()));
+        }
+        if (req.getStatus() != null) {
+            milestone.setStatus(MilestoneStatus.valueOf(req.getStatus()));
+        }
+        // Note: Milestone entity doesn't have weightPercent field, skip it
+        if (req.getSortOrder() != null) {
+            milestone.setSortOrder(req.getSortOrder());
+        }
+        milestone.setUpdatedAt(LocalDateTime.now());
     }
 
     /**
@@ -310,6 +408,18 @@ public class IndicatorService {
                         List.of()
                     );
                     
+                    // 如果 ownerDept 为空,从 ownerOrg 关联对象中获取
+                    String ownerDeptName = indicator.getOwnerDept();
+                    if (ownerDeptName == null && indicator.getOwnerOrg() != null) {
+                        ownerDeptName = indicator.getOwnerOrg().getName();
+                    }
+                    
+                    // 如果 responsibleDept 为空,从 targetOrg 关联对象中获取
+                    String responsibleDeptName = indicator.getResponsibleDept();
+                    if (responsibleDeptName == null && indicator.getTargetOrg() != null) {
+                        responsibleDeptName = indicator.getTargetOrg().getName();
+                    }
+                    
                     return new IndicatorVO(
                         indicator.getIndicatorId(),
                         indicator.getTaskId(),
@@ -323,8 +433,8 @@ public class IndicatorService {
                         indicator.getCreatedAt(),
                         indicator.getUpdatedAt(),
                         indicator.getYear(),
-                        indicator.getOwnerDept(),
-                        indicator.getResponsibleDept(),
+                        ownerDeptName,
+                        responsibleDeptName,
                         indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null, // targetOrgId
                         indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getId() : null, // ownerOrgId
                         indicator.getWeightPercent(), // weight
@@ -339,7 +449,9 @@ public class IndicatorService {
                         indicator.getActualValue(), // actualValue
                         indicator.getTargetValue(), // targetValue
                         indicator.getResponsiblePerson(), // responsiblePerson
-                        indicator.getLevel() == IndicatorLevel.PRIMARY, // isStrategic
+                        // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
+                        "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
+                        indicator.getStatusAudit(), // statusAudit - JSON string
                         List.of(), // childIndicators
                         milestones  // milestones - 使用实际数据
                     );
@@ -358,6 +470,18 @@ public class IndicatorService {
                 .map(this::toMilestoneVO)
                 .collect(Collectors.toList());
         
+        // 如果 ownerDept 为空,从 ownerOrg 关联对象中获取
+        String ownerDeptName = indicator.getOwnerDept();
+        if (ownerDeptName == null && indicator.getOwnerOrg() != null) {
+            ownerDeptName = indicator.getOwnerOrg().getName();
+        }
+        
+        // 如果 responsibleDept 为空,从 targetOrg 关联对象中获取
+        String responsibleDeptName = indicator.getResponsibleDept();
+        if (responsibleDeptName == null && indicator.getTargetOrg() != null) {
+            responsibleDeptName = indicator.getTargetOrg().getName();
+        }
+        
         return new IndicatorVO(
             indicator.getIndicatorId(),
             indicator.getTaskId(),
@@ -371,8 +495,8 @@ public class IndicatorService {
             indicator.getCreatedAt(),
             indicator.getUpdatedAt(),
             indicator.getYear(),
-            indicator.getOwnerDept(),
-            indicator.getResponsibleDept(),
+            ownerDeptName,
+            responsibleDeptName,
             indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null, // targetOrgId
             indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getId() : null, // ownerOrgId
             indicator.getWeightPercent(), // weight
@@ -387,7 +511,9 @@ public class IndicatorService {
             indicator.getActualValue(), // actualValue
             indicator.getTargetValue(), // targetValue
             indicator.getResponsiblePerson(), // responsiblePerson
-            indicator.getLevel() == IndicatorLevel.PRIMARY, // isStrategic
+            // 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
+            "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"), // isStrategic
+            indicator.getStatusAudit(), // statusAudit - JSON string
             List.of(), // childIndicators
             milestones  // milestones - 使用实际数据
         );
