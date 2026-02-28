@@ -241,6 +241,52 @@ public class IndicatorService {
         if (request.getStatusAudit() != null) {
             indicator.setStatusAudit(request.getStatusAudit());
         }
+        
+        // Update progress approval status if provided
+        if (request.getProgressApprovalStatus() != null) {
+            String newStatus = request.getProgressApprovalStatus();
+            String oldStatus = indicator.getProgressApprovalStatus();
+            
+            log.info("Updating progressApprovalStatus for indicator {}: {} -> {}", 
+                    indicatorId, oldStatus, newStatus);
+            
+            // 审批通过逻辑：将 pendingProgress 复制到 progress，并清空待审批字段
+            if ("APPROVED".equals(newStatus) && !"APPROVED".equals(oldStatus)) {
+                log.info("Approving indicator {}: copying pendingProgress to progress", indicatorId);
+                
+                // 将待审批进度复制到实际进度
+                if (indicator.getPendingProgress() != null) {
+                    indicator.setProgress(indicator.getPendingProgress());
+                }
+                
+                // 清空待审批字段（自动处理，前端也会发送 null）
+                indicator.setPendingProgress(null);
+                indicator.setPendingRemark(null);
+                indicator.setPendingAttachments(null);
+            }
+            
+            indicator.setProgressApprovalStatus(newStatus);
+            log.info("Successfully set progressApprovalStatus to: {}", newStatus);
+        }
+        
+        // 注意：前端在审批通过时会显式发送 pendingProgress: null
+        // 我们需要区分"未提供字段"和"显式设置为 null"
+        // 但 Java 中无法区分，所以我们依赖审批通过逻辑自动清空
+        // 如果不是审批通过，则允许更新 pending 字段
+        if (!"APPROVED".equals(request.getProgressApprovalStatus())) {
+            // 只有在非审批状态下才允许更新 pending 字段
+            // 使用 hasProperty 检查字段是否存在（需要自定义逻辑或使用 Map）
+            // 简化处理：如果 request 中有值（包括 null），则更新
+            if (request.getPendingProgress() != null) {
+                indicator.setPendingProgress(request.getPendingProgress());
+            }
+            if (request.getPendingRemark() != null) {
+                indicator.setPendingRemark(request.getPendingRemark());
+            }
+            if (request.getPendingAttachments() != null) {
+                indicator.setPendingAttachments(request.getPendingAttachments());
+            }
+        }
 
         // Update milestones if provided
         if (request.getMilestones() != null) {
@@ -452,6 +498,10 @@ public class IndicatorService {
                         // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
                         "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
                         indicator.getStatusAudit(), // statusAudit - JSON string
+                        indicator.getProgressApprovalStatus(), // progressApprovalStatus
+                        indicator.getPendingProgress(), // pendingProgress
+                        indicator.getPendingRemark(), // pendingRemark
+                        indicator.getPendingAttachments(), // pendingAttachments
                         List.of(), // childIndicators
                         milestones  // milestones - 使用实际数据
                     );
@@ -514,6 +564,10 @@ public class IndicatorService {
             // 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
             "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"), // isStrategic
             indicator.getStatusAudit(), // statusAudit - JSON string
+            indicator.getProgressApprovalStatus(), // progressApprovalStatus
+            indicator.getPendingProgress(), // pendingProgress
+            indicator.getPendingRemark(), // pendingRemark
+            indicator.getPendingAttachments(), // pendingAttachments
             List.of(), // childIndicators
             milestones  // milestones - 使用实际数据
         );

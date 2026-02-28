@@ -268,6 +268,10 @@ public class Indicator {
             // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
             "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
             this.statusAudit, // statusAudit - JSON string
+            this.progressApprovalStatus, // progressApprovalStatus
+            this.pendingProgress, // pendingProgress
+            this.pendingRemark, // pendingRemark
+            this.pendingAttachments, // pendingAttachments - JSON string
             this.childIndicators != null
                 ? this.childIndicators.stream()
                     .map(Indicator::toDTO)
@@ -334,6 +338,10 @@ public class Indicator {
             // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
             "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
             this.statusAudit, // statusAudit - JSON string
+            this.progressApprovalStatus, // progressApprovalStatus
+            this.pendingProgress, // pendingProgress
+            this.pendingRemark, // pendingRemark
+            this.pendingAttachments, // pendingAttachments - JSON string
             this.childIndicators != null
                 ? this.childIndicators.stream()
                     .map(Indicator::toDTO)

@@ -48,6 +48,10 @@ public class IndicatorVO {
     private String responsiblePerson;  // 新增：责任人
     private Boolean isStrategic;
     private String statusAudit;  // JSON string for status audit trail
+    private String progressApprovalStatus;  // 进度审批状态: NONE, DRAFT, PENDING, APPROVED, REJECTED
+    private Integer pendingProgress;  // 待审批进度 (0-100)
+    private String pendingRemark;  // 待审批备注
+    private String pendingAttachments;  // 待审批附件 (JSON string)
     private List<IndicatorVO> childIndicators;
     private List<MilestoneVO> milestones;
 
@@ -91,6 +95,10 @@ public class IndicatorVO {
         String responsiblePerson,
         Boolean isStrategic,
         String statusAudit,
+        String progressApprovalStatus,
+        Integer pendingProgress,
+        String pendingRemark,
+        String pendingAttachments,
         List<IndicatorVO> childIndicators,
         List<MilestoneVO> milestones
     ) {
@@ -129,6 +137,10 @@ public class IndicatorVO {
         this.responsiblePerson = responsiblePerson;
         this.isStrategic = isStrategic;
         this.statusAudit = statusAudit;
+        this.progressApprovalStatus = progressApprovalStatus;
+        this.pendingProgress = pendingProgress;
+        this.pendingRemark = pendingRemark;
+        this.pendingAttachments = pendingAttachments;
         this.childIndicators = childIndicators != null ? List.copyOf(childIndicators) : List.of();
         this.milestones = milestones != null ? List.copyOf(milestones) : List.of();
     }
@@ -154,7 +166,7 @@ public class IndicatorVO {
             indicatorId, taskId, parentIndicatorId, indicatorDesc,
             weightPercent, sortOrder, remark, type, progress,
             createdAt, updatedAt, null, null, null, null, null,
-            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
         );
     }
 
@@ -231,6 +243,14 @@ public class IndicatorVO {
     public void setResponsiblePerson(String responsiblePerson) { this.responsiblePerson = responsiblePerson; }
     public void setIsStrategic(Boolean isStrategic) { this.isStrategic = isStrategic; }
     public void setStatusAudit(String statusAudit) { this.statusAudit = statusAudit; }
+    public String getProgressApprovalStatus() { return progressApprovalStatus; }
+    public void setProgressApprovalStatus(String progressApprovalStatus) { this.progressApprovalStatus = progressApprovalStatus; }
+    public Integer getPendingProgress() { return pendingProgress; }
+    public void setPendingProgress(Integer pendingProgress) { this.pendingProgress = pendingProgress; }
+    public String getPendingRemark() { return pendingRemark; }
+    public void setPendingRemark(String pendingRemark) { this.pendingRemark = pendingRemark; }
+    public String getPendingAttachments() { return pendingAttachments; }
+    public void setPendingAttachments(String pendingAttachments) { this.pendingAttachments = pendingAttachments; }
     public void setChildIndicators(List<IndicatorVO> childIndicators) { 
         this.childIndicators = childIndicators != null ? List.copyOf(childIndicators) : List.of(); 
     }

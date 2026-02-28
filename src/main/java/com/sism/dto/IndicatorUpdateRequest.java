@@ -34,4 +34,12 @@ public class IndicatorUpdateRequest {
     private List<MilestoneUpdateRequest> milestones;
     
     private String statusAudit;  // JSON string for status audit trail
+    
+    private String progressApprovalStatus;  // 进度审批状态
+    
+    private Integer pendingProgress;  // 待审批进度
+    
+    private String pendingRemark;  // 待审批备注
+    
+    private String pendingAttachments;  // 待审批附件 (JSON string)
 }
