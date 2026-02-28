@@ -310,7 +310,8 @@ public class IndicatorService {
                         indicator.getIsQualitative(),
                         indicator.getType1(),
                         indicator.getType2(),
-                        indicator.getLevel() == IndicatorLevel.PRIMARY, // isStrategic
+                        // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
+                        "战略发展部".equals(indicator.getOwnerDept()) && indicator.getResponsibleDept() != null && !indicator.getResponsibleDept().contains("学院"),
                         List.of(), // childIndicators
                         List.of()  // milestones
                     );
@@ -345,7 +346,8 @@ public class IndicatorService {
             indicator.getIsQualitative(),
             indicator.getType1(),
             indicator.getType2(),
-            indicator.getLevel() == IndicatorLevel.PRIMARY, // isStrategic
+            // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
+            "战略发展部".equals(indicator.getOwnerDept()) && indicator.getResponsibleDept() != null && !indicator.getResponsibleDept().contains("学院"),
             List.of(), // childIndicators
             List.of()  // milestones
         );

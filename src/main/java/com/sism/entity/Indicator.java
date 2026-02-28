@@ -293,7 +293,8 @@ public class Indicator {
             this.isQualitative,
             this.type1,
             this.type2,
-            this.level == IndicatorLevel.STRAT_TO_FUNC, // isStrategic
+            // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
+            "战略发展部".equals(this.ownerDept) && this.responsibleDept != null && !this.responsibleDept.contains("学院"),
             this.childIndicators != null
                 ? this.childIndicators.stream()
                     .map(Indicator::toDTO)
