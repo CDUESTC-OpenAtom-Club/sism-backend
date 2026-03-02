@@ -446,6 +446,23 @@ public class IndicatorService {
                     Collectors.mapping(this::toMilestoneVO, Collectors.toList())
                 ));
         
+        // 批量加载任务名称（避免 N+1 问题）
+        Set<Long> taskIds = indicators.stream()
+                .map(Indicator::getTaskId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+        
+        Map<Long, String> taskNameMap = new HashMap<>();
+        if (!taskIds.isEmpty()) {
+            String sql = "SELECT task_id, task_name FROM sys_task WHERE task_id IN (:taskIds)";
+            List<Object[]> results = entityManager.createNativeQuery(sql)
+                    .setParameter("taskIds", new ArrayList<>(taskIds))
+                    .getResultList();
+            for (Object[] row : results) {
+                taskNameMap.put(((Number) row[0]).longValue(), row[1].toString());
+            }
+        }
+        
         // 直接组装VO（使用 indicator 表中的字段）
         return indicators.stream()
                 .map(indicator -> {
@@ -466,6 +483,11 @@ public class IndicatorService {
                         responsibleDeptName = indicator.getTargetOrg().getName();
                     }
                     
+                    // 从缓存中获取任务名称
+                    String taskName = indicator.getTaskId() != null 
+                        ? taskNameMap.getOrDefault(indicator.getTaskId(), getTaskNameByTaskId(indicator.getTaskId()))
+                        : "未分配任务";
+                    
                     return new IndicatorVO(
                         indicator.getIndicatorId(),
                         indicator.getTaskId(),
@@ -484,7 +506,7 @@ public class IndicatorService {
                         indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null, // targetOrgId
                         indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getId() : null, // ownerOrgId
                         indicator.getWeightPercent(), // weight
-                        generateTaskName(indicator), // taskName
+                        taskName, // taskName
                         indicator.getCanWithdraw(),
                         indicator.getStatus(),
                         indicator.getIsQualitative(),
