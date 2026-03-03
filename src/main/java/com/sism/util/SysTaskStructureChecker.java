@@ -18,6 +18,7 @@ import java.sql.SQLException;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@org.springframework.context.annotation.Profile("disabled")
 public class SysTaskStructureChecker implements CommandLineRunner {
 
     private final DataSource dataSource;
