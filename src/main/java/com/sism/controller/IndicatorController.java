@@ -201,7 +201,7 @@ public class IndicatorController {
     })
     public ResponseEntity<ApiResponse<IndicatorVO>> createIndicator(
             @Valid @RequestBody IndicatorCreateRequest request) {
-        log.info("Creating indicator: {}", request.getIndicatorDesc());
+        log.info("Creating indicator: {}, taskId: {}", request.getIndicatorDesc(), request.getTaskId());
         IndicatorVO indicator = indicatorService.createIndicator(request);
         return ResponseEntity.ok(ApiResponse.success("Indicator created successfully", indicator));
     }
