@@ -1,41 +1,55 @@
+# =============================================================================
+# SISM Backend - 通用配置
+# =============================================================================
+# 说明：
+# 1. 此文件包含所有环境通用的配置
+# 2. 所有环境变量都从 .env 文件读取，不设默认值
+# 3. 开发环境使用 .env，生产环境使用 .env.production
+# =============================================================================
+
 spring:
   application:
     name: sism-backend
 
-  # Database Configuration
-  # 开发环境使用硬编码配置，生产环境通过环境变量覆盖
+  # -----------------------------------------------------------------------------
+  # 数据库配置
+  # -----------------------------------------------------------------------------
   datasource:
-    url: ${DB_URL:jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:64378561huaW}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      connection-timeout: 30000
-      validation-timeout: 3000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+      maximum-pool-size: ${DB_HIKARI_MAX_POOL_SIZE}
+      minimum-idle: ${DB_HIKARI_MIN_IDLE}
+      connection-timeout: ${DB_HIKARI_CONNECTION_TIMEOUT}
+      validation-timeout: ${DB_HIKARI_VALIDATION_TIMEOUT}
+      idle-timeout: ${DB_HIKARI_IDLE_TIMEOUT}
+      max-lifetime: ${DB_HIKARI_MAX_LIFETIME}
       connection-test-query: SELECT 1
   
-  # JPA Configuration
+  # -----------------------------------------------------------------------------
+  # JPA 配置
+  # -----------------------------------------------------------------------------
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: none  # Flyway manages schema, disable validation
-    show-sql: false
+      ddl-auto: none  # Flyway 管理 schema
+    show-sql: ${JPA_SHOW_SQL}
     properties:
       hibernate:
-        format_sql: true
-        use_sql_comments: true
+        format_sql: ${JPA_FORMAT_SQL}
+        use_sql_comments: ${JPA_USE_SQL_COMMENTS}
         jdbc:
-          batch_size: 20
+          batch_size: ${JPA_BATCH_SIZE}
         order_inserts: true
         order_updates: true
   
-  # Flyway Configuration
+  # -----------------------------------------------------------------------------
+  # Flyway 配置
+  # -----------------------------------------------------------------------------
   flyway:
-    enabled: false  # 远程数据库已初始化，禁用迁移
+    enabled: ${FLYWAY_ENABLED}
     baseline-on-migrate: true
     baseline-version: 1.0
     locations: classpath:db/migration
@@ -43,89 +57,101 @@ spring:
     out-of-order: false
     placeholder-replacement: false
   
-  # SQL Initialization (默认禁用)
+  # -----------------------------------------------------------------------------
+  # SQL 初始化
+  # -----------------------------------------------------------------------------
   sql:
     init:
       mode: never  # 不自动执行 schema.sql 和 data.sql
   
-  # Redis Configuration
-  # 参考: Requirements 1.1, 1.6
+  # -----------------------------------------------------------------------------
+  # Redis 配置
+  # -----------------------------------------------------------------------------
   data:
     redis:
-      enabled: ${REDIS_ENABLED:false}  # 默认禁用,通过环境变量启用
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      database: ${REDIS_DATABASE:0}
-      timeout: ${REDIS_TIMEOUT:5000}  # 连接超时时间(毫秒)
+      enabled: ${REDIS_ENABLED}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE}
+      timeout: ${REDIS_TIMEOUT}
       lettuce:
         pool:
-          max-active: ${REDIS_POOL_MAX_ACTIVE:8}  # 连接池最大连接数
-          max-idle: ${REDIS_POOL_MAX_IDLE:8}      # 连接池最大空闲连接数
-          min-idle: ${REDIS_POOL_MIN_IDLE:0}      # 连接池最小空闲连接数
-          max-wait: ${REDIS_POOL_MAX_WAIT:-1}     # 连接池最大阻塞等待时间(毫秒),-1表示无限制
-        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT:100}  # 关闭超时时间(毫秒)
+          max-active: ${REDIS_POOL_MAX_ACTIVE}
+          max-idle: ${REDIS_POOL_MAX_IDLE}
+          min-idle: ${REDIS_POOL_MIN_IDLE}
+          max-wait: ${REDIS_POOL_MAX_WAIT}
+        shutdown-timeout: ${REDIS_SHUTDOWN_TIMEOUT}
   
-  # Jackson Configuration
+  # -----------------------------------------------------------------------------
+  # Jackson 配置
+  # -----------------------------------------------------------------------------
   jackson:
     time-zone: Asia/Shanghai
     date-format: yyyy-MM-dd HH:mm:ss
     serialization:
       write-dates-as-timestamps: false
 
-# Server Configuration
+# -----------------------------------------------------------------------------
+# 服务器配置
+# -----------------------------------------------------------------------------
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT}
   servlet:
-    context-path: /api
+    context-path: ${SERVER_CONTEXT_PATH}
   compression:
-    enabled: true
+    enabled: ${SERVER_COMPRESSION_ENABLED}
     mime-types: application/json,application/xml,text/html,text/xml,text/plain
 
-# Logging Configuration
-# 日志级别可通过环境变量动态配置
-# 参考: Requirements 1.3.5
+# -----------------------------------------------------------------------------
+# 日志配置
+# -----------------------------------------------------------------------------
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT:INFO}
-    com.sism: ${LOG_LEVEL_APP:DEBUG}
-    org.springframework.web: ${LOG_LEVEL_SPRING:INFO}
-    org.springframework.security: ${LOG_LEVEL_SECURITY:INFO}
-    org.hibernate.SQL: ${LOG_LEVEL_SQL:DEBUG}
-    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:TRACE}
+    root: ${LOG_LEVEL_ROOT}
+    com.sism: ${LOG_LEVEL_APP}
+    org.springframework.web: ${LOG_LEVEL_SPRING}
+    org.springframework.security: ${LOG_LEVEL_SECURITY}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER}
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
-# SpringDoc OpenAPI Configuration
+# -----------------------------------------------------------------------------
+# SpringDoc OpenAPI 配置
+# -----------------------------------------------------------------------------
 springdoc:
   api-docs:
-    path: /v3/api-docs
-    enabled: true
+    path: ${SPRINGDOC_API_DOCS_PATH}
+    enabled: ${SWAGGER_ENABLED}
   swagger-ui:
-    path: /swagger-ui.html
-    enabled: true
+    path: ${SPRINGDOC_SWAGGER_UI_PATH}
+    enabled: ${SWAGGER_ENABLED}
     operations-sorter: method
     tags-sorter: alpha
-    disable-swagger-default-url: true
+    disable-swagger-default-url: ${SPRINGDOC_DISABLE_SWAGGER_DEFAULT_URL}
   show-actuator: false
   packages-to-scan: com.sism.controller
 
-# JWT Configuration
-# 开发环境使用默认密钥，生产环境必须通过环境变量覆盖
+# -----------------------------------------------------------------------------
+# JWT 配置
+# -----------------------------------------------------------------------------
 jwt:
-  secret: ${JWT_SECRET:sism-jwt-secret-key-2025-secure-at-least-256-bits-long}
-  expiration: ${JWT_EXPIRATION:900000}  # 15 minutes in milliseconds
-  refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}  # 7 days in milliseconds
-  max-sessions-per-user: ${JWT_MAX_SESSIONS:5}  # Maximum concurrent sessions per user
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+  max-sessions-per-user: ${JWT_MAX_SESSIONS}
 
-# Spring Boot Actuator Configuration
+# -----------------------------------------------------------------------------
+# Actuator 配置
+# -----------------------------------------------------------------------------
 management:
   endpoints:
     web:
       exposure:
         include: health,info
-      base-path: /actuator
+      base-path: ${MANAGEMENT_BASE_PATH}
   endpoint:
     health:
       show-details: always
@@ -138,10 +164,8 @@ management:
       enabled: true
     readinessstate:
       enabled: true
-    # Redis健康检查(仅在Redis启用时生效)
     redis:
-      enabled: ${REDIS_ENABLED:false}
-    # 禁用可能导致慢的健康检查
+      enabled: ${REDIS_ENABLED}
     mail:
       enabled: false
     rabbit:
@@ -152,47 +176,50 @@ management:
       enabled: false
     diskspace:
       enabled: true
-      threshold: 10MB  # 磁盘空间检查阈值
+      threshold: ${MANAGEMENT_HEALTH_DISKSPACE_THRESHOLD}
 
-# Rate Limit Configuration
-# 频率限制配置
-# 参考: Requirements 2.3.3, 2.3.4, 2.3.5
+# -----------------------------------------------------------------------------
+# 速率限制配置
+# -----------------------------------------------------------------------------
 rate-limit:
-  enabled: ${RATE_LIMIT_ENABLED:true}
-  storage: ${RATE_LIMIT_STORAGE:memory}  # memory 或 redis
+  enabled: ${RATE_LIMIT_ENABLED}
+  storage: ${RATE_LIMIT_STORAGE}
   login:
-    limit: ${RATE_LIMIT_LOGIN_LIMIT:5}  # 登录接口限制次数
-    window-seconds: ${RATE_LIMIT_LOGIN_WINDOW:60}  # 时间窗口（秒）
+    limit: ${RATE_LIMIT_LOGIN_LIMIT}
+    window-seconds: ${RATE_LIMIT_LOGIN_WINDOW}
   api:
-    limit: ${RATE_LIMIT_API_LIMIT:100}  # 通用 API 限制次数
-    window-seconds: ${RATE_LIMIT_API_WINDOW:60}  # 时间窗口（秒）
+    limit: ${RATE_LIMIT_API_LIMIT}
+    window-seconds: ${RATE_LIMIT_API_WINDOW}
 
-# Idempotency Configuration
+# -----------------------------------------------------------------------------
 # 幂等性配置
+# -----------------------------------------------------------------------------
 idempotency:
-  enabled: ${IDEMPOTENCY_ENABLED:true}
-  ttl-seconds: ${IDEMPOTENCY_TTL:300}  # 5 minutes
-  protected-paths: /api/indicators,/api/milestones,/api/tasks,/api/approvals,/api/progress
+  enabled: ${IDEMPOTENCY_ENABLED}
+  ttl-seconds: ${IDEMPOTENCY_TTL_SECONDS}
+  protected-paths: ${IDEMPOTENCY_PROTECTED_PATHS}
 
-# Redis Feature Toggle
-# 控制是否使用 Redis 实现的服务（RateLimiter, TokenBlacklist, IdempotencyService）
-# 参考: Requirements 1.2, 1.3, 1.4
+# -----------------------------------------------------------------------------
+# Redis 功能开关
+# -----------------------------------------------------------------------------
 redis:
-  enabled: ${REDIS_ENABLED:false}  # 默认禁用，使用内存实现
+  enabled: ${REDIS_ENABLED}
 
-# Application Configuration
+# -----------------------------------------------------------------------------
+# 应用配置
+# -----------------------------------------------------------------------------
 app:
   cors:
-    allowed-origins: http://localhost:5173,http://localhost:3000
-    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
-    allowed-headers: Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature,X-Idempotency-Key
-    allow-credentials: true
-    max-age: 3600
+    allowed-origins: ${ALLOWED_ORIGINS}
+    allowed-methods: ${CORS_ALLOWED_METHODS}
+    allowed-headers: ${CORS_ALLOWED_HEADERS}
+    allow-credentials: ${CORS_ALLOW_CREDENTIALS}
+    max-age: ${CORS_MAX_AGE}
   security:
     headers:
-      enabled: true
-      frame-options: SAMEORIGIN
-      content-type-options: nosniff
-      xss-protection: 1; mode=block
-      referrer-policy: strict-origin-when-cross-origin
-      permissions-policy: geolocation=(), microphone=(), camera=()
+      enabled: ${SECURITY_HEADERS_ENABLED}
+      frame-options: ${SECURITY_FRAME_OPTIONS}
+      content-type-options: ${SECURITY_CONTENT_TYPE_OPTIONS}
+      xss-protection: ${SECURITY_XSS_PROTECTION}
+      referrer-policy: ${SECURITY_REFERRER_POLICY}
+      permissions-policy: ${SECURITY_PERMISSIONS_POLICY}

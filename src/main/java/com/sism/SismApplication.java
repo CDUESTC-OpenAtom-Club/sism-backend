@@ -23,14 +23,20 @@ import java.io.File;
  */
 @SpringBootApplication
 @EnableScheduling
-public class SismApplication implements CommandLineRunner {
+public class SismApplication {
 
     public static void main(String[] args) {
+        // 在 Spring Boot 启动之前加载 .env 文件
+        loadEnvironmentVariables();
+        
         SpringApplication.run(SismApplication.class, args);
     }
 
-    @Override
-    public void run(String... args) throws Exception {
+    /**
+     * 加载 .env 文件中的环境变量到系统属性
+     * 必须在 Spring Boot 启动之前执行
+     */
+    private static void loadEnvironmentVariables() {
         try {
             File projectDir = new File(System.getProperty("user.dir"));
             io.github.cdimascio.dotenv.Dotenv dotenv = io.github.cdimascio.dotenv.Dotenv.configure()
@@ -38,17 +44,19 @@ public class SismApplication implements CommandLineRunner {
                     .ignoreIfMissing()
                     .load();
 
-            System.out.println("Loaded environment variables from .env file");
+            System.out.println("📝 Loading environment variables from .env file...");
+            System.out.println("📁 Project directory: " + projectDir.getAbsolutePath());
 
+            // 将 .env 中的变量设置为系统属性
             dotenv.entries().forEach(entry -> {
                 System.setProperty(entry.getKey(), entry.getValue());
-                System.out.println("Set system property: " + entry.getKey() + " = " + entry.getValue());
             });
 
-            System.out.println("Environment variables loaded successfully");
+            System.out.println("✅ Environment variables loaded successfully!");
+            System.out.println("📊 Loaded " + dotenv.entries().size() + " variables");
         } catch (Exception e) {
-            System.err.println("Failed to load environment variables: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("⚠️ Failed to load .env file: " + e.getMessage());
+            System.err.println("⚠️ Will use system environment variables instead");
         }
     }
 }
