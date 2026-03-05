@@ -55,7 +55,6 @@ jobs:
             User ${{ env.SERVER_USER }}
             IdentityFile ~/.ssh/deploy_key
             Compression yes
-            CompressionLevel 6
             ServerAliveInterval 60
             ServerAliveCountMax 3
           EOF
