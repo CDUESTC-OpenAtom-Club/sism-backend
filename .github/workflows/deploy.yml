@@ -69,28 +69,39 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
             "systemctl stop sism-backend || true"
 
-      - name: Upload JAR with compression
+      - name: Compress and upload JAR
         run: |
-          # Upload with compression to speed up transfer
-          scp -C -i ~/.ssh/deploy_key target/${{ env.JAR_NAME }} \
-            ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.upload
+          # Compress JAR to reduce transfer time
+          cd target
+          tar -czf ${{ env.JAR_NAME }}.tar.gz ${{ env.JAR_NAME }}
+          COMPRESSED_SIZE=$(stat -c%s ${{ env.JAR_NAME }}.tar.gz)
+          echo "[INFO] Compressed size: $COMPRESSED_SIZE bytes"
+          
+          # Upload compressed file
+          scp -C -i ~/.ssh/deploy_key ${{ env.JAR_NAME }}.tar.gz \
+            ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.tar.gz
 
-      - name: Verify and move JAR
+      - name: Extract and verify JAR
         run: |
           ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
-            # Verify checksum before moving
-            REMOTE_MD5=$(md5sum /tmp/${{ env.JAR_NAME }}.upload | cut -d' ' -f1)
+            # Extract compressed file
+            cd /tmp
+            tar -xzf ${{ env.JAR_NAME }}.tar.gz
+            rm -f ${{ env.JAR_NAME }}.tar.gz
+            
+            # Verify checksum
+            REMOTE_MD5=$(md5sum /tmp/${{ env.JAR_NAME }} | cut -d' ' -f1)
             echo "[INFO] Remote MD5: $REMOTE_MD5"
             echo "[INFO] Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
 
             if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
               echo "[ERROR] Checksum mismatch!"
-              rm -f /tmp/${{ env.JAR_NAME }}.upload
+              rm -f /tmp/${{ env.JAR_NAME }}
               exit 1
             fi
 
             echo "[INFO] Checksum verified, moving to deployment directory"
-            mv /tmp/${{ env.JAR_NAME }}.upload /opt/sism/backend/${{ env.JAR_NAME }}
+            mv /tmp/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}
             chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}
             chmod 775 /opt/sism/backend/${{ env.JAR_NAME }}
             echo "[INFO] JAR deployed successfully"
