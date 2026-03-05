@@ -20,8 +20,23 @@ jobs:
     runs-on: [self-hosted, linux]
     
     steps:
+      - name: Fix Git permissions
+        run: |
+          echo "Fixing Git repository permissions..."
+          WORK_DIR="${GITHUB_WORKSPACE}"
+          if [ -d "$WORK_DIR/.git" ]; then
+            sudo chown -R $(whoami):$(whoami) "$WORK_DIR/.git" || true
+            sudo chmod -R u+rwX "$WORK_DIR/.git" || true
+          fi
+          # Clean up any stale locks
+          rm -f "$WORK_DIR/.git/index.lock" 2>/dev/null || true
+          echo "Git permissions fixed"
+
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 1
 
       - name: Set up JDK
         uses: actions/setup-java@v4
