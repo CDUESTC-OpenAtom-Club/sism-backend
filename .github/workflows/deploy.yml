@@ -75,11 +75,55 @@ jobs:
           cd target
           tar -czf ${{ env.JAR_NAME }}.tar.gz ${{ env.JAR_NAME }}
           COMPRESSED_SIZE=$(stat -c%s ${{ env.JAR_NAME }}.tar.gz)
-          echo "[INFO] Compressed size: $COMPRESSED_SIZE bytes"
+          COMPRESSED_MB=$(echo "scale=2; $COMPRESSED_SIZE / 1048576" | bc)
+          echo "[INFO] Compressed size: $COMPRESSED_SIZE bytes ($COMPRESSED_MB MB)"
           
-          # Upload compressed file
-          scp -C -i ~/.ssh/deploy_key ${{ env.JAR_NAME }}.tar.gz \
-            ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.tar.gz
+          # Clean up any partial uploads on server
+          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
+            "rm -f /tmp/${{ env.JAR_NAME }}.tar.gz"
+          
+          # Upload compressed file with timeout and retry
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "[INFO] Upload attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
+            START_TIME=$(date +%s)
+            
+            # Use rsync instead of scp for better reliability and progress
+            if timeout 600 rsync -avz --progress --timeout=300 \
+              -e "ssh -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o ServerAliveInterval=10" \
+              ${{ env.JAR_NAME }}.tar.gz \
+              ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.tar.gz; then
+              
+              END_TIME=$(date +%s)
+              DURATION=$((END_TIME - START_TIME))
+              echo "[INFO] Upload successful in ${DURATION}s"
+              
+              # Verify file size on server
+              REMOTE_SIZE=$(ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
+                "stat -c%s /tmp/${{ env.JAR_NAME }}.tar.gz")
+              
+              if [ "$REMOTE_SIZE" = "$COMPRESSED_SIZE" ]; then
+                echo "[INFO] File size verified: $REMOTE_SIZE bytes"
+                break
+              else
+                echo "[ERROR] File size mismatch: local=$COMPRESSED_SIZE, remote=$REMOTE_SIZE"
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+              fi
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "[WARN] Upload failed, cleaning up and retrying in 10 seconds..."
+                ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
+                  "rm -f /tmp/${{ env.JAR_NAME }}.tar.gz" || true
+                sleep 10
+              else
+                echo "[ERROR] Upload failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
 
       - name: Extract and verify JAR
         run: |
