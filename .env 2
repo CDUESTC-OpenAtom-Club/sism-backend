@@ -1,0 +1,217 @@
+# =============================================================================
+# SISM Backend Environment Variables - 本地开发环境
+# =============================================================================
+# ⚠️ 重要提示：
+# 1. 这是你的实际配置文件，包含真实的敏感信息
+# 2. 不要将此文件提交到 Git
+# 3. 所有配置统一在此文件中管理
+# 4. 如需参考模板，请查看 .env.example
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 数据库配置
+# -----------------------------------------------------------------------------
+# 数据库连接 URL - 连接远程服务器数据库
+DB_URL=jdbc:postgresql://175.24.139.148:8386/strategic?stringtype=unspecified
+
+# 数据库用户名
+DB_USERNAME=postgres
+
+# 数据库密码
+DB_PASSWORD=64378561huaW
+
+# Hikari 连接池配置
+DB_HIKARI_MAX_POOL_SIZE=10
+DB_HIKARI_MIN_IDLE=5
+DB_HIKARI_CONNECTION_TIMEOUT=30000
+DB_HIKARI_VALIDATION_TIMEOUT=3000
+DB_HIKARI_IDLE_TIMEOUT=600000
+DB_HIKARI_MAX_LIFETIME=1800000
+
+# -----------------------------------------------------------------------------
+# 服务器配置
+# -----------------------------------------------------------------------------
+SERVER_PORT=8080
+SERVER_CONTEXT_PATH=/api
+SERVER_COMPRESSION_ENABLED=true
+
+# -----------------------------------------------------------------------------
+# CORS 配置 - 统一管理（本地 + 生产）
+# -----------------------------------------------------------------------------
+# CORS 允许的源（本地 + 生产环境）
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:3500,https://blackevil.cn,https://www.blackevil.cn
+
+# CORS 允许的方法
+CORS_ALLOWED_METHODS=GET,POST,PUT,DELETE,OPTIONS
+
+# CORS 允许的请求头
+CORS_ALLOWED_HEADERS=Authorization,Content-Type,X-Requested-With,X-Timestamp,X-Signature,X-Idempotency-Key
+
+# CORS 是否允许凭证
+CORS_ALLOW_CREDENTIALS=true
+
+# CORS 预检缓存时间（秒）
+CORS_MAX_AGE=3600
+
+# -----------------------------------------------------------------------------
+# JWT 配置
+# -----------------------------------------------------------------------------
+# JWT 签名密钥（至少 256 位）
+JWT_SECRET=sism-jwt-secret-key-2025-secure-at-least-256-bits-long
+
+# JWT 访问令牌过期时间（毫秒）- 15 分钟
+JWT_EXPIRATION=900000
+
+# JWT 刷新令牌过期时间（毫秒）- 7 天
+JWT_REFRESH_EXPIRATION=604800000
+
+# 每个用户最大并发会话数
+JWT_MAX_SESSIONS=5
+
+# -----------------------------------------------------------------------------
+# Redis 配置（可选，默认禁用）
+# -----------------------------------------------------------------------------
+# 是否启用 Redis
+REDIS_ENABLED=false
+
+# Redis 主机
+REDIS_HOST=localhost
+
+# Redis 端口
+REDIS_PORT=6379
+
+# Redis 密码（可选）
+REDIS_PASSWORD=
+
+# Redis 数据库
+REDIS_DATABASE=0
+
+# Redis 连接超时（毫秒）
+REDIS_TIMEOUT=5000
+
+# Redis 连接池配置
+REDIS_POOL_MAX_ACTIVE=8
+REDIS_POOL_MAX_IDLE=8
+REDIS_POOL_MIN_IDLE=0
+REDIS_POOL_MAX_WAIT=-1
+REDIS_SHUTDOWN_TIMEOUT=100
+
+# -----------------------------------------------------------------------------
+# 日志配置
+# -----------------------------------------------------------------------------
+# 根日志级别
+LOG_LEVEL_ROOT=INFO
+
+# 应用日志级别
+LOG_LEVEL_APP=DEBUG
+
+# Spring 框架日志级别
+LOG_LEVEL_SPRING=INFO
+
+# Spring Security 日志级别
+LOG_LEVEL_SECURITY=INFO
+
+# SQL 日志级别
+LOG_LEVEL_SQL=DEBUG
+
+# SQL 参数绑定日志级别
+LOG_LEVEL_SQL_BINDER=TRACE
+
+# -----------------------------------------------------------------------------
+# 开发工具配置
+# -----------------------------------------------------------------------------
+# 是否启用 Swagger/OpenAPI 文档
+SWAGGER_ENABLED=true
+
+# 是否启用 Flyway 数据库迁移
+FLYWAY_ENABLED=false
+
+# 是否启用速率限制
+RATE_LIMIT_ENABLED=true
+
+# 是否启用幂等性检查
+IDEMPOTENCY_ENABLED=true
+
+# -----------------------------------------------------------------------------
+# 速率限制配置
+# -----------------------------------------------------------------------------
+# 速率限制存储方式（memory 或 redis）
+RATE_LIMIT_STORAGE=memory
+
+# 登录接口限制次数（开发环境提高限制）
+RATE_LIMIT_LOGIN_LIMIT=50
+
+# 登录接口时间窗口（秒）
+RATE_LIMIT_LOGIN_WINDOW=60
+
+# 通用 API 限制次数
+RATE_LIMIT_API_LIMIT=100
+
+# 通用 API 时间窗口（秒）
+RATE_LIMIT_API_WINDOW=60
+
+# -----------------------------------------------------------------------------
+# 幂等性配置
+# -----------------------------------------------------------------------------
+# 幂等性缓存 TTL（秒）
+IDEMPOTENCY_TTL_SECONDS=300
+
+# 受幂等性保护的路径
+IDEMPOTENCY_PROTECTED_PATHS=/api/indicators,/api/milestones,/api/tasks,/api/approvals,/api/progress
+
+# -----------------------------------------------------------------------------
+# SpringDoc OpenAPI 配置
+# -----------------------------------------------------------------------------
+# API 文档路径
+SPRINGDOC_API_DOCS_PATH=/v3/api-docs
+
+# Swagger UI 路径
+SPRINGDOC_SWAGGER_UI_PATH=/swagger-ui.html
+
+# 是否禁用 Swagger 默认 URL
+SPRINGDOC_DISABLE_SWAGGER_DEFAULT_URL=true
+
+# -----------------------------------------------------------------------------
+# 安全配置
+# -----------------------------------------------------------------------------
+# 是否启用安全响应头
+SECURITY_HEADERS_ENABLED=true
+
+# X-Frame-Options
+SECURITY_FRAME_OPTIONS=SAMEORIGIN
+
+# X-Content-Type-Options
+SECURITY_CONTENT_TYPE_OPTIONS=nosniff
+
+# X-XSS-Protection
+SECURITY_XSS_PROTECTION=1; mode=block
+
+# Referrer-Policy
+SECURITY_REFERRER_POLICY=strict-origin-when-cross-origin
+
+# Permissions-Policy
+SECURITY_PERMISSIONS_POLICY=geolocation=(), microphone=(), camera=()
+
+# -----------------------------------------------------------------------------
+# JPA/Hibernate 配置
+# -----------------------------------------------------------------------------
+# 是否显示 SQL
+JPA_SHOW_SQL=false
+
+# 是否格式化 SQL
+JPA_FORMAT_SQL=true
+
+# 是否使用 SQL 注释
+JPA_USE_SQL_COMMENTS=true
+
+# JDBC 批处理大小
+JPA_BATCH_SIZE=20
+
+# -----------------------------------------------------------------------------
+# Actuator 配置
+# -----------------------------------------------------------------------------
+# Actuator 基础路径
+MANAGEMENT_BASE_PATH=/actuator
+
+# 磁盘空间检查阈值
+MANAGEMENT_HEALTH_DISKSPACE_THRESHOLD=10MB

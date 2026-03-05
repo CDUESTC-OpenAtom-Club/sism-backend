@@ -1,7 +1,8 @@
 package com.sism.property;
 
-import com.alibaba.fastjson.JSONArray;
-import com.alibaba.fastjson.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sism.AbstractIntegrationTest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.entity.AuditInstance;
@@ -18,6 +19,7 @@ import com.sism.repository.UserRepository;
 import com.sism.service.IndicatorService;
 import com.sism.vo.IndicatorVO;
 import net.jqwik.api.*;
+import net.jqwik.spring.JqwikSpringSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -51,6 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * **Scoped PBT Approach**: Test concrete failing cases - distribution actions that should
  * create approval instances but don't on unfixed code.
  */
+@JqwikSpringSupport
 @SpringBootTest
 @ActiveProfiles("test")
 public class ApprovalWorkflowAutoTriggerBugConditionTest extends AbstractIntegrationTest {
@@ -72,6 +75,7 @@ public class ApprovalWorkflowAutoTriggerBugConditionTest extends AbstractIntegra
 
     private SysUser testUser;
     private SysOrg testOrg;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
@@ -82,8 +86,9 @@ public class ApprovalWorkflowAutoTriggerBugConditionTest extends AbstractIntegra
         // Create test organization
         testOrg = new SysOrg();
         testOrg.setName("测试部门");
-        testOrg.setCode("TEST_DEPT");
-        testOrg.setParentId(null);
+        testOrg.setType(com.sism.enums.OrgType.FUNCTIONAL_DEPT);
+        testOrg.setIsActive(true);
+        testOrg.setSortOrder(1);
         testOrg.setCreatedAt(LocalDateTime.now());
         testOrg.setUpdatedAt(LocalDateTime.now());
         testOrg = orgRepository.save(testOrg);
@@ -91,9 +96,10 @@ public class ApprovalWorkflowAutoTriggerBugConditionTest extends AbstractIntegra
         // Create test user
         testUser = new SysUser();
         testUser.setUsername("testuser");
-        testUser.setPassword("password");
+        testUser.setPasswordHash("password");
         testUser.setRealName("Test User");
         testUser.setOrg(testOrg);
+        testUser.setIsActive(true);
         testUser.setCreatedAt(LocalDateTime.now());
         testUser.setUpdatedAt(LocalDateTime.now());
         testUser = userRepository.save(testUser);
@@ -273,7 +279,7 @@ public class ApprovalWorkflowAutoTriggerBugConditionTest extends AbstractIntegra
     private Indicator createIndicator(String responsibleDept) {
         Indicator indicator = new Indicator();
         indicator.setTaskId(1L);
-        indicator.setLevel(IndicatorLevel.LEVEL_2);
+        indicator.setLevel(IndicatorLevel.SECONDARY);
         indicator.setOwnerOrg(testOrg);
         indicator.setTargetOrg(testOrg);
         indicator.setIndicatorDesc("Test indicator for " + responsibleDept);
@@ -293,13 +299,17 @@ public class ApprovalWorkflowAutoTriggerBugConditionTest extends AbstractIntegra
      * Create statusAudit JSON with "distribute" action
      */
     private String createDistributeStatusAudit() {
-        JSONArray auditArray = new JSONArray();
-        JSONObject auditRecord = new JSONObject();
-        auditRecord.put("action", "distribute");
-        auditRecord.put("timestamp", LocalDateTime.now().toString());
-        auditRecord.put("userId", testUser.getId());
-        auditRecord.put("userName", testUser.getRealName());
-        auditArray.add(auditRecord);
-        return auditArray.toJSONString();
+        try {
+            ArrayNode auditArray = objectMapper.createArrayNode();
+            ObjectNode auditRecord = objectMapper.createObjectNode();
+            auditRecord.put("action", "distribute");
+            auditRecord.put("timestamp", LocalDateTime.now().toString());
+            auditRecord.put("userId", testUser.getId());
+            auditRecord.put("userName", testUser.getRealName());
+            auditArray.add(auditRecord);
+            return objectMapper.writeValueAsString(auditArray);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create statusAudit JSON", e);
+        }
     }
 }

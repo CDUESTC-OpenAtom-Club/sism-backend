@@ -1,0 +1,64 @@
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# Spring Boot
+application-local.yml
+application-*.properties
+
+# Environment files (保护敏感信息)
+.env
+.env.local
+.env.*.local
+
+# Logs (不提交日志文件)
+logs/
+*.log
+*.log.*
+
+# 旧的数据库脚本（已整理到新目录）
+database/add-college-users.sql
+database/fix-weight-to-integer.sql
+database/optimize-performance.sql
+database/seed-indicators-2026.sql
+database/V1.1__add_refresh_tokens.sql
+database/verify-schema.sql
+database/README.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+
+# Test files
+test-bcrypt.java
+.jqwik-database
