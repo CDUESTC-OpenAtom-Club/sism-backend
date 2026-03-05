@@ -17,7 +17,7 @@ env:
 jobs:
   build-and-deploy:
     name: Build and Deploy Backend
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     
     steps:
       - name: Checkout code
@@ -33,129 +33,19 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
-      - name: Get JAR checksum
-        id: checksum
-        run: |
-          LOCAL_MD5=$(md5sum target/${{ env.JAR_NAME }} | cut -d' ' -f1)
-          LOCAL_SIZE=$(stat -c%s target/${{ env.JAR_NAME }})
-          echo "local_md5=$LOCAL_MD5" >> $GITHUB_OUTPUT
-          echo "local_size=$LOCAL_SIZE" >> $GITHUB_OUTPUT
-          echo "[INFO] Local JAR: $LOCAL_SIZE bytes, MD5: $LOCAL_MD5"
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SERVER_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
-
-          # Configure SSH for faster transfers
-          cat >> ~/.ssh/config << EOF
-          Host ${{ env.SERVER_HOST }}
-            User ${{ env.SERVER_USER }}
-            IdentityFile ~/.ssh/deploy_key
-            Compression yes
-            ServerAliveInterval 60
-            ServerAliveCountMax 3
-          EOF
-
-      - name: Configure server sudoers (one-time setup)
-        run: |
-          # Skip - already configured on server
-          echo "[INFO] Server sudoers already configured"
-
       - name: Stop backend service
+        run: sudo systemctl stop sism-backend || true
+
+      - name: Deploy JAR
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-            "systemctl stop sism-backend || true"
+          echo "[INFO] Deploying JAR to /opt/sism/backend/"
+          sudo cp target/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}
+          sudo chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}
+          sudo chmod 775 /opt/sism/backend/${{ env.JAR_NAME }}
+          echo "[INFO] JAR deployed successfully"
 
-      - name: Compress and upload JAR
-        run: |
-          # Compress JAR to reduce transfer time
-          cd target
-          tar -czf ${{ env.JAR_NAME }}.tar.gz ${{ env.JAR_NAME }}
-          COMPRESSED_SIZE=$(stat -c%s ${{ env.JAR_NAME }}.tar.gz)
-          COMPRESSED_MB=$(echo "scale=2; $COMPRESSED_SIZE / 1048576" | bc)
-          echo "[INFO] Compressed size: $COMPRESSED_SIZE bytes ($COMPRESSED_MB MB)"
-          
-          # Clean up any partial uploads on server
-          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-            "rm -f /tmp/${{ env.JAR_NAME }}.tar.gz"
-          
-          # Upload compressed file with timeout and retry
-          MAX_RETRIES=3
-          RETRY_COUNT=0
-          
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            echo "[INFO] Upload attempt $((RETRY_COUNT + 1))/$MAX_RETRIES"
-            START_TIME=$(date +%s)
-            
-            # Use rsync instead of scp for better reliability and progress
-            if timeout 600 rsync -avz --progress --timeout=300 \
-              -e "ssh -i ~/.ssh/deploy_key -o ConnectTimeout=30 -o ServerAliveInterval=10" \
-              ${{ env.JAR_NAME }}.tar.gz \
-              ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }}:/tmp/${{ env.JAR_NAME }}.tar.gz; then
-              
-              END_TIME=$(date +%s)
-              DURATION=$((END_TIME - START_TIME))
-              echo "[INFO] Upload successful in ${DURATION}s"
-              
-              # Verify file size on server
-              REMOTE_SIZE=$(ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-                "stat -c%s /tmp/${{ env.JAR_NAME }}.tar.gz")
-              
-              if [ "$REMOTE_SIZE" = "$COMPRESSED_SIZE" ]; then
-                echo "[INFO] File size verified: $REMOTE_SIZE bytes"
-                break
-              else
-                echo "[ERROR] File size mismatch: local=$COMPRESSED_SIZE, remote=$REMOTE_SIZE"
-                RETRY_COUNT=$((RETRY_COUNT + 1))
-              fi
-            else
-              RETRY_COUNT=$((RETRY_COUNT + 1))
-              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-                echo "[WARN] Upload failed, cleaning up and retrying in 10 seconds..."
-                ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-                  "rm -f /tmp/${{ env.JAR_NAME }}.tar.gz" || true
-                sleep 10
-              else
-                echo "[ERROR] Upload failed after $MAX_RETRIES attempts"
-                exit 1
-              fi
-            fi
-          done
-
-      - name: Extract and verify JAR
-        run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
-            # Extract compressed file
-            cd /tmp
-            tar -xzf ${{ env.JAR_NAME }}.tar.gz
-            rm -f ${{ env.JAR_NAME }}.tar.gz
-            
-            # Verify checksum
-            REMOTE_MD5=$(md5sum /tmp/${{ env.JAR_NAME }} | cut -d' ' -f1)
-            echo "[INFO] Remote MD5: $REMOTE_MD5"
-            echo "[INFO] Expected MD5: ${{ steps.checksum.outputs.local_md5 }}"
-
-            if [ "$REMOTE_MD5" != "${{ steps.checksum.outputs.local_md5 }}" ]; then
-              echo "[ERROR] Checksum mismatch!"
-              rm -f /tmp/${{ env.JAR_NAME }}
-              exit 1
-            fi
-
-            echo "[INFO] Checksum verified, moving to deployment directory"
-            mv /tmp/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}
-            chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}
-            chmod 775 /opt/sism/backend/${{ env.JAR_NAME }}
-            echo "[INFO] JAR deployed successfully"
-          ENDSSH
-
-      - name: Update symlink and restart service
-        run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-            "ln -sf /opt/sism/backend/${{ env.JAR_NAME }} /opt/sism/backend/sism-backend.jar && \
-             systemctl start sism-backend"
+      - name: Start backend service
+        run: sudo systemctl start sism-backend
 
       - name: Wait for service startup
         run: sleep 15
@@ -163,8 +53,7 @@ jobs:
       - name: Health check
         run: |
           for i in 1 2 3; do
-            if ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-              "curl -sf http://localhost:8080/api/actuator/health > /dev/null"; then
+            if curl -sf http://localhost:8080/api/actuator/health > /dev/null; then
               echo "[INFO] Backend deployed and healthy"
               exit 0
             fi
@@ -172,10 +61,5 @@ jobs:
             sleep 5
           done
           echo "[ERROR] Health check failed"
-          ssh -i ~/.ssh/deploy_key ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} \
-            "journalctl -u sism-backend -n 30 --no-pager"
+          sudo journalctl -u sism-backend -n 30 --no-pager
           exit 1
-
-      - name: Cleanup
-        if: always()
-        run: rm -f ~/.ssh/deploy_key
