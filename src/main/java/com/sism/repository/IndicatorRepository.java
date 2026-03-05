@@ -23,6 +23,13 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
     List<Indicator> findByTaskId(@Param("taskId") Long taskId);
 
     /**
+     * Batch find indicators by multiple task IDs (excluding deleted)
+     * Used for optimizing list operations to avoid N+1 query problem
+     */
+    @Query("SELECT i FROM Indicator i WHERE i.taskId IN :taskIds AND (i.isDeleted = false OR i.isDeleted IS NULL)")
+    List<Indicator> findByTaskIdIn(@Param("taskIds") List<Long> taskIds);
+
+    /**
      * Find all indicators by parent indicator ID (excluding deleted)
      */
     @Query("SELECT i FROM Indicator i WHERE i.parentIndicatorId = :parentId AND (i.isDeleted = false OR i.isDeleted IS NULL)")

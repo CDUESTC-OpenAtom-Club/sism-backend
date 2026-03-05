@@ -23,6 +23,12 @@ public class TaskVO {
     private String remark;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    /**
+     * Approval status computed from associated indicators
+     * NOTE: Currently NULL - this is the bug being fixed
+     */
+    private String approvalStatus;
 
     /**
      * Default constructor
@@ -78,6 +84,7 @@ public class TaskVO {
     public String getRemark() { return remark; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public String getApprovalStatus() { return approvalStatus; }
 
     // Setter methods
     public void setTaskId(Long taskId) { this.taskId = taskId; }
@@ -92,4 +99,5 @@ public class TaskVO {
     public void setRemark(String remark) { this.remark = remark; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
 }

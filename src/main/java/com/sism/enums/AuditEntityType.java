@@ -50,5 +50,10 @@ public enum AuditEntityType {
     /**
      * Alert entity (alert_event table)
      */
-    ALERT
+    ALERT,
+    
+    /**
+     * Plan entity (plan table)
+     */
+    PLAN
 }

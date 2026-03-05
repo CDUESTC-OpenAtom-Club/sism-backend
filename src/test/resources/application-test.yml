@@ -1,66 +1,102 @@
-# Test Configuration - 使用 H2 内存数据库
+# Test environment configuration
+# This file provides default values for tests to avoid requiring .env file
+# It must provide ALL placeholders referenced in application.yml
+
+# Database configuration
+DB_URL: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+DB_USERNAME: sa
+DB_PASSWORD: ""
+DB_HIKARI_MAX_POOL_SIZE: 5
+DB_HIKARI_MIN_IDLE: 1
+DB_HIKARI_CONNECTION_TIMEOUT: 30000
+DB_HIKARI_VALIDATION_TIMEOUT: 5000
+DB_HIKARI_IDLE_TIMEOUT: 600000
+DB_HIKARI_MAX_LIFETIME: 1800000
+
+# JPA configuration
+JPA_SHOW_SQL: false
+JPA_FORMAT_SQL: false
+JPA_USE_SQL_COMMENTS: false
+JPA_BATCH_SIZE: 20
+
+# Flyway configuration
+FLYWAY_ENABLED: false
+
+# Redis configuration
+REDIS_ENABLED: false
+REDIS_HOST: localhost
+REDIS_PORT: 6379
+REDIS_PASSWORD: ""
+REDIS_DATABASE: 0
+REDIS_TIMEOUT: 3000
+REDIS_POOL_MAX_ACTIVE: 8
+REDIS_POOL_MAX_IDLE: 8
+REDIS_POOL_MIN_IDLE: 0
+REDIS_POOL_MAX_WAIT: -1
+REDIS_SHUTDOWN_TIMEOUT: 100
+
+# Server configuration
+SERVER_PORT: 8080
+SERVER_CONTEXT_PATH: /api
+SERVER_COMPRESSION_ENABLED: false
+
+# Swagger/OpenAPI configuration
+SWAGGER_ENABLED: false
+SPRINGDOC_API_DOCS_PATH: /v3/api-docs
+SPRINGDOC_SWAGGER_UI_PATH: /swagger-ui.html
+SPRINGDOC_DISABLE_SWAGGER_DEFAULT_URL: true
+
+# JWT configuration
+JWT_SECRET: test-secret-key-for-testing-purposes-only-minimum-256-bits-long-12345678901234567890
+JWT_EXPIRATION: 3600000
+JWT_REFRESH_EXPIRATION: 86400000
+JWT_MAX_SESSIONS: 5
+
+# Actuator configuration
+MANAGEMENT_BASE_PATH: /actuator
+MANAGEMENT_HEALTH_DISKSPACE_THRESHOLD: 10485760
+
+# Rate limiting configuration
+RATE_LIMIT_ENABLED: false
+RATE_LIMIT_STORAGE: memory
+RATE_LIMIT_LOGIN_LIMIT: 100
+RATE_LIMIT_LOGIN_WINDOW: 60
+RATE_LIMIT_API_LIMIT: 1000
+RATE_LIMIT_API_WINDOW: 60
+
+# Idempotency configuration
+IDEMPOTENCY_ENABLED: false
+IDEMPOTENCY_TTL_SECONDS: 300
+IDEMPOTENCY_PROTECTED_PATHS: /api/indicators,/api/tasks
+
+# CORS configuration
+ALLOWED_ORIGINS: http://localhost:5173
+CORS_ALLOWED_METHODS: GET,POST,PUT,DELETE,OPTIONS
+CORS_ALLOWED_HEADERS: "*"
+CORS_ALLOW_CREDENTIALS: true
+CORS_MAX_AGE: 3600
+
+# Security headers configuration
+SECURITY_HEADERS_ENABLED: false
+SECURITY_FRAME_OPTIONS: DENY
+SECURITY_CONTENT_TYPE_OPTIONS: nosniff
+SECURITY_XSS_PROTECTION: "1; mode=block"
+SECURITY_REFERRER_POLICY: no-referrer
+SECURITY_PERMISSIONS_POLICY: "geolocation=(), microphone=(), camera=()"
+
+# Logging configuration
+LOG_LEVEL_ROOT: WARN
+LOG_LEVEL_APP: INFO
+LOG_LEVEL_SPRING: WARN
+LOG_LEVEL_SECURITY: WARN
+LOG_LEVEL_SQL: WARN
+LOG_LEVEL_SQL_BINDER: WARN
+
+# Spring Boot test profile overrides
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;INIT=CREATE DOMAIN IF NOT EXISTS task_type AS VARCHAR
     driver-class-name: org.h2.Driver
-    username: sa
-    password: 
-  
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop  # Use JPA schema generation for tests
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-  
-  flyway:
-    enabled: false  # Disable Flyway for tests, use JPA schema generation
-  
-  sql:
-    init:
-      mode: never  # Don't run schema.sql or data.sql
-  
-  # Redis configuration for tests - DISABLED by default
-  # Enable only for Redis-specific tests
-  data:
-    redis:
-      enabled: false
-      host: localhost
-      port: 6379
-      password: 
-      database: 0
-      timeout: 5000
-
-# Redis Feature Toggle for tests - DISABLED
-redis:
-  enabled: false
-
-# Server configuration - no context path for tests to simplify URL mapping
-# In tests, controllers are accessed directly at their @RequestMapping path
-# e.g., /auth/login instead of /api/auth/login
-server:
-  servlet:
-    context-path: ""
-
-# Logging for tests
-logging:
-  level:
-    root: WARN
-    com.sism: INFO
-    org.hibernate.SQL: DEBUG
-    org.testcontainers: INFO
-
-# Test CORS Configuration
-app:
-  cors:
-    allowed-origins: http://localhost:5173
-
-# JWT Configuration for tests
-jwt:
-  secret: test-secret-key-for-unit-tests-must-be-at-least-256-bits-long-for-security
-  expiration: 86400000
-  refresh-expiration: 604800000
-
-
+      ddl-auto: create-drop

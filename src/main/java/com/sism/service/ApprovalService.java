@@ -37,6 +37,8 @@ public class ApprovalService {
     private final ApprovalRecordRepository approvalRecordRepository;
     private final MilestoneRepository milestoneRepository;
     private final UserRepository userRepository;
+    private final AuditInstanceService auditInstanceService;
+    private final PlanRepository planRepository;
 
 
     /**
@@ -305,5 +307,98 @@ public class ApprovalService {
         vo.setComment(record.getComment());
         vo.setActedAt(record.getActedAt());
         return vo;
+    }
+
+    // ==================== Plan Approval Workflow Methods ====================
+
+    /**
+     * Approve a plan at the current approval step
+     * 
+     * @param instanceId The audit instance ID
+     * @param approverId The approver's user ID
+     * @param comment Optional approval comment
+     */
+    @Transactional
+    public void approvePlan(Long instanceId, Long approverId, String comment) {
+        log.info("Approving plan: instanceId={}, approverId={}", instanceId, approverId);
+
+        // Process approval through audit instance service
+        AuditInstance instance = auditInstanceService.approve(instanceId, approverId, comment);
+
+        // If workflow is completed, update plan status to APPROVED
+        if ("APPROVED".equals(instance.getStatus())) {
+            updatePlanStatus(instance.getEntityId(), "APPROVED");
+            log.info("Plan {} approved and workflow completed", instance.getEntityId());
+        } else {
+            log.info("Plan {} approval progressed to step {}", 
+                    instance.getEntityId(), instance.getCurrentStepOrder());
+        }
+    }
+
+    /**
+     * Reject a plan at the current approval step
+     * 
+     * @param instanceId The audit instance ID
+     * @param approverId The approver's user ID
+     * @param comment Rejection reason (required)
+     */
+    @Transactional
+    public void rejectPlan(Long instanceId, Long approverId, String comment) {
+        log.info("Rejecting plan: instanceId={}, approverId={}", instanceId, approverId);
+
+        // Process rejection through audit instance service
+        AuditInstance instance = auditInstanceService.reject(instanceId, approverId, comment);
+
+        // Update plan status to REJECTED
+        updatePlanStatus(instance.getEntityId(), "REJECTED");
+        log.info("Plan {} rejected", instance.getEntityId());
+    }
+
+    /**
+     * Get pending plan approvals for a user
+     * 
+     * @param userId The user ID
+     * @return List of audit instances pending approval
+     */
+    public List<AuditInstance> getPendingPlanApprovalsForUser(Long userId) {
+        return auditInstanceService.getPendingApprovalsForUser(userId);
+    }
+
+    /**
+     * Get approval status for a plan
+     * 
+     * @param planId The plan ID
+     * @return The active audit instance, or empty if none exists
+     */
+    public java.util.Optional<AuditInstance> getPlanApprovalStatus(Long planId) {
+        return auditInstanceService.getActiveInstanceByEntity(
+                com.sism.enums.AuditEntityType.PLAN, planId);
+    }
+
+    /**
+     * Count pending plan approvals for a user
+     * 
+     * @param userId The user ID
+     * @return Count of pending approvals
+     */
+    public long countPendingPlanApprovalsForUser(Long userId) {
+        return auditInstanceService.countPendingApprovalsForUser(userId);
+    }
+
+    /**
+     * Update plan status
+     * 
+     * @param planId The plan ID
+     * @param status The new status
+     */
+    private void updatePlanStatus(Long planId, String status) {
+        Plan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan", planId));
+        
+        plan.setStatus(status);
+        plan.setUpdatedAt(LocalDateTime.now());
+        planRepository.save(plan);
+        
+        log.info("Updated plan {} status to {}", planId, status);
     }
 }
