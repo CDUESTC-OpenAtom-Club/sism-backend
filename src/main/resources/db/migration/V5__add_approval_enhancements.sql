@@ -189,8 +189,11 @@ END $$;
 -- =====================================================
 -- 6. Create Indexes for Performance
 -- =====================================================
-CREATE INDEX IF NOT EXISTS idx_audit_instance_step_order ON audit_instance(current_step_order);
-CREATE INDEX IF NOT EXISTS idx_audit_instance_submitter ON audit_instance(submitter_dept_id);
-CREATE INDEX IF NOT EXISTS idx_audit_instance_status_order ON audit_instance(status, current_step_order);
-
-RAISE NOTICE 'Migration V5__add_approval_enhancements completed successfully';
+DO $
+BEGIN
+    CREATE INDEX IF NOT EXISTS idx_audit_instance_step_order ON audit_instance(current_step_order);
+    CREATE INDEX IF NOT EXISTS idx_audit_instance_submitter ON audit_instance(submitter_dept_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_instance_status_order ON audit_instance(status, current_step_order);
+    
+    RAISE NOTICE 'Migration V5__add_approval_enhancements completed successfully';
+END $;
