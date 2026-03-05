@@ -10,13 +10,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * JWT Authentication Filter
@@ -60,12 +63,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     
                     // Create authentication token with user details
                     JwtUserDetails userDetails = new JwtUserDetails(userId, username, orgId);
-                    
-                    UsernamePasswordAuthenticationToken authentication = 
+
+                    // Grant basic authenticated user authority
+                    List<GrantedAuthority> authorities = new ArrayList<>();
+                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+
+                    UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
-                                    userDetails, 
-                                    null, 
-                                    Collections.emptyList()
+                                    userDetails,
+                                    null,
+                                    authorities
                             );
                     
                     authentication.setDetails(

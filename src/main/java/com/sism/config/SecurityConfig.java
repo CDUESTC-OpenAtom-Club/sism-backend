@@ -103,6 +103,8 @@ public class SecurityConfig {
                 .requestMatchers("/plans/**").permitAll()
                 // User endpoints
                 .requestMatchers("/users/**").permitAll()
+                // Admin endpoints - require authentication
+                .requestMatchers("/admin/**").authenticated()
                 // Swagger/OpenAPI documentation
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui.html").permitAll()

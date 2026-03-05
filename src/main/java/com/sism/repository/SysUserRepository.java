@@ -21,4 +21,21 @@ public interface SysUserRepository extends JpaRepository<SysUser, Long> {
      */
     @Deprecated(forRemoval = true)
     Optional<SysUser> findByUsername(String username);
+
+    // ========== User Management API Methods ==========
+
+    /**
+     * Check if username exists
+     */
+    boolean existsByUsername(String username);
+
+    /**
+     * Check if username exists excluding specific user ID
+     */
+    boolean existsByUsernameAndIdNot(String username, Long id);
+
+    /**
+     * Find active users by organization ID
+     */
+    java.util.List<SysUser> findByOrgIdAndIsActiveTrue(Long orgId);
 }
