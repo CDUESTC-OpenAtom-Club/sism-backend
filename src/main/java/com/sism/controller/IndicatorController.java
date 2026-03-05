@@ -80,14 +80,22 @@ public class IndicatorController {
      * **Validates: Requirements 4.2.2**
      */
     @GetMapping
-    @Operation(summary = "Get all indicators", description = "Retrieve all active indicators with Last-Modified caching")
+    @Operation(summary = "Get all indicators", description = "Retrieve all active indicators with optional year filtering and Last-Modified caching")
     @ApiResponses(value = {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indicators retrieved successfully"),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "304", description = "Not Modified - use cached data")
     })
     public ResponseEntity<ApiResponse<List<IndicatorVO>>> getAllIndicators(
+            @Parameter(description = "Filter by year (optional)") @RequestParam(required = false) Integer year,
             @RequestHeader(value = "If-Modified-Since", required = false) String ifModifiedSince) {
-        List<IndicatorVO> indicators = indicatorService.getAllActiveIndicators();
+        List<IndicatorVO> indicators;
+        if (year != null) {
+            log.info("Fetching indicators for year: {}", year);
+            indicators = indicatorService.getIndicatorsByYear(year);
+        } else {
+            log.info("Fetching all active indicators (no year filter)");
+            indicators = indicatorService.getAllActiveIndicators();
+        }
         ApiResponse<List<IndicatorVO>> response = ApiResponse.success(indicators);
         
         // TODO: findLatestUpdateTime方法已移除

@@ -84,6 +84,19 @@ public class IndicatorService {
     }
 
     /**
+     * Get indicators by year
+     * Requirements: Year filtering for indicator list
+     * 
+     * @param year target year
+     * @return list of indicators for the specified year
+     */
+    public List<IndicatorVO> getIndicatorsByYear(Integer year) {
+        List<Indicator> indicators = indicatorRepository.findByYearAndStatus(year, IndicatorStatus.ACTIVE);
+        log.info("Found {} active indicators for year {}", indicators.size(), year);
+        return toIndicatorVOsBatch(indicators);
+    }
+
+    /**
      * Get indicators by task ID
      */
     public List<IndicatorVO> getIndicatorsByTaskId(Long taskId) {

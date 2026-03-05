@@ -27,6 +27,7 @@ public class PlanService {
 
     private final PlanRepository planRepository;
     private final SysOrgRepository orgRepository;
+    private final AuditInstanceService auditInstanceService;
 
     /**
      * Get all plans
@@ -147,6 +148,51 @@ public class PlanService {
     }
 
     /**
+     * Submit a plan for approval workflow
+     * 
+     * @param planId The plan ID to submit
+     * @param userId The user ID who is submitting
+     * @return The updated plan VO
+     */
+    @Transactional
+    public PlanVO submitPlanForApproval(Long planId, Long userId) {
+        log.info("Submitting plan for approval: planId={}, userId={}", planId, userId);
+
+        Plan plan = findPlanById(planId);
+
+        // Validate status: must be DRAFT to submit
+        if (!"DRAFT".equals(plan.getStatus())) {
+            throw new IllegalStateException("Only DRAFT plans can be submitted for approval. Current status: " + plan.getStatus());
+        }
+
+        // Determine which flow to use based on target organization type
+        String flowCode = determineFlowCode(plan);
+        log.debug("Using flow code: {} for plan: {}", flowCode, planId);
+
+        // Create audit instance and start workflow
+        try {
+            auditInstanceService.createAuditInstance(
+                flowCode,
+                com.sism.enums.AuditEntityType.PLAN,
+                planId,
+                userId
+            );
+
+            // Update plan status to IN_REVIEW
+            plan.setStatus("IN_REVIEW");
+            plan.setUpdatedAt(LocalDateTime.now());
+            Plan updatedPlan = planRepository.save(plan);
+
+            log.info("Successfully submitted plan {} for approval", planId);
+            return toPlanVO(updatedPlan);
+
+        } catch (Exception e) {
+            log.error("Failed to submit plan for approval: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to submit plan for approval: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Find plan entity by ID
      */
     private Plan findPlanById(Long id) {
@@ -173,5 +219,30 @@ public class PlanService {
             plan.getUpdatedAt(),
             plan.getIsDeleted()
         );
+    }
+
+    /**
+     * Determine which approval flow to use based on plan's target organization
+     * 
+     * @param plan The plan entity
+     * @return The flow code to use
+     */
+    private String determineFlowCode(Plan plan) {
+        // Get target organization
+        var targetOrg = orgRepository.findById(plan.getTargetOrgId())
+                .orElseThrow(() -> new ResourceNotFoundException("Target Organization", plan.getTargetOrgId()));
+
+        // Determine flow based on organization type
+        String orgType = targetOrg.getType().name();
+
+        return switch (orgType) {
+            case "STRATEGY_DEPT" -> "PLAN_DISPATCH_STRATEGY";
+            case "FUNCTIONAL_DEPT" -> "PLAN_DISPATCH_FUNCDEPT";
+            case "COLLEGE" -> "PLAN_DISPATCH_FUNCDEPT"; // Use same flow as functional dept
+            default -> {
+                log.warn("Unknown org type: {}, defaulting to PLAN_DISPATCH_FUNCDEPT", orgType);
+                yield "PLAN_DISPATCH_FUNCDEPT";
+            }
+        };
     }
 }

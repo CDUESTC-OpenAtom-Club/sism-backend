@@ -108,12 +108,12 @@ server:
 # -----------------------------------------------------------------------------
 logging:
   level:
-    root: ${LOG_LEVEL_ROOT}
-    com.sism: ${LOG_LEVEL_APP}
-    org.springframework.web: ${LOG_LEVEL_SPRING}
-    org.springframework.security: ${LOG_LEVEL_SECURITY}
-    org.hibernate.SQL: ${LOG_LEVEL_SQL}
-    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER}
+    root: ${LOG_LEVEL_ROOT:-WARN}
+    com.sism: ${LOG_LEVEL_APP:-INFO}
+    org.springframework.web: ${LOG_LEVEL_SPRING:-INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:-INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:-DEBUG}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:-TRACE}
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
