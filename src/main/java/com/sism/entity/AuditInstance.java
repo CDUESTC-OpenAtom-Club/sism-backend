@@ -35,12 +35,12 @@ public class AuditInstance extends BaseEntity {
     private Long flowId;
 
     @NotNull(message = "Entity ID is required")
-    @Column(name = "entity_id", nullable = false)
+    @Column(name = "biz_id", nullable = false)
     private Long entityId;
 
     @NotNull(message = "Entity type is required")
     @Enumerated(EnumType.STRING)
-    @Column(name = "entity_type", nullable = false, length = 50)
+    @Column(name = "biz_type", nullable = false, length = 50)
     private AuditEntityType entityType;
 
     @Column(name = "current_step_id")
@@ -52,14 +52,14 @@ public class AuditInstance extends BaseEntity {
     private String status = "PENDING";
 
     @NotNull(message = "Initiated by is required")
-    @Column(name = "initiated_by", nullable = false)
+    @Column(name = "created_by", nullable = false)
     private Long initiatedBy;
 
     @NotNull(message = "Initiated at is required")
-    @Column(name = "initiated_at", nullable = false)
+    @Column(name = "started_at", nullable = false)
     private LocalDateTime initiatedAt;
 
-    @Column(name = "completed_at")
+    @Column(name = "finished_at")
     private LocalDateTime completedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -73,41 +73,11 @@ public class AuditInstance extends BaseEntity {
     private AuditStepDef currentStep;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "initiated_by", referencedColumnName = "id", insertable = false, updatable = false,
+    @JoinColumn(name = "created_by", referencedColumnName = "id", insertable = false, updatable = false,
                 foreignKey = @ForeignKey(name = "fk_audit_instance_user"))
     private SysUser initiator;
 
     // ==================== New Fields for Multi-Level Approval ====================
-
-    /**
-     * Current step order in the approval flow
-     */
-    @Column(name = "current_step_order")
-    private Integer currentStepOrder = 1;
-
-    /**
-     * Submitter's department ID
-     */
-    @Column(name = "submitter_dept_id")
-    private Long submitterDeptId;
-
-    /**
-     * Direct supervisor ID (level 1)
-     */
-    @Column(name = "direct_supervisor_id")
-    private Long directSupervisorId;
-
-    /**
-     * Level-2 supervisor ID
-     */
-    @Column(name = "level2_supervisor_id")
-    private Long level2SupervisorId;
-
-    /**
-     * Superior department ID (for final approval)
-     */
-    @Column(name = "superior_dept_id")
-    private Long superiorDeptId;
 
     /**
      * Pending approvers list (for parallel approval tracking)
@@ -127,21 +97,40 @@ public class AuditInstance extends BaseEntity {
     @Column(name = "rejected_approvers", columnDefinition = "BIGINT[]")
     private List<Long> rejectedApprovers;
 
+    // ==================== Multi-Level Approval Fields ====================
+
+    /**
+     * Current step order in the approval workflow (1=level1, 2=level2, 3=final)
+     */
+    @Column(name = "current_step_order")
+    private Integer currentStepOrder;
+
+    /**
+     * Submitter's department ID (from indicator.target_org_id)
+     */
+    @Column(name = "submitter_dept_id")
+    private Long submitterDeptId;
+
+    /**
+     * Direct supervisor ID (level 1 approver - department head or college dean)
+     */
+    @Column(name = "direct_supervisor_id")
+    private Long directSupervisorId;
+
+    /**
+     * Level 2 supervisor ID (vice president)
+     */
+    @Column(name = "level2_supervisor_id")
+    private Long level2SupervisorId;
+
+    /**
+     * Superior department ID (from indicator.owner_org_id - the department that sent the task)
+     */
+    @Column(name = "superior_dept_id")
+    private Long superiorDeptId;
+
+
     // ==================== Helper Methods ====================
-
-    /**
-     * Check if this is the first approval step
-     */
-    public boolean isFirstStep() {
-        return currentStepOrder != null && currentStepOrder == 1;
-    }
-
-    /**
-     * Check if this is the final approval step
-     */
-    public boolean isFinalStep() {
-        return currentStepOrder != null && currentStepOrder == 3;
-    }
 
     /**
      * Check if this approval is still pending

@@ -62,4 +62,30 @@ public interface UserRepository extends JpaRepository<SysUser, Long> {
      */
     @Query("SELECT u FROM SysUser u WHERE u.org.type = :orgType AND u.isActive = true")
     List<SysUser> findActiveUsersByOrgType(@Param("orgType") com.sism.enums.OrgType orgType);
+
+    /**
+     * Find user by role code and organization ID (for approval person resolution)
+     *
+     * @param roleCode The role code (e.g., ROLE_FUNC_DEPT_HEAD, ROLE_COLLEGE_DEAN, ROLE_VICE_PRESIDENT)
+     * @param orgId The organization ID
+     * @return Optional user with the specified role in the specified organization
+     */
+    @Query("SELECT u FROM SysUser u " +
+           "JOIN SysUserRole ur ON u.id = ur.userId " +
+           "JOIN SysRole r ON ur.roleId = r.id " +
+           "WHERE r.roleCode = :roleCode AND u.org.id = :orgId AND u.isActive = true")
+    Optional<SysUser> findByRoleCodeAndOrgId(@Param("roleCode") String roleCode, @Param("orgId") Long orgId);
+
+    /**
+     * Find user by role code (for roles not tied to specific organization)
+     *
+     * @param roleCode The role code (e.g., ROLE_VICE_PRESIDENT)
+     * @return Optional user with the specified role
+     */
+    @Query("SELECT u FROM SysUser u " +
+           "JOIN SysUserRole ur ON u.id = ur.userId " +
+           "JOIN SysRole r ON ur.roleId = r.id " +
+           "WHERE r.roleCode = :roleCode AND u.isActive = true")
+    Optional<SysUser> findByRoleCode(@Param("roleCode") String roleCode);
+
 }
