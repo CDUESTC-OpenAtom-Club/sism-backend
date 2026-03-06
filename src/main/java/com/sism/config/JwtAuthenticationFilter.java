@@ -2,6 +2,7 @@ package com.sism.config;
 
 import com.sism.util.JwtUtil;
 import com.sism.util.TokenBlacklistService;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,41 +56,55 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
                 
-                // Validate token
-                if (jwtUtil.validateToken(token)) {
-                    String username = jwtUtil.extractUsername(token);
-                    Long userId = jwtUtil.extractUserId(token);
-                    Long orgId = jwtUtil.extractOrgId(token);
-                    
-                    // Create authentication token with user details
-                    JwtUserDetails userDetails = new JwtUserDetails(userId, username, orgId);
+                try {
+                    // Validate token
+                    if (jwtUtil.validateToken(token)) {
+                        String username = jwtUtil.extractUsername(token);
+                        Long userId = jwtUtil.extractUserId(token);
+                        Long orgId = jwtUtil.extractOrgId(token);
+                        
+                        // Create authentication token with user details
+                        JwtUserDetails userDetails = new JwtUserDetails(userId, username, orgId);
 
-                    // Grant basic authenticated user authority
-                    List<GrantedAuthority> authorities = new ArrayList<>();
-                    authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
+                        // Grant basic authenticated user authority
+                        List<GrantedAuthority> authorities = new ArrayList<>();
+                        authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    authorities
-                            );
-                    
-                    authentication.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request)
-                    );
-                    
-                    // Set authentication in SecurityContext
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    
-                    // Update MDC with user ID for logging context
-                    RequestLoggingFilter.setUserId(String.valueOf(userId));
-                    
-                    log.debug("Authenticated user: {} (userId: {}, orgId: {})", username, userId, orgId);
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        authorities
+                                );
+                        
+                        authentication.setDetails(
+                                new WebAuthenticationDetailsSource().buildDetails(request)
+                        );
+                        
+                        // Set authentication in SecurityContext
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        
+                        // Update MDC with user ID for logging context
+                        RequestLoggingFilter.setUserId(String.valueOf(userId));
+                        
+                        log.debug("Authenticated user: {} (userId: {}, orgId: {})", username, userId, orgId);
+                    }
+                } catch (ExpiredJwtException e) {
+                    log.warn("JWT token expired: {}", e.getMessage());
+                    // 返回 401 错误，让前端能够触发 token 刷新
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"code\":401,\"message\":\"Token expired\"}");
+                    return;
                 }
             }
         } catch (Exception e) {
             log.warn("JWT authentication failed: {}", e.getMessage());
+            // 返回 401 错误
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":401,\"message\":\"Authentication failed\"}");
+            return;
         }
         
         filterChain.doFilter(request, response);

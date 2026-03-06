@@ -10,7 +10,7 @@
 INSERT INTO sys_org_hierarchy (org_id, parent_org_id, level)
 SELECT id, NULL, 1 
 FROM sys_org 
-WHERE name LIKE '%战略发展�?' OR name LIKE '%Strategic%'
+WHERE name LIKE '%æç¥åå±é?' OR name LIKE '%Strategic%'
 ON CONFLICT (org_id) DO NOTHING;
 
 -- Secondary organizations (level 2) - under Strategic Development Dept
@@ -20,7 +20,7 @@ SELECT
     parent.id,
     2
 FROM sys_org child
-JOIN sys_org parent ON parent.name LIKE '%战略发展�?' OR parent.name LIKE '%Strategic%'
+JOIN sys_org parent ON parent.name LIKE '%æç¥åå±é?' OR parent.name LIKE '%Strategic%'
 WHERE child.id != parent.id
   AND child.id NOT IN (SELECT org_id FROM sys_org_hierarchy WHERE level = 1)
 ON CONFLICT (org_id) DO NOTHING;
@@ -68,7 +68,7 @@ INSERT INTO audit_step_def (
 SELECT 
     af.id,
     1,
-    '直接主管审批',
+    'ç´æ¥ä¸»ç®¡å®¡æ¹',
     'SUPERVISOR',
     1,
     'SEQUENTIAL',
@@ -95,7 +95,7 @@ INSERT INTO audit_step_def (
 SELECT 
     af.id,
     2,
-    '二级主管审批',
+    'äºçº§ä¸»ç®¡å®¡æ¹',
     'SUPERVISOR',
     2,
     'SEQUENTIAL',
@@ -121,7 +121,7 @@ INSERT INTO audit_step_def (
 SELECT 
     af.id,
     3,
-    '上级部门审批',
+    'ä¸çº§é¨é¨å®¡æ¹',
     'ROLE',
     'PARALLEL',
     true,

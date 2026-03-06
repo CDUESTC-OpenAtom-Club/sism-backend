@@ -45,6 +45,14 @@ public interface AuditInstanceRepository extends JpaRepository<AuditInstance, Lo
                                                         @Param("entityId") Long entityId);
 
     /**
+     * Find active audit instances for multiple entities (batch query to avoid N+1)
+     */
+    @Query("SELECT a FROM AuditInstance a WHERE a.entityType = :entityType AND a.entityId IN :entityIds " +
+           "AND a.status IN ('PENDING', 'IN_PROGRESS') ORDER BY a.initiatedAt DESC")
+    List<AuditInstance> findActiveInstancesByEntities(@Param("entityType") AuditEntityType entityType,
+                                                       @Param("entityIds") List<Long> entityIds);
+
+    /**
      * Find latest audit instance for an entity
      */
     @Query("SELECT a FROM AuditInstance a WHERE a.entityType = :entityType AND a.entityId = :entityId " +
@@ -55,37 +63,24 @@ public interface AuditInstanceRepository extends JpaRepository<AuditInstance, Lo
     // ==================== New Queries for Multi-Level Approval ====================
 
     /**
-     * Find pending approvals for a user (where user is the current approver)
+     * Find pending approvals for a user (where user is in pending_approvers array)
      */
     @Query(value = "SELECT * FROM audit_instance WHERE status IN ('PENDING', 'IN_PROGRESS') " +
-           "AND ((current_step_order = 1 AND direct_supervisor_id = :userId) " +
-           "OR (current_step_order = 2 AND level2_supervisor_id = :userId) " +
-           "OR (current_step_order = 3 AND :userId = ANY(pending_approvers))) " +
-           "ORDER BY initiated_at DESC", nativeQuery = true)
+           "AND :userId = ANY(COALESCE(pending_approvers, ARRAY[]::BIGINT[])) " +
+           "ORDER BY started_at DESC", nativeQuery = true)
     List<AuditInstance> findPendingApprovalsForUser(@Param("userId") Long userId);
 
     /**
-     * Find pending approvals for a department (direct supervisor or level-2 supervisor)
+     * Find pending approvals for a department
      */
     @Query("SELECT a FROM AuditInstance a WHERE a.status IN ('PENDING', 'IN_PROGRESS') " +
-           "AND a.submitterDeptId = :deptId " +
-           "AND ((a.currentStepOrder = 1 AND a.directSupervisorId = :userId) " +
-           "OR (a.currentStepOrder = 2 AND a.level2SupervisorId = :userId)) " +
            "ORDER BY a.initiatedAt DESC")
-    List<AuditInstance> findPendingApprovalsForDeptAndUser(@Param("deptId") Long deptId, 
-                                                           @Param("userId") Long userId);
-
-    /**
-     * Find all pending approvals for a department
-     */
-    List<AuditInstance> findBySubmitterDeptIdAndStatusIn(Long deptId, List<String> statuses);
+    List<AuditInstance> findPendingApprovalsForDept();
 
     /**
      * Count pending approvals for a user
      */
     @Query(value = "SELECT COUNT(*) FROM audit_instance WHERE status IN ('PENDING', 'IN_PROGRESS') " +
-           "AND ((current_step_order = 1 AND direct_supervisor_id = :userId) " +
-           "OR (current_step_order = 2 AND level2_supervisor_id = :userId) " +
-           "OR (current_step_order = 3 AND :userId = ANY(pending_approvers)))", nativeQuery = true)
+           "AND :userId = ANY(COALESCE(pending_approvers, ARRAY[]::BIGINT[]))", nativeQuery = true)
     long countPendingApprovalsForUser(@Param("userId") Long userId);
 }

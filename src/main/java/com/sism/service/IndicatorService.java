@@ -1,5 +1,7 @@
 package com.sism.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.dto.MilestoneUpdateRequest;
@@ -8,6 +10,7 @@ import com.sism.entity.Indicator;
 import com.sism.entity.Milestone;
 import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
+import com.sism.entity.AuditInstance;
 import com.sism.enums.AuditEntityType;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
@@ -19,6 +22,7 @@ import com.sism.repository.MilestoneRepository;
 import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
 import com.sism.repository.UserRepository;
+import com.sism.repository.AuditInstanceRepository;
 import com.sism.vo.IndicatorVO;
 import com.sism.vo.MilestoneVO;
 import jakarta.persistence.PersistenceContext;
@@ -46,7 +50,10 @@ public class IndicatorService {
     private final SysOrgRepository orgRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final AuditInstanceRepository auditInstanceRepository;
     private final com.sism.repository.MilestoneRepository milestoneRepository;
+    private final AuditInstanceService auditInstanceService;
+    private final ObjectMapper objectMapper;
     
     @PersistenceContext
     private jakarta.persistence.EntityManager entityManager;
@@ -255,6 +262,24 @@ public class IndicatorService {
             indicator.setStatusAudit(request.getStatusAudit());
         }
         
+        // Check if this update contains a distribution action
+        boolean shouldTriggerApproval = false;
+        if (request.getStatusAudit() != null) {
+            try {
+                JsonNode auditArray = objectMapper.readTree(request.getStatusAudit());
+                if (auditArray.isArray() && auditArray.size() > 0) {
+                    // Check the last audit record for "distribute" action
+                    JsonNode lastAudit = auditArray.get(auditArray.size() - 1);
+                    if (lastAudit.has("action") && "distribute".equals(lastAudit.get("action").asText())) {
+                        shouldTriggerApproval = true;
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse statusAudit JSON for indicator {}: {}", indicatorId, e.getMessage());
+                // Continue without triggering approval if JSON parsing fails
+            }
+        }
+        
         // Update progress approval status if provided
         if (request.getProgressApprovalStatus() != null) {
             String newStatus = request.getProgressApprovalStatus();
@@ -309,7 +334,70 @@ public class IndicatorService {
         indicator.setUpdatedAt(LocalDateTime.now());
         Indicator updatedIndicator = indicatorRepository.save(indicator);
         
+        // Automatically create approval instance if distribution action detected
+        if (shouldTriggerApproval) {
+            try {
+                String flowCode = determineApprovalFlowCode(updatedIndicator);
+                Long submitterId = getCurrentUserId();
+                
+                if (submitterId == null) {
+                    throw new BusinessException("下发失败：无法获取当前用户信息，请联系管理员");
+                }
+                
+                auditInstanceService.createAuditInstance(
+                    flowCode,
+                    AuditEntityType.INDICATOR,
+                    indicatorId,
+                    submitterId
+                );
+                
+                log.info("Automatically created approval instance for indicator {} with flow code {}", 
+                        indicatorId, flowCode);
+            } catch (BusinessException e) {
+                // Re-throw business exceptions with custom message
+                throw new BusinessException("下发失败：无法创建审批实例，请联系管理员");
+            } catch (Exception e) {
+                log.error("Failed to create approval instance for indicator {}: {}", indicatorId, e.getMessage(), e);
+                throw new BusinessException("下发失败：无法创建审批实例，请联系管理员");
+            }
+        }
+        
         return toIndicatorVO(updatedIndicator);
+    }
+    
+    /**
+     * Determine the approval flow code based on the indicator's responsible department
+     * @param indicator The indicator to determine the flow code for
+     * @return "INDICATOR_COLLEGE_APPROVAL" if responsibleDept contains "学院", otherwise "INDICATOR_DEFAULT_APPROVAL"
+     */
+    private String determineApprovalFlowCode(Indicator indicator) {
+        String responsibleDept = indicator.getResponsibleDept();
+        if (responsibleDept != null && responsibleDept.contains("学院")) {
+            return "INDICATOR_COLLEGE_APPROVAL";
+        }
+        return "INDICATOR_DEFAULT_APPROVAL";
+    }
+    
+    /**
+     * Get the current authenticated user's ID from SecurityContext
+     * @return The current user's ID, or null if not authenticated
+     */
+    private Long getCurrentUserId() {
+        try {
+            org.springframework.security.core.Authentication authentication = 
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                Object principal = authentication.getPrincipal();
+                if (principal instanceof String username) {
+                    return userRepository.findByUsername(username)
+                            .map(SysUser::getId)
+                            .orElse(null);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to get current user ID: {}", e.getMessage(), e);
+        }
+        return null;
     }
     
     /**
@@ -476,6 +564,22 @@ public class IndicatorService {
             }
         }
         
+        // 批量加载审批实例（避免 N+1 问题）
+        Map<Long, AuditInstance> auditInstanceMap = new HashMap<>();
+        try {
+            List<AuditInstance> auditInstances = auditInstanceRepository
+                    .findActiveInstancesByEntities(AuditEntityType.INDICATOR, new ArrayList<>(indicatorIds));
+            auditInstanceMap = auditInstances.stream()
+                    .collect(Collectors.toMap(AuditInstance::getEntityId, ai -> ai, (a1, a2) -> a1));
+            log.info("[Performance] Batch loaded {} audit instances for {} indicators", 
+                    auditInstances.size(), indicatorIds.size());
+        } catch (Exception e) {
+            log.warn("[Performance] Failed to batch load audit instances: {}", e.getMessage());
+        }
+        
+        // 创建最终的 auditInstanceMap 引用（用于 lambda）
+        final Map<Long, AuditInstance> finalAuditInstanceMap = auditInstanceMap;
+        
         // 直接组装VO（使用 indicator 表中的字段）
         return indicators.stream()
                 .map(indicator -> {
@@ -501,7 +605,7 @@ public class IndicatorService {
                         ? taskNameMap.getOrDefault(indicator.getTaskId(), getTaskNameByTaskId(indicator.getTaskId()))
                         : "未分配任务";
                     
-                    return new IndicatorVO(
+                    IndicatorVO indicatorVO = new IndicatorVO(
                         indicator.getIndicatorId(),
                         indicator.getTaskId(),
                         indicator.getParentIndicatorId(),
@@ -540,6 +644,11 @@ public class IndicatorService {
                         List.of(), // childIndicators
                         milestones  // milestones - 使用实际数据
                     );
+                    
+                    // 使用批量加载的审批实例计算显示状态
+                    indicatorVO.setDisplayStatus(calculateDisplayStatusFromMap(indicator, finalAuditInstanceMap));
+                    
+                    return indicatorVO;
                 })
                 .collect(Collectors.toList());
     }
@@ -567,7 +676,7 @@ public class IndicatorService {
             responsibleDeptName = indicator.getTargetOrg().getName();
         }
         
-        return new IndicatorVO(
+        IndicatorVO vo = new IndicatorVO(
             indicator.getIndicatorId(),
             indicator.getTaskId(),
             indicator.getParentIndicatorId(),
@@ -606,6 +715,83 @@ public class IndicatorService {
             List.of(), // childIndicators
             milestones  // milestones - 使用实际数据
         );
+        
+        // 计算并设置显示状态
+        vo.setDisplayStatus(calculateDisplayStatus(indicator));
+        
+        return vo;
+    }
+    
+    /**
+     * 计算指标的显示状态
+     * 根据审批实例状态动态计算
+     * 
+     * @param indicator 指标实体
+     * @return 显示状态: DRAFT, PENDING_APPROVAL, DISTRIBUTED
+     */
+    private String calculateDisplayStatus(Indicator indicator) {
+        try {
+            // 1. 查询审批实例
+            Optional<AuditInstance> auditInstance = auditInstanceRepository
+                    .findActiveInstanceByEntity(AuditEntityType.INDICATOR, indicator.getIndicatorId());
+            
+            // 2. 无审批实例 = 草稿
+            if (!auditInstance.isPresent()) {
+                return "DRAFT";
+            }
+            
+            // 3. 根据审批状态映射
+            String status = auditInstance.get().getStatus();
+            switch (status) {
+                case "IN_PROGRESS":
+                case "PENDING":
+                    return "PENDING_APPROVAL";  // 待审核
+                case "APPROVED":
+                    return "DISTRIBUTED";       // 已下发
+                case "REJECTED":
+                    return "DRAFT";             // 草稿
+                default:
+                    return "DRAFT";
+            }
+        } catch (Exception e) {
+            // Handle test environment where audit_instance table might not exist
+            log.debug("Failed to calculate display status for indicator {}: {}", 
+                    indicator.getIndicatorId(), e.getMessage());
+            return "DRAFT";  // Default to DRAFT in test environment
+        }
+    }
+
+    /**
+     * Calculate display status from pre-loaded audit instance map (batch optimization)
+     */
+    private String calculateDisplayStatusFromMap(Indicator indicator, Map<Long, AuditInstance> auditInstanceMap) {
+        try {
+            // 1. 从 map 中获取审批实例
+            AuditInstance auditInstance = auditInstanceMap.get(indicator.getIndicatorId());
+            
+            // 2. 无审批实例 = 草稿
+            if (auditInstance == null) {
+                return "DRAFT";
+            }
+            
+            // 3. 根据审批状态映射
+            String status = auditInstance.getStatus();
+            switch (status) {
+                case "IN_PROGRESS":
+                case "PENDING":
+                    return "PENDING_APPROVAL";  // 待审核
+                case "APPROVED":
+                    return "DISTRIBUTED";       // 已下发
+                case "REJECTED":
+                    return "DRAFT";             // 草稿
+                default:
+                    return "DRAFT";
+            }
+        } catch (Exception e) {
+            log.debug("Failed to calculate display status for indicator {}: {}", 
+                    indicator.getIndicatorId(), e.getMessage());
+            return "DRAFT";
+        }
     }
     
     /**

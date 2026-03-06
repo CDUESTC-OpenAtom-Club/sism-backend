@@ -1,17 +1,22 @@
 package com.sism.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.sism.dto.IndicatorCreateRequest;
 import com.sism.dto.IndicatorUpdateRequest;
 import com.sism.entity.AssessmentCycle;
 import com.sism.entity.Indicator;
 import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
+import com.sism.enums.AuditEntityType;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
 import com.sism.enums.OrgType;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.AssessmentCycleRepository;
+import com.sism.repository.AuditInstanceRepository;
 import com.sism.repository.IndicatorRepository;
 import com.sism.repository.SysOrgRepository;
 import com.sism.repository.TaskRepository;
@@ -23,13 +28,19 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 
 /**
  * Unit tests for IndicatorService
@@ -57,10 +68,17 @@ class IndicatorServiceTest {
     @Autowired
     private AssessmentCycleRepository cycleRepository;
 
+    @Autowired
+    private AuditInstanceRepository auditInstanceRepository;
+
+    @SpyBean
+    private AuditInstanceService auditInstanceService;
+
     private StrategicTask testTask;
     private SysOrg testOwnerOrg;
     private SysOrg testTargetOrg;
     private Indicator testIndicator;
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
@@ -415,6 +433,298 @@ class IndicatorServiceTest {
                 // Then
                 assertThat(eligibility.canDistribute()).isFalse();
                 assertThat(eligibility.reason()).contains("PRIMARY");
+            }
+        }
+
+        @Nested
+        @DisplayName("Approval Flow Code Determination Tests")
+        class ApprovalFlowCodeTests {
+
+            @Test
+            @DisplayName("Should return INDICATOR_COLLEGE_APPROVAL for college departments")
+            void shouldReturnCollegeApprovalForCollegeDepartments() throws Exception {
+                // Given - Create indicators with various college department names
+                String[] collegeDeptNames = {
+                    "计算机学院",
+                    "数学学院",
+                    "物理学院",
+                    "化学学院",
+                    "生命科学学院"
+                };
+
+                for (String collegeDept : collegeDeptNames) {
+                    // Create indicator with college department
+                    Indicator indicator = Indicator.builder()
+                            .indicatorId(1L)
+                            .taskId(testTask.getTaskId())
+                            .ownerOrg(testOwnerOrg)
+                            .targetOrg(testTargetOrg)
+                            .level(IndicatorLevel.PRIMARY)
+                            .indicatorDesc("Test Indicator")
+                            .weightPercent(new BigDecimal("10.00"))
+                            .sortOrder(1)
+                            .type("test")
+                            .status(IndicatorStatus.ACTIVE)
+                            .isDeleted(false)
+                            .responsibleDept(collegeDept)
+                            .createdAt(java.time.LocalDateTime.now())
+                            .updatedAt(java.time.LocalDateTime.now())
+                            .build();
+
+                    // When - Use reflection to call private method
+                    java.lang.reflect.Method method = IndicatorService.class
+                            .getDeclaredMethod("determineApprovalFlowCode", Indicator.class);
+                    method.setAccessible(true);
+                    String result = (String) method.invoke(indicatorService, indicator);
+
+                    // Then
+                    assertThat(result)
+                            .as("College department '%s' should return INDICATOR_COLLEGE_APPROVAL", collegeDept)
+                            .isEqualTo("INDICATOR_COLLEGE_APPROVAL");
+                }
+            }
+
+            @Test
+            @DisplayName("Should return INDICATOR_COLLEGE_APPROVAL when responsibleDept contains 学院")
+            void shouldReturnCollegeApprovalWhenDeptContainsXueYuan() throws Exception {
+                // Given - Test various formats with "学院" in different positions
+                String[] deptNamesWithXueYuan = {
+                    "学院办公室",
+                    "某某学院分部",
+                    "测试学院中心"
+                };
+
+                for (String deptName : deptNamesWithXueYuan) {
+                    Indicator indicator = Indicator.builder()
+                            .indicatorId(1L)
+                            .taskId(testTask.getTaskId())
+                            .ownerOrg(testOwnerOrg)
+                            .targetOrg(testTargetOrg)
+                            .level(IndicatorLevel.PRIMARY)
+                            .indicatorDesc("Test Indicator")
+                            .weightPercent(new BigDecimal("10.00"))
+                            .sortOrder(1)
+                            .type("test")
+                            .status(IndicatorStatus.ACTIVE)
+                            .isDeleted(false)
+                            .responsibleDept(deptName)
+                            .createdAt(java.time.LocalDateTime.now())
+                            .updatedAt(java.time.LocalDateTime.now())
+                            .build();
+
+                    // When
+                    java.lang.reflect.Method method = IndicatorService.class
+                            .getDeclaredMethod("determineApprovalFlowCode", Indicator.class);
+                    method.setAccessible(true);
+                    String result = (String) method.invoke(indicatorService, indicator);
+
+                    // Then
+                    assertThat(result)
+                            .as("Department '%s' containing '学院' should return INDICATOR_COLLEGE_APPROVAL", deptName)
+                            .isEqualTo("INDICATOR_COLLEGE_APPROVAL");
+                }
+            }
+
+            @Test
+            @DisplayName("Should return INDICATOR_DEFAULT_APPROVAL for non-college departments")
+            void shouldReturnDefaultApprovalForNonCollegeDepartments() throws Exception {
+                // Given - Create indicators with various non-college department names
+                String[] nonCollegeDeptNames = {
+                    "人事处",
+                    "财务部",
+                    "行政办公室",
+                    "教务处",
+                    "科研处",
+                    "后勤管理部门",
+                    "信息技术中心",
+                    "图书馆",
+                    "学生工作部",
+                    "招生办公室"
+                };
+
+                for (String nonCollegeDept : nonCollegeDeptNames) {
+                    // Create indicator with non-college department
+                    Indicator indicator = Indicator.builder()
+                            .indicatorId(1L)
+                            .taskId(testTask.getTaskId())
+                            .ownerOrg(testOwnerOrg)
+                            .targetOrg(testTargetOrg)
+                            .level(IndicatorLevel.PRIMARY)
+                            .indicatorDesc("Test Indicator")
+                            .weightPercent(new BigDecimal("10.00"))
+                            .sortOrder(1)
+                            .type("test")
+                            .status(IndicatorStatus.ACTIVE)
+                            .isDeleted(false)
+                            .responsibleDept(nonCollegeDept)
+                            .createdAt(java.time.LocalDateTime.now())
+                            .updatedAt(java.time.LocalDateTime.now())
+                            .build();
+
+                    // When - Use reflection to call private method
+                    java.lang.reflect.Method method = IndicatorService.class
+                            .getDeclaredMethod("determineApprovalFlowCode", Indicator.class);
+                    method.setAccessible(true);
+                    String result = (String) method.invoke(indicatorService, indicator);
+
+                    // Then
+                    assertThat(result)
+                            .as("Non-college department '%s' should return INDICATOR_DEFAULT_APPROVAL", nonCollegeDept)
+                            .isEqualTo("INDICATOR_DEFAULT_APPROVAL");
+                }
+            }
+
+            @Test
+            @DisplayName("Should return INDICATOR_DEFAULT_APPROVAL when responsibleDept is null")
+            void shouldReturnDefaultApprovalWhenDeptIsNull() throws Exception {
+                // Given - Create indicator with null responsibleDept
+                Indicator indicator = Indicator.builder()
+                        .indicatorId(1L)
+                        .taskId(testTask.getTaskId())
+                        .ownerOrg(testOwnerOrg)
+                        .targetOrg(testTargetOrg)
+                        .level(IndicatorLevel.PRIMARY)
+                        .indicatorDesc("Test Indicator")
+                        .weightPercent(new BigDecimal("10.00"))
+                        .sortOrder(1)
+                        .type("test")
+                        .status(IndicatorStatus.ACTIVE)
+                        .isDeleted(false)
+                        .responsibleDept(null)
+                        .createdAt(java.time.LocalDateTime.now())
+                        .updatedAt(java.time.LocalDateTime.now())
+                        .build();
+
+                // When - Use reflection to call private method
+                java.lang.reflect.Method method = IndicatorService.class
+                        .getDeclaredMethod("determineApprovalFlowCode", Indicator.class);
+                method.setAccessible(true);
+                String result = (String) method.invoke(indicatorService, indicator);
+
+                // Then
+                assertThat(result)
+                        .as("Null responsibleDept should return INDICATOR_DEFAULT_APPROVAL")
+                        .isEqualTo("INDICATOR_DEFAULT_APPROVAL");
+            }
+
+            @Test
+            @DisplayName("Should return INDICATOR_DEFAULT_APPROVAL when responsibleDept is empty")
+            void shouldReturnDefaultApprovalWhenDeptIsEmpty() throws Exception {
+                // Given - Create indicator with empty responsibleDept
+                Indicator indicator = Indicator.builder()
+                        .indicatorId(1L)
+                        .taskId(testTask.getTaskId())
+                        .ownerOrg(testOwnerOrg)
+                        .targetOrg(testTargetOrg)
+                        .level(IndicatorLevel.PRIMARY)
+                        .indicatorDesc("Test Indicator")
+                        .weightPercent(new BigDecimal("10.00"))
+                        .sortOrder(1)
+                        .type("test")
+                        .status(IndicatorStatus.ACTIVE)
+                        .isDeleted(false)
+                        .responsibleDept("")
+                        .createdAt(java.time.LocalDateTime.now())
+                        .updatedAt(java.time.LocalDateTime.now())
+                        .build();
+
+                // When - Use reflection to call private method
+                java.lang.reflect.Method method = IndicatorService.class
+                        .getDeclaredMethod("determineApprovalFlowCode", Indicator.class);
+                method.setAccessible(true);
+                String result = (String) method.invoke(indicatorService, indicator);
+
+                // Then
+                assertThat(result)
+                        .as("Empty responsibleDept should return INDICATOR_DEFAULT_APPROVAL")
+                        .isEqualTo("INDICATOR_DEFAULT_APPROVAL");
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("Transaction Rollback Tests")
+    class TransactionRollbackTests {
+
+        /**
+         * Test transaction rollback when approval creation fails
+         * 
+         * **Validates: Requirement 2.3 - Transaction Atomicity**
+         * 
+         * Note: This test references the comprehensive integration test in
+         * IndicatorServiceTransactionTest.java which fully tests transaction
+         * atomicity and rollback behavior. This test verifies the exception
+         * is thrown correctly when approval creation fails.
+         * 
+         * For full transaction rollback verification, see:
+         * - IndicatorServiceTransactionTest.updateIndicator_shouldRollbackWhenApprovalCreationFails()
+         * - IndicatorServiceTransactionTest.updateIndicator_shouldCommitBothOperationsOnSuccess()
+         */
+        @Test
+        @DisplayName("Should throw BusinessException when approval creation fails during distribution")
+        void shouldThrowBusinessExceptionWhenApprovalCreationFails() {
+            // Given: Create an indicator with college department
+            Indicator indicator = createTestIndicatorForRollback("计算机学院");
+            Indicator savedIndicator = indicatorRepository.save(indicator);
+            
+            // Mock approval service to throw exception
+            doThrow(new RuntimeException("Simulated approval creation failure"))
+                    .when(auditInstanceService)
+                    .createAuditInstance(anyString(), any(AuditEntityType.class), anyLong(), anyLong());
+
+            // When: Try to distribute indicator (which should trigger approval creation)
+            IndicatorUpdateRequest request = new IndicatorUpdateRequest();
+            request.setIndicatorDesc("Updated description during distribution");
+            request.setStatusAudit(createDistributeStatusAudit());
+
+            // Then: Should throw BusinessException with appropriate message
+            assertThatThrownBy(() -> indicatorService.updateIndicator(savedIndicator.getIndicatorId(), request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("下发失败")
+                    .hasMessageContaining("无法创建审批实例");
+
+            // Note: Full transaction rollback verification (ensuring indicator update
+            // is not persisted) is tested in IndicatorServiceTransactionTest.java
+            // which uses proper transaction isolation for rollback testing.
+        }
+
+        /**
+         * Helper method to create a test indicator for rollback testing
+         */
+        private Indicator createTestIndicatorForRollback(String responsibleDept) {
+            return Indicator.builder()
+                    .taskId(testTask.getTaskId())
+                    .ownerOrg(testOwnerOrg)
+                    .targetOrg(testTargetOrg)
+                    .level(IndicatorLevel.PRIMARY)
+                    .indicatorDesc("Test indicator for rollback")
+                    .weightPercent(new BigDecimal("10.00"))
+                    .sortOrder(1)
+                    .type("QUANTITATIVE")
+                    .progress(0)
+                    .status(IndicatorStatus.ACTIVE)
+                    .isDeleted(false)
+                    .responsibleDept(responsibleDept)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+        }
+
+        /**
+         * Helper method to create statusAudit JSON with "distribute" action
+         */
+        private String createDistributeStatusAudit() {
+            try {
+                ArrayNode auditArray = objectMapper.createArrayNode();
+                ObjectNode auditRecord = objectMapper.createObjectNode();
+                auditRecord.put("action", "distribute");
+                auditRecord.put("timestamp", LocalDateTime.now().toString());
+                auditRecord.put("userId", 1L);
+                auditRecord.put("userName", "Test User");
+                auditArray.add(auditRecord);
+                return objectMapper.writeValueAsString(auditArray);
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to create statusAudit JSON", e);
             }
         }
     }

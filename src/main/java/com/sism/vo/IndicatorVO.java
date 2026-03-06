@@ -54,6 +54,12 @@ public class IndicatorVO {
     private String pendingAttachments;  // 待审批附件 (JSON string)
     private List<IndicatorVO> childIndicators;
     private List<MilestoneVO> milestones;
+    
+    // 显示状态（根据审批状态计算）
+    // DRAFT: 草稿（无审批实例或审批拒绝）
+    // PENDING_APPROVAL: 待审核（审批中）
+    // DISTRIBUTED: 已下发（审批通过）
+    private String displayStatus;
 
     /**
      * Default constructor
@@ -256,5 +262,13 @@ public class IndicatorVO {
     }
     public void setMilestones(List<MilestoneVO> milestones) { 
         this.milestones = milestones != null ? List.copyOf(milestones) : List.of(); 
+    }
+    
+    public String getDisplayStatus() {
+        return displayStatus;
+    }
+    
+    public void setDisplayStatus(String displayStatus) {
+        this.displayStatus = displayStatus;
     }
 }

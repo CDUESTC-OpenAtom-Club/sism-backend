@@ -330,8 +330,7 @@ public class ApprovalService {
             updatePlanStatus(instance.getEntityId(), "APPROVED");
             log.info("Plan {} approved and workflow completed", instance.getEntityId());
         } else {
-            log.info("Plan {} approval progressed to step {}", 
-                    instance.getEntityId(), instance.getCurrentStepOrder());
+            log.info("Plan {} approval in progress", instance.getEntityId());
         }
     }
 

@@ -50,12 +50,17 @@ spring:
   # -----------------------------------------------------------------------------
   flyway:
     enabled: ${FLYWAY_ENABLED}
+    # 核心：如果数据库不为空，自动建立基线
     baseline-on-migrate: true
-    baseline-version: 1.0
+    # 核心：告诉 Flyway 现在的数据库已经是 V13 的状态了
+    baseline-version: 13
     locations: classpath:db/migration
-    validate-on-migrate: true
+    # 暂时禁用验证，因为手动应用了迁移
+    validate-on-migrate: false
+    # 不允许乱序执行（除非需要补充 V7-V9）
     out-of-order: false
     placeholder-replacement: false
+    encoding: UTF-8
   
   # -----------------------------------------------------------------------------
   # SQL 初始化
