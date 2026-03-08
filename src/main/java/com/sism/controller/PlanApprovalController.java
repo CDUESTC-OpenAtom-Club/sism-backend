@@ -1,19 +1,26 @@
 package com.sism.controller;
 
 import com.sism.common.ApiResponse;
+import com.sism.dto.PlanApprovalRequest;
+import com.sism.dto.PlanRejectionRequest;
 import com.sism.entity.AuditInstance;
+import com.sism.entity.SysUser;
+import com.sism.exception.BusinessException;
+import com.sism.repository.UserRepository;
 import com.sism.service.ApprovalService;
 import com.sism.service.AuditInstanceService;
 import com.sism.vo.PlanVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Controller for Plan approval workflow operations
@@ -28,6 +35,7 @@ public class PlanApprovalController {
     private final ApprovalService approvalService;
     private final AuditInstanceService auditInstanceService;
     private final com.sism.service.PlanService planService;
+    private final UserRepository userRepository;
 
     /**
      * Submit a plan for approval
@@ -52,21 +60,19 @@ public class PlanApprovalController {
      * Approve a plan at the current step
      * 
      * @param instanceId The audit instance ID
-     * @param request Request body containing approverId and optional comment
+     * @param request Request body containing optional comment
      * @return Success response
      */
     @PostMapping("/instances/{instanceId}/approve")
     @Operation(summary = "Approve plan", description = "Approve a plan at the current approval step")
     public ResponseEntity<ApiResponse<String>> approvePlan(
             @PathVariable Long instanceId,
-            @RequestBody Map<String, Object> request) {
+            @Valid @RequestBody PlanApprovalRequest request) {
         
-        Long approverId = Long.valueOf(request.get("approverId").toString());
-        String comment = request.get("comment") != null ? request.get("comment").toString() : null;
-        
+        Long approverId = getCurrentUserId();
         log.info("Approving plan: instanceId={}, approverId={}", instanceId, approverId);
         
-        approvalService.approvePlan(instanceId, approverId, comment);
+        approvalService.approvePlan(instanceId, approverId, request.getComment());
         return ResponseEntity.ok(ApiResponse.success("Plan approved successfully"));
     }
 
@@ -74,21 +80,19 @@ public class PlanApprovalController {
      * Reject a plan at the current step
      * 
      * @param instanceId The audit instance ID
-     * @param request Request body containing approverId and comment
+     * @param request Request body containing reason
      * @return Success response
      */
     @PostMapping("/instances/{instanceId}/reject")
     @Operation(summary = "Reject plan", description = "Reject a plan at the current approval step")
     public ResponseEntity<ApiResponse<String>> rejectPlan(
             @PathVariable Long instanceId,
-            @RequestBody Map<String, Object> request) {
+            @Valid @RequestBody PlanRejectionRequest request) {
         
-        Long approverId = Long.valueOf(request.get("approverId").toString());
-        String comment = request.get("comment").toString();
-        
+        Long approverId = getCurrentUserId();
         log.info("Rejecting plan: instanceId={}, approverId={}", instanceId, approverId);
         
-        approvalService.rejectPlan(instanceId, approverId, comment);
+        approvalService.rejectPlan(instanceId, approverId, request.getReason());
         return ResponseEntity.ok(ApiResponse.success("Plan rejected successfully"));
     }
 
@@ -161,5 +165,30 @@ public class PlanApprovalController {
         String stepDescription = auditInstanceService.getCurrentStepDescription(instance);
         
         return ResponseEntity.ok(ApiResponse.success(stepDescription));
+    }
+
+    /**
+     * Extract current user ID from security context
+     * 
+     * @return The current user's ID
+     * @throws BusinessException if user is not authenticated
+     */
+    private Long getCurrentUserId() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                Object principal = authentication.getPrincipal();
+                if (principal instanceof String username) {
+                    return userRepository.findByUsername(username)
+                            .map(SysUser::getId)
+                            .orElseThrow(() -> new BusinessException("User not found"));
+                }
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to get current user ID: {}", e.getMessage(), e);
+        }
+        throw new BusinessException("User not authenticated");
     }
 }

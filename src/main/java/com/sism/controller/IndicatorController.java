@@ -77,16 +77,31 @@ public class IndicatorController {
      * Get all active indicators
      * GET /api/indicators
      * Cache: Last-Modified-based caching
-     * **Validates: Requirements 4.2.2**
+     * 
+     * <p>This endpoint supports HTTP caching using the Last-Modified header.
+     * Clients should send the If-Modified-Since header with subsequent requests.
+     * If the data hasn't changed, the server returns 304 Not Modified to save bandwidth.
+     * 
+     * <h3>Caching Behavior:</h3>
+     * <ul>
+     *   <li>First request: Returns 200 OK with Last-Modified header</li>
+     *   <li>Subsequent requests with If-Modified-Since: Returns 304 if not modified, 200 if modified</li>
+     *   <li>Cache-Control: max-age=120 (2 minutes client-side cache)</li>
+     * </ul>
+     * 
+     * **Validates: Requirements 2.6, 2.7**
      */
     @GetMapping
-    @Operation(summary = "Get all indicators", description = "Retrieve all active indicators with optional year filtering and Last-Modified caching")
+    @Operation(summary = "Get all indicators", 
+               description = "Retrieve all active indicators with optional year filtering and Last-Modified caching. " +
+                           "Supports HTTP caching: send If-Modified-Since header to receive 304 Not Modified when data is unchanged.")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indicators retrieved successfully"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "304", description = "Not Modified - use cached data")
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Indicators retrieved successfully with Last-Modified header"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "304", description = "Not Modified - data unchanged since If-Modified-Since timestamp, use cached data")
     })
     public ResponseEntity<ApiResponse<List<IndicatorVO>>> getAllIndicators(
             @Parameter(description = "Filter by year (optional)") @RequestParam(required = false) Integer year,
+            @Parameter(description = "If-Modified-Since header for cache validation (RFC 1123 format)") 
             @RequestHeader(value = "If-Modified-Since", required = false) String ifModifiedSince) {
         List<IndicatorVO> indicators;
         if (year != null) {
@@ -98,10 +113,13 @@ public class IndicatorController {
         }
         ApiResponse<List<IndicatorVO>> response = ApiResponse.success(indicators);
         
-        // TODO: findLatestUpdateTime方法已移除
         // Get latest update time for Last-Modified header
-        // LocalDateTime latestUpdate = indicatorRepository.findLatestUpdateTime(IndicatorStatus.ACTIVE);
-        Instant lastModified = Instant.now();
+        LocalDateTime latestUpdate = indicatorRepository.findLatestUpdateTime(IndicatorStatus.ACTIVE);
+        Instant lastModified = latestUpdate != null 
+            ? latestUpdate.atZone(ZoneId.systemDefault()).toInstant() 
+            : Instant.now();
+        
+        log.debug("Latest indicator update time: {}, If-Modified-Since: {}", lastModified, ifModifiedSince);
         
         // Use Last-Modified-based caching
         return CacheUtils.buildLastModifiedResponse(response, lastModified, ifModifiedSince);

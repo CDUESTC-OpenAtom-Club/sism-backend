@@ -288,11 +288,10 @@ public class ReportStatusStateMachinePropertyTest {
         // Approve the report
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getId());
         request.setAction(ApprovalAction.APPROVE);
         request.setComment("Approved via property test");
 
-        var approvedReport = approvalService.processApproval(request);
+        var approvedReport = approvalService.processApproval(request, approver.getId());
 
         // Assert: Status should transition to APPROVED
         assertThat(approvedReport.getStatus()).isEqualTo(ReportStatus.APPROVED);
@@ -331,11 +330,10 @@ public class ReportStatusStateMachinePropertyTest {
         // Reject the report
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getId());
         request.setAction(ApprovalAction.REJECT);
         request.setComment("Rejected via property test - data incomplete");
 
-        var rejectedReport = approvalService.processApproval(request);
+        var rejectedReport = approvalService.processApproval(request, approver.getId());
 
         // Assert: Status should transition to REJECTED
         assertThat(rejectedReport.getStatus()).isEqualTo(ReportStatus.REJECTED);
@@ -373,11 +371,10 @@ public class ReportStatusStateMachinePropertyTest {
         // Return the report
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getId());
         request.setAction(ApprovalAction.RETURN);
         request.setComment("Returned via property test - needs revision");
 
-        var returnedReport = approvalService.processApproval(request);
+        var returnedReport = approvalService.processApproval(request, approver.getId());
 
         // Assert: Status should transition to RETURNED
         assertThat(returnedReport.getStatus()).isEqualTo(ReportStatus.RETURNED);
@@ -415,10 +412,9 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest returnRequest = new ApprovalRequest();
         returnRequest.setReportId(report.getReportId());
-        returnRequest.setApproverId(approver.getId());
         returnRequest.setAction(ApprovalAction.RETURN);
         returnRequest.setComment("Needs revision");
-        approvalService.processApproval(returnRequest);
+        approvalService.processApproval(returnRequest, approver.getId());
 
         // Resubmit the report
         var resubmittedReport = reportService.submitReport(report.getReportId());
@@ -492,10 +488,9 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest approveRequest = new ApprovalRequest();
         approveRequest.setReportId(report.getReportId());
-        approveRequest.setApproverId(approver.getId());
         approveRequest.setAction(ApprovalAction.APPROVE);
         approveRequest.setComment("Approved");
-        approvalService.processApproval(approveRequest);
+        approvalService.processApproval(approveRequest, approver.getId());
 
         // Attempt to submit again (should fail)
         assertThatThrownBy(() -> reportService.submitReport(report.getReportId()))
@@ -538,10 +533,9 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest rejectRequest = new ApprovalRequest();
         rejectRequest.setReportId(report.getReportId());
-        rejectRequest.setApproverId(approver.getId());
         rejectRequest.setAction(ApprovalAction.REJECT);
         rejectRequest.setComment("Rejected - invalid data");
-        approvalService.processApproval(rejectRequest);
+        approvalService.processApproval(rejectRequest, approver.getId());
 
         // Attempt to submit again (should fail)
         assertThatThrownBy(() -> reportService.submitReport(report.getReportId()))
@@ -585,11 +579,10 @@ public class ReportStatusStateMachinePropertyTest {
         // Attempt approval action (should fail)
         ApprovalRequest request = new ApprovalRequest();
         request.setReportId(report.getReportId());
-        request.setApproverId(approver.getId());
         request.setAction(action);
         request.setComment("Test comment for " + action);
 
-        assertThatThrownBy(() -> approvalService.processApproval(request))
+        assertThatThrownBy(() -> approvalService.processApproval(request, approver.getId()))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("SUBMITTED");
     }
@@ -666,10 +659,9 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest returnRequest = new ApprovalRequest();
         returnRequest.setReportId(report.getReportId());
-        returnRequest.setApproverId(approver.getId());
         returnRequest.setAction(ApprovalAction.RETURN);
         returnRequest.setComment("Needs revision");
-        approvalService.processApproval(returnRequest);
+        approvalService.processApproval(returnRequest, approver.getId());
 
         // Verify report is in RETURNED status
         var returnedReport = reportService.getReportById(report.getReportId());
@@ -758,10 +750,9 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest approveRequest = new ApprovalRequest();
         approveRequest.setReportId(report.getReportId());
-        approveRequest.setApproverId(approver.getId());
         approveRequest.setAction(ApprovalAction.APPROVE);
         approveRequest.setComment("Approved");
-        approvalService.processApproval(approveRequest);
+        approvalService.processApproval(approveRequest, approver.getId());
 
         // Attempt to update the report content (should fail)
         com.sism.dto.ReportUpdateRequest updateRequest = new com.sism.dto.ReportUpdateRequest();
@@ -805,10 +796,9 @@ public class ReportStatusStateMachinePropertyTest {
         
         ApprovalRequest rejectRequest = new ApprovalRequest();
         rejectRequest.setReportId(report.getReportId());
-        rejectRequest.setApproverId(approver.getId());
         rejectRequest.setAction(ApprovalAction.REJECT);
         rejectRequest.setComment("Rejected - invalid data");
-        approvalService.processApproval(rejectRequest);
+        approvalService.processApproval(rejectRequest, approver.getId());
 
         // Attempt to update the report content (should fail)
         com.sism.dto.ReportUpdateRequest updateRequest = new com.sism.dto.ReportUpdateRequest();
@@ -857,10 +847,9 @@ public class ReportStatusStateMachinePropertyTest {
         // Return - should always go to RETURNED
         ApprovalRequest returnRequest = new ApprovalRequest();
         returnRequest.setReportId(report.getReportId());
-        returnRequest.setApproverId(approver.getId());
         returnRequest.setAction(ApprovalAction.RETURN);
         returnRequest.setComment("Needs revision");
-        var returned = approvalService.processApproval(returnRequest);
+        var returned = approvalService.processApproval(returnRequest, approver.getId());
         assertThat(returned.getStatus()).isEqualTo(ReportStatus.RETURNED);
 
         // Resubmit - should always go back to SUBMITTED
@@ -870,10 +859,9 @@ public class ReportStatusStateMachinePropertyTest {
         // Approve - should always go to APPROVED
         ApprovalRequest approveRequest = new ApprovalRequest();
         approveRequest.setReportId(report.getReportId());
-        approveRequest.setApproverId(approver.getId());
         approveRequest.setAction(ApprovalAction.APPROVE);
         approveRequest.setComment("Approved");
-        var approved = approvalService.processApproval(approveRequest);
+        var approved = approvalService.processApproval(approveRequest, approver.getId());
         assertThat(approved.getStatus()).isEqualTo(ReportStatus.APPROVED);
     }
 }

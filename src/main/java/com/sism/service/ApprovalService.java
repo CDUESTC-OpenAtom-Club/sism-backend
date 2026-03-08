@@ -85,37 +85,37 @@ public class ApprovalService {
      * @return updated report VO
      */
     @Transactional
-    public ReportVO processApproval(ApprovalRequest request) {
-        ProgressReport report = reportRepository.findById(request.getReportId())
-                .orElseThrow(() -> new ResourceNotFoundException("ProgressReport", request.getReportId()));
+        public ReportVO processApproval(ApprovalRequest request, Long approverId) {
+            ProgressReport report = reportRepository.findById(request.getReportId())
+                    .orElseThrow(() -> new ResourceNotFoundException("ProgressReport", request.getReportId()));
 
-        // Validate report is in SUBMITTED status
-        if (report.getStatus() != ReportStatus.SUBMITTED) {
-            throw new BusinessException("Report must be in SUBMITTED status for approval");
+            // Validate report is in SUBMITTED status
+            if (report.getStatus() != ReportStatus.SUBMITTED) {
+                throw new BusinessException("Report must be in SUBMITTED status for approval");
+            }
+
+            // Validate approver exists
+            SysUser approver = userRepository.findById(approverId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User", approverId));
+
+            // Validate comment is provided for REJECT and RETURN actions
+            if ((request.getAction() == ApprovalAction.REJECT || request.getAction() == ApprovalAction.RETURN)
+                    && (request.getComment() == null || request.getComment().trim().isEmpty())) {
+                throw new BusinessException("Comment is required for reject and return actions");
+            }
+
+            // Process based on action type
+            switch (request.getAction()) {
+                case APPROVE:
+                    return approveReport(report, approver, request.getComment());
+                case REJECT:
+                    return rejectReport(report, approver, request.getComment());
+                case RETURN:
+                    return returnReport(report, approver, request.getComment());
+                default:
+                    throw new BusinessException("Unknown approval action: " + request.getAction());
+            }
         }
-
-        // Validate approver exists
-        SysUser approver = userRepository.findById(request.getApproverId())
-                .orElseThrow(() -> new ResourceNotFoundException("User", request.getApproverId()));
-
-        // Validate comment is provided for REJECT and RETURN actions
-        if ((request.getAction() == ApprovalAction.REJECT || request.getAction() == ApprovalAction.RETURN)
-                && (request.getComment() == null || request.getComment().trim().isEmpty())) {
-            throw new BusinessException("Comment is required for reject and return actions");
-        }
-
-        // Process based on action type
-        switch (request.getAction()) {
-            case APPROVE:
-                return approveReport(report, approver, request.getComment());
-            case REJECT:
-                return rejectReport(report, approver, request.getComment());
-            case RETURN:
-                return returnReport(report, approver, request.getComment());
-            default:
-                throw new BusinessException("Unknown approval action: " + request.getAction());
-        }
-    }
 
     /**
      * Approve a report

@@ -18,9 +18,6 @@ public class ApprovalRequest {
     @NotNull(message = "Report ID is required")
     private Long reportId;
 
-    @NotNull(message = "Approver ID is required")
-    private Long approverId;
-
     @NotNull(message = "Approval action is required")
     private ApprovalAction action;
 

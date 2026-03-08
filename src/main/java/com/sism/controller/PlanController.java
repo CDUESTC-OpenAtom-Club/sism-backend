@@ -171,4 +171,27 @@ public class PlanController {
         PlanVO plan = planService.approvePlan(id);
         return ResponseEntity.ok(ApiResponse.success("Plan approved successfully", plan));
     }
+
+
+    /**
+     * Get count of pending plan approvals for a user
+     * GET /api/plans/approval/pending/count?userId={userId}
+     */
+    @GetMapping("/approval/pending/count")
+    @Operation(summary = "Get pending approval count",
+               description = "Get count of plans pending approval for a specific user")
+    public ResponseEntity<ApiResponse<Long>> getPendingApprovalCount(
+            @Parameter(description = "User ID") @RequestParam Long userId) {
+        log.info("Getting pending approval count for user: {}", userId);
+        try {
+            Long count = planService.getPendingApprovalCount(userId);
+            log.info("Successfully retrieved pending approval count: {} for user: {}", count, userId);
+            return ResponseEntity.ok(ApiResponse.success(count));
+        } catch (Exception e) {
+            log.error("Error getting pending approval count for user {}: {}", userId, e.getMessage(), e);
+            // Return 0 instead of throwing to provide graceful degradation
+            return ResponseEntity.ok(ApiResponse.success(0L));
+        }
+    }
+
 }

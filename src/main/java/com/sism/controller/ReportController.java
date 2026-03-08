@@ -5,7 +5,10 @@ import com.sism.common.PageResult;
 import com.sism.dto.ApprovalRequest;
 import com.sism.dto.ReportCreateRequest;
 import com.sism.dto.ReportUpdateRequest;
+import com.sism.entity.SysUser;
 import com.sism.enums.ReportStatus;
+import com.sism.exception.BusinessException;
+import com.sism.repository.UserRepository;
 import com.sism.service.ApprovalService;
 import com.sism.service.ReportService;
 import com.sism.vo.ApprovalRecordVO;
@@ -21,6 +24,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,6 +45,7 @@ public class ReportController {
 
     private final ReportService reportService;
     private final ApprovalService approvalService;
+    private final UserRepository userRepository;
 
     /**
      * Get report by ID
@@ -105,14 +111,14 @@ public class ReportController {
     }
 
     /**
-     * Get reports by reporter ID
-     * GET /api/reports/reporter/{reporterId}
+     * Get reports for current user
+     * GET /api/reports/my-reports
      */
-    @GetMapping("/reporter/{reporterId}")
-    @Operation(summary = "Get reports by reporter", description = "Retrieve reports submitted by a specific user")
-    public ResponseEntity<ApiResponse<List<ReportVO>>> getReportsByReporterId(
-            @Parameter(description = "Reporter user ID") @PathVariable Long reporterId) {
-        List<ReportVO> reports = reportService.getReportsByReporterId(reporterId);
+    @GetMapping("/my-reports")
+    @Operation(summary = "Get my reports", description = "Retrieve reports submitted by the current authenticated user")
+    public ResponseEntity<ApiResponse<List<ReportVO>>> getMyReports() {
+        Long currentUserId = getCurrentUserId();
+        List<ReportVO> reports = reportService.getReportsByReporterId(currentUserId);
         return ResponseEntity.ok(ApiResponse.success(reports));
     }
 
@@ -249,7 +255,30 @@ public class ReportController {
     public ResponseEntity<ApiResponse<ReportVO>> processApproval(
             @Valid @RequestBody ApprovalRequest request) {
         log.info("Processing approval for report: {} with action: {}", request.getReportId(), request.getAction());
-        ReportVO report = approvalService.processApproval(request);
+        Long approverId = getCurrentUserId();
+        ReportVO report = approvalService.processApproval(request, approverId);
         return ResponseEntity.ok(ApiResponse.success("Approval processed successfully", report));
+    }
+
+    /**
+     * Extract current user ID from security context
+     */
+    private Long getCurrentUserId() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                Object principal = authentication.getPrincipal();
+                if (principal instanceof String username) {
+                    return userRepository.findByUsername(username)
+                            .map(SysUser::getId)
+                            .orElseThrow(() -> new BusinessException("User not found"));
+                }
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to get current user ID: {}", e.getMessage(), e);
+        }
+        throw new BusinessException("User not authenticated");
     }
 }

@@ -37,6 +37,9 @@ class PlanServiceTest {
     @Mock
     private SysOrgRepository orgRepository;
 
+    @Mock
+    private AuditInstanceService auditInstanceService;
+
     @InjectMocks
     private PlanService planService;
 
@@ -330,5 +333,66 @@ class PlanServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         verify(planRepository).findById(999L);
         verify(planRepository, never()).save(any());
+    }
+
+    @Test
+    void getPendingApprovalCount_WithPendingPlanApprovals_ShouldReturnCount() {
+        // Arrange
+        Long userId = 123L;
+        
+        com.sism.entity.AuditInstance planInstance1 = new com.sism.entity.AuditInstance();
+        planInstance1.setId(1L);
+        planInstance1.setEntityType(com.sism.enums.AuditEntityType.PLAN);
+        planInstance1.setEntityId(100L);
+        
+        com.sism.entity.AuditInstance planInstance2 = new com.sism.entity.AuditInstance();
+        planInstance2.setId(2L);
+        planInstance2.setEntityType(com.sism.enums.AuditEntityType.PLAN);
+        planInstance2.setEntityId(101L);
+        
+        com.sism.entity.AuditInstance indicatorInstance = new com.sism.entity.AuditInstance();
+        indicatorInstance.setId(3L);
+        indicatorInstance.setEntityType(com.sism.enums.AuditEntityType.INDICATOR);
+        indicatorInstance.setEntityId(200L);
+        
+        when(auditInstanceService.getPendingApprovalsForUser(userId))
+                .thenReturn(Arrays.asList(planInstance1, planInstance2, indicatorInstance));
+
+        // Act
+        Long result = planService.getPendingApprovalCount(userId);
+
+        // Assert
+        assertThat(result).isEqualTo(2L); // Only 2 PLAN instances
+        verify(auditInstanceService).getPendingApprovalsForUser(userId);
+    }
+
+    @Test
+    void getPendingApprovalCount_WithNoPendingApprovals_ShouldReturnZero() {
+        // Arrange
+        Long userId = 123L;
+        when(auditInstanceService.getPendingApprovalsForUser(userId))
+                .thenReturn(Arrays.asList());
+
+        // Act
+        Long result = planService.getPendingApprovalCount(userId);
+
+        // Assert
+        assertThat(result).isEqualTo(0L);
+        verify(auditInstanceService).getPendingApprovalsForUser(userId);
+    }
+
+    @Test
+    void getPendingApprovalCount_WhenServiceThrowsException_ShouldReturnZero() {
+        // Arrange
+        Long userId = 123L;
+        when(auditInstanceService.getPendingApprovalsForUser(userId))
+                .thenThrow(new RuntimeException("Database error"));
+
+        // Act
+        Long result = planService.getPendingApprovalCount(userId);
+
+        // Assert
+        assertThat(result).isEqualTo(0L); // Graceful degradation
+        verify(auditInstanceService).getPendingApprovalsForUser(userId);
     }
 }

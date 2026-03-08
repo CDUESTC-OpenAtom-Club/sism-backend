@@ -125,12 +125,11 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.APPROVE);
             request.setComment("Approved");
 
             // When
-            ReportVO result = approvalService.processApproval(request);
+            ReportVO result = approvalService.processApproval(request, testApprover.getId());
 
             // Then
             assertThat(result.getStatus()).isEqualTo(ReportStatus.APPROVED);
@@ -150,11 +149,10 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(draft.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.APPROVE);
 
             // When/Then
-            assertThatThrownBy(() -> approvalService.processApproval(request))
+            assertThatThrownBy(() -> approvalService.processApproval(request, testApprover.getId()))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("SUBMITTED");
         }
@@ -172,12 +170,11 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.REJECT);
             request.setComment("Rejected - incomplete data");
 
             // When
-            ReportVO result = approvalService.processApproval(request);
+            ReportVO result = approvalService.processApproval(request, testApprover.getId());
 
             // Then
             assertThat(result.getStatus()).isEqualTo(ReportStatus.REJECTED);
@@ -191,12 +188,11 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.REJECT);
             request.setComment(null);
 
             // When/Then
-            assertThatThrownBy(() -> approvalService.processApproval(request))
+            assertThatThrownBy(() -> approvalService.processApproval(request, testApprover.getId()))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Comment is required");
         }
@@ -209,12 +205,11 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.REJECT);
             request.setComment("   ");
 
             // When/Then
-            assertThatThrownBy(() -> approvalService.processApproval(request))
+            assertThatThrownBy(() -> approvalService.processApproval(request, testApprover.getId()))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Comment is required");
         }
@@ -232,12 +227,11 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.RETURN);
             request.setComment("Please revise the narrative");
 
             // When
-            ReportVO result = approvalService.processApproval(request);
+            ReportVO result = approvalService.processApproval(request, testApprover.getId());
 
             // Then
             assertThat(result.getStatus()).isEqualTo(ReportStatus.RETURNED);
@@ -251,12 +245,11 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.RETURN);
             request.setComment(null);
 
             // When/Then
-            assertThatThrownBy(() -> approvalService.processApproval(request))
+            assertThatThrownBy(() -> approvalService.processApproval(request, testApprover.getId()))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Comment is required");
         }
@@ -274,11 +267,10 @@ class ApprovalServiceTest {
 
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(submitted.getReportId());
-            request.setApproverId(testApprover.getId());
             request.setAction(ApprovalAction.APPROVE);
             request.setComment("Approved");
 
-            approvalService.processApproval(request);
+            approvalService.processApproval(request, testApprover.getId());
 
             // When
             List<ApprovalRecordVO> result = approvalService.getApprovalRecordsByReportId(submitted.getReportId());
@@ -319,11 +311,10 @@ class ApprovalServiceTest {
 
             ApprovalRequest returnRequest = new ApprovalRequest();
             returnRequest.setReportId(submitted.getReportId());
-            returnRequest.setApproverId(testApprover.getId());
             returnRequest.setAction(ApprovalAction.RETURN);
             returnRequest.setComment("Please revise");
 
-            approvalService.processApproval(returnRequest);
+            approvalService.processApproval(returnRequest, testApprover.getId());
 
             // When - Resubmit the report
             ReportVO resubmitted = reportService.submitReport(submitted.getReportId());
@@ -340,11 +331,10 @@ class ApprovalServiceTest {
 
             ApprovalRequest returnRequest = new ApprovalRequest();
             returnRequest.setReportId(submitted.getReportId());
-            returnRequest.setApproverId(testApprover.getId());
             returnRequest.setAction(ApprovalAction.RETURN);
             returnRequest.setComment("Please revise");
 
-            approvalService.processApproval(returnRequest);
+            approvalService.processApproval(returnRequest, testApprover.getId());
 
             // When - Update the returned report
             com.sism.dto.ReportUpdateRequest updateRequest = new com.sism.dto.ReportUpdateRequest();

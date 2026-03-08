@@ -2,6 +2,9 @@ package com.sism.controller;
 
 import com.sism.common.ApiResponse;
 import com.sism.dto.AttachmentUploadRequest;
+import com.sism.entity.SysUser;
+import com.sism.exception.BusinessException;
+import com.sism.repository.UserRepository;
 import com.sism.service.AttachmentService;
 import com.sism.vo.AttachmentVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +14,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -51,7 +56,7 @@ import java.util.List;
  * <ul>
  *   <li>GET /api/attachments - List all attachments</li>
  *   <li>GET /api/attachments/{id} - Get attachment metadata</li>
- *   <li>GET /api/attachments/user/{userId} - Filter by uploader</li>
+ *   <li>GET /api/attachments/user - Get attachments uploaded by current user</li>
  *   <li>GET /api/attachments/content-type/{contentType} - Filter by type</li>
  *   <li>GET /api/attachments/search?keyword=xxx - Search by filename</li>
  *   <li>POST /api/attachments/upload - Upload new file</li>
@@ -72,6 +77,7 @@ import java.util.List;
 public class AttachmentController {
 
     private final AttachmentService attachmentService;
+    private final UserRepository userRepository;
 
     /**
      * Get all attachments
@@ -97,13 +103,13 @@ public class AttachmentController {
     }
 
     /**
-     * Get attachments by uploaded user ID
-     * GET /api/attachments/user/{userId}
+     * Get attachments uploaded by current user
+     * GET /api/attachments/user
      */
-    @GetMapping("/user/{userId}")
-    @Operation(summary = "Get attachments by user", description = "Retrieve attachments uploaded by a specific user")
-    public ResponseEntity<ApiResponse<List<AttachmentVO>>> getAttachmentsByUploadedBy(
-            @Parameter(description = "User ID") @PathVariable Long userId) {
+    @GetMapping("/user")
+    @Operation(summary = "Get attachments by current user", description = "Retrieve attachments uploaded by the currently authenticated user")
+    public ResponseEntity<ApiResponse<List<AttachmentVO>>> getAttachmentsByUploadedBy() {
+        Long userId = getCurrentUserId();
         List<AttachmentVO> attachments = attachmentService.getAttachmentsByUploadedBy(userId);
         return ResponseEntity.ok(ApiResponse.success(attachments));
     }
@@ -168,5 +174,31 @@ public class AttachmentController {
             @Parameter(description = "Attachment ID") @PathVariable Long id) {
         AttachmentVO metadata = attachmentService.getFileMetadata(id);
         return ResponseEntity.ok(ApiResponse.success(metadata));
+    }
+
+
+    /**
+     * Extract current user ID from security context
+     *
+     * @return The current user's ID
+     * @throws BusinessException if user is not authenticated
+     */
+    private Long getCurrentUserId() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                Object principal = authentication.getPrincipal();
+                if (principal instanceof String username) {
+                    return userRepository.findByUsername(username)
+                            .map(SysUser::getId)
+                            .orElseThrow(() -> new BusinessException("User not found"));
+                }
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to get current user ID: {}", e.getMessage(), e);
+        }
+        throw new BusinessException("User not authenticated");
     }
 }

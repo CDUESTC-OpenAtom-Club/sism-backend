@@ -236,11 +236,10 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - milestone achieved");
 
-        approvalService.processApproval(approvalRequest);
+        approvalService.processApproval(approvalRequest, approver.getId());
 
         // Verify milestone status is updated to COMPLETED
         Milestone updatedMilestone = milestoneRepository.findById(milestone.getMilestoneId()).orElseThrow();
@@ -291,11 +290,10 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - milestone not yet achieved");
 
-        approvalService.processApproval(approvalRequest);
+        approvalService.processApproval(approvalRequest, approver.getId());
 
         // Verify milestone status remains unchanged
         Milestone unchangedMilestone = milestoneRepository.findById(milestone.getMilestoneId()).orElseThrow();
@@ -340,11 +338,10 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report - should succeed without error
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - no milestone associated");
 
-        var approvedReport = approvalService.processApproval(approvalRequest);
+        var approvedReport = approvalService.processApproval(approvalRequest, approver.getId());
 
         // Verify approval succeeded
         assertThat(approvedReport.getStatus()).isEqualTo(ReportStatus.APPROVED);
@@ -390,11 +387,10 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved - milestone was already completed");
 
-        var approvedReport = approvalService.processApproval(approvalRequest);
+        var approvedReport = approvalService.processApproval(approvalRequest, approver.getId());
 
         // Verify approval succeeded and milestone remains COMPLETED
         assertThat(approvedReport.getStatus()).isEqualTo(ReportStatus.APPROVED);
@@ -450,11 +446,10 @@ public class ApprovalMilestoneStatusUpdatePropertyTest {
         // Reject or Return the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(action);
         approvalRequest.setComment("Test " + action + " - milestone should not be updated");
 
-        approvalService.processApproval(approvalRequest);
+        approvalService.processApproval(approvalRequest, approver.getId());
 
         // Verify milestone status remains unchanged
         Milestone unchangedMilestone = milestoneRepository.findById(milestone.getMilestoneId()).orElseThrow();

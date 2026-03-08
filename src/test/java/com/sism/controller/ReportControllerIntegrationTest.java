@@ -287,7 +287,6 @@ class ReportControllerIntegrationTest {
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(testReport.getReportId());
             request.setAction(ApprovalAction.APPROVE);
-            request.setApproverId(testUser.getId());
             request.setComment("Approved");
 
             mockMvc.perform(post("/reports/approve")
@@ -317,7 +316,6 @@ class ReportControllerIntegrationTest {
             ApprovalRequest request = new ApprovalRequest();
             request.setReportId(reportToReject.getReportId());
             request.setAction(ApprovalAction.REJECT);
-            request.setApproverId(testUser.getId());
             request.setComment("Rejected - needs more details");
 
             mockMvc.perform(post("/reports/approve")

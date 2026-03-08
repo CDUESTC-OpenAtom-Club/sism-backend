@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -157,4 +158,16 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
            "LEFT JOIN FETCH i.targetOrg " +
            "WHERE i.isDeleted = false OR i.isDeleted IS NULL")
     List<Indicator> findAllWithOrganizations();
+
+
+    /**
+     * Find the latest update time for indicators with a specific status
+     * Used for HTTP Last-Modified caching
+     *
+     * @param status the indicator status to filter by
+     * @return the latest updatedAt timestamp, or null if no indicators found
+     */
+    @Query("SELECT MAX(i.updatedAt) FROM Indicator i WHERE i.status = :status AND (i.isDeleted = false OR i.isDeleted IS NULL)")
+    LocalDateTime findLatestUpdateTime(@Param("status") IndicatorStatus status);
+
 }

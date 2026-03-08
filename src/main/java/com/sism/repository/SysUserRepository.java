@@ -26,16 +26,22 @@ public interface SysUserRepository extends JpaRepository<SysUser, Long> {
 
     /**
      * Check if username exists
+     * @deprecated Use {@link UserRepository#existsByUsername(String)} instead
      */
+    @Deprecated(forRemoval = true)
     boolean existsByUsername(String username);
 
     /**
      * Check if username exists excluding specific user ID
+     * @deprecated Use {@link UserRepository#existsByUsernameAndIdNot(String, Long)} instead
      */
+    @Deprecated(forRemoval = true)
     boolean existsByUsernameAndIdNot(String username, Long id);
 
     /**
      * Find active users by organization ID
+     * @deprecated Use {@link UserRepository#findByOrgIdAndIsActiveTrue(Long)} instead
      */
+    @Deprecated(forRemoval = true)
     java.util.List<SysUser> findByOrgIdAndIsActiveTrue(Long orgId);
 }

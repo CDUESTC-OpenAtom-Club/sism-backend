@@ -150,11 +150,10 @@ public class SingleFinalVersionPropertyTest {
         // Approve the report
         ApprovalRequest approvalRequest = new ApprovalRequest();
         approvalRequest.setReportId(report.getReportId());
-        approvalRequest.setApproverId(approver.getId());
         approvalRequest.setAction(ApprovalAction.APPROVE);
         approvalRequest.setComment("Approved for single final version test");
         
-        approvalService.processApproval(approvalRequest);
+        approvalService.processApproval(approvalRequest, approver.getId());
         
         return reportRepository.findById(report.getReportId()).orElseThrow();
     }

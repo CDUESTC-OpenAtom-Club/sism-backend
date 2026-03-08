@@ -245,4 +245,50 @@ public class PlanService {
             }
         };
     }
+
+
+    /**
+     * Get count of pending plan approvals for a user
+     *
+     * @param userId The user ID to check pending approvals for
+     * @return Count of plans pending approval
+     */
+    public Long getPendingApprovalCount(Long userId) {
+        log.info("PlanService.getPendingApprovalCount called for userId: {}", userId);
+        
+        if (auditInstanceService == null) {
+            log.error("CRITICAL: auditInstanceService is NULL! Dependency injection failed!");
+            return 0L;
+        }
+        
+        try {
+            log.debug("Calling auditInstanceService.getPendingApprovalsForUser({})", userId);
+            
+            // Get all audit instances where user is a pending approver
+            List<com.sism.entity.AuditInstance> pendingInstances = 
+                auditInstanceService.getPendingApprovalsForUser(userId);
+            
+            log.debug("Retrieved {} pending audit instances for user {}", 
+                     pendingInstances != null ? pendingInstances.size() : 0, userId);
+
+            // Filter for PLAN entity type only
+            long count = pendingInstances.stream()
+                    .filter(instance -> {
+                        boolean isPlan = instance.getEntityType() == com.sism.enums.AuditEntityType.PLAN;
+                        log.trace("Instance {}: entityType={}, isPlan={}", 
+                                 instance.getId(), instance.getEntityType(), isPlan);
+                        return isPlan;
+                    })
+                    .count();
+
+            log.info("Found {} pending plan approvals for user {}", count, userId);
+            return count;
+
+        } catch (Exception e) {
+            log.error("Error getting pending approval count for user {}: {}", 
+                     userId, e.getMessage(), e);
+            return 0L;
+        }
+    }
+
 }

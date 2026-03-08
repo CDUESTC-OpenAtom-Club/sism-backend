@@ -128,6 +128,85 @@ class IndicatorControllerIntegrationTest {
         }
 
         /**
+         * Task 3.8: Test HTTP caching with Last-Modified header
+         * Requirements: 2.6, 2.7
+         */
+        @Test
+        @DisplayName("Should return Last-Modified header in response")
+        void shouldReturnLastModifiedHeader() throws Exception {
+            MvcResult result = mockMvc.perform(get("/indicators")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(header().exists("Last-Modified"))
+                    .andExpect(header().exists("Cache-Control"))
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andReturn();
+            
+            String lastModified = result.getResponse().getHeader("Last-Modified");
+            assertThat(lastModified).isNotNull();
+            assertThat(lastModified).isNotEmpty();
+        }
+
+        /**
+         * Task 3.8: Test 304 Not Modified response when data hasn't changed
+         * Requirements: 2.6, 2.7
+         */
+        @Test
+        @DisplayName("Should return 304 Not Modified when data hasn't changed")
+        void shouldReturn304WhenNotModified() throws Exception {
+            // First request to get Last-Modified header
+            MvcResult firstResult = mockMvc.perform(get("/indicators")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(header().exists("Last-Modified"))
+                    .andReturn();
+            
+            String lastModified = firstResult.getResponse().getHeader("Last-Modified");
+            assertThat(lastModified).isNotNull();
+            
+            // Second request with If-Modified-Since header
+            mockMvc.perform(get("/indicators")
+                            .header("Authorization", "Bearer " + authToken)
+                            .header("If-Modified-Since", lastModified))
+                    .andExpect(status().isNotModified())
+                    .andExpect(header().exists("Last-Modified"));
+        }
+
+        /**
+         * Task 3.8: Test 200 OK response when data has been modified
+         * Requirements: 2.6, 2.7
+         */
+        @Test
+        @DisplayName("Should return 200 OK when data has been modified")
+        void shouldReturn200WhenModified() throws Exception {
+            // Use an old date for If-Modified-Since
+            String oldDate = "Mon, 01 Jan 2020 00:00:00 GMT";
+            
+            mockMvc.perform(get("/indicators")
+                            .header("Authorization", "Bearer " + authToken)
+                            .header("If-Modified-Since", oldDate))
+                    .andExpect(status().isOk())
+                    .andExpect(header().exists("Last-Modified"))
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        /**
+         * Task 3.8: Test Cache-Control header is set correctly
+         * Requirements: 2.6, 2.7
+         */
+        @Test
+        @DisplayName("Should return Cache-Control header with max-age")
+        void shouldReturnCacheControlHeader() throws Exception {
+            mockMvc.perform(get("/indicators")
+                            .header("Authorization", "Bearer " + authToken))
+                    .andExpect(status().isOk())
+                    .andExpect(header().exists("Cache-Control"))
+                    .andExpect(header().string("Cache-Control", containsString("max-age")))
+                    .andExpect(header().string("Cache-Control", containsString("must-revalidate")));
+        }
+
+        /**
          * Task 7.1: 测试指标列表 API - 验证响应包含所有前端需要的字段
          * Requirements: 5.3, 5.4
          */

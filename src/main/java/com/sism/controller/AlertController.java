@@ -2,8 +2,11 @@ package com.sism.controller;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
+import com.sism.entity.SysUser;
 import com.sism.enums.AlertSeverity;
 import com.sism.enums.AlertStatus;
+import com.sism.exception.BusinessException;
+import com.sism.repository.UserRepository;
 import com.sism.service.AlertService;
 import com.sism.vo.AlertEventVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +19,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,6 +40,7 @@ import java.util.Map;
 public class AlertController {
 
     private final AlertService alertService;
+    private final UserRepository userRepository;
 
     /**
      * Get alert by ID
@@ -230,10 +236,10 @@ public class AlertController {
      * POST /api/alerts/{id}/start
      */
     @PostMapping("/{id}/start")
-    @Operation(summary = "Start handling alert", description = "Mark an alert as being handled")
+    @Operation(summary = "Start handling alert", description = "Mark an alert as being handled by current user")
     public ResponseEntity<ApiResponse<AlertEventVO>> startHandlingAlert(
-            @Parameter(description = "Alert event ID") @PathVariable Long id,
-            @Parameter(description = "Handler user ID") @RequestParam Long handledById) {
+            @Parameter(description = "Alert event ID") @PathVariable Long id) {
+        Long handledById = getCurrentUserId();
         log.info("Starting to handle alert: {} by user: {}", id, handledById);
         AlertEventVO alert = alertService.startHandlingAlert(id, handledById);
         return ResponseEntity.ok(ApiResponse.success("Alert handling started", alert));
@@ -252,8 +258,8 @@ public class AlertController {
     })
     public ResponseEntity<ApiResponse<AlertEventVO>> handleAlert(
             @Parameter(description = "Alert event ID") @PathVariable Long id,
-            @Parameter(description = "Handler user ID") @RequestParam Long handledById,
             @Parameter(description = "Handling notes") @RequestParam(required = false) String handledNote) {
+        Long handledById = getCurrentUserId();
         log.info("Handling alert: {} by user: {}", id, handledById);
         AlertEventVO alert = alertService.handleAlert(id, handledById, handledNote);
         return ResponseEntity.ok(ApiResponse.success("Alert handled successfully", alert));
@@ -272,10 +278,32 @@ public class AlertController {
     })
     public ResponseEntity<ApiResponse<AlertEventVO>> closeAlert(
             @Parameter(description = "Alert event ID") @PathVariable Long id,
-            @Parameter(description = "Handler user ID") @RequestParam Long handledById,
             @Parameter(description = "Closing notes") @RequestParam(required = false) String handledNote) {
+        Long handledById = getCurrentUserId();
         log.info("Closing alert: {} by user: {}", id, handledById);
         AlertEventVO alert = alertService.closeAlert(id, handledById, handledNote);
         return ResponseEntity.ok(ApiResponse.success("Alert closed successfully", alert));
+    }
+
+    /**
+     * Extract current user ID from security context
+     */
+    private Long getCurrentUserId() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()) {
+                Object principal = authentication.getPrincipal();
+                if (principal instanceof String username) {
+                    return userRepository.findByUsername(username)
+                            .map(SysUser::getId)
+                            .orElseThrow(() -> new BusinessException("User not found"));
+                }
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to get current user ID: {}", e.getMessage(), e);
+        }
+        throw new BusinessException("User not authenticated");
     }
 }
