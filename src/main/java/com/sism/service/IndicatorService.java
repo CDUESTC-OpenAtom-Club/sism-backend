@@ -15,6 +15,7 @@ import com.sism.enums.AuditEntityType;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
 import com.sism.enums.MilestoneStatus;
+import com.sism.enums.ProgressApprovalStatus;
 import com.sism.exception.BusinessException;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.IndicatorRepository;
@@ -31,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -91,16 +93,27 @@ public class IndicatorService {
     }
 
     /**
-     * Get indicators by year
+     * Get indicators by year (including all statuses except deleted)
      * Requirements: Year filtering for indicator list
-     * 
+     *
+     * Changed from filtering by ACTIVE status to filtering all non-deleted indicators
+     * to support showing DRAFT, DISTRIBUTED, and other status indicators to users.
+     *
      * @param year target year
      * @return list of indicators for the specified year
      */
     public List<IndicatorVO> getIndicatorsByYear(Integer year) {
-        List<Indicator> indicators = indicatorRepository.findByYearAndStatus(year, IndicatorStatus.ACTIVE);
-        log.info("Found {} active indicators for year {}", indicators.size(), year);
-        return toIndicatorVOsBatch(indicators);
+        // 使用 findByYear 而不是 findByYearAndStatus，返回所有非删除状态的指标
+        List<Indicator> indicators = indicatorRepository.findByYear(year);
+
+        // 过滤掉已删除的指标
+        List<Indicator> nonDeletedIndicators = indicators.stream()
+                .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
+                .collect(Collectors.toList());
+
+        log.info("Found {} total indicators for year {}, filtered to {} non-deleted indicators",
+                indicators.size(), year, nonDeletedIndicators.size());
+        return toIndicatorVOsBatch(nonDeletedIndicators);
     }
 
     /**
@@ -122,10 +135,12 @@ public class IndicatorService {
     }
 
     /**
-     * Get child indicators by parent ID
+     * Get child indicators by parent ID (including all statuses except deleted)
+     * Changed from filtering by ACTIVE status to filtering all non-deleted indicators
      */
     public List<IndicatorVO> getIndicatorsByOwnerOrgId(Long ownerOrgId) {
-        return indicatorRepository.findByOwnerOrgAndStatus(ownerOrgId, IndicatorStatus.ACTIVE).stream()
+        return indicatorRepository.findByOwnerOrg_Id(ownerOrgId).stream()
+                .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
                 .map(this::toIndicatorVO)
                 .collect(Collectors.toList());
     }
@@ -139,7 +154,7 @@ public class IndicatorService {
      */
     public List<IndicatorVO> getIndicatorsByTargetOrgId(Long targetOrgId) {
         return indicatorRepository.findByTargetOrg_Id(targetOrgId).stream()
-                .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
+                .filter(this::isDistributed)
                 .map(this::toIndicatorVO)
                 .collect(Collectors.toList());
     }
@@ -153,7 +168,7 @@ public class IndicatorService {
      */
     public List<IndicatorVO> getIndicatorsByTargetOrgHierarchy(Long orgId) {
         return indicatorRepository.findByTargetOrgHierarchy(orgId).stream()
-                .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
+                .filter(this::isDistributed)
                 .map(this::toIndicatorVO)
                 .collect(Collectors.toList());
     }
@@ -204,11 +219,15 @@ public class IndicatorService {
                 .responsibleDept(targetOrg.getName())
                 .year(request.getYear())
                 .canWithdraw(request.getCanWithdraw() != null ? request.getCanWithdraw() : true)
-                .status(IndicatorStatus.ACTIVE)
+                .status(IndicatorStatus.DRAFT)  // Always start with DRAFT lifecycle status
+                .progressApprovalStatus(ProgressApprovalStatus.NONE)  // Always start with NONE approval status
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .isDeleted(false)
                 .build();
+
+        // Validate the initial status combination (should always be valid for new indicators)
+        validateStatusCombination(indicator.getStatus(), indicator.getProgressApprovalStatus());
 
         Indicator savedIndicator = indicatorRepository.save(indicator);
         log.info("Successfully created indicator with ID: {}", savedIndicator.getIndicatorId());
@@ -223,10 +242,16 @@ public class IndicatorService {
     public IndicatorVO updateIndicator(Long indicatorId, IndicatorUpdateRequest request) {
         Indicator indicator = findIndicatorById(indicatorId);
 
-        // Check if indicator is active
+        // Check if indicator is archived (only restriction)
         if (indicator.getStatus() == IndicatorStatus.ARCHIVED) {
             throw new BusinessException("Cannot update archived indicator");
         }
+        
+        // Validate status combinations are valid (allow all combinations except archived)
+        validateStatusCombination(indicator.getStatus(), 
+                                request.getProgressApprovalStatus() != null ? 
+                                ProgressApprovalStatus.valueOf(request.getProgressApprovalStatus()) : 
+                                indicator.getProgressApprovalStatus());
 
         if (request.getParentIndicatorId() != null) {
             if (request.getParentIndicatorId().equals(indicatorId)) {
@@ -282,14 +307,15 @@ public class IndicatorService {
         
         // Update progress approval status if provided
         if (request.getProgressApprovalStatus() != null) {
-            String newStatus = request.getProgressApprovalStatus();
-            String oldStatus = indicator.getProgressApprovalStatus();
+            String newStatusStr = request.getProgressApprovalStatus();
+            ProgressApprovalStatus newStatus = ProgressApprovalStatus.valueOf(newStatusStr);
+            ProgressApprovalStatus oldStatus = indicator.getProgressApprovalStatus();
             
             log.info("Updating progressApprovalStatus for indicator {}: {} -> {}", 
                     indicatorId, oldStatus, newStatus);
             
             // 审批通过逻辑：将 pendingProgress 复制到 progress，并清空待审批字段
-            if ("APPROVED".equals(newStatus) && !"APPROVED".equals(oldStatus)) {
+            if (newStatus == ProgressApprovalStatus.APPROVED && oldStatus != ProgressApprovalStatus.APPROVED) {
                 log.info("Approving indicator {}: copying pendingProgress to progress", indicatorId);
                 
                 // 将待审批进度复制到实际进度
@@ -307,14 +333,14 @@ public class IndicatorService {
             log.info("Successfully set progressApprovalStatus to: {}", newStatus);
         }
         
-        // 注意：前端在审批通过时会显式发送 pendingProgress: null
-        // 我们需要区分"未提供字段"和"显式设置为 null"
-        // 但 Java 中无法区分，所以我们依赖审批通过逻辑自动清空
-        // 如果不是审批通过，则允许更新 pending 字段
-        if (!"APPROVED".equals(request.getProgressApprovalStatus())) {
-            // 只有在非审批状态下才允许更新 pending 字段
-            // 使用 hasProperty 检查字段是否存在（需要自定义逻辑或使用 Map）
-            // 简化处理：如果 request 中有值（包括 null），则更新
+        // Update pending fields based on approval status transition, not request value
+        // Allow pending field updates unless we're transitioning TO approved status
+        boolean isTransitioningToApproved = request.getProgressApprovalStatus() != null && 
+                                          "APPROVED".equals(request.getProgressApprovalStatus()) &&
+                                          indicator.getProgressApprovalStatus() != ProgressApprovalStatus.APPROVED;
+        
+        if (!isTransitioningToApproved) {
+            // Allow updating pending fields when not transitioning to approved
             if (request.getPendingProgress() != null) {
                 indicator.setPendingProgress(request.getPendingProgress());
             }
@@ -363,6 +389,37 @@ public class IndicatorService {
         }
         
         return toIndicatorVO(updatedIndicator);
+    }
+    /**
+     * Validate that lifecycle status and progress approval status combination is valid.
+     *
+     * This method ensures that the two independent status fields can coexist without conflicts.
+     * All combinations are valid except when lifecycle status is ARCHIVED.
+     *
+     * Valid combinations include:
+     * - DRAFT + NONE (newly created indicator)
+     * - PENDING_REVIEW + NONE (indicator under review)
+     * - DISTRIBUTED + NONE (distributed, awaiting progress)
+     * - DISTRIBUTED + DRAFT (distributed, progress draft saved)
+     * - DISTRIBUTED + PENDING (distributed, progress awaiting approval) ← This should be allowed
+     * - DISTRIBUTED + APPROVED (distributed, progress approved)
+     * - DISTRIBUTED + REJECTED (distributed, progress rejected)
+     *
+     * @param lifecycleStatus the indicator's lifecycle status
+     * @param progressApprovalStatus the indicator's progress approval status
+     * @throws BusinessException if the combination is invalid
+     */
+    private void validateStatusCombination(IndicatorStatus lifecycleStatus,
+                                         ProgressApprovalStatus progressApprovalStatus) {
+        // Only restriction: archived indicators cannot be updated
+        if (lifecycleStatus == IndicatorStatus.ARCHIVED) {
+            throw new BusinessException("Cannot update archived indicator");
+        }
+
+        // All other combinations of lifecycle status and progress approval status are valid
+        // The two status fields are independent and orthogonal
+        log.debug("Validated status combination: lifecycle={}, progressApproval={}",
+                 lifecycleStatus, progressApprovalStatus);
     }
     
     /**
@@ -637,7 +694,7 @@ public class IndicatorService {
                         // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
                         "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
                         indicator.getStatusAudit(), // statusAudit - JSON string
-                        indicator.getProgressApprovalStatus(), // progressApprovalStatus
+                        indicator.getProgressApprovalStatus() != null ? indicator.getProgressApprovalStatus().name() : null, // progressApprovalStatus - convert enum to string
                         indicator.getPendingProgress(), // pendingProgress
                         indicator.getPendingRemark(), // pendingRemark
                         indicator.getPendingAttachments(), // pendingAttachments
@@ -708,7 +765,7 @@ public class IndicatorService {
             // 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
             "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"), // isStrategic
             indicator.getStatusAudit(), // statusAudit - JSON string
-            indicator.getProgressApprovalStatus(), // progressApprovalStatus
+            indicator.getProgressApprovalStatus() != null ? indicator.getProgressApprovalStatus().name() : null, // progressApprovalStatus - convert enum to string
             indicator.getPendingProgress(), // pendingProgress
             indicator.getPendingRemark(), // pendingRemark
             indicator.getPendingAttachments(), // pendingAttachments
@@ -972,7 +1029,7 @@ public class IndicatorService {
                 .year(parentIndicator.getYear())
                 .status(IndicatorStatus.ACTIVE)
                 .remark("下发自指标 #" + parentIndicatorId)
-                .canWithdraw(true)
+                .canWithdraw(false)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .isDeleted(false)
@@ -1011,10 +1068,111 @@ public class IndicatorService {
      */
     public List<IndicatorVO> getDistributedIndicators(Long parentIndicatorId) {
         return indicatorRepository.findByParentIndicatorIdDirect(parentIndicatorId).stream()
-                .filter(i -> i.getStatus() == IndicatorStatus.ACTIVE)
+                .filter(this::isDistributed)
                 .map(this::toIndicatorVO)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Withdraw a distributed indicator, reverting it back to DRAFT status
+     * Only strategic department users can withdraw indicators
+     * 
+     * @param indicatorId indicator ID to withdraw
+     * @return updated indicator VO
+     */
+    /**
+         * Withdraw a distributed indicator, reverting it back to DRAFT status.
+         * 
+         * <p><strong>LIFECYCLE OPERATION:</strong> This method operates on the indicator's lifecycle status field,
+         * transitioning from DISTRIBUTED/ACTIVE → DRAFT. This is completely separate from progress approval
+         * withdrawal operations.</p>
+         * 
+         * <p><strong>Status Field Affected:</strong> {@code status} (lifecycle status)</p>
+         * <p><strong>Valid Transitions:</strong></p>
+         * <ul>
+         *   <li>DISTRIBUTED → DRAFT</li>
+         *   <li>ACTIVE → DRAFT (legacy status support)</li>
+         * </ul>
+         * 
+         * <p><strong>NOT AFFECTED:</strong> {@code progressApprovalStatus} field remains unchanged.
+         * For progress approval withdrawal (PENDING → DRAFT in progressApprovalStatus), 
+         * use {@link #withdrawProgressApproval(Long)} instead.</p>
+         * 
+         * <p><strong>Authorization:</strong> Only strategic department users can withdraw indicators.</p>
+         * 
+         * @param indicatorId indicator ID to withdraw from distribution
+         * @return updated indicator VO with DRAFT lifecycle status
+         * @throws BusinessException if indicator is not in DISTRIBUTED or ACTIVE status
+         * @throws ResourceNotFoundException if indicator does not exist
+         * 
+         * @see #withdrawProgressApproval(Long) for progress approval withdrawal
+         */
+        @Transactional
+        public IndicatorVO withdrawIndicator(Long indicatorId) {
+            Indicator indicator = findIndicatorById(indicatorId);
+
+            // Validate indicator is in a distributed state (lifecycle status check only)
+            if (indicator.getStatus() != IndicatorStatus.DISTRIBUTED && 
+                indicator.getStatus() != IndicatorStatus.ACTIVE) {
+                throw new BusinessException("只能撤回状态为已下发的指标");
+            }
+
+            // Revert to DRAFT status (lifecycle operation only - does not affect progress approval status)
+            indicator.setStatus(IndicatorStatus.DRAFT);
+            indicator.setCanWithdraw(true);
+            indicator.setUpdatedAt(LocalDateTime.now());
+
+            Indicator savedIndicator = indicatorRepository.save(indicator);
+
+            log.info("Withdrew indicator {} back to DRAFT lifecycle status (progress approval status unchanged)", indicatorId);
+
+            return toIndicatorVO(savedIndicator);
+        }
+        /**
+         * Withdraw a pending progress approval submission, reverting it back to DRAFT approval status.
+         *
+         * <p><strong>APPROVAL WORKFLOW OPERATION:</strong> This method operates on the indicator's progress
+         * approval status field, transitioning from PENDING → DRAFT. This is completely separate from
+         * lifecycle status withdrawal operations.</p>
+         *
+         * <p><strong>Status Field Affected:</strong> {@code progressApprovalStatus} (approval workflow status)</p>
+         * <p><strong>Valid Transitions:</strong></p>
+         * <ul>
+         *   <li>PENDING → DRAFT</li>
+         * </ul>
+         *
+         * <p><strong>NOT AFFECTED:</strong> {@code status} field (lifecycle status) remains unchanged.
+         * For lifecycle withdrawal (DISTRIBUTED → DRAFT in status),
+         * use {@link #withdrawIndicator(Long)} instead.</p>
+         *
+         * <p><strong>Authorization:</strong> Department users can withdraw their own pending progress submissions.</p>
+         *
+         * @param indicatorId indicator ID to withdraw progress approval for
+         * @return updated indicator VO with DRAFT progress approval status
+         * @throws BusinessException if progress approval status is not PENDING
+         * @throws ResourceNotFoundException if indicator does not exist
+         *
+         * @see #withdrawIndicator(Long) for lifecycle status withdrawal
+         */
+        @Transactional
+        public IndicatorVO withdrawProgressApproval(Long indicatorId) {
+            Indicator indicator = findIndicatorById(indicatorId);
+
+            // Validate progress approval is in pending state (approval status check only)
+            if (indicator.getProgressApprovalStatus() != ProgressApprovalStatus.PENDING) {
+                throw new BusinessException("只能撤回状态为待审批的进度提交");
+            }
+
+            // Revert to DRAFT progress approval status (approval workflow operation only - does not affect lifecycle status)
+            indicator.setProgressApprovalStatus(ProgressApprovalStatus.DRAFT);
+            indicator.setUpdatedAt(LocalDateTime.now());
+
+            Indicator savedIndicator = indicatorRepository.save(indicator);
+
+            log.info("Withdrew progress approval for indicator {} back to DRAFT approval status (lifecycle status unchanged)", indicatorId);
+
+            return toIndicatorVO(savedIndicator);
+        }
 
     /**
      * Check if an indicator can be distributed (has valid level and is active)
@@ -1025,7 +1183,7 @@ public class IndicatorService {
     public DistributionEligibility checkDistributionEligibility(Long indicatorId) {
         Indicator indicator = findIndicatorById(indicatorId);
 
-        boolean canDistribute = indicator.getStatus() == IndicatorStatus.ACTIVE
+        boolean canDistribute = isDistributedStatus(indicator.getStatus())
                 && indicator.getLevel() == com.sism.enums.IndicatorLevel.PRIMARY;
 
         String reason = "";
@@ -1052,40 +1210,46 @@ public class IndicatorService {
     // ==================== Indicator Filtering (指标过滤) ====================
 
     /**
-     * Get indicators filtered by type1 (定性/定量)
+     * Get indicators filtered by type1 (定性/定量) - including all statuses except deleted
      * Requirements: 7.3, 7.5 - Filter by indicator type
-     * 
+     * Changed from filtering by ACTIVE status to filtering all non-deleted indicators
+     *
      * @param type1 indicator type1 value ("定性" or "定量")
      * @return list of matching indicators
      */
     public List<IndicatorVO> getIndicatorsByType1(String type1) {
-        return indicatorRepository.findByType1AndStatus(type1, IndicatorStatus.ACTIVE).stream()
+        return indicatorRepository.findByType1(type1).stream()
+                .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
                 .map(this::toIndicatorVO)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Get indicators filtered by type2 (发展性/基础性)
+     * Get indicators filtered by type2 (发展性/基础性) - including all statuses except deleted
      * Requirements: 7.3, 7.5 - Filter by indicator type
-     * 
+     * Changed from filtering by ACTIVE status to filtering all non-deleted indicators
+     *
      * @param type2 indicator type2 value ("发展性" or "基础性")
      * @return list of matching indicators
      */
     public List<IndicatorVO> getIndicatorsByType2(String type2) {
-        return indicatorRepository.findByType2AndStatus(type2, IndicatorStatus.ACTIVE).stream()
+        return indicatorRepository.findByType2(type2).stream()
+                .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
                 .map(this::toIndicatorVO)
                 .collect(Collectors.toList());
     }
 
     /**
-     * Get indicators filtered by isQualitative flag
+     * Get indicators filtered by isQualitative flag - including all statuses except deleted
      * Requirements: 7.3, 7.5 - Filter by qualitative/quantitative
-     * 
+     * Changed from filtering by ACTIVE status to filtering all non-deleted indicators
+     *
      * @param isQualitative true for qualitative, false for quantitative
      * @return list of matching indicators
      */
     public List<IndicatorVO> getIndicatorsByQualitative(Boolean isQualitative) {
-        return indicatorRepository.findByIsQualitativeAndStatus(isQualitative, IndicatorStatus.ACTIVE).stream()
+        return indicatorRepository.findByIsQualitative(isQualitative).stream()
+                .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
                 .map(this::toIndicatorVO)
                 .collect(Collectors.toList());
     }
@@ -1104,33 +1268,232 @@ public class IndicatorService {
     }
 
     /**
-     * Get indicators with combined filters
+     * Get indicators with combined filters - including all statuses except deleted
      * Requirements: 7.3, 7.5 - Combined filtering
-     * 
+     * Changed from defaulting to ACTIVE status to including all non-deleted indicators when no status specified
+     *
      * @param type1 indicator type1 (optional)
      * @param type2 indicator type2 (optional)
-     * @param status indicator status (optional, defaults to ACTIVE)
+     * @param status indicator status (optional, if null returns all non-deleted indicators)
      * @return list of matching indicators
      */
     public List<IndicatorVO> getIndicatorsWithFilters(String type1, String type2, IndicatorStatus status) {
-        IndicatorStatus effectiveStatus = status != null ? status : IndicatorStatus.ACTIVE;
-        
+        // 如果指定了状态，使用状态过滤；否则返回所有非删除状态的指标
         if (type1 != null && type2 != null) {
-            return indicatorRepository.findByType1AndType2AndStatus(type1, type2, effectiveStatus).stream()
-                    .map(this::toIndicatorVO)
-                    .collect(Collectors.toList());
+            if (status != null) {
+                return indicatorRepository.findByType1AndType2AndStatus(type1, type2, status).stream()
+                        .map(this::toIndicatorVO)
+                        .collect(Collectors.toList());
+            } else {
+                return indicatorRepository.findByType1AndType2(type1, type2).stream()
+                        .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
+                        .map(this::toIndicatorVO)
+                        .collect(Collectors.toList());
+            }
         } else if (type1 != null) {
-            return indicatorRepository.findByType1AndStatus(type1, effectiveStatus).stream()
-                    .map(this::toIndicatorVO)
-                    .collect(Collectors.toList());
+            if (status != null) {
+                return indicatorRepository.findByType1AndStatus(type1, status).stream()
+                        .map(this::toIndicatorVO)
+                        .collect(Collectors.toList());
+            } else {
+                return indicatorRepository.findByType1(type1).stream()
+                        .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
+                        .map(this::toIndicatorVO)
+                        .collect(Collectors.toList());
+            }
         } else if (type2 != null) {
-            return indicatorRepository.findByType2AndStatus(type2, effectiveStatus).stream()
-                    .map(this::toIndicatorVO)
-                    .collect(Collectors.toList());
+            if (status != null) {
+                return indicatorRepository.findByType2AndStatus(type2, status).stream()
+                        .map(this::toIndicatorVO)
+                        .collect(Collectors.toList());
+            } else {
+                return indicatorRepository.findByType2(type2).stream()
+                        .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
+                        .map(this::toIndicatorVO)
+                        .collect(Collectors.toList());
+            }
         } else {
-            return indicatorRepository.findByStatus(effectiveStatus).stream()
-                    .map(this::toIndicatorVO)
-                    .collect(Collectors.toList());
+            if (status != null) {
+                return indicatorRepository.findByStatus(status).stream()
+                        .map(this::toIndicatorVO)
+                        .collect(Collectors.toList());
+            } else {
+                // Return all non-deleted indicators
+                return getAllIndicators();
+            }
         }
+    }
+
+    // ==================== Indicator Review Workflow (指标审核流程) ====================
+
+    /**
+     * Submit indicator for review (DRAFT → PENDING_REVIEW)
+     * Requirements: 2.3, 2.5, 2.6, 2.7, 2.8
+     *
+     * @param indicatorId indicator ID
+     * @param userId user performing the action
+     * @return updated indicator VO
+     */
+    @Transactional
+    public IndicatorVO submitForReview(Long indicatorId, Long userId) {
+        Indicator indicator = findIndicatorById(indicatorId);
+
+        // Validate indicator is in DRAFT state
+        if (indicator.getStatus() != IndicatorStatus.DRAFT) {
+            throw new BusinessException("只能提交状态为 DRAFT 的指标进行审核");
+        }
+
+        // Validate weight sum equals 100% if indicator has children
+        List<Indicator> children = indicatorRepository.findByParentIndicatorIdDirect(indicatorId);
+        if (!children.isEmpty()) {
+            BigDecimal totalWeight = children.stream()
+                    .map(Indicator::getWeightPercent)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (totalWeight.compareTo(new BigDecimal("100")) != 0) {
+                throw new BusinessException("子指标权重总和必须等于 100%，当前为 " + totalWeight + "%");
+            }
+        }
+
+        // Update status to PENDING_REVIEW
+        indicator.setStatus(IndicatorStatus.PENDING_REVIEW);
+        indicator.setUpdatedAt(LocalDateTime.now());
+        Indicator updatedIndicator = indicatorRepository.save(indicator);
+
+        // Create audit log entry
+        SysUser actorUser = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+        auditLogService.logUpdate(
+                AuditEntityType.INDICATOR,
+                indicatorId,
+                Map.of("status", IndicatorStatus.DRAFT),
+                Map.of("status", IndicatorStatus.PENDING_REVIEW),
+                actorUser,
+                actorUser.getOrg(),
+                "提交指标进行审核"
+        );
+
+        log.info("Indicator {} submitted for review by user {}", indicatorId, userId);
+        return toIndicatorVO(updatedIndicator);
+    }
+
+    /**
+     * Approve indicator review (PENDING_REVIEW → DISTRIBUTED)
+     * Requirements: 2.3, 2.5, 2.6, 2.7, 2.8
+     *
+     * @param indicatorId indicator ID
+     * @param userId user performing the action
+     * @return updated indicator VO
+     */
+    @Transactional
+    public IndicatorVO approveIndicatorReview(Long indicatorId, Long userId) {
+        Indicator indicator = findIndicatorById(indicatorId);
+
+        // Validate indicator is in PENDING_REVIEW state
+        if (indicator.getStatus() != IndicatorStatus.PENDING_REVIEW) {
+            throw new BusinessException("只能审核通过状态为 PENDING_REVIEW 的指标");
+        }
+
+        // Validate user has strategic dept role
+        SysUser actorUser = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        if (actorUser.getOrg() == null ||
+            !"战略发展部".equals(actorUser.getOrg().getName())) {
+            throw new BusinessException("只有战略发展部用户可以审核通过指标");
+        }
+
+        // Update status to DISTRIBUTED
+        indicator.setStatus(IndicatorStatus.DISTRIBUTED);
+        indicator.setCanWithdraw(false);
+        indicator.setUpdatedAt(LocalDateTime.now());
+        Indicator updatedIndicator = indicatorRepository.save(indicator);
+
+        // Create audit log entry
+        auditLogService.logUpdate(
+                AuditEntityType.INDICATOR,
+                indicatorId,
+                Map.of("status", IndicatorStatus.PENDING_REVIEW),
+                Map.of("status", IndicatorStatus.DISTRIBUTED),
+                actorUser,
+                actorUser.getOrg(),
+                "审核通过指标定义"
+        );
+
+        log.info("Indicator {} review approved by user {}", indicatorId, userId);
+        return toIndicatorVO(updatedIndicator);
+    }
+
+    /**
+     * Reject indicator review (PENDING_REVIEW → DRAFT)
+     * Requirements: 2.3, 2.5, 2.6, 2.7, 2.8
+     *
+     * @param indicatorId indicator ID
+     * @param reason rejection reason
+     * @param userId user performing the action
+     * @return updated indicator VO
+     */
+    @Transactional
+    public IndicatorVO rejectIndicatorReview(Long indicatorId, String reason, Long userId) {
+        Indicator indicator = findIndicatorById(indicatorId);
+
+        // Validate indicator is in PENDING_REVIEW state
+        if (indicator.getStatus() != IndicatorStatus.PENDING_REVIEW) {
+            throw new BusinessException("只能驳回状态为 PENDING_REVIEW 的指标");
+        }
+
+        // Validate user has strategic dept role
+        SysUser actorUser = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        if (actorUser.getOrg() == null ||
+            !"战略发展部".equals(actorUser.getOrg().getName())) {
+            throw new BusinessException("只有战略发展部用户可以驳回指标");
+        }
+
+        // Update status to DRAFT
+        indicator.setStatus(IndicatorStatus.DRAFT);
+        indicator.setUpdatedAt(LocalDateTime.now());
+        Indicator updatedIndicator = indicatorRepository.save(indicator);
+
+        // Create audit log entry
+        auditLogService.logUpdate(
+                AuditEntityType.INDICATOR,
+                indicatorId,
+                Map.of("status", IndicatorStatus.PENDING_REVIEW),
+                Map.of("status", IndicatorStatus.DRAFT),
+                actorUser,
+                actorUser.getOrg(),
+                "驳回指标定义: " + (reason != null ? reason : "无原因")
+        );
+
+        log.info("Indicator {} review rejected by user {} with reason: {}", indicatorId, userId, reason);
+        return toIndicatorVO(updatedIndicator);
+    }
+
+    // ==================== Legacy ACTIVE Status Compatibility ====================
+
+    /**
+     * Check if indicator status is equivalent to DISTRIBUTED (including legacy ACTIVE)
+     *
+     * Phase 1 of ACTIVE status migration: Treat ACTIVE as equivalent to DISTRIBUTED
+     * in all business logic while maintaining backward compatibility.
+     *
+     * @param status The indicator status to check
+     * @return true if status is DISTRIBUTED or legacy ACTIVE
+     */
+    private boolean isDistributedStatus(IndicatorStatus status) {
+        return status == IndicatorStatus.DISTRIBUTED || status == IndicatorStatus.ACTIVE;
+    }
+
+    /**
+     * Check if indicator is in distributed status (including legacy ACTIVE)
+     *
+     * @param indicator The indicator to check
+     * @return true if indicator is distributed or has legacy ACTIVE status
+     */
+    private boolean isDistributed(Indicator indicator) {
+        return isDistributedStatus(indicator.getStatus());
     }
 }

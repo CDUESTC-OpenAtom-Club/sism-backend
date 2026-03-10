@@ -6,6 +6,7 @@ import com.sism.entity.AssessmentCycle;
 import com.sism.entity.Indicator;
 import com.sism.entity.SysOrg;
 import com.sism.entity.StrategicTask;
+import com.sism.enums.ProgressApprovalStatus;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.repository.AssessmentCycleRepository;
 import com.sism.repository.IndicatorRepository;
@@ -286,7 +287,8 @@ public class TaskService {
         // Extract all progressApprovalStatus values
         Set<String> uniqueStatuses = indicators.stream()
                 .map(Indicator::getProgressApprovalStatus)
-                .filter(status -> status != null && !status.isEmpty())
+                .filter(status -> status != null)
+                .map(ProgressApprovalStatus::name)
                 .collect(Collectors.toSet());
         
         // If no valid statuses, default to DRAFT

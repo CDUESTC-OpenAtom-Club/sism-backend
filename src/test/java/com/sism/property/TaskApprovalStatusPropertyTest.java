@@ -6,6 +6,7 @@ import com.sism.entity.StrategicTask;
 import com.sism.entity.SysOrg;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
+import com.sism.enums.ProgressApprovalStatus;
 import com.sism.enums.TaskType;
 import com.sism.repository.IndicatorRepository;
 import com.sism.repository.SysOrgRepository;
@@ -356,7 +357,7 @@ public class TaskApprovalStatusPropertyTest {
                     .sortOrder(i)
                     .type("quantitative")
                     .status(IndicatorStatus.ACTIVE)
-                    .progressApprovalStatus(statuses.get(i))
+                    .progressApprovalStatus(ProgressApprovalStatus.valueOf(statuses.get(i)))
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .isDeleted(false)

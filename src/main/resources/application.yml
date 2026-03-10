@@ -49,7 +49,7 @@ spring:
   # Flyway 配置
   # -----------------------------------------------------------------------------
   flyway:
-    enabled: ${FLYWAY_ENABLED}
+    enabled: true  # 启用 Flyway 以执行 V22 迁移脚本
     # 核心：如果数据库不为空，自动建立基线
     baseline-on-migrate: true
     # 核心：告诉 Flyway 现在的数据库已经是 V13 的状态了

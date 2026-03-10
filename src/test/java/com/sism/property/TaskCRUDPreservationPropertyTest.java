@@ -8,6 +8,7 @@ import com.sism.entity.StrategicTask;
 import com.sism.entity.SysOrg;
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
+import com.sism.enums.ProgressApprovalStatus;
 import com.sism.enums.TaskType;
 import com.sism.repository.IndicatorRepository;
 import com.sism.repository.SysOrgRepository;
@@ -122,7 +123,7 @@ public class TaskCRUDPreservationPropertyTest {
         StrategicTask task = createTestTask(org, "Test Task");
         Indicator indicator = createTestIndicator(task, org, "PENDING");
         
-        String originalStatus = indicator.getProgressApprovalStatus();
+        ProgressApprovalStatus originalStatus = indicator.getProgressApprovalStatus();
         
         // Execute: Update task
         TaskUpdateRequest request = new TaskUpdateRequest();
@@ -424,7 +425,7 @@ public class TaskCRUDPreservationPropertyTest {
                 .sortOrder(0)
                 .type("quantitative")
                 .status(IndicatorStatus.ACTIVE)
-                .progressApprovalStatus(progressApprovalStatus)
+                .progressApprovalStatus(ProgressApprovalStatus.valueOf(progressApprovalStatus))
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .isDeleted(false)

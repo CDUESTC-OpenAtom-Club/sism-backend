@@ -127,10 +127,6 @@ class IndicatorControllerIntegrationTest {
                     .andExpect(status().isForbidden());
         }
 
-        /**
-         * Task 3.8: Test HTTP caching with Last-Modified header
-         * Requirements: 2.6, 2.7
-         */
         @Test
         @DisplayName("Should return Last-Modified header in response")
         void shouldReturnLastModifiedHeader() throws Exception {

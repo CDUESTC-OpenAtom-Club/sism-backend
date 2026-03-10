@@ -139,7 +139,7 @@ public class AlertService {
         // Get all active indicators for this cycle
         // Note: Indicator status filtering now requires custom query
         List<Indicator> indicators = indicatorRepository.findAll().stream()
-                .filter(i -> !i.getIsDeleted() && i.getStatus() == IndicatorStatus.ACTIVE)
+                .filter(i -> !i.getIsDeleted() && (i.getStatus() == IndicatorStatus.ACTIVE || i.getStatus() == IndicatorStatus.DISTRIBUTED))
                 .collect(Collectors.toList());
         
         List<AlertEvent> generatedEvents = new ArrayList<>();

@@ -2,6 +2,7 @@ package com.sism.entity;
 
 import com.sism.enums.IndicatorLevel;
 import com.sism.enums.IndicatorStatus;
+import com.sism.enums.ProgressApprovalStatus;
 import com.sism.vo.IndicatorVO;
 import com.sism.vo.MilestoneVO;
 import jakarta.persistence.*;
@@ -87,12 +88,13 @@ public class Indicator {
     private Boolean isDeleted = false;
 
     /**
-     * Indicator status (ACTIVE, ARCHIVED, etc.)
+     * Indicator status (DRAFT, PENDING_REVIEW, DISTRIBUTED, ARCHIVED)
+     * Default to DRAFT as the initial lifecycle state
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
     @Builder.Default
-    private IndicatorStatus status = IndicatorStatus.ACTIVE;
+    private IndicatorStatus status = IndicatorStatus.DRAFT;
 
     // ==================== 扩展字段 (前端数据对齐 2026-01-19) ====================
 
@@ -154,8 +156,10 @@ public class Indicator {
     /**
      * 进度审批状态
      */
+    @Enumerated(EnumType.STRING)
     @Column(name = "progress_approval_status", length = 20)
-    private String progressApprovalStatus;
+    @Builder.Default
+    private ProgressApprovalStatus progressApprovalStatus = ProgressApprovalStatus.NONE;
 
     /**
      * 审批状态历史 (JSON格式)
@@ -207,7 +211,7 @@ public class Indicator {
     @PrePersist
     protected void onCreate() {
         if (status == null) {
-            status = IndicatorStatus.ACTIVE;
+            status = IndicatorStatus.DRAFT;
         }
         if (isDeleted == null) {
             isDeleted = false;
@@ -268,7 +272,7 @@ public class Indicator {
             // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
             "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
             this.statusAudit, // statusAudit - JSON string
-            this.progressApprovalStatus, // progressApprovalStatus
+            this.progressApprovalStatus != null ? this.progressApprovalStatus.name() : null, // progressApprovalStatus - convert enum to string
             this.pendingProgress, // pendingProgress
             this.pendingRemark, // pendingRemark
             this.pendingAttachments, // pendingAttachments - JSON string
@@ -338,7 +342,7 @@ public class Indicator {
             // isStrategic - 判断逻辑: owner_dept = '战略发展部' 且 responsible_dept 不包含"学院"
             "战略发展部".equals(ownerDeptName) && responsibleDeptName != null && !responsibleDeptName.contains("学院"),
             this.statusAudit, // statusAudit - JSON string
-            this.progressApprovalStatus, // progressApprovalStatus
+            this.progressApprovalStatus != null ? this.progressApprovalStatus.name() : null, // progressApprovalStatus - convert enum to string (second toDTO method)
             this.pendingProgress, // pendingProgress
             this.pendingRemark, // pendingRemark
             this.pendingAttachments, // pendingAttachments - JSON string

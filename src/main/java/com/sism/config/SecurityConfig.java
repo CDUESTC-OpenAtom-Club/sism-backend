@@ -82,37 +82,55 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // IMPORTANT: Allow OPTIONS requests for CORS preflight FIRST
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // Public endpoints - no authentication required
+                // Public endpoints - no authentication required (with /api prefix)
+                .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 // Health check endpoint
+                .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/health/**").permitAll()
                 .requestMatchers("/health").permitAll()
                 .requestMatchers("/health/**").permitAll()
                 // Organization endpoints
+                .requestMatchers("/api/orgs/**").permitAll()
+                .requestMatchers("/api/organizations/**").permitAll()
                 .requestMatchers("/orgs/**").permitAll()
                 .requestMatchers("/organizations/**").permitAll()
                 // Dashboard endpoints
+                .requestMatchers("/api/dashboard/**").permitAll()
                 .requestMatchers("/dashboard/**").permitAll()
                 // Indicator endpoints
+                .requestMatchers("/api/indicators/**").permitAll()
                 .requestMatchers("/indicators/**").permitAll()
                 // Task endpoints
+                .requestMatchers("/api/tasks/**").permitAll()
+                .requestMatchers("/api/strategic/**").permitAll()
                 .requestMatchers("/tasks/**").permitAll()
                 .requestMatchers("/strategic/**").permitAll()
                 // Milestone endpoints
+                .requestMatchers("/api/milestones/**").permitAll()
                 .requestMatchers("/milestones/**").permitAll()
                 // Plan endpoints
+                .requestMatchers("/api/plans/**").permitAll()
                 .requestMatchers("/plans/**").permitAll()
                 // User endpoints
+                .requestMatchers("/api/users/**").permitAll()
                 .requestMatchers("/users/**").permitAll()
                 // Admin endpoints - require authentication
+                .requestMatchers("/api/admin/**").authenticated()
                 .requestMatchers("/admin/**").authenticated()
                 // Swagger/OpenAPI documentation
+                .requestMatchers("/api/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui.html").permitAll()
+                .requestMatchers("/api/v3/api-docs/**").permitAll()
                 .requestMatchers("/v3/api-docs/**").permitAll()
                 .requestMatchers("/v3/api-docs.yaml").permitAll()
+                .requestMatchers("/api/swagger-resources/**").permitAll()
                 .requestMatchers("/swagger-resources/**").permitAll()
+                .requestMatchers("/api/webjars/**").permitAll()
                 .requestMatchers("/webjars/**").permitAll()
                 // Actuator endpoints
+                .requestMatchers("/api/actuator/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 // All other requests require authentication
                 .anyRequest().authenticated()

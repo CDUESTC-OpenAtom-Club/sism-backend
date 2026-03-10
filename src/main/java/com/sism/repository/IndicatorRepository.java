@@ -125,9 +125,19 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
     List<Indicator> findByParentIndicatorIdDirect(@Param("parentIndicatorId") Long parentIndicatorId);
 
     /**
+     * Find indicators by type1 (all statuses)
+     */
+    List<Indicator> findByType1(String type1);
+
+    /**
      * Find indicators by type1 and status
      */
     List<Indicator> findByType1AndStatus(String type1, IndicatorStatus status);
+
+    /**
+     * Find indicators by type2 (all statuses)
+     */
+    List<Indicator> findByType2(String type2);
 
     /**
      * Find indicators by type2 and status
@@ -135,9 +145,19 @@ public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
     List<Indicator> findByType2AndStatus(String type2, IndicatorStatus status);
 
     /**
+     * Find indicators by isQualitative (all statuses)
+     */
+    List<Indicator> findByIsQualitative(Boolean isQualitative);
+
+    /**
      * Find indicators by isQualitative and status
      */
     List<Indicator> findByIsQualitativeAndStatus(Boolean isQualitative, IndicatorStatus status);
+
+    /**
+     * Find indicators by type1 and type2 (all statuses)
+     */
+    List<Indicator> findByType1AndType2(String type1, String type2);
 
     /**
      * Find indicators by status

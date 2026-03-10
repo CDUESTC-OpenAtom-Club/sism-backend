@@ -9,27 +9,37 @@ public enum AuditAction {
      * Create operation
      */
     CREATE,
-    
+
     /**
      * Update operation
      */
     UPDATE,
-    
+
     /**
      * Delete operation
      */
     DELETE,
-    
+
+    /**
+     * Submit operation (e.g., submit for review)
+     */
+    SUBMIT,
+
     /**
      * Approve operation
      */
     APPROVE,
-    
+
+    /**
+     * Reject operation
+     */
+    REJECT,
+
     /**
      * Archive operation
      */
     ARCHIVE,
-    
+
     /**
      * Restore operation
      */
