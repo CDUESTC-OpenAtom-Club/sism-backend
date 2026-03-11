@@ -73,6 +73,10 @@ public class SecurityConfig {
         http
             // Disable CSRF for REST API (frontend-backend separation)
             .csrf(AbstractHttpConfigurer::disable)
+            // Disable HTTP Basic authentication
+            .httpBasic(AbstractHttpConfigurer::disable)
+            // Disable form login
+            .formLogin(AbstractHttpConfigurer::disable)
             // Enable CORS with custom configuration
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             // Stateless session management (JWT-based)
@@ -82,7 +86,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // IMPORTANT: Allow OPTIONS requests for CORS preflight FIRST
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // Public endpoints - no authentication required (with /api prefix)
+                // Public endpoints - no authentication required
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 // Health check endpoint
@@ -119,18 +123,13 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").authenticated()
                 .requestMatchers("/admin/**").authenticated()
                 // Swagger/OpenAPI documentation
-                .requestMatchers("/api/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui/**").permitAll()
                 .requestMatchers("/swagger-ui.html").permitAll()
-                .requestMatchers("/api/v3/api-docs/**").permitAll()
                 .requestMatchers("/v3/api-docs/**").permitAll()
                 .requestMatchers("/v3/api-docs.yaml").permitAll()
-                .requestMatchers("/api/swagger-resources/**").permitAll()
                 .requestMatchers("/swagger-resources/**").permitAll()
-                .requestMatchers("/api/webjars/**").permitAll()
                 .requestMatchers("/webjars/**").permitAll()
                 // Actuator endpoints
-                .requestMatchers("/api/actuator/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 // All other requests require authentication
                 .anyRequest().authenticated()

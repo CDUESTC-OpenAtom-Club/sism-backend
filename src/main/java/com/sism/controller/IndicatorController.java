@@ -110,6 +110,7 @@ public class IndicatorController {
             @Parameter(description = "Filter by year (optional)") @RequestParam(required = false) Integer year,
             @Parameter(description = "If-Modified-Since header for cache validation (RFC 1123 format)") 
             @RequestHeader(value = "If-Modified-Since", required = false) String ifModifiedSince) {
+        
         List<IndicatorVO> indicators;
         if (year != null) {
             log.info("Fetching indicators for year: {}", year);
@@ -131,7 +132,7 @@ public class IndicatorController {
         // Use Last-Modified-based caching
         return CacheUtils.buildLastModifiedResponse(response, lastModified, ifModifiedSince);
     }
-
+    
     /**
      * Get indicator by ID
      * GET /api/indicators/{id}

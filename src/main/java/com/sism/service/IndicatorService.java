@@ -115,6 +115,33 @@ public class IndicatorService {
                 indicators.size(), year, nonDeletedIndicators.size());
         return toIndicatorVOsBatch(nonDeletedIndicators);
     }
+    
+    /**
+     * Get indicators by year with status filtering (for role-based access control)
+     * 
+     * @param year target year
+     * @param filterByStatus whether to filter by DISTRIBUTED status (for non-strategic departments)
+     * @return list of indicators for the specified year
+     */
+    public List<IndicatorVO> getIndicatorsByYearWithFilter(Integer year, boolean filterByStatus) {
+        List<Indicator> indicators = indicatorRepository.findByYear(year);
+
+        // 过滤掉已删除的指标
+        List<Indicator> nonDeletedIndicators = indicators.stream()
+                .filter(i -> i.getIsDeleted() == null || !i.getIsDeleted())
+                .collect(Collectors.toList());
+
+        // 如果需要状态过滤（职能部门和学院只能看到已下发的指标）
+        if (filterByStatus) {
+            nonDeletedIndicators = nonDeletedIndicators.stream()
+                    .filter(i -> i.getStatus() == IndicatorStatus.DISTRIBUTED || 
+                                 i.getStatus() == IndicatorStatus.ACTIVE)  // ACTIVE 是遗留状态，等同于 DISTRIBUTED
+                    .collect(Collectors.toList());
+            log.info("Filtered to {} DISTRIBUTED indicators for year {}", nonDeletedIndicators.size(), year);
+        }
+
+        return toIndicatorVOsBatch(nonDeletedIndicators);
+    }
 
     /**
      * Get indicators by task ID
