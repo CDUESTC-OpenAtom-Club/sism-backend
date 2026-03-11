@@ -80,9 +80,9 @@ public interface MilestoneRepository extends JpaRepository<Milestone, Long> {
     long countByIndicator_IndicatorIdAndStatus(Long indicatorId, MilestoneStatus status);
 
     /**
-     * Find milestones inherited from another milestone
+     * Find milestones inherited from another milestone - DISABLED: inheritedFrom field removed from database
      */
-    List<Milestone> findByInheritedFrom_MilestoneId(Long inheritedFromId);
+    // List<Milestone> findByInheritedFrom_MilestoneId(Long inheritedFromId);
 
     /**
      * Check if milestone exists by indicator ID and name

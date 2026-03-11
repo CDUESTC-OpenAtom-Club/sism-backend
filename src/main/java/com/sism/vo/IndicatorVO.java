@@ -38,6 +38,7 @@ public class IndicatorVO {
     private String taskContent;  // 新增：前端使用的字段名（与taskName相同）
     private Boolean canWithdraw;
     private IndicatorStatus status;
+    private String distributionStatus;  // 下发状态: DISTRIBUTED等
     private Boolean isQualitative;
     private String type1;
     private String type2;
@@ -91,6 +92,7 @@ public class IndicatorVO {
         String taskName,
         Boolean canWithdraw,
         IndicatorStatus status,
+        String distributionStatus,
         Boolean isQualitative,
         String type1,
         String type2,
@@ -133,6 +135,7 @@ public class IndicatorVO {
         this.taskContent = taskName;  // taskContent 与 taskName 相同
         this.canWithdraw = canWithdraw;
         this.status = status;
+        this.distributionStatus = distributionStatus;
         this.isQualitative = isQualitative;
         this.type1 = type1;
         this.type2 = type2;
@@ -172,7 +175,7 @@ public class IndicatorVO {
             indicatorId, taskId, parentIndicatorId, indicatorDesc,
             weightPercent, sortOrder, remark, type, progress,
             createdAt, updatedAt, null, null, null, null, null,
-            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
         );
     }
 
@@ -198,6 +201,7 @@ public class IndicatorVO {
     public String getTaskContent() { return taskContent; }
     public Boolean getCanWithdraw() { return canWithdraw; }
     public IndicatorStatus getStatus() { return status; }
+    public String getDistributionStatus() { return distributionStatus; }
     public Boolean getIsQualitative() { return isQualitative; }
     public String getType1() { return type1; }
     public String getType2() { return type2; }
@@ -239,6 +243,7 @@ public class IndicatorVO {
     }
     public void setCanWithdraw(Boolean canWithdraw) { this.canWithdraw = canWithdraw; }
     public void setStatus(IndicatorStatus status) { this.status = status; }
+    public void setDistributionStatus(String distributionStatus) { this.distributionStatus = distributionStatus; }
     public void setIsQualitative(Boolean isQualitative) { this.isQualitative = isQualitative; }
     public void setType1(String type1) { this.type1 = type1; }
     public void setType2(String type2) { this.type2 = type2; }

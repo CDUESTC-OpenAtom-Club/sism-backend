@@ -45,9 +45,10 @@ public class Milestone extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 0;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inherited_from")
-    private Milestone inheritedFrom;
+    // 注释掉：数据库中没有inherited_from列
+    // @ManyToOne(fetch = FetchType.LAZY)
+    // @JoinColumn(name = "inherited_from")
+    // private Milestone inheritedFrom;
 
     // ==================== 新增字段 (前端数据对齐) ====================
 
@@ -85,7 +86,7 @@ public class Milestone extends BaseEntity {
             null, // weightPercent - should be set by caller
             this.status,
             this.sortOrder,
-            this.inheritedFrom != null ? this.inheritedFrom.getMilestoneId() : null,
+            null, // inheritedFrom - 数据库中没有此字段
             this.getCreatedAt(),
             this.getUpdatedAt(),
             this.targetProgress,
@@ -113,7 +114,7 @@ public class Milestone extends BaseEntity {
             weightPercent,
             this.status,
             this.sortOrder,
-            this.inheritedFrom != null ? this.inheritedFrom.getMilestoneId() : null,
+            null, // inheritedFrom - 数据库中没有此字段
             this.getCreatedAt(),
             this.getUpdatedAt(),
             this.targetProgress,

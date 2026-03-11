@@ -31,6 +31,8 @@ public class IndicatorUpdateRequest {
     
     private Boolean canWithdraw;
     
+    private String status;  // Lifecycle status (DRAFT, PENDING, DISTRIBUTED, ACTIVE, ARCHIVED)
+    
     private List<MilestoneUpdateRequest> milestones;
     
     private String statusAudit;  // JSON string for status audit trail

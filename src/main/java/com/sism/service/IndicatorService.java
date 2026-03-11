@@ -220,6 +220,7 @@ public class IndicatorService {
                 .year(request.getYear())
                 .canWithdraw(request.getCanWithdraw() != null ? request.getCanWithdraw() : true)
                 .status(IndicatorStatus.DRAFT)  // Always start with DRAFT lifecycle status
+                .distributionStatus("NOT_DISTRIBUTED")  // 默认未下发状态
                 .progressApprovalStatus(ProgressApprovalStatus.NONE)  // Always start with NONE approval status
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
@@ -280,6 +281,17 @@ public class IndicatorService {
         }
         if (request.getCanWithdraw() != null) {
             indicator.setCanWithdraw(request.getCanWithdraw());
+        }
+        
+        // Update lifecycle status if provided
+        if (request.getStatus() != null) {
+            try {
+                IndicatorStatus newStatus = IndicatorStatus.valueOf(request.getStatus().toUpperCase());
+                indicator.setStatus(newStatus);
+                log.info("Updated indicator {} status to: {}", indicatorId, newStatus);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid status value: {}, keeping current status", request.getStatus());
+            }
         }
 
         // Update status audit if provided
@@ -360,6 +372,9 @@ public class IndicatorService {
         indicator.setUpdatedAt(LocalDateTime.now());
         Indicator updatedIndicator = indicatorRepository.save(indicator);
         
+        // TEMPORARILY DISABLED: Automatic approval instance creation
+        // audit_instance table structure mismatch prevents creating approval instances
+        /*
         // Automatically create approval instance if distribution action detected
         if (shouldTriggerApproval) {
             try {
@@ -387,6 +402,7 @@ public class IndicatorService {
                 throw new BusinessException("下发失败：无法创建审批实例，请联系管理员");
             }
         }
+        */
         
         return toIndicatorVO(updatedIndicator);
     }
@@ -522,7 +538,13 @@ public class IndicatorService {
      */
     private void updateMilestoneFromRequest(Milestone milestone, MilestoneUpdateRequest req) {
         if (req.getMilestoneName() != null) {
-            milestone.setMilestoneName(req.getMilestoneName());
+            // 清理空白字符并截断过长的名称（数据库限制 200 字符）
+            String name = req.getMilestoneName().trim();
+            if (name.length() > 200) {
+                log.warn("Milestone name too long ({}), truncating to 200 characters: {}", name.length(), name);
+                name = name.substring(0, 197) + "...";
+            }
+            milestone.setMilestoneName(name);
         }
         if (req.getTargetProgress() != null) {
             milestone.setTargetProgress(req.getTargetProgress());
@@ -622,7 +644,9 @@ public class IndicatorService {
         }
         
         // 批量加载审批实例（避免 N+1 问题）
+        // TEMPORARILY DISABLED: audit_instance table structure mismatch
         Map<Long, AuditInstance> auditInstanceMap = new HashMap<>();
+        /*
         try {
             List<AuditInstance> auditInstances = auditInstanceRepository
                     .findActiveInstancesByEntities(AuditEntityType.INDICATOR, new ArrayList<>(indicatorIds));
@@ -633,6 +657,7 @@ public class IndicatorService {
         } catch (Exception e) {
             log.warn("[Performance] Failed to batch load audit instances: {}", e.getMessage());
         }
+        */
         
         // 创建最终的 auditInstanceMap 引用（用于 lambda）
         final Map<Long, AuditInstance> finalAuditInstanceMap = auditInstanceMap;
@@ -683,6 +708,7 @@ public class IndicatorService {
                         taskName, // taskName
                         indicator.getCanWithdraw(),
                         indicator.getStatus(),
+                        indicator.getDistributionStatus(),
                         indicator.getIsQualitative(),
                         indicator.getType1(),
                         indicator.getType2(),
@@ -754,6 +780,7 @@ public class IndicatorService {
             generateTaskName(indicator), // taskName
             indicator.getCanWithdraw(),
             indicator.getStatus(),
+            indicator.getDistributionStatus(),
             indicator.getIsQualitative(),
             indicator.getType1(),
             indicator.getType2(),
@@ -787,6 +814,11 @@ public class IndicatorService {
      * @return 显示状态: DRAFT, PENDING_APPROVAL, DISTRIBUTED
      */
     private String calculateDisplayStatus(Indicator indicator) {
+        // TEMPORARILY DISABLED: audit_instance table structure mismatch
+        // Return DRAFT as default until audit_instance table is fixed
+        return "DRAFT";
+        
+        /*
         try {
             // 1. 查询审批实例
             Optional<AuditInstance> auditInstance = auditInstanceRepository
@@ -816,6 +848,7 @@ public class IndicatorService {
                     indicator.getIndicatorId(), e.getMessage());
             return "DRAFT";  // Default to DRAFT in test environment
         }
+        */
     }
 
     /**
@@ -900,7 +933,7 @@ public class IndicatorService {
             null, // weightPercent - system deprecated
             milestone.getStatus(),
             milestone.getSortOrder(),
-            milestone.getInheritedFrom() != null ? milestone.getInheritedFrom().getMilestoneId() : null,
+            null, // inheritedFromId - DISABLED: inheritedFrom field removed from database
             milestone.getCreatedAt(),
             milestone.getUpdatedAt(),
             milestone.getTargetProgress(),

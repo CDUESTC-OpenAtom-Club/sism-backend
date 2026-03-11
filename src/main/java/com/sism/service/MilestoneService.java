@@ -67,18 +67,18 @@ public class MilestoneService {
         Map<Long, Indicator> indicatorMap = indicators.stream()
                 .collect(Collectors.toMap(Indicator::getIndicatorId, i -> i));
         
-        // 收集所有inheritedFromId
-        Set<Long> inheritedFromIds = milestones.stream()
-                .filter(m -> m.getInheritedFrom() != null)
-                .map(m -> m.getInheritedFrom().getMilestoneId())
-                .collect(Collectors.toSet());
+        // 收集所有inheritedFromId - DISABLED: inheritedFrom field removed from database
+        // Set<Long> inheritedFromIds = milestones.stream()
+        //         .filter(m -> m.getInheritedFrom() != null)
+        //         .map(m -> m.getInheritedFrom().getMilestoneId())
+        //         .collect(Collectors.toSet());
         
-        // 批量查询所有inheritedFrom milestones
-        List<Milestone> inheritedMilestones = inheritedFromIds.isEmpty() 
-            ? List.of() 
-            : milestoneRepository.findAllById(inheritedFromIds);
-        Map<Long, Milestone> inheritedMap = inheritedMilestones.stream()
-                .collect(Collectors.toMap(Milestone::getMilestoneId, m -> m));
+        // 批量查询所有inheritedFrom milestones - DISABLED: inheritedFrom field removed from database
+        // List<Milestone> inheritedMilestones = inheritedFromIds.isEmpty() 
+        //     ? List.of() 
+        //     : milestoneRepository.findAllById(inheritedFromIds);
+        // Map<Long, Milestone> inheritedMap = inheritedMilestones.stream()
+        //         .collect(Collectors.toMap(Milestone::getMilestoneId, m -> m));
         
         // 组装VO
         return milestones.stream()
@@ -86,14 +86,14 @@ public class MilestoneService {
                     // 从缓存Map中获取indicator
                     Indicator indicator = indicatorMap.get(milestone.getIndicator().getIndicatorId());
                     
-                    // 从缓存Map中获取inheritedFrom
+                    // 从缓存Map中获取inheritedFrom - DISABLED: inheritedFrom field removed from database
                     Long inheritedFromId = null;
-                    if (milestone.getInheritedFrom() != null) {
-                        Milestone inherited = inheritedMap.get(milestone.getInheritedFrom().getMilestoneId());
-                        if (inherited != null) {
-                            inheritedFromId = inherited.getMilestoneId();
-                        }
-                    }
+                    // if (milestone.getInheritedFrom() != null) {
+                    //     Milestone inherited = inheritedMap.get(milestone.getInheritedFrom().getMilestoneId());
+                    //     if (inherited != null) {
+                    //         inheritedFromId = inherited.getMilestoneId();
+                    //     }
+                    // }
                     
                     return new MilestoneVO(
                         milestone.getMilestoneId(),
@@ -208,11 +208,11 @@ public class MilestoneService {
             throw new BusinessException("Milestone with this name already exists for the indicator");
         }
 
-        // Validate inherited from milestone if provided
-        Milestone inheritedFrom = null;
-        if (request.getInheritedFromId() != null) {
-            inheritedFrom = findMilestoneById(request.getInheritedFromId());
-        }
+        // Validate inherited from milestone if provided - DISABLED: inheritedFrom field removed from database
+        // Milestone inheritedFrom = null;
+        // if (request.getInheritedFromId() != null) {
+        //     inheritedFrom = findMilestoneById(request.getInheritedFromId());
+        // }
 
         Milestone milestone = new Milestone();
         milestone.setIndicator(indicator);
@@ -222,7 +222,7 @@ public class MilestoneService {
         milestone.setTargetProgress(request.getTargetProgress() != null ? request.getTargetProgress() : 0);
         milestone.setStatus(MilestoneStatus.NOT_STARTED);
         milestone.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : 0);
-        milestone.setInheritedFrom(inheritedFrom);
+        // milestone.setInheritedFrom(inheritedFrom); // DISABLED: inheritedFrom field removed from database
 
         Milestone savedMilestone = milestoneRepository.save(milestone);
         
@@ -365,7 +365,7 @@ public class MilestoneService {
             null, // weightPercent - system deprecated
             milestone.getStatus(),
             milestone.getSortOrder(),
-            milestone.getInheritedFrom() != null ? milestone.getInheritedFrom().getMilestoneId() : null,
+            null, // inheritedFromId - DISABLED: inheritedFrom field removed from database
             milestone.getCreatedAt(),
             milestone.getUpdatedAt(),
             milestone.getTargetProgress(),

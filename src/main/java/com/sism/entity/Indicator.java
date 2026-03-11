@@ -96,6 +96,13 @@ public class Indicator {
     @Builder.Default
     private IndicatorStatus status = IndicatorStatus.DRAFT;
 
+    /**
+     * Distribution status (DISTRIBUTED, etc.)
+     * Separate field for tracking distribution state
+     */
+    @Column(name = "distribution_status", length = 20)
+    private String distributionStatus;
+
     // ==================== 扩展字段 (前端数据对齐 2026-01-19) ====================
 
     /**
@@ -261,6 +268,7 @@ public class Indicator {
             null, // taskName - should be set by caller
             this.canWithdraw,
             this.status,
+            this.distributionStatus,
             this.isQualitative,
             this.type1,
             this.type2,
@@ -331,6 +339,7 @@ public class Indicator {
             taskName,
             this.canWithdraw,
             this.status,
+            this.distributionStatus,
             this.isQualitative,
             this.type1,
             this.type2,
