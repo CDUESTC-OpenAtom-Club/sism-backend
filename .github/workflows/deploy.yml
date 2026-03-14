@@ -1,0 +1,97 @@
+# 后端自动部署到生产服务器
+# 仓库: CDUESTC-OpenAtom-Club/sism-backend
+
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+  JAR_NAME: sism-backend-1.0.0.jar
+  SERVER_USER: root
+  SERVER_HOST: 175.24.139.148
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Backend
+    runs-on: [self-hosted, linux]
+    
+    steps:
+      - name: Fix Git permissions
+        run: |
+          echo "Fixing Git repository permissions..."
+          WORK_DIR="${GITHUB_WORKSPACE}"
+          if [ -d "$WORK_DIR/.git" ]; then
+            sudo chown -R $(whoami):$(whoami) "$WORK_DIR/.git" || true
+            sudo chmod -R u+rwX "$WORK_DIR/.git" || true
+          fi
+          # Clean up any stale locks
+          rm -f "$WORK_DIR/.git/index.lock" 2>/dev/null || true
+          echo "Git permissions fixed"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+          fetch-depth: 1
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
+
+      - name: Stop backend service
+        run: sudo systemctl stop sism-backend || true
+
+      - name: Deploy JAR
+        run: |
+          echo "[INFO] Deploying JAR to /opt/sism/backend/"
+          sudo cp target/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}
+          sudo chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}
+          sudo chmod 775 /opt/sism/backend/${{ env.JAR_NAME }}
+          echo "[INFO] JAR deployed successfully"
+
+      - name: Start backend service
+        run: sudo systemctl start sism-backend
+
+      - name: Wait for service startup
+        run: |
+          echo "[INFO] Waiting for Spring Boot application to start..."
+          sleep 10
+
+      - name: Health check
+        run: |
+          echo "[INFO] Starting health check (max 60 seconds)..."
+          MAX_ATTEMPTS=12
+          ATTEMPT=0
+          
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "[INFO] Health check attempt $ATTEMPT/$MAX_ATTEMPTS..."
+            
+            if curl -sf http://localhost:8080/api/actuator/health > /dev/null 2>&1; then
+              echo "[SUCCESS] Backend is healthy!"
+              curl -s http://localhost:8080/api/actuator/health | head -5
+              exit 0
+            fi
+            
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              sleep 5
+            fi
+          done
+          
+          echo "[ERROR] Health check failed after $MAX_ATTEMPTS attempts"
+          echo "[INFO] Service status:"
+          sudo systemctl status sism-backend --no-pager | head -20
+          echo ""
+          echo "[INFO] Recent logs:"
+          sudo journalctl -u sism-backend -n 50 --no-pager
+          exit 1

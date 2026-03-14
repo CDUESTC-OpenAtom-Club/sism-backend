@@ -1,0 +1,32 @@
+package com.sism.strategy.domain.repository;
+
+import com.sism.strategy.domain.Cycle;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * CycleRepository - 考核周期仓储接口
+ */
+public interface CycleRepository {
+
+    Optional<Cycle> findById(Long id);
+
+    List<Cycle> findAll();
+
+    Page<Cycle> findAll(Pageable pageable);
+
+    List<Cycle> findByStatus(String status);
+
+    List<Cycle> findByYear(Integer year);
+
+    List<Cycle> findByStatusAndYear(String status, Integer year);
+
+    Cycle save(Cycle cycle);
+
+    void delete(Cycle cycle);
+
+    boolean existsById(Long id);
+}

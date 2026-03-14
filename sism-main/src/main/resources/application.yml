@@ -1,0 +1,74 @@
+# SISM Main Application Configuration
+# 战略指标任务管理系统 - 主应用配置
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: sism-backend
+  
+  # Database Configuration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/sism_db}
+    username: ${DB_USERNAME:sism_user}
+    password: ${DB_PASSWORD:sism_pass}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  # Flyway Configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.sism: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-here-make-it-long-enough-for-hs256}
+  expiration: 86400000
+
+# File Upload Configuration
+file:
+  upload:
+    path: ./uploads
+    max-size: 10485760  # 10MB
+
+# Export Configuration
+export:
+  temp-dir: ./exports
+  max-records: 100000

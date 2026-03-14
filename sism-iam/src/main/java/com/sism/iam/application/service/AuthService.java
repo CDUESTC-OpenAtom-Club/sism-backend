@@ -1,0 +1,96 @@
+package com.sism.iam.application.service;
+
+import com.sism.iam.application.JwtTokenService;
+import com.sism.iam.application.dto.LoginRequest;
+import com.sism.iam.application.dto.LoginResponse;
+import com.sism.iam.domain.User;
+import com.sism.iam.domain.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * AuthService - 认证服务
+ * 处理用户登录、注册等认证逻辑
+ */
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final JwtTokenService jwtTokenService;
+    private final PasswordEncoder passwordEncoder;
+
+    /**
+     * 用户登录
+     */
+    @Transactional(readOnly = true)
+    public LoginResponse login(LoginRequest request) {
+        if (request.getUsername() == null || request.getUsername().isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("Invalid username or password");
+        }
+
+        if (user.getStatus() != User.UserStatus.ACTIVE) {
+            throw new IllegalStateException("User account is not active");
+        }
+
+        String token = jwtTokenService.generateToken(user);
+
+        return new LoginResponse(
+                token,
+                user.getId(),
+                user.getUsername(),
+                user.getRealName()
+        );
+    }
+
+    /**
+     * 用户注册
+     */
+    @Transactional
+    public User register(String username, String password, String realName) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Username is required");
+        }
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Password is required");
+        }
+
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("Username already exists");
+        }
+
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(passwordEncoder.encode(password));
+        user.setRealName(realName);
+        user.setStatus(User.UserStatus.ACTIVE);
+
+        return userRepository.save(user);
+    }
+
+    /**
+     * 验证Token
+     */
+    public boolean validateToken(String token) {
+        return jwtTokenService.validateToken(token);
+    }
+
+    /**
+     * 获取当前用户ID
+     */
+    public Long getUserIdFromToken(String token) {
+        return jwtTokenService.getUserIdFromToken(token);
+    }
+}

@@ -1,0 +1,10 @@
+禁用Spring注解记录
+时间: Fri Mar 13 01:13:12 PDT 2026
+修改文件数: 0
+
+恢复命令:
+  cd "spring-annotations-backup-20260313_011311"
+  for bak in *.bak; do
+    cp "$bak" "../../src/main/java/com/sism/shared/${bak%.bak}"
+    cp "$bak" "../../src/main/java/com/sism/strategy/${bak%.bak}"
+  done
