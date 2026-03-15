@@ -3,7 +3,12 @@ package com.sism.execution.application;
 import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,10 +16,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * ReportApplicationService - 报告应用服务
+ * ReportApplicationService - 计划报告应用服务
  * 处理计划报告的业务逻辑
  */
-@Service
+@Service("executionReportApplicationService")
 @RequiredArgsConstructor
 public class ReportApplicationService {
 
@@ -33,16 +38,28 @@ public class ReportApplicationService {
     }
 
     /**
-     * 更新报告内容
+     * 更新报告内容（包含标题）
      */
     @Transactional
-    public PlanReport updateReport(Long reportId, String content, String summary, Integer progress,
+    public PlanReport updateReport(Long reportId, String title, String content, String summary, Integer progress,
                                    String issues, String nextPlan) {
         PlanReport report = planReportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
 
         report.updateContent(content, summary, progress, issues, nextPlan);
+        if (title != null) {
+            report.setTitle(title);
+        }
         return planReportRepository.save(report);
+    }
+
+    /**
+     * 更新报告内容（旧方法，保持向后兼容）
+     */
+    @Transactional
+    public PlanReport updateReport(Long reportId, String content, String summary, Integer progress,
+                                   String issues, String nextPlan) {
+        return updateReport(reportId, null, content, summary, progress, issues, nextPlan);
     }
 
     /**
@@ -140,5 +157,82 @@ public class ReportApplicationService {
      */
     public List<PlanReport> findReportsByOrgType(ReportOrgType orgType) {
         return planReportRepository.findByReportOrgType(orgType);
+    }
+
+    // ==================== 新增查询方法 ====================
+
+    /**
+     * 查询所有有效的报告（未删除）
+     */
+    public List<PlanReport> findAllActiveReports() {
+        return planReportRepository.findAllActive();
+    }
+
+    /**
+     * 分页查询所有有效的报告
+     */
+    public Page<PlanReport> findAllActiveReports(int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return planReportRepository.findAllActive(pageable);
+    }
+
+    /**
+     * 根据条件分页查询报告
+     */
+    public Page<PlanReport> findReportsByConditions(PlanReportQueryRequest queryRequest) {
+        Pageable pageable = PageRequest.of(
+                queryRequest.getPage() - 1,
+                queryRequest.getSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        return planReportRepository.findByConditions(
+                queryRequest.getReportMonth(),
+                queryRequest.getReportOrgId(),
+                queryRequest.getReportOrgType(),
+                queryRequest.getPlanId(),
+                queryRequest.getStatus(),
+                queryRequest.getTitle(),
+                queryRequest.getMinProgress(),
+                queryRequest.getMaxProgress(),
+                pageable
+        );
+    }
+
+    /**
+     * 分页查询组织的报告
+     */
+    public Page<PlanReport> findReportsByOrgId(Long reportOrgId, int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return planReportRepository.findByReportOrgId(reportOrgId, pageable);
+    }
+
+    /**
+     * 分页查询指定状态的报告
+     */
+    public Page<PlanReport> findReportsByStatus(String status, int page, int size) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return planReportRepository.findByStatus(status, pageable);
+    }
+
+    /**
+     * 根据计划ID查询报告
+     */
+    public List<PlanReport> findReportsByPlanId(Long planId) {
+        return planReportRepository.findByPlanId(planId);
+    }
+
+    /**
+     * 统计指定状态的报告数量
+     */
+    public long countReportsByStatus(String status) {
+        return planReportRepository.countByStatus(status);
+    }
+
+    /**
+     * 根据月份和组织ID查询报告
+     */
+    public List<PlanReport> findReportsByMonthAndOrgId(String month, Long orgId) {
+        return planReportRepository.findByMonthAndOrgId(month, orgId);
     }
 }

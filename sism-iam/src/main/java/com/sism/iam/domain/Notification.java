@@ -112,4 +112,21 @@ public class Notification extends AggregateRoot<Long> {
             sentAt = LocalDateTime.now();
         }
     }
+
+    @Override
+    public void validate() {
+        // 通知验证逻辑
+        if (recipientUserId == null) {
+            throw new IllegalArgumentException("Recipient user ID is required");
+        }
+        if (notificationType == null || notificationType.isBlank()) {
+            throw new IllegalArgumentException("Notification type is required");
+        }
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("Notification title is required");
+        }
+        if (sentAt == null) {
+            throw new IllegalArgumentException("Notification sent time is required");
+        }
+    }
 }

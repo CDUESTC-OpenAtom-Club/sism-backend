@@ -2,10 +2,8 @@ package com.sism.strategy.domain.service;
 
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
-import com.sism.strategy.domain.IndicatorService;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
-import com.sism.enums.IndicatorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +32,19 @@ public class IndicatorDomainService {
         SysOrg targetOrg = organizationRepository.findById(targetOrgId)
                 .orElseThrow(() -> new IllegalArgumentException("Target organization not found"));
 
-        Indicator newIndicator = Indicator.distributeFrom(
-                sourceIndicator,
-                targetOrg,
-                targetValue
+        // 创建新指标并从源指标复制属性
+        Indicator newIndicator = Indicator.create(
+                sourceIndicator.getDescription(),
+                sourceIndicator.getOwnerOrg(),
+                targetOrg
         );
+        newIndicator.setParent(sourceIndicator);
+        if (targetValue != null) {
+            newIndicator.setWeight(java.math.BigDecimal.valueOf(targetValue));
+        }
+
+        // 直接调用实例方法
+        newIndicator.distributeFrom(sourceIndicator, targetOrg, targetValue);
 
         return indicatorRepository.save(newIndicator);
     }
@@ -56,8 +62,19 @@ public class IndicatorDomainService {
         }
 
         List<Indicator> children = breakdownItems.stream()
-                .map(item -> Indicator.breakdownFrom(parent, item.getTargetOrg(), item.getTargetValue()))
-                .map(indicatorRepository::save)
+                .map(item -> {
+                    // 创建新指标并从父指标复制属性
+                    Indicator child = Indicator.create(
+                            parent.getDescription(),
+                            parent.getTargetOrg(),
+                            item.targetOrg()
+                    );
+                    child.setParent(parent);
+                    if (item.targetValue() != null) {
+                        child.setWeight(java.math.BigDecimal.valueOf(item.targetValue()));
+                    }
+                    return indicatorRepository.save(child);
+                })
                 .toList();
 
         parent.markAsBrokenDown();

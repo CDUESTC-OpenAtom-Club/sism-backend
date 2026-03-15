@@ -1,5 +1,6 @@
 package com.sism.iam.application;
 
+import com.sism.iam.application.dto.CurrentUser;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +23,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        return new org.springframework.security.core.userdetails.User(
+        return new CurrentUser(
+                user.getId(),
                 user.getUsername(),
-                user.getPassword(),
+                user.getRealName(),
+                user.getEmail(),
+                user.getOrgId(),
                 user.getRoles().stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleCode()))
                         .collect(Collectors.toList())

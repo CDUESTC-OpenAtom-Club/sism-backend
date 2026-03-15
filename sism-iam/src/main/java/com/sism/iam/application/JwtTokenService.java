@@ -1,5 +1,6 @@
 package com.sism.iam.application;
 
+import com.sism.iam.domain.User;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,14 +25,14 @@ public class JwtTokenService {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String username, Long userId) {
+    public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", userId);
-        claims.put("username", username);
+        claims.put("userId", user.getId());
+        claims.put("username", user.getUsername());
 
         return Jwts.builder()
                 .claims(claims)
-                .subject(username)
+                .subject(user.getUsername())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
@@ -42,13 +43,16 @@ public class JwtTokenService {
         return extractClaims(token).getSubject();
     }
 
-    public boolean validateToken(String token, String username) {
+    public boolean validateToken(String token) {
         try {
-            final String extractedUsername = extractUsername(token);
-            return (extractedUsername.equals(username) && !isTokenExpired(token));
+            return !isTokenExpired(token);
         } catch (Exception e) {
             return false;
         }
+    }
+
+    public Long getUserIdFromToken(String token) {
+        return extractClaims(token).get("userId", Long.class);
     }
 
     private Claims extractClaims(String token) {

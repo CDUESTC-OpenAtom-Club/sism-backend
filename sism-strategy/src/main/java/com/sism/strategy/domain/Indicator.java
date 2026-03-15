@@ -95,8 +95,8 @@ public class Indicator extends AggregateRoot<Long> {
     @Column(name = "responsible_user_id")
     private Long responsibleUserId;
 
-    @OneToMany(mappedBy = "indicator", cascade = CascadeType.ALL)
-    private List<com.sism.execution.domain.model.milestone.Milestone> milestones = new ArrayList<>();
+    // @OneToMany(mappedBy = "indicator", cascade = CascadeType.ALL)
+    // private List<com.sism.execution.domain.model.milestone.Milestone> milestones = new ArrayList<>();
 
     public static Indicator create(String description, com.sism.organization.domain.SysOrg ownerOrg,
                                     com.sism.organization.domain.SysOrg targetOrg) {
@@ -310,7 +310,7 @@ public class Indicator extends AggregateRoot<Long> {
         if (ownerOrgType == null) {
             return false;
         }
-        String ownerTypeName = ownerOrgType.name();
+        String ownerTypeName = ownerOrgType;
         // Strategic indicator: STRATEGY_DEPT -> non-COLLEGE
         boolean isFromStrategy = "STRATEGY_DEPT".equals(ownerTypeName);
         if (!isFromStrategy) {
@@ -323,7 +323,7 @@ public class Indicator extends AggregateRoot<Long> {
         if (targetOrgType == null) {
             return false;
         }
-        String targetTypeName = targetOrgType.name();
+        String targetTypeName = targetOrgType;
         return !"COLLEGE".equals(targetTypeName);
     }
 
@@ -345,7 +345,7 @@ public class Indicator extends AggregateRoot<Long> {
         // 判断：如果owner是战略部，目标是非学院类型 = 一级指标
         // 如果owner是职能类型，目标 = 二级指标
         if (ownerOrgType != null) {
-            String ownerTypeName = ownerOrgType.name();
+            String ownerTypeName = ownerOrgType;
             // 战略发展部 -> 职能处室 = 一级指标
             if ("STRATEGY_DEPT".equals(ownerTypeName)) {
                 return IndicatorLevel.FIRST;
@@ -426,6 +426,59 @@ public class Indicator extends AggregateRoot<Long> {
      */
     public boolean isPending() {
         return this.status == IndicatorStatus.PENDING;
+    }
+
+    /**
+     * Distribute from parent indicator to target organization
+     */
+    public void distributeFrom(Indicator parentIndicator, com.sism.organization.domain.SysOrg targetOrg, Double weight) {
+        if (this.status != IndicatorStatus.DRAFT) {
+            throw new IllegalStateException("Cannot distribute: indicator must be in DRAFT state");
+        }
+        this.parentIndicator = parentIndicator;
+        this.parentIndicatorId = parentIndicator.getId();
+        this.targetOrg = targetOrg;
+        this.weightPercent = BigDecimal.valueOf(weight);
+        this.status = IndicatorStatus.DISTRIBUTED;
+        this.updatedAt = LocalDateTime.now();
+        this.addEvent(new IndicatorStatusChangedEvent(this.id, "DRAFT", "DISTRIBUTED"));
+    }
+
+    /**
+     * Check if indicator can be broken down into child indicators
+     */
+    public boolean canBreakdown() {
+        return this.isFirstLevel() && this.status == IndicatorStatus.DISTRIBUTED;
+    }
+
+    /**
+     * Mark indicator as broken down (has child indicators)
+     */
+    public void markAsBrokenDown() {
+        this.type = "BROKEN_DOWN";
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Activate indicator
+     */
+    public void activate() {
+        this.status = IndicatorStatus.DISTRIBUTED;
+        this.updatedAt = LocalDateTime.now();
+        this.addEvent(new IndicatorStatusChangedEvent(this.id, this.status.toString(), "DISTRIBUTED"));
+    }
+
+    /**
+     * Terminate indicator with a reason
+     */
+    public void terminate(String reason) {
+        if (this.status == IndicatorStatus.DISTRIBUTED) {
+            throw new IllegalStateException("Cannot terminate indicator: already distributed");
+        }
+        this.status = IndicatorStatus.DRAFT;
+        this.remark = reason;
+        this.updatedAt = LocalDateTime.now();
+        this.addEvent(new IndicatorStatusChangedEvent(this.id, this.status.toString(), "TERMINATED"));
     }
 
     @Override

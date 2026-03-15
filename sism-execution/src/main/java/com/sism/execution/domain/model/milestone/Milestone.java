@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "milestone")
+@Table(name = "indicator_milestone")
 public class Milestone {
 
     @Id
@@ -22,14 +22,26 @@ public class Milestone {
     @Column(name = "milestone_name", nullable = false)
     private String milestoneName;
 
-    @Column(name = "target_date")
-    private LocalDateTime targetDate;
+    @Column(name = "milestone_desc", columnDefinition = "text")
+    private String description;
+
+    @Column(name = "due_date")
+    private LocalDateTime dueDate;
+
+    @Column(name = "target_progress")
+    private Integer targetProgress;
 
     @Column(name = "status")
     private String status;
 
-    @Column(name = "progress")
-    private Integer progress;
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
+    @Column(name = "is_paired")
+    private Boolean isPaired;
+
+    @Column(name = "inherited_from")
+    private Long inheritedFrom;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

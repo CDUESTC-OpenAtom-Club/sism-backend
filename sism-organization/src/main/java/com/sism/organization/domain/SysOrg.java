@@ -10,6 +10,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Getter
@@ -58,6 +60,10 @@ public class SysOrg extends AggregateRoot<Long> {
 
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
+
+    // 子组织列表（ transient，不持久化到数据库）
+    @Transient
+    private List<SysOrg> children = new ArrayList<>();
 
     // ==================== Factory Methods ====================
 

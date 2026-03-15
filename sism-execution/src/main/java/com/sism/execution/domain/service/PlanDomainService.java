@@ -29,7 +29,7 @@ public class PlanDomainService {
     public Plan createPlan(Long cycleId, Long targetOrgId, Long createdByOrgId, PlanLevel planLevel) {
         Plan plan = Plan.create(cycleId, targetOrgId, createdByOrgId, planLevel);
         Plan saved = planRepository.save(plan);
-        eventPublisher.publishEvent(new PlanCreatedEvent(saved.getId(), cycleId, targetOrgId));
+        eventPublisher.publishEvent(new PlanCreatedEvent(saved.getId(), planLevel.name(), targetOrgId));
         return saved;
     }
 
@@ -46,14 +46,14 @@ public class PlanDomainService {
     }
 
     /**
-     * 关闭计划
+     * 完成计划
      */
     @Transactional
-    public Plan close(Long planId) {
+    public Plan complete(Long planId) {
         Plan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
 
-        plan.close();
+        plan.complete();
         return planRepository.save(plan);
     }
 

@@ -4,6 +4,8 @@ import com.sism.shared.domain.model.workflow.AuditFlowDef;
 import com.sism.shared.domain.model.workflow.AuditInstance;
 import com.sism.shared.domain.model.workflow.WorkflowTask;
 import com.sism.workflow.domain.AuditStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +19,10 @@ public interface WorkflowRepository {
     // ==================== Audit Flow Definition ====================
 
     List<AuditFlowDef> findAllAuditFlowDefs();
+
+    default Page<AuditFlowDef> findAllAuditFlowDefs(Pageable pageable) {
+        throw new UnsupportedOperationException("Pagination not implemented");
+    }
 
     Optional<AuditFlowDef> findAuditFlowDefById(Long id);
 
@@ -99,6 +105,18 @@ public interface WorkflowRepository {
     long countApprovedAuditInstances();
 
     long countRejectedAuditInstances();
+
+    // ==================== New Methods for Business Workflow ====================
+
+    /**
+     * 检查是否有活跃的工作流实例
+     */
+    boolean hasActiveInstance(Long businessEntityId, String entityType);
+
+    /**
+     * 根据工作流定义ID分页查询实例
+     */
+    Page<AuditInstance> findAuditInstancesByFlowDefId(Long flowDefId, Pageable pageable);
 
     // ==================== Workflow Task ====================
 

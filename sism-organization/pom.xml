@@ -24,6 +24,12 @@
             <artifactId>sism-shared-kernel</artifactId>
         </dependency>
 
+        <!-- IAM Context for User/Role management -->
+        <dependency>
+            <groupId>com.sism</groupId>
+            <artifactId>sism-iam</artifactId>
+        </dependency>
+
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

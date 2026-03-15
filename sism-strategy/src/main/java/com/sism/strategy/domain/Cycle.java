@@ -75,6 +75,25 @@ public class Cycle extends AggregateRoot<Long> {
         this.updatedAt = LocalDateTime.now();
     }
 
+    @Override
+    public void validate() {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Cycle name is required");
+        }
+        if (year == null || year < 2000 || year > 2100) {
+            throw new IllegalArgumentException("Year must be between 2000 and 2100");
+        }
+        if (startDate == null) {
+            throw new IllegalArgumentException("Start date is required");
+        }
+        if (endDate == null) {
+            throw new IllegalArgumentException("End date is required");
+        }
+        if (endDate.isBefore(startDate)) {
+            throw new IllegalArgumentException("End date must be after start date");
+        }
+    }
+
     @PrePersist
     protected void onCreate() {
         if (isDeleted == null) {

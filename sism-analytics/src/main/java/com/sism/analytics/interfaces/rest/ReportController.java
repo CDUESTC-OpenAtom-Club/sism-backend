@@ -15,10 +15,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * ReportController - 报告API控制器
- * 提供报告管理相关的REST API端点
+ * ReportController - 分析报告API控制器
+ * 提供分析报告管理相关的REST API端点
  */
-@RestController
+@RestController("analyticsReportController")
 @RequestMapping("/api/v1/analytics/reports")
 @RequiredArgsConstructor
 @Tag(name = "Analytics Reports", description = "Report management endpoints")

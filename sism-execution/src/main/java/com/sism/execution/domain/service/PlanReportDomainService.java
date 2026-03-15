@@ -28,13 +28,13 @@ public class PlanReportDomainService {
      * 提交报告
      */
     @Transactional
-    public PlanReport submit(Long reportId) {
+    public PlanReport submit(Long reportId, Long userId) {
         PlanReport report = planReportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found"));
 
-        report.submit();
+        report.submit(userId);
         PlanReport saved = planReportRepository.save(report);
-        eventPublisher.publishEvent(new PlanReportSubmittedEvent(saved.getId(), saved.getReportOrgId()));
+        eventPublisher.publishEvent(new PlanReportSubmittedEvent(saved.getId(), saved.getReportMonth(), saved.getReportOrgId()));
         return saved;
     }
 
@@ -48,7 +48,7 @@ public class PlanReportDomainService {
 
         report.approve(approverId);
         PlanReport saved = planReportRepository.save(report);
-        eventPublisher.publishEvent(new PlanReportApprovedEvent(saved.getId(), saved.getReportOrgId(), approverId));
+        eventPublisher.publishEvent(new PlanReportApprovedEvent(saved.getId(), saved.getReportMonth(), saved.getReportOrgId()));
         return saved;
     }
 
@@ -62,7 +62,7 @@ public class PlanReportDomainService {
 
         report.reject(approverId, reason);
         PlanReport saved = planReportRepository.save(report);
-        eventPublisher.publishEvent(new PlanReportRejectedEvent(saved.getId(), saved.getReportOrgId(), reason));
+        eventPublisher.publishEvent(new PlanReportRejectedEvent(saved.getId(), saved.getReportMonth(), saved.getReportOrgId(), reason));
         return saved;
     }
 

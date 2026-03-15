@@ -937,11 +937,166 @@ async validateToken() {
 
 ---
 
-### 2.11-2.24 其他查询接口
+### 2.11 搜索指标
 
-包括：按责任组织查询、按目标组织查询、按层级查询、搜索、筛选、定性/定量查询、按角色上下文查询、待填报查询、下发资格查询、下发记录查询、工作流上下文查询等。
+**接口地址**: `GET /api/v1/indicators/search`
 
-（接口列表省略，与原文档类似）
+**业务说明**: 按关键字搜索指标，支持模糊匹配指标描述
+
+**请求参数** (Query Parameters):
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| keyword | String | 是 | 搜索关键字，用于模糊匹配指标描述 |
+| page | Integer | 否 | 页码，默认0 |
+| size | Integer | 否 | 每页数量，默认20 |
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "indicatorDesc": "年度学生满意度",
+        "type": "QUANTITATIVE",
+        "progress": 85,
+        "status": "DISTRIBUTED"
+      }
+    ],
+    "totalElements": 1,
+    "totalPages": 1,
+    "number": 0,
+    "size": 20
+  }
+}
+```
+
+---
+
+### 2.12 查询指标下发状态
+
+**接口地址**: `GET /api/v1/indicators/{id}/distribution-status`
+
+**业务说明**: 查询指标的下发状态、接收情况、以及下发历史
+
+**路径参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| id | Long | 是 | 指标ID |
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "data": {
+    "status": "DISTRIBUTED",
+    "distributedAt": "2024-01-15T10:00:00",
+    "distributedBy": 145,
+    "receivedBy": [
+      {
+        "orgId": 5,
+        "orgName": "计算机学院",
+        "receivedAt": "2024-01-15T10:30:00"
+      }
+    ],
+    "withdrawn": false
+  }
+}
+```
+
+---
+
+### 2.13 查询指标分发记录
+
+**接口地址**: `GET /api/v1/indicators/{id}/distribution-records`
+
+**业务说明**: 查询指标的分发记录历史，包括下发给哪些组织、接收状态等
+
+**路径参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| id | Long | 是 | 指标ID |
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "data": [
+    {
+      "id": 1,
+      "indicatorId": 10,
+      "targetOrgId": 5,
+      "targetOrgName": "计算机学院",
+      "status": "RECEIVED",
+      "distributedAt": "2024-01-15T10:00:00",
+      "distributedBy": 145,
+      "receivedAt": "2024-01-15T10:30:00",
+      "deadline": "2024-12-31"
+    },
+    {
+      "id": 2,
+      "indicatorId": 10,
+      "targetOrgId": 6,
+      "targetOrgName": "软件学院",
+      "status": "PENDING_RECEIVE",
+      "distributedAt": "2024-01-15T10:00:00",
+      "distributedBy": 145,
+      "deadline": "2024-12-31"
+    }
+  ]
+}
+```
+
+**分发状态说明**:
+
+| 状态 | 说明 |
+|------|------|
+| PENDING_RECEIVE | 待接收 |
+| RECEIVED | 已接收 |
+| DECOMPOSED | 已分解 |
+| COMPLETED | 已完成 |
+| WITHDRAWN | 已撤回 |
+
+---
+
+### 2.14 变更指标下发状态（待实现）
+
+**接口地址**: `PATCH /api/v1/indicators/{id}/distribution-status`
+
+**业务说明**: 直接变更指标的下发状态（仅管理员权限）
+
+**注意**: 此接口暂未实现，需评估业务需求后决定是否开发
+
+**路径参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| id | Long | 是 | 指标ID |
+
+**请求参数**:
+```json
+{
+  "status": "DISTRIBUTED",
+  "reason": "直接变更状态说明"
+}
+```
+
+**参数说明**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| status | String | 是 | 目标状态：DRAFT/PENDING/DISTRIBUTED |
+| reason | String | 否 | 变更状态的原因 |
+
+---
+
+### 2.15-2.25 其他查询接口
+
+包括：按责任组织查询、按目标组织查询、按层级查询、筛选、定性/定量查询、按角色上下文查询、待填报查询、下发资格查询、工作流上下文查询等。
 
 ---
 
@@ -1106,6 +1261,32 @@ async validateToken() {
 {
   "code": 204,
   "message": "删除成功"
+}
+```
+
+---
+
+### 2.B.4 检查里程碑配对状态
+
+**接口地址**: `GET /api/v1/milestones/{milestoneId}/is-paired`
+
+**业务说明**: 检查指定里程碑是否已与填报数据配对
+
+**路径参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| milestoneId | Long | 是 | 里程碑ID |
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "data": {
+    "milestoneId": 101,
+    "isPaired": true,
+    "message": "里程碑已配对"
+  }
 }
 ```
 
@@ -2190,13 +2371,100 @@ async validateToken() {
 
 ---
 
+#### 6.1.2 确认接收指标
 
+**接口地址**: `POST /workflow/indicator/{id}/confirm-receive`
 
+**业务说明**: 接收方确认已收到下发的指标
 
+**路径参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| id | Long | 是 | 指标ID |
+
+**请求参数**:
+
+```json
+{
+  "comment": "已确认，将尽快分解落实"
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "接收成功"
+}
+```
 
 ---
 
-#### 6.1.4 提交指标进度
+#### 6.1.3 分解指标
+
+**接口地址**: `POST /workflow/indicator/{id}/decompose`
+
+**业务说明**: 将一级指标分解为多个二级子指标
+
+**路径参数**:
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| id | Long | 是 | 父指标ID |
+
+**请求参数**:
+
+```json
+{
+  "decompositions": [
+    {
+      "name": "计算机学院学生满意度",
+      "targetOrgId": 5,
+      "value": 85,
+      "weight": 0.4
+    },
+    {
+      "name": "软件学院学生满意度",
+      "targetOrgId": 6,
+      "value": 90,
+      "weight": 0.6
+    }
+  ]
+}
+```
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "分解成功",
+  "data": {
+    "parentId": 1,
+    "createdCount": 2,
+    "childIndicators": [
+      {
+        "id": 101,
+        "name": "计算机学院学生满意度",
+        "targetOrgId": 5,
+        "value": 85,
+        "weight": 0.4
+      },
+      {
+        "id": 102,
+        "name": "软件学院学生满意度",
+        "targetOrgId":   6,
+        "value": 90,
+        "weight": 0.6
+      }
+    ]
+  }
+}
+```
+
+---
+
+#### 6.1.4 提 fanc交指标进度
 
 **接口地址**: `POST /workflow/indicator/{indicatorId}/submit-progress`
 

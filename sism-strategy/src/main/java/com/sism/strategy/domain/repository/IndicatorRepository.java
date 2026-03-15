@@ -1,8 +1,9 @@
 package com.sism.strategy.domain.repository;
 
 import com.sism.strategy.domain.Indicator;
-import com.sism.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,6 +23,11 @@ public interface IndicatorRepository {
      * 查询所有指标
      */
     List<Indicator> findAll();
+
+    /**
+     * 分页查询所有指标
+     */
+    Page<Indicator> findAll(Pageable pageable);
 
     /**
      * 根据目标组织查询指标
@@ -46,7 +52,17 @@ public interface IndicatorRepository {
     /**
      * 根据状态查询指标
      */
-    List<Indicator> findByStatus(IndicatorStatus status);
+    List<Indicator> findByStatus(String status);
+
+    /**
+     * 根据状态分页查询指标
+     */
+    Page<Indicator> findByStatus(String status, Pageable pageable);
+
+    /**
+     * 根据周期ID分页查询指标
+     */
+    Page<Indicator> findByCycleId(Long cycleId, Pageable pageable);
 
     /**
      * 根据父指标查询子指标
@@ -86,5 +102,5 @@ public interface IndicatorRepository {
     /**
      * 根据关键字搜索指标
      */
-    Page<Indicator> findByKeyword(String keyword, Pageable pageable);
+    List<Indicator> findByKeyword(String keyword);
 }

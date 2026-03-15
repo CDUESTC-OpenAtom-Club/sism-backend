@@ -5,8 +5,13 @@ import com.sism.iam.domain.User;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.application.OrganizationApplicationService;
 import com.sism.organization.domain.SysOrg;
+import com.sism.organization.interfaces.dto.OrgRequest;
+import com.sism.organization.interfaces.dto.OrgResponse;
+import com.sism.organization.interfaces.dto.OrgMapper;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,94 +25,120 @@ import java.util.List;
 public class OrganizationController {
 
     private final OrganizationApplicationService organizationApplicationService;
+    private final OrgMapper orgMapper;
 
     @PostMapping
     @Operation(summary = "Create a new organization")
-    public ResponseEntity<ApiResponse<SysOrg>> createOrganization(
-            @RequestParam String name,
-            @RequestParam OrgType type) {
-        SysOrg created = organizationApplicationService.createOrganization(name, type);
-        return ResponseEntity.ok(ApiResponse.success(created));
+    public ResponseEntity<ApiResponse<OrgResponse>> createOrganization(
+            @Valid @RequestBody OrgRequest request) {
+        SysOrg created = organizationApplicationService.createOrganization(request.getName(), request.getType());
+        OrgResponse response = orgMapper.toResponse(created);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping
     @Operation(summary = "Get all organizations")
-    public ResponseEntity<ApiResponse<List<SysOrg>>> getAllOrganizations() {
+    public ResponseEntity<ApiResponse<List<OrgResponse>>> getAllOrganizations() {
         List<SysOrg> orgs = organizationApplicationService.getAllOrganizations();
-        return ResponseEntity.ok(ApiResponse.success(orgs));
+        List<OrgResponse> responses = orgMapper.toResponseList(orgs);
+        return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get organization by ID")
-    public ResponseEntity<ApiResponse<SysOrg>> getOrganizationById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<OrgResponse>> getOrganizationById(
+            @Parameter(description = "Organization ID") @PathVariable Long id) {
         SysOrg org = organizationApplicationService.getOrganizationById(id);
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
         }
-        return ResponseEntity.ok(ApiResponse.success(org));
+        OrgResponse response = orgMapper.toResponse(org);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/tree")
     @Operation(summary = "Get organization tree")
-    public ResponseEntity<ApiResponse<List<SysOrg>>> getOrganizationTree(
-            @RequestParam(defaultValue = "false") boolean includeUsers,
-            @RequestParam(defaultValue = "false") boolean includeDisabled) {
+    public ResponseEntity<ApiResponse<List<OrgResponse>>> getOrganizationTree(
+            @Parameter(description = "Include users in response") @RequestParam(defaultValue = "false") boolean includeUsers,
+            @Parameter(description = "Include disabled organizations") @RequestParam(defaultValue = "false") boolean includeDisabled) {
         List<SysOrg> tree = organizationApplicationService.getOrganizationTree(includeUsers, includeDisabled);
-        return ResponseEntity.ok(ApiResponse.success(tree));
+        List<OrgResponse> responses = orgMapper.toResponseList(tree);
+        return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/{id}/users")
     @Operation(summary = "Get users by organization ID")
-    public ResponseEntity<ApiResponse<List<User>>> getUsersByOrganizationId(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<List<User>>> getUsersByOrganizationId(
+            @Parameter(description = "Organization ID") @PathVariable Long id) {
         List<User> users = organizationApplicationService.getUsersByOrganizationId(id);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
 
     @PostMapping("/{id}/activate")
     @Operation(summary = "Activate an organization")
-    public ResponseEntity<ApiResponse<SysOrg>> activateOrganization(
-            @PathVariable Long id,
-            @RequestBody SysOrg org) {
+    public ResponseEntity<ApiResponse<OrgResponse>> activateOrganization(
+            @Parameter(description = "Organization ID") @PathVariable Long id) {
+        SysOrg org = organizationApplicationService.getOrganizationById(id);
+        if (org == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
+        }
         SysOrg activated = organizationApplicationService.activateOrganization(org);
-        return ResponseEntity.ok(ApiResponse.success(activated));
+        OrgResponse response = orgMapper.toResponse(activated);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/deactivate")
     @Operation(summary = "Deactivate an organization")
-    public ResponseEntity<ApiResponse<SysOrg>> deactivateOrganization(
-            @PathVariable Long id,
-            @RequestBody SysOrg org) {
+    public ResponseEntity<ApiResponse<OrgResponse>> deactivateOrganization(
+            @Parameter(description = "Organization ID") @PathVariable Long id) {
+        SysOrg org = organizationApplicationService.getOrganizationById(id);
+        if (org == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
+        }
         SysOrg deactivated = organizationApplicationService.deactivateOrganization(org);
-        return ResponseEntity.ok(ApiResponse.success(deactivated));
+        OrgResponse response = orgMapper.toResponse(deactivated);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PutMapping("/{id}/name")
     @Operation(summary = "Rename an organization")
-    public ResponseEntity<ApiResponse<SysOrg>> renameOrganization(
-            @PathVariable Long id,
-            @RequestBody SysOrg org,
-            @RequestParam String newName) {
+    public ResponseEntity<ApiResponse<OrgResponse>> renameOrganization(
+            @Parameter(description = "Organization ID") @PathVariable Long id,
+            @Parameter(description = "New organization name") @RequestParam String newName) {
+        SysOrg org = organizationApplicationService.getOrganizationById(id);
+        if (org == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
+        }
         SysOrg renamed = organizationApplicationService.renameOrganization(org, newName);
-        return ResponseEntity.ok(ApiResponse.success(renamed));
+        OrgResponse response = orgMapper.toResponse(renamed);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PutMapping("/{id}/type")
     @Operation(summary = "Change organization type")
-    public ResponseEntity<ApiResponse<SysOrg>> changeOrganizationType(
-            @PathVariable Long id,
-            @RequestBody SysOrg org,
-            @RequestParam OrgType newType) {
+    public ResponseEntity<ApiResponse<OrgResponse>> changeOrganizationType(
+            @Parameter(description = "Organization ID") @PathVariable Long id,
+            @Parameter(description = "New organization type") @RequestParam OrgType newType) {
+        SysOrg org = organizationApplicationService.getOrganizationById(id);
+        if (org == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
+        }
         SysOrg updated = organizationApplicationService.changeOrganizationType(org, newType);
-        return ResponseEntity.ok(ApiResponse.success(updated));
+        OrgResponse response = orgMapper.toResponse(updated);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PutMapping("/{id}/sort-order")
     @Operation(summary = "Update organization sort order")
-    public ResponseEntity<ApiResponse<SysOrg>> updateSortOrder(
-            @PathVariable Long id,
-            @RequestBody SysOrg org,
-            @RequestParam Integer sortOrder) {
+    public ResponseEntity<ApiResponse<OrgResponse>> updateSortOrder(
+            @Parameter(description = "Organization ID") @PathVariable Long id,
+            @Parameter(description = "New sort order") @RequestParam Integer sortOrder) {
+        SysOrg org = organizationApplicationService.getOrganizationById(id);
+        if (org == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
+        }
         SysOrg updated = organizationApplicationService.updateSortOrder(org, sortOrder);
-        return ResponseEntity.ok(ApiResponse.success(updated));
+        OrgResponse response = orgMapper.toResponse(updated);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

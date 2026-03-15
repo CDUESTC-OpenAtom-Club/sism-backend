@@ -15,13 +15,19 @@
     <artifactId>sism-alert</artifactId>
     <packaging>jar</packaging>
     <name>SISM Alert Context</name>
-    <description>Alert & Warning Management - Alert events, rules, and notifications</description>
+    <description>Alert and Warning Management - Alert events, rules, and notifications</description>
 
     <dependencies>
         <!-- Dependency on shared kernel -->
         <dependency>
             <groupId>com.sism</groupId>
             <artifactId>sism-shared-kernel</artifactId>
+        </dependency>
+
+        <!-- Dependency on IAM module for authentication -->
+        <dependency>
+            <groupId>com.sism</groupId>
+            <artifactId>sism-iam</artifactId>
         </dependency>
 
         <!-- Spring Boot Starters -->
@@ -37,6 +43,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
 
         <!-- Database -->
         <dependency>
@@ -50,6 +60,12 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Swagger / OpenAPI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
         </dependency>
 
         <!-- Testing -->

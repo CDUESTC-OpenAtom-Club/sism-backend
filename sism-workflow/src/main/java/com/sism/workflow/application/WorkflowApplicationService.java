@@ -59,7 +59,7 @@ public class WorkflowApplicationService {
     // ==================== Audit Instance Methods ====================
 
     public List<AuditInstance> getAllAuditInstances() {
-        return workflowRepository.findAllAuditInstances();
+        return workflowRepository.findAll();
     }
 
     public AuditInstance getAuditInstanceById(Long instanceId) {

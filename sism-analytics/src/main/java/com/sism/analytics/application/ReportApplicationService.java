@@ -16,10 +16,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * ReportApplicationService - 报告应用服务
- * 负责协调报告相关的业务操作
+ * ReportApplicationService - 分析报告应用服务
+ * 负责协调分析报告相关的业务操作
  */
-@Service
+@Service("analyticsReportApplicationService")
 @RequiredArgsConstructor
 public class ReportApplicationService {
 

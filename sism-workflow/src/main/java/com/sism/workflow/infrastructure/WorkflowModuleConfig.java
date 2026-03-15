@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * 配置JPA实体扫描和仓储扫描
  */
 @Configuration
-@EntityScan(basePackages = "com.sism.workflow.domain")
+@EntityScan(basePackages = {"com.sism.workflow.domain", "com.sism.shared.domain.model.workflow"})
 @EnableJpaRepositories(basePackages = "com.sism.workflow.infrastructure")
 public class WorkflowModuleConfig {
 }

@@ -107,6 +107,22 @@ public class AuditInstance extends AggregateRoot<Long> {
         this.completedAt = LocalDateTime.now();
     }
 
+    public void start(Long requesterId, Long requesterOrgId) {
+        this.requesterId = requesterId;
+        this.requesterOrgId = requesterOrgId;
+        this.startedAt = LocalDateTime.now();
+    }
+
+    public void transfer(Long targetUserId) {
+        // 转交审批逻辑 - 这里只是一个占位符
+        // 实际应该更新当前审批人等信息
+    }
+
+    public void addApprover(Long approverId) {
+        // 添加审批人逻辑 - 这里只是一个占位符
+        // 实际应该添加到 stepInstances 或其他关联表
+    }
+
     public void addStepInstance(AuditStepInstance stepInstance) {
         stepInstances.add(stepInstance);
         stepInstance.setInstance(this);

@@ -88,8 +88,8 @@ public class StrategyApplicationService {
         return indicatorRepository.findAll();
     }
 
-    public Page<Indicator> searchIndicators(String keyword, Pageable pageable) {
-        return indicatorRepository.findByKeyword(keyword, pageable);
+    public List<Indicator> searchIndicators(String keyword) {
+        return indicatorRepository.findByKeyword(keyword);
     }
 
     public List<Indicator> getIndicatorsByTaskId(Long taskId) {
@@ -103,12 +103,13 @@ public class StrategyApplicationService {
         List<Milestone> milestones = new ArrayList<>();
         for (com.sism.strategy.interfaces.rest.IndicatorController.MilestoneRequest request : requests) {
             Milestone milestone = new Milestone();
-            milestone.setIndicator(indicator);
-            milestone.setMonth(request.getMonth());
-            milestone.setTargetProgress(request.getTargetProgress());
+            milestone.setIndicatorId(indicatorId);
+            milestone.setMilestoneName("Milestone " + request.getMonth());
             if (request.getDeadline() != null) {
-                milestone.setDeadline(LocalDate.parse(request.getDeadline()));
+                milestone.setTargetDate(LocalDate.parse(request.getDeadline()).atStartOfDay());
             }
+            milestone.setStatus("PENDING");
+            milestone.setProgress(0);
             milestone = milestoneRepository.save(milestone);
             milestones.add(milestone);
         }
@@ -119,9 +120,46 @@ public class StrategyApplicationService {
         return milestoneRepository.findByIndicatorId(indicatorId);
     }
 
+    @Transactional
+    public Indicator breakdownIndicator(Long id) {
+        Indicator indicator = indicatorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+
+        if (!indicator.canBreakdown()) {
+            throw new IllegalStateException("Indicator cannot be broken down");
+        }
+
+        indicator.markAsBrokenDown();
+        indicator = indicatorRepository.save(indicator);
+        publishAndSaveEvents(indicator);
+        return indicator;
+    }
+
+    @Transactional
+    public Indicator activateIndicator(Long id) {
+        Indicator indicator = indicatorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+
+        indicator.activate();
+        indicator = indicatorRepository.save(indicator);
+        publishAndSaveEvents(indicator);
+        return indicator;
+    }
+
+    @Transactional
+    public Indicator terminateIndicator(Long id, String reason) {
+        Indicator indicator = indicatorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+
+        indicator.terminate(reason);
+        indicator = indicatorRepository.save(indicator);
+        publishAndSaveEvents(indicator);
+        return indicator;
+    }
+
     public boolean isMilestonePaired(Long milestoneId) {
         Milestone milestone = milestoneRepository.findById(milestoneId).orElse(null);
-        return milestone != null && milestone.getReport() != null;
+        return milestone != null && "COMPLETED".equals(milestone.getStatus());
     }
 
     private void publishAndSaveEvents(com.sism.shared.domain.model.base.AggregateRoot<?> aggregate) {
