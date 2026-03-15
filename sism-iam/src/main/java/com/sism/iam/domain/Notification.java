@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "notification", schema = "public")
+@Table(name = "alert_event")
 public class Notification extends AggregateRoot<Long> {
 
     @Id
@@ -22,34 +22,28 @@ public class Notification extends AggregateRoot<Long> {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "recipient_user_id", nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long recipientUserId;
 
-    @Column(name = "notification_type", nullable = false)
+    @Column(name = "event_type", nullable = false)
     private String notificationType;
 
     @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "message", columnDefinition = "TEXT")
+    @Column(name = "content", columnDefinition = "TEXT")
     private String message;
 
-    @Column(name = "related_indicator_id")
+    @Column(name = "indicator_id")
     private Long relatedIndicatorId;
-
-    @Column(name = "related_report_id")
-    private Long relatedReportId;
-
-    @Column(name = "related_task_id")
-    private Long relatedTaskId;
 
     @Column(name = "is_read", nullable = false)
     private Boolean isRead = false;
 
-    @Column(name = "read_at")
+    @Column(name = "read_time")
     private LocalDateTime readAt;
 
-    @Column(name = "sent_at", nullable = false)
+    @Transient
     private LocalDateTime sentAt;
 
     @Column(name = "priority")

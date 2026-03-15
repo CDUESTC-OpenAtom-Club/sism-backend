@@ -1,6 +1,6 @@
 package com.sism.organization.domain;
 
-import com.sism.organization.domain.OrgType;
+import com.sism.enums.OrgType;
 import com.sism.organization.domain.event.OrgCreatedEvent;
 import com.sism.organization.domain.event.OrgActivatedEvent;
 import com.sism.organization.domain.event.OrgDeactivatedEvent;

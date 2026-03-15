@@ -2,7 +2,7 @@ package com.sism.organization.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.iam.domain.User;
-import com.sism.organization.domain.OrgType;
+import com.sism.enums.OrgType;
 import com.sism.organization.application.OrganizationApplicationService;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.interfaces.dto.OrgRequest;

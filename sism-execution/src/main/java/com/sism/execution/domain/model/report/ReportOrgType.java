@@ -6,7 +6,12 @@ package com.sism.execution.domain.model.report;
  */
 public enum ReportOrgType {
     /**
-     * 职能处室
+     * 系统管理员
+     */
+    SYSTEM_ADMIN,
+
+    /**
+     * 职能部门
      */
     FUNCTIONAL,
 
@@ -16,7 +21,8 @@ public enum ReportOrgType {
     COLLEGE,
 
     /**
-     * 其他
+     * 其他 (已废弃，保留以兼容旧数据)
      */
+    @Deprecated
     OTHER
 }

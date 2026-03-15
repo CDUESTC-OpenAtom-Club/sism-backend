@@ -1,6 +1,6 @@
 package com.sism.organization.interfaces.dto;
 
-import com.sism.organization.domain.OrgType;
+import com.sism.enums.OrgType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -23,7 +23,7 @@ public class OrgRequest {
     @NotBlank(message = "Organization name is required")
     private String name;
 
-    @Schema(description = "Organization type", requiredMode = Schema.RequiredMode.REQUIRED, example = "FUNCTIONAL_DEPT")
+    @Schema(description = "Organization type", requiredMode = Schema.RequiredMode.REQUIRED, example = "functional")
     @NotNull(message = "Organization type is required")
     private OrgType type;
 

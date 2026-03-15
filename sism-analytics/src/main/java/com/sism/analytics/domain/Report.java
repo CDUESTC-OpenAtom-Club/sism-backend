@@ -20,7 +20,7 @@ import java.util.Objects;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "analytics_reports")
+@Table(name = "progress_report")
 public class Report extends AggregateRoot<Long> {
 
     @Id
@@ -61,13 +61,13 @@ public class Report extends AggregateRoot<Long> {
     @Column(name = "file_size")
     private Long fileSize;
 
-    @Column(name = "generated_by")
+    @Column(name = "creator_id")
     private Long generatedBy;
 
-    @Column(name = "generated_at")
+    @Column(name = "generation_time")
     private LocalDateTime generatedAt;
 
-    @Column(name = "report_parameters", columnDefinition = "TEXT")
+    @Column(name = "report_params", columnDefinition = "TEXT")
     private String parameters;
 
     @Column(name = "description", length = 1000)

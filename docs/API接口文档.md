@@ -8098,6 +8098,7 @@ Content-Disposition: attachment; filename="monthly_report_202401.pdf"
     "parentId": 2,
     "parentName": "教务处",
     "level": 3,
+    "type": "academic",
     "description": "负责计算机相关教学和科研工作",
     "leader": {
       "id": 10,
@@ -8106,6 +8107,103 @@ Content-Disposition: attachment; filename="monthly_report_202401.pdf"
     "userCount": 25,
     "indicatorCount": 15,
     "createdAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+---
+
+### 16.4 创建组织
+
+**接口地址**: `POST /api/v1/organizations`
+
+**业务说明**: 创建新的组织
+
+**请求参数**:
+```json
+{
+  "name": "计算机学院",
+  "code": "CS",
+  "type": "academic",
+  "parentId": 2,
+  "description": "负责计算机相关教学和科研工作",
+  "sortOrder": 1
+}
+```
+
+**参数说明**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| name | String | 是 | 组织名称 |
+| code | String | 是 | 组织编码 |
+| type | String | 是 | 组织类型：admin/functional/academic |
+| parentId | Long | 否 | 上级组织ID |
+| description | String | 否 | 组织描述 |
+| sortOrder | Integer | 否 | 排序顺序，默认0 |
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "创建成功",
+  "data": {
+    "id": 5,
+    "name": "计算机学院",
+    "code": "CS",
+    "type": "academic",
+    "parentId": 2,
+    "parentName": "教务处",
+    "level": 3,
+    "description": "负责计算机相关教学和科研工作",
+    "sortOrder": 1,
+    "isActive": true,
+    "createdAt": "2024-01-01T00:00:00"
+  }
+}
+```
+
+---
+
+### 16.5 更新组织类型
+
+**接口地址**: `PUT /api/v1/organizations/{id}/type`
+
+**业务说明**: 更新组织的类型
+
+**路径参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| id | Long | 是 | 组织ID |
+
+**请求参数**:
+```json
+{
+  "type": "functional"
+}
+```
+
+**参数说明**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| type | String | 是 | 新的组织类型：admin/functional/academic |
+
+**响应示例**:
+```json
+{
+  "code": 200,
+  "message": "更新成功",
+  "data": {
+    "id": 5,
+    "name": "计算机学院",
+    "code": "CS",
+    "type": "functional",
+    "parentId": 2,
+    "parentName": "教务处",
+    "level": 3,
+    "description": "负责计算机相关教学和科研工作",
+    "sortOrder": 1,
+    "isActive": true,
+    "updatedAt": "2024-01-01T00:00:00"
   }
 }
 ```
@@ -8140,6 +8238,12 @@ Content-Disposition: attachment; filename="monthly_report_202401.pdf"
       "typeName": "指标状态",
       "description": "指标的当前状态",
       "itemCount": 4
+    },
+    {
+      "type": "ORG_TYPE",
+      "typeName": "组织类型",
+      "description": "组织的类型分类",
+      "itemCount": 3
     },
     {
       "type": "ORG_LEVEL",
@@ -8199,9 +8303,55 @@ Content-Disposition: attachment; filename="monthly_report_202401.pdf"
 | INDICATOR_TYPE | 指标类型 | 定性、定量 |
 | INDICATOR_STATUS | 指标状态 | 草稿、已发布、已撤回 |
 | INDICATOR_LEVEL | 指标层级 | 一级、二级、三级 |
+| ORG_TYPE | 组织类型 | admin, functional, academic |
 | ORG_LEVEL | 组织层级 | 总部、部门、学院 |
 | APPROVAL_STATUS | 审批状态 | 待审批、已通过、已驳回 |
 | NOTIFICATION_TYPE | 通知类型 | 下发通知、催办通知、系统通知 |
+
+**查询组织类型字典项的响应示例**:
+```json
+{
+  "code": 200,
+  "data": {
+    "type": "ORG_TYPE",
+    "typeName": "组织类型",
+    "items": [
+      {
+        "code": "admin",
+        "name": "系统管理",
+        "value": "admin",
+        "sort": 1,
+        "enabled": true
+      },
+      {
+        "code": "functional",
+        "name": "职能部门",
+        "value": "functional",
+        "sort": 2,
+        "enabled": true
+      },
+      {
+        "code": "academic",
+        "name": "二级学院",
+        "value": "academic",
+        "sort": 3,
+        "enabled": true
+      }
+    ]
+  }
+}
+```
+
+**组织类型映射说明**:
+| 旧类型 | 新类型 | 说明 |
+|-------|--------|------|
+| SCHOOL | admin | 校级组织 |
+| STRATEGY_DEPT | admin | 战略发展部 |
+| FUNCTIONAL_DEPT | functional | 职能部门 |
+| FUNCTION_DEPT | functional | 职能部门（别名） |
+| OTHER | functional | 其他类型 |
+| COLLEGE | academic | 二级学院 |
+| DIVISION | academic | 学部（学院下属） |
 
 ---
 

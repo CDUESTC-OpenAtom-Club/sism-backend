@@ -1,7 +1,7 @@
 package com.sism.organization.infrastructure.persistence;
 
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.OrgType;
+import com.sism.enums.OrgType;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

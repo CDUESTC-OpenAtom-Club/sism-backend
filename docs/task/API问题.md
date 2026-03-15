@@ -124,8 +124,26 @@
     - BusinessWorkflowController - 业务工作流                                         
     - WarningController - 预警告警                                                    
   2. 解决架构不匹配：                                                                 
-    - 明确Execution模块是指标报告还是月度报告                                         
-    - 明确Analytics模块是统计端点还是CRUD端点                                         
+    - 明确Execution模块是指标报告还是月度报告         ### 4. Execution Bounded Context
+
+**职责**：管理任务、里程碑、进度报告
+
+**核心模型**：
+- `Task` - 任务聚合根
+- `ProgressReport` - 进度报告聚合根
+
+**核心业务规则**：
+- 任务状态流转
+- 里程碑达成条件
+- 报告审批流程                                
+    - 明确Analytics模块是统计端点还是CRUD端点        Analytics Bounded Context
+
+**职责**：统计分析、数据导出
+
+**核心功能**：
+- 工作台统计
+- 绩效分析
+- 数据导出                                 
   3. 统一认证模式：                                                                   
     - 移除显式userId参数                                                              
     - 使用Spring Security的@AuthenticationPrincipal                                   
@@ -133,7 +151,7 @@
   中优先级                                                                            
                                                                                       
   4. 统一API路径规范：                                                                
-    - 确定用户API使用/api/v1/users还是/api/v1/auth/users                              
+    - 确定用户API使用/api/v1/users还是/api/v1/auth/users    使用的是/api/v1/users                        
     - 确定告警API使用/events子路径                                                    
   5. 完善文档：                                                                       
     - 补充Task模块的详细文档                                                          

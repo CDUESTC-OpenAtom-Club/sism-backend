@@ -1,6 +1,6 @@
 package com.sism.organization.interfaces.dto;
 
-import com.sism.organization.domain.OrgType;
+import com.sism.enums.OrgType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +28,7 @@ public class OrgResponse {
     @Schema(description = "Organization name", example = "Computer Science Department")
     private String name;
 
-    @Schema(description = "Organization type", example = "FUNCTIONAL_DEPT")
+    @Schema(description = "Organization type", example = "functional")
     private OrgType type;
 
     @Schema(description = "Whether the organization is active", example = "true")

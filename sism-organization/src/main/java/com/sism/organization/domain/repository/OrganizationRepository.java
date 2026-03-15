@@ -1,7 +1,7 @@
 package com.sism.organization.domain.repository;
 
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.OrgType;
+import com.sism.enums.OrgType;
 
 import java.util.List;
 import java.util.Optional;

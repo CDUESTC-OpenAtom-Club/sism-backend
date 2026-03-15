@@ -18,7 +18,7 @@ import java.util.Objects;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "analytics_data_exports")
+@Table(name = "adhoc_task")
 public class DataExport extends AggregateRoot<Long> {
 
     @Id
@@ -35,46 +35,46 @@ public class DataExport extends AggregateRoot<Long> {
     public static final String FORMAT_CSV = "CSV";
     public static final String FORMAT_PDF = "PDF";
 
-    @Column(name = "export_name", nullable = false, length = 255)
+    @Column(name = "task_name", nullable = false, length = 255)
     private String name;
 
-    @Column(name = "export_type", nullable = false, length = 50)
+    @Column(name = "task_type", nullable = false, length = 50)
     private String type;
 
-    @Column(name = "format", nullable = false, length = 50)
+    @Column(name = "export_format", nullable = false, length = 50)
     private String format;
 
     @Column(name = "status", nullable = false, length = 50)
     private String status = STATUS_PENDING;
 
-    @Column(name = "file_path", length = 1000)
+    @Column(name = "result_file_path", length = 1000)
     private String filePath;
 
-    @Column(name = "file_size")
+    @Column(name = "result_file_size")
     private Long fileSize;
 
-    @Column(name = "requested_by", nullable = false)
+    @Column(name = "creator_id", nullable = false)
     private Long requestedBy;
 
-    @Column(name = "requested_at", nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime requestedAt;
 
-    @Column(name = "started_at")
+    @Column(name = "start_time")
     private LocalDateTime startedAt;
 
-    @Column(name = "completed_at")
+    @Column(name = "end_time")
     private LocalDateTime completedAt;
 
-    @Column(name = "error_message", length = 1000)
+    @Column(name = "error_log", length = 1000)
     private String errorMessage;
 
-    @Column(name = "parameters", columnDefinition = "TEXT")
+    @Column(name = "task_params", columnDefinition = "TEXT")
     private String parameters;
 
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted = false;
 
-    @Column(name = "created_at", nullable = false)
+    @Transient
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")

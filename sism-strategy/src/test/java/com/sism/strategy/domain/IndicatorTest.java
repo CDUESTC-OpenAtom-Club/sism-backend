@@ -1,6 +1,7 @@
 package com.sism.strategy.domain;
 
 import com.sism.organization.domain.SysOrg;
+import com.sism.enums.OrgType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,8 +18,8 @@ class IndicatorTest {
 
     @BeforeEach
     void setUp() {
-        ownerOrg = SysOrg.create("战略发展部", com.sism.organization.domain.OrgType.STRATEGY_DEPT);
-        targetOrg = SysOrg.create("测试学院", com.sism.organization.domain.OrgType.COLLEGE);
+        ownerOrg = SysOrg.create("战略发展部", OrgType.ADMIN);
+        targetOrg = SysOrg.create("测试学院", OrgType.ACADEMIC);
     }
 
     @Test
