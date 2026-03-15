@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Service
+// @Service  # TEMPORARILY DISABLED - Repository not implemented
 @RequiredArgsConstructor
 public class NotificationService {
 

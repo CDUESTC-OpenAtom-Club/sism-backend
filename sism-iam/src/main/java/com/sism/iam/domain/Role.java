@@ -13,10 +13,7 @@ import java.util.Set;
 @Entity
 @Table(name = "sys_role")
 public class Role extends AggregateRoot<Long> {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    // ID is inherited from AggregateRoot - do not redeclare
 
     @Column(name = "role_code", nullable = false, unique = true)
     private String roleCode;

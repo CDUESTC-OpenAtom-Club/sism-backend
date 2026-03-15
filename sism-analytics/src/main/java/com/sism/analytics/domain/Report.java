@@ -23,6 +23,11 @@ import java.util.Objects;
 @Table(name = "analytics_reports")
 public class Report extends AggregateRoot<Long> {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
     public static final String TYPE_STRATEGIC = "STRATEGIC";
     public static final String TYPE_EXECUTION = "EXECUTION";
     public static final String TYPE_FINANCIAL = "FINANCIAL";

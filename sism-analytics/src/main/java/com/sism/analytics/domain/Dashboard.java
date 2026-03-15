@@ -23,6 +23,11 @@ import java.util.Objects;
 @Table(name = "analytics_dashboards")
 public class Dashboard extends AggregateRoot<Long> {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
     @Column(name = "dashboard_name", nullable = false, length = 255)
     private String name;
 

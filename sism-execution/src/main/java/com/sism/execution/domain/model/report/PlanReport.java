@@ -69,7 +69,6 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "next_plan", columnDefinition = "TEXT")
     private String nextPlan;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
     private String status = STATUS_DRAFT;
 

@@ -51,7 +51,9 @@ public class JpaUserRepository implements UserRepository {
 
     @Override
     public List<User> findByIsActive(Boolean isActive) {
-        return jpaRepository.findByIsActive(isActive);
+        // Convert isActive boolean to UserStatus
+        User.UserStatus status = isActive ? User.UserStatus.ACTIVE : User.UserStatus.INACTIVE;
+        return jpaRepository.findByStatus(status);
     }
 
     @Override

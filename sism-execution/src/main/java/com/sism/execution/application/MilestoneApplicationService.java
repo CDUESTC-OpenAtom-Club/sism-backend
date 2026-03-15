@@ -37,8 +37,8 @@ public class MilestoneApplicationService {
         milestone.setIndicatorId(indicatorId);
         milestone.setMilestoneName(milestoneName);
         milestone.setDescription(description);
-        milestone.setDueDate(dueDate);
-        milestone.setTargetProgress(targetProgress);
+        milestone.setTargetDate(dueDate);
+        milestone.setProgress(targetProgress);
         milestone.setStatus(status);
         milestone.setSortOrder(sortOrder);
         milestone.setIsPaired(isPaired != null ? isPaired : false);
@@ -68,8 +68,8 @@ public class MilestoneApplicationService {
             milestone.setMilestoneName(milestoneName);
         }
         milestone.setDescription(description);
-        milestone.setDueDate(dueDate);
-        milestone.setTargetProgress(targetProgress);
+        milestone.setTargetDate(dueDate);
+        milestone.setProgress(targetProgress);
         if (status != null) {
             milestone.setStatus(status);
         }

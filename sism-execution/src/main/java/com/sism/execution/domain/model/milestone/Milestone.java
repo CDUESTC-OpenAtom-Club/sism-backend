@@ -26,10 +26,10 @@ public class Milestone {
     private String description;
 
     @Column(name = "due_date")
-    private LocalDateTime dueDate;
+    private LocalDateTime targetDate;
 
     @Column(name = "target_progress")
-    private Integer targetProgress;
+    private Integer progress;
 
     @Column(name = "status")
     private String status;

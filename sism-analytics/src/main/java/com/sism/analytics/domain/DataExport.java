@@ -21,6 +21,11 @@ import java.util.Objects;
 @Table(name = "analytics_data_exports")
 public class DataExport extends AggregateRoot<Long> {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
+
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_PROCESSING = "PROCESSING";
     public static final String STATUS_COMPLETED = "COMPLETED";

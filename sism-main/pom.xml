@@ -18,6 +18,12 @@
     <description>Main Application - Assembly and Bootstrap</description>
 
     <dependencies>
+        <!-- Shared Kernel -->
+        <dependency>
+            <groupId>com.sism</groupId>
+            <artifactId>sism-shared-kernel</artifactId>
+        </dependency>
+
         <!-- All business modules -->
         <dependency>
             <groupId>com.sism</groupId>

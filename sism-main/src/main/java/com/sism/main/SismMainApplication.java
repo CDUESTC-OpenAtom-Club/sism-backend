@@ -17,6 +17,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * - sism-strategy: Strategy & Planning context
  * - sism-task: Task & Execution context
  * - sism-workflow: Workflow & Approval context
+ *
+ * Note: Each module configures its own JPA repositories through its *ModuleConfig class
  */
 @SpringBootApplication(scanBasePackages = {"com.sism.iam", "com.sism.organization",
                                    "com.sism.strategy", "com.sism.task",
