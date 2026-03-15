@@ -1,0 +1,72 @@
+package com.sism.strategy.interfaces.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+/**
+ * PlanResponse - 计划响应DTO
+ * 用于返回计划的完整信息
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "计划响应")
+public class PlanResponse {
+
+    @Schema(description = "计划ID")
+    private Long id;
+
+    @Schema(description = "计划名称")
+    private String planName;
+
+    @Schema(description = "计划描述")
+    private String description;
+
+    @Schema(description = "计划类型", example = "STRATEGY")
+    private String planType;
+
+    @Schema(description = "计划状态", example = "DRAFT")
+    private String status;
+
+    @Schema(description = "开始日期")
+    private LocalDateTime startDate;
+
+    @Schema(description = "结束日期")
+    private LocalDateTime endDate;
+
+    @Schema(description = "负责部门")
+    private String ownerDepartment;
+
+    @Schema(description = "完成百分比")
+    private Integer completionPercentage;
+
+    @Schema(description = "指标数量")
+    private Integer indicatorCount;
+
+    @Schema(description = "里程碑数量")
+    private Integer milestoneCount;
+
+    @Schema(description = "创建时间")
+    private LocalDateTime createTime;
+
+    @Schema(description = "年份（用于过滤）")
+    private String year;
+
+    @Schema(description = "周期ID")
+    private Long cycleId;
+
+    @Schema(description = "目标组织ID")
+    private Long targetOrgId;
+
+    @Schema(description = "创建组织ID")
+    private Long createdByOrgId;
+
+    @Schema(description = "计划层级", example = "STRATEGIC")
+    private String planLevel;
+}

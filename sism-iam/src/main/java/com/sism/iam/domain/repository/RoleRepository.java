@@ -1,6 +1,8 @@
 package com.sism.iam.domain.repository;
 
 import com.sism.iam.domain.Role;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +22,11 @@ public interface RoleRepository {
      * 查询所有角色
      */
     List<Role> findAll();
+
+    /**
+     * 分页查询角色
+     */
+    Page<Role> findAll(Pageable pageable);
 
     /**
      * 根据角色标识查询角色
