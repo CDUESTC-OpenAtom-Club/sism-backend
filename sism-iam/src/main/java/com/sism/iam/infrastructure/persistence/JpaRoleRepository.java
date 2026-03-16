@@ -38,7 +38,8 @@ public class JpaRoleRepository implements RoleRepository {
 
     @Override
     public List<Role> findByUserId(Long userId) {
-        return jpaRepository.findByUserId(userId);
+        // Use the custom query method from JpaRoleRepositoryInternal
+        return jpaRepository.findByUsers_Id(userId);
     }
 
     @Override

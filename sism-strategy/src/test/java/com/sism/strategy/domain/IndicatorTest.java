@@ -1,7 +1,7 @@
 package com.sism.strategy.domain;
 
 import com.sism.organization.domain.SysOrg;
-import com.sism.enums.OrgType;
+import com.sism.organization.domain.OrgType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

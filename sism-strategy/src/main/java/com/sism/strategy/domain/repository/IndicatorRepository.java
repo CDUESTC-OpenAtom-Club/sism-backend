@@ -60,11 +60,6 @@ public interface IndicatorRepository {
     Page<Indicator> findByStatus(String status, Pageable pageable);
 
     /**
-     * 根据周期ID分页查询指标
-     */
-    Page<Indicator> findByCycleId(Long cycleId, Pageable pageable);
-
-    /**
      * 根据父指标查询子指标
      */
     List<Indicator> findByParentIndicatorId(Long parentIndicatorId);

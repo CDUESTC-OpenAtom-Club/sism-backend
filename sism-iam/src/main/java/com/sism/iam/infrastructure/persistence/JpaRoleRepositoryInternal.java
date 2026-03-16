@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface JpaRoleRepositoryInternal extends JpaRepository<Role, Long> {
     Optional<Role> findByRoleCode(String roleCode);
     Optional<Role> findByRoleName(String roleName);
-    List<Role> findByUserId(Long userId);
+    // Query roles by user ID - Spring Data JPA automatically creates query from method name "findByUsers_Id"
+    List<Role> findByUsers_Id(Long userId);
     boolean existsByRoleCode(String roleCode);
 }

@@ -14,7 +14,6 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
     List<Indicator> findByTargetOrgId(Long targetOrgId);
     List<Indicator> findByStatus(String status);
     Page<Indicator> findByStatus(String status, Pageable pageable);
-    Page<Indicator> findByCycleId(Long cycleId, Pageable pageable);
     List<Indicator> findByParentIndicatorId(Long parentIndicatorId);
     List<Indicator> findByTaskId(Long taskId);
 }

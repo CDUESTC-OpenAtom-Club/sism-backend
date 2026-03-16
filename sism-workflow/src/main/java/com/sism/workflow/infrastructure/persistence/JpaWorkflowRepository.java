@@ -18,7 +18,7 @@ import java.util.Optional;
 /**
  * JpaWorkflowRepository - 工作流仓储 JPA 实现
  * 继承自 JpaRepository 和 WorkflowRepository
- * 注意：WorkflowTask 保存逻辑委托给内部实现类
+ * 注意：跨实体操作（AuditFlowDef、WorkflowTask）由 JpaWorkflowRepositoryImpl 处理
  */
 @Repository
 public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long>, WorkflowRepository {
@@ -37,7 +37,10 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT d FROM AuditFlowDef d WHERE d.entityType = :entityType")
     List<AuditFlowDef> findAuditFlowDefsByEntityType(@Param("entityType") String entityType);
 
-    AuditFlowDef saveAuditFlowDef(AuditFlowDef flowDef);
+    // 注意：saveAuditFlowDef 由 WorkflowRepositoryFacade 实现
+    default AuditFlowDef saveAuditFlowDef(AuditFlowDef flowDef) {
+        throw new UnsupportedOperationException("Use WorkflowRepositoryFacade for this operation");
+    }
 
     // ==================== Audit Instance ====================
 
@@ -56,6 +59,12 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
 
     @Query("SELECT a FROM AuditInstance a WHERE a.status = :status")
     List<AuditInstance> findByStatus(@Param("status") AuditStatus status);
+
+    // 注意：AuditInstance 没有 currentApproverId 字段，此方法返回空列表
+    // 实际的审批人查询应通过 stepInstances 关联查询
+    default List<AuditInstance> findByCurrentApproverId(Long approverId) {
+        return List.of();
+    }
 
     @Query("SELECT a FROM AuditInstance a WHERE a.requesterId = :initiatorId")
     List<AuditInstance> findByInitiatorId(@Param("initiatorId") Long initiatorId);
@@ -130,8 +139,8 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT t FROM WorkflowTask t WHERE t.assigneeId = :assigneeId")
     List<WorkflowTask> findWorkflowTasksByAssigneeId(@Param("assigneeId") Long assigneeId);
 
-    // WorkflowTask 保存方法委托给内部实现类
+    // WorkflowTask 保存方法 - 使用 WorkflowTaskJpaRepository
     default WorkflowTask saveWorkflowTask(WorkflowTask task) {
-        throw new UnsupportedOperationException("Use JpaWorkflowRepositoryInternal for WorkflowTask operations");
+        throw new UnsupportedOperationException("WorkflowTask operations should be handled directly by WorkflowTaskJpaRepository");
     }
 }

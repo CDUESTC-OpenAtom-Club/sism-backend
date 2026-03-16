@@ -44,30 +44,29 @@ RAISE NOTICE '✓ 已创建 2 个评估周期';
 -- ============================================
 \echo '>>> 创建组织结构'
 
--- 3.1 创建根节点：学校
+-- 3.1 创建系统管理层（Admin层级）
 INSERT INTO sys_org (id, name, type, parent_id, sort_order, is_active, created_at, updated_at)
 VALUES
-(1, '成都大学', 'SCHOOL', NULL, 1, true, NOW(), NOW())
+(1, '成都大学', 'admin', NULL, 1, true, NOW(), NOW()),
+(2, '战略发展部', 'admin', 1, 1, true, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
--- 3.2 创建一级部门
+-- 3.2 创建职能部门（Functional层级）
 INSERT INTO sys_org (id, name, type, parent_id, sort_order, is_active, created_at, updated_at)
 VALUES
-(2, '战略发展部', 'STRATEGIC_DEPT', 1, 1, true, NOW(), NOW()),
-(3, '教务处', 'FUNCTIONAL_DEPT', 1, 2, true, NOW(), NOW()),
-(4, '科研处', 'FUNCTIONAL_DEPT', 1, 3, true, NOW(), NOW()),
-(5, '人事处', 'FUNCTIONAL_DEPT', 1, 4, true, NOW(), NOW()),
-(6, '二级学院群组', 'COLLEGE_GROUP', 1, 5, true, NOW(), NOW())
+(3, '教务处', 'functional', 1, 2, true, NOW(), NOW()),
+(4, '科研处', 'functional', 1, 3, true, NOW(), NOW()),
+(5, '人事处', 'functional', 1, 4, true, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
--- 3.3 创建二级学院
+-- 3.3 创建二级学院（Academic层级）
 INSERT INTO sys_org (id, name, type, parent_id, sort_order, is_active, created_at, updated_at)
 VALUES
-(101, '计算机科学与技术学院', 'SECONDARY_COLLEGE', 6, 1, true, NOW(), NOW()),
-(102, '外国语学院', 'SECONDARY_COLLEGE', 6, 2, true, NOW(), NOW()),
-(103, '经济管理学院', 'SECONDARY_COLLEGE', 6, 3, true, NOW(), NOW()),
-(104, '艺术设计学院', 'SECONDARY_COLLEGE', 6, 4, true, NOW(), NOW()),
-(105, '体育学院', 'SECONDARY_COLLEGE', 6, 5, true, NOW(), NOW())
+(101, '计算机科学与技术学院', 'academic', 1, 5, true, NOW(), NOW()),
+(102, '外国语学院', 'academic', 1, 6, true, NOW(), NOW()),
+(103, '经济管理学院', 'academic', 1, 7, true, NOW(), NOW()),
+(104, '艺术设计学院', 'academic', 1, 8, true, NOW(), NOW()),
+(105, '体育学院', 'academic', 1, 9, true, NOW(), NOW())
 ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name;
 
 RAISE NOTICE '✓ 已创建组织结构';

@@ -21,6 +21,7 @@ import java.util.Objects;
 @Setter
 @Entity
 @Table(name = "indicator", schema = "public")
+@Access(AccessType.FIELD)
 public class Indicator extends AggregateRoot<Long> {
 
     @Id

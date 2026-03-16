@@ -1,6 +1,6 @@
 package com.sism.strategy.interfaces.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import com.sism.strategy.domain.model.milestone.Milestone;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,45 +16,38 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "里程碑响应")
 public class MilestoneResponse {
 
-    @Schema(description = "里程碑ID")
     private Long id;
-
-    @Schema(description = "里程碑名称")
-    private String milestoneName;
-
-    @Schema(description = "里程碑描述")
-    private String description;
-
-    @Schema(description = "目标日期")
-    private LocalDateTime targetDate;
-
-    @Schema(description = "实际完成日期")
-    private LocalDateTime actualDate;
-
-    @Schema(description = "状态", example = "PLANNED")
-    private String status;
-
-    @Schema(description = "优先级")
-    private Integer priority;
-
-    @Schema(description = "完成百分比")
-    private Integer completionPercentage;
-
-    @Schema(description = "计划ID")
-    private Long planId;
-
-    @Schema(description = "指标ID")
     private Long indicatorId;
+    private String milestoneName;
+    private String description;
+    private LocalDateTime dueDate;
+    private Integer targetProgress;
+    private String status;
+    private Integer sortOrder;
+    private Boolean isPaired;
+    private Long inheritedFrom;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
-    @Schema(description = "创建时间")
-    private LocalDateTime createTime;
-
-    @Schema(description = "更新时间")
-    private LocalDateTime updateTime;
-
-    @Schema(description = "进度")
-    private Integer progress;
+    /**
+     * 从实体转换为响应DTO
+     */
+    public static MilestoneResponse fromEntity(Milestone milestone) {
+        return MilestoneResponse.builder()
+                .id(milestone.getId())
+                .indicatorId(milestone.getIndicatorId())
+                .milestoneName(milestone.getMilestoneName())
+                .description(milestone.getDescription())
+                .dueDate(milestone.getTargetDate())
+                .targetProgress(milestone.getProgress())
+                .status(milestone.getStatus())
+                .sortOrder(milestone.getSortOrder())
+                .isPaired(milestone.getIsPaired())
+                .inheritedFrom(milestone.getInheritedFrom())
+                .createdAt(milestone.getCreatedAt())
+                .updatedAt(milestone.getUpdatedAt())
+                .build();
+    }
 }

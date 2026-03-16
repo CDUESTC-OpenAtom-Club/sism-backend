@@ -16,7 +16,7 @@ import java.util.Optional;
  * DashboardApplicationService - 仪表板应用服务
  * 负责协调仪表板相关的业务操作
  */
-// @Service  # TEMPORARILY DISABLED - Repository not implemented
+@Service
 @RequiredArgsConstructor
 public class DashboardApplicationService {
 

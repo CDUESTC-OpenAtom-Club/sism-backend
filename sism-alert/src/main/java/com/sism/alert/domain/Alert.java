@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "alert_event")
 @Where(clause = "is_deleted = false")
+@Access(AccessType.FIELD)
 public class Alert extends AggregateRoot<Long> {
 
     public static final String STATUS_PENDING = "PENDING";

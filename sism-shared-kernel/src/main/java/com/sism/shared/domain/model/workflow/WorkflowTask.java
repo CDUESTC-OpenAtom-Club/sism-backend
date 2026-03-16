@@ -16,7 +16,12 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "workflow_task")
+@Access(AccessType.FIELD)
 public class WorkflowTask extends AggregateRoot<Long> {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_RUNNING = "RUNNING";

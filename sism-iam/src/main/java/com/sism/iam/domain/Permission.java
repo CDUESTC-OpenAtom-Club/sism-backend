@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @Entity
@@ -14,15 +16,39 @@ public class Permission {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "permission_code", nullable = false, unique = true)
+    @Column(name = "perm_code", nullable = false, unique = true)
     private String permissionCode;
 
-    @Column(name = "permission_name", nullable = false)
+    @Column(name = "perm_name", nullable = false)
     private String permissionName;
 
-    @Column(name = "resource")
-    private String resource;
+    @Column(name = "perm_type", nullable = false)
+    private String permType;
 
-    @Column(name = "action")
-    private String action;
+    @Column(name = "parent_id")
+    private Long parentId;
+
+    @Column(name = "route_path")
+    private String routePath;
+
+    @Column(name = "page_key")
+    private String pageKey;
+
+    @Column(name = "action_key")
+    private String actionKey;
+
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder = 0;
+
+    @Column(name = "is_enabled", nullable = false)
+    private Boolean isEnabled = true;
+
+    @Column(name = "remark")
+    private String remark;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 }

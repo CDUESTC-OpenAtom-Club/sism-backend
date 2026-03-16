@@ -18,6 +18,7 @@ import java.util.Map;
 @Setter
 @Entity
 @Table(name = "audit_log")
+@Access(AccessType.FIELD)
 public class AuditLog extends AggregateRoot<Long> {
 
     @Id

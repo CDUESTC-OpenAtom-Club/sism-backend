@@ -30,6 +30,12 @@
             <artifactId>sism-iam</artifactId>
         </dependency>
 
+        <!-- Execution Context for Report Events -->
+        <dependency>
+            <groupId>com.sism</groupId>
+            <artifactId>sism-execution</artifactId>
+        </dependency>
+
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

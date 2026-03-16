@@ -25,7 +25,7 @@ public interface PermissionRepository {
     /**
      * 根据权限代码查询权限
      */
-    Optional<Permission> findByPermissionCode(String permissionCode);
+    Optional<Permission> findByPermissionCode(String permCode);
 
     /**
      * 查询所有权限

@@ -18,6 +18,7 @@ import java.time.OffsetDateTime;
 @Setter
 @Entity
 @Table(name = "attachments")
+@Access(AccessType.FIELD)
 public class Attachment extends AggregateRoot<Long> {
 
     public static final long MAX_FILE_SIZE = 100L * 1024 * 1024; // 100MB

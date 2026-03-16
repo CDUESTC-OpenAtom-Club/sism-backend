@@ -13,33 +13,32 @@ import java.util.Set;
 @Setter
 @Entity
 @Table(name = "sys_user")
+@Access(AccessType.FIELD)
 public class User extends AggregateRoot<Long> {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @SequenceGenerator(name="User_IdSeq", sequenceName="public.sys_user_user_id_seq", allocationSize=1)
+    @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="User_IdSeq")
+    @Column(name = "id")
     private Long id;
 
     @Column(name = "username", nullable = false, unique = true)
     private String username;
 
-    @Column(name = "password", nullable = false)
+    @Column(name = "password_hash", nullable = false)
     private String password;
 
-    @Column(name = "real_name")
+    @Column(name = "real_name", nullable = false)
     private String realName;
 
-    @Column(name = "email")
-    private String email;
+    @Column(name = "sso_id")
+    private String ssoId;
 
-    @Column(name = "phone")
-    private String phone;
-
-    @Column(name = "org_id")
+    @Column(name = "org_id", nullable = false)
     private Long orgId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status")
-    private UserStatus status = UserStatus.ACTIVE;
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -63,9 +62,8 @@ public class User extends AggregateRoot<Long> {
         if (password == null || password.isBlank()) {
             throw new IllegalArgumentException("Password is required");
         }
-    }
-
-    public enum UserStatus {
-        ACTIVE, INACTIVE, LOCKED
+        if (realName == null || realName.isBlank()) {
+            throw new IllegalArgumentException("Real name is required");
+        }
     }
 }

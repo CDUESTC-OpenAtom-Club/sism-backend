@@ -26,8 +26,8 @@ public class JpaPermissionRepository implements PermissionRepository {
     }
 
     @Override
-    public Optional<Permission> findByPermissionCode(String permissionCode) {
-        return jpaRepository.findByPermissionCode(permissionCode);
+    public Optional<Permission> findByPermissionCode(String permCode) {
+        return jpaRepository.findByPermissionCode(permCode);
     }
 
     @Override

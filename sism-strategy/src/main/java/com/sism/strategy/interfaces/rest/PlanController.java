@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
  * PlanController - 计划管理控制器
  * 提供计划的REST API接口
  */
-@RestController
+@RestController("strategyPlanController")
 @RequestMapping("/api/v1/plans")
 @RequiredArgsConstructor
 @Tag(name = "Plans", description = "Plan management endpoints")

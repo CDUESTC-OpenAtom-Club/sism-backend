@@ -5,52 +5,57 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * Notification - 通知实体
+ * 映射到: alert_event 表
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "alert_event")
+@Access(AccessType.FIELD)
 public class Notification extends AggregateRoot<Long> {
 
     @Id
-    @SequenceGenerator(name = "Notification_IdSeq", sequenceName = "public.notification_id_seq", allocationSize = 1)
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "Notification_IdSeq")
-    @Column(name = "id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "event_id")
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long recipientUserId;
+    @Column(name = "indicator_id", nullable = false)
+    private Long indicatorId;
 
-    @Column(name = "event_type", nullable = false)
-    private String notificationType;
+    @Column(name = "rule_id", nullable = false)
+    private Long ruleId;
 
-    @Column(name = "title", nullable = false)
-    private String title;
+    @Column(name = "window_id", nullable = false)
+    private Long windowId;
 
-    @Column(name = "content", columnDefinition = "TEXT")
-    private String message;
+    @Column(name = "severity", nullable = false)
+    private String severity;
 
-    @Column(name = "indicator_id")
-    private Long relatedIndicatorId;
+    @Column(name = "status", nullable = false)
+    private String status;
 
-    @Column(name = "is_read", nullable = false)
-    private Boolean isRead = false;
+    @Column(name = "actual_percent", nullable = false)
+    private BigDecimal actualPercent;
 
-    @Column(name = "read_time")
-    private LocalDateTime readAt;
+    @Column(name = "expected_percent", nullable = false)
+    private BigDecimal expectedPercent;
 
-    @Transient
-    private LocalDateTime sentAt;
+    @Column(name = "gap_percent", nullable = false)
+    private BigDecimal gapPercent;
 
-    @Column(name = "priority")
-    private String priority = "NORMAL";
+    @Column(name = "detail_json", columnDefinition = "jsonb")
+    private String detailJson;
 
-    @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted = false;
+    @Column(name = "handled_by")
+    private Long handledBy;
+
+    @Column(name = "handled_note", columnDefinition = "TEXT")
+    private String handledNote;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -58,69 +63,38 @@ public class Notification extends AggregateRoot<Long> {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public static Notification create(Long recipientUserId, String notificationType, String title, String message) {
-        Notification notification = new Notification();
-        notification.recipientUserId = recipientUserId;
-        notification.notificationType = notificationType;
-        notification.title = title;
-        notification.message = message;
-        notification.isRead = false;
-        notification.priority = "NORMAL";
-        notification.isDeleted = false;
-        notification.sentAt = LocalDateTime.now();
-        notification.createdAt = LocalDateTime.now();
-        notification.updatedAt = LocalDateTime.now();
-        return notification;
-    }
-
-    public void markAsRead() {
-        this.isRead = true;
-        this.readAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void delete() {
-        this.isDeleted = true;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public boolean isHighPriority() {
-        return "HIGH".equals(priority) || "URGENT".equals(priority);
-    }
-
     @PrePersist
     protected void onCreate() {
-        if (isRead == null) {
-            isRead = false;
-        }
-        if (isDeleted == null) {
-            isDeleted = false;
-        }
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
         if (updatedAt == null) {
             updatedAt = LocalDateTime.now();
         }
-        if (sentAt == null) {
-            sentAt = LocalDateTime.now();
-        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
 
     @Override
     public void validate() {
-        // 通知验证逻辑
-        if (recipientUserId == null) {
-            throw new IllegalArgumentException("Recipient user ID is required");
+        // 告警事件的基本验证
+        if (indicatorId == null) {
+            throw new IllegalArgumentException("Indicator ID is required");
         }
-        if (notificationType == null || notificationType.isBlank()) {
-            throw new IllegalArgumentException("Notification type is required");
+        if (ruleId == null) {
+            throw new IllegalArgumentException("Rule ID is required");
         }
-        if (title == null || title.isBlank()) {
-            throw new IllegalArgumentException("Notification title is required");
+        if (windowId == null) {
+            throw new IllegalArgumentException("Window ID is required");
         }
-        if (sentAt == null) {
-            throw new IllegalArgumentException("Notification sent time is required");
+        if (severity == null || severity.isBlank()) {
+            throw new IllegalArgumentException("Severity is required");
+        }
+        if (status == null || status.isBlank()) {
+            throw new IllegalArgumentException("Status is required");
         }
     }
 }

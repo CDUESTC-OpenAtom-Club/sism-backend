@@ -30,16 +30,6 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
-    public Optional<User> findByEmail(String email) {
-        return jpaRepository.findByEmail(email);
-    }
-
-    @Override
-    public Optional<User> findByPhone(String phone) {
-        return jpaRepository.findByPhone(phone);
-    }
-
-    @Override
     public List<User> findByOrgId(Long orgId) {
         return jpaRepository.findByOrgId(orgId);
     }
@@ -51,9 +41,7 @@ public class JpaUserRepository implements UserRepository {
 
     @Override
     public List<User> findByIsActive(Boolean isActive) {
-        // Convert isActive boolean to UserStatus
-        User.UserStatus status = isActive ? User.UserStatus.ACTIVE : User.UserStatus.INACTIVE;
-        return jpaRepository.findByStatus(status);
+        return jpaRepository.findByIsActive(isActive);
     }
 
     @Override
@@ -74,10 +62,5 @@ public class JpaUserRepository implements UserRepository {
     @Override
     public boolean existsByUsername(String username) {
         return jpaRepository.existsByUsername(username);
-    }
-
-    @Override
-    public boolean existsByEmail(String email) {
-        return jpaRepository.findByEmail(email).isPresent();
     }
 }

@@ -34,7 +34,7 @@ public class RoleService {
         role.setRoleCode(roleCode);
         role.setRoleName(roleName);
         role.setDescription(description);
-        role.setIsActive(true);
+        role.setIsEnabled(true);
 
         return role;
     }
@@ -67,7 +67,7 @@ public class RoleService {
      */
     @Transactional
     public void activateRole(Role role) {
-        role.setIsActive(true);
+        role.setIsEnabled(true);
     }
 
     /**
@@ -75,6 +75,6 @@ public class RoleService {
      */
     @Transactional
     public void deactivateRole(Role role) {
-        role.setIsActive(false);
+        role.setIsEnabled(false);
     }
 }

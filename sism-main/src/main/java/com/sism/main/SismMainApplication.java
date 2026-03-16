@@ -2,6 +2,9 @@ package com.sism.main;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
  * SISM Main Application
@@ -18,13 +21,20 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * - sism-task: Task & Execution context
  * - sism-workflow: Workflow & Approval context
  *
- * Note: Each module configures its own JPA repositories through its *ModuleConfig class
+ * Note: JPA repositories are scanned from infrastructure.persistence packages
  */
 @SpringBootApplication(scanBasePackages = {"com.sism.iam", "com.sism.organization",
                                    "com.sism.strategy", "com.sism.task",
                                    "com.sism.workflow", "com.sism.execution",
                                    "com.sism.analytics", "com.sism.alert",
-                                   "com.sism.shared"})
+                                   "com.sism.shared", "com.sism.config"})
+@EntityScan(basePackages = "com.sism.**.domain")
+@EnableJpaRepositories(basePackages = "com.sism.**.infrastructure.persistence")
+@ComponentScan(basePackages = {"com.sism.iam", "com.sism.organization",
+                               "com.sism.strategy", "com.sism.task",
+                               "com.sism.workflow", "com.sism.execution",
+                               "com.sism.analytics", "com.sism.alert",
+                               "com.sism.shared", "com.sism.config"})
 public class SismMainApplication {
 
     /**

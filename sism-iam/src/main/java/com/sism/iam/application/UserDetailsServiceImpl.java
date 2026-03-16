@@ -27,7 +27,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 user.getId(),
                 user.getUsername(),
                 user.getRealName(),
-                user.getEmail(),
+                null, // email 字段在新版本中已移除，使用 null
                 user.getOrgId(),
                 user.getRoles().stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleCode()))

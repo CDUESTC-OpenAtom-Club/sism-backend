@@ -15,6 +15,7 @@ import java.util.Objects;
 @Setter
 @Entity
 @Table(name = "sys_task")
+@Access(AccessType.FIELD)
 public class StrategicTask extends AggregateRoot<Long> {
 
     public static final String STATUS_DRAFT = "DRAFT";
@@ -23,7 +24,7 @@ public class StrategicTask extends AggregateRoot<Long> {
     public static final String STATUS_CANCELLED = "CANCELLED";
 
     @Id
-    @SequenceGenerator(name="Task_IdSeq", sequenceName="public.sys_task_id_seq", allocationSize=1)
+    @SequenceGenerator(name="Task_IdSeq", sequenceName="strategic_task_task_id_seq", allocationSize=1)
     @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="Task_IdSeq")
     @Column(name="task_id")
     private Long id;
@@ -70,6 +71,17 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="status", nullable=false)
     private String status = STATUS_DRAFT;
 
+    // 数据库中的冗余字段，保留以匹配表结构
+    @Column(name="name", nullable=false, length = 255)
+    private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name="type", nullable=false)
+    private TaskType type;
+
+    @Column(name="desc", length = 255)
+    private String desc;
+
     public static StrategicTask create(String taskName, TaskType taskType, Long planId, Long cycleId,
                                         SysOrg org, SysOrg createdByOrg) {
         if (taskName == null || taskName.trim().isEmpty()) {
@@ -103,6 +115,10 @@ public class StrategicTask extends AggregateRoot<Long> {
         task.createdAt = LocalDateTime.now();
         task.updatedAt = LocalDateTime.now();
         task.isDeleted = false;
+        // 初始化数据库冗余字段
+        task.name = taskName;
+        task.type = taskType;
+        task.desc = null;
         task.addEvent(new TaskCreatedEvent(task.id, taskName, org.getId()));
         return task;
     }
@@ -184,6 +200,13 @@ public class StrategicTask extends AggregateRoot<Long> {
         }
         if (isDeleted == null) {
             isDeleted = false;
+        }
+        // 初始化数据库冗余字段
+        if (name == null && taskName != null) {
+            name = taskName;
+        }
+        if (type == null && taskType != null) {
+            type = taskType;
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.sism.organization.domain;
 
-import com.sism.enums.OrgType;
+import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.event.OrgCreatedEvent;
 import com.sism.organization.domain.event.OrgActivatedEvent;
 import com.sism.organization.domain.event.OrgDeactivatedEvent;
@@ -26,6 +26,7 @@ import java.util.Objects;
         @Index(name = "idx_sys_org_parent", columnList = "parent_org_id"),
         @Index(name = "idx_sys_org_level", columnList = "level")
 })
+@Access(AccessType.FIELD)
 public class SysOrg extends AggregateRoot<Long> {
 
     @Id

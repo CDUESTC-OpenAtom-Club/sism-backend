@@ -238,7 +238,7 @@ public class RoleManagementController {
         response.setRoleCode(role.getRoleCode());
         response.setRoleName(role.getRoleName());
         response.setDescription(role.getDescription());
-        response.setIsActive(role.getIsActive());
+        response.setIsEnabled(role.getIsEnabled());
         response.setPermissionCount(role.getPermissions().size());
         response.setUserCount(userRepository.findByRoleId(role.getId()).size());
         response.setCreateTime(role.getCreatedAt());
@@ -251,8 +251,8 @@ public class RoleManagementController {
         response.setId(permission.getId());
         response.setPermissionCode(permission.getPermissionCode());
         response.setPermissionName(permission.getPermissionName());
-        response.setResource(permission.getResource());
-        response.setAction(permission.getAction());
+        response.setPermType(permission.getPermType());
+        response.setEnabled(permission.getIsEnabled());
 
         return response;
     }
@@ -281,7 +281,7 @@ public class RoleManagementController {
         private String roleCode;
         private String roleName;
         private String description;
-        private Boolean isActive;
+        private Boolean isEnabled;  // 新版本改为 isEnabled
         private Integer userCount;
         private Integer permissionCount;
         private LocalDateTime createTime;
@@ -292,8 +292,8 @@ public class RoleManagementController {
         private Long id;
         private String permissionCode;
         private String permissionName;
-        private String resource;
-        private String action;
+        private String permType;  // 新增：权限类型
+        private Boolean enabled;   // 新增：是否启用
     }
 
     @lombok.Data

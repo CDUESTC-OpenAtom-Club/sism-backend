@@ -21,6 +21,7 @@ import java.util.Objects;
 @NoArgsConstructor
 @Entity
 @Table(name = "progress_report")
+@Access(AccessType.FIELD)
 public class Report extends AggregateRoot<Long> {
 
     @Id

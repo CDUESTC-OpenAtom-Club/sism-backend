@@ -21,6 +21,7 @@ import java.util.Objects;
 @NoArgsConstructor
 @Entity
 @Table(name = "analytics_dashboards")
+@Access(AccessType.FIELD)
 public class Dashboard extends AggregateRoot<Long> {
 
     @Id

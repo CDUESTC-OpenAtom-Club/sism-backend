@@ -4,6 +4,9 @@ import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
+import com.sism.shared.domain.model.base.DomainEvent;
+import com.sism.shared.infrastructure.event.DomainEventPublisher;
+import com.sism.shared.infrastructure.event.EventStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -24,6 +27,8 @@ import java.util.Optional;
 public class ReportApplicationService {
 
     private final PlanReportRepository planReportRepository;
+    private final DomainEventPublisher eventPublisher;
+    private final EventStore eventStore;
 
     /**
      * 创建报告（草稿）
@@ -71,7 +76,9 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
 
         report.submit(userId);
-        return planReportRepository.save(report);
+        report = planReportRepository.save(report);
+        publishAndSaveEvents(report);
+        return report;
     }
 
     /**
@@ -83,7 +90,9 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
 
         report.approve(userId);
-        return planReportRepository.save(report);
+        report = planReportRepository.save(report);
+        publishAndSaveEvents(report);
+        return report;
     }
 
     /**
@@ -95,7 +104,9 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
 
         report.reject(userId, reason);
-        return planReportRepository.save(report);
+        report = planReportRepository.save(report);
+        publishAndSaveEvents(report);
+        return report;
     }
 
     /**
@@ -234,5 +245,21 @@ public class ReportApplicationService {
      */
     public List<PlanReport> findReportsByMonthAndOrgId(String month, Long orgId) {
         return planReportRepository.findByMonthAndOrgId(month, orgId);
+    }
+
+    /**
+     * 发布并保存领域事件
+     * 从聚合根中提取所有领域事件，保存到事件存储，并发布到事件系统
+     */
+    private void publishAndSaveEvents(com.sism.shared.domain.model.base.AggregateRoot<?> aggregate) {
+        List<DomainEvent> events = aggregate.getDomainEvents();
+
+        for (DomainEvent event : events) {
+            eventStore.save(event);
+        }
+
+        eventPublisher.publishAll(events);
+
+        aggregate.clearEvents();
     }
 }

@@ -27,16 +27,6 @@ public interface UserRepository {
     Optional<User> findByUsername(String username);
 
     /**
-     * 根据邮箱查询用户
-     */
-    Optional<User> findByEmail(String email);
-
-    /**
-     * 根据手机号查询用户
-     */
-    Optional<User> findByPhone(String phone);
-
-    /**
      * 根据组织ID查询用户
      */
     List<User> findByOrgId(Long orgId);
@@ -70,9 +60,4 @@ public interface UserRepository {
      * 检查用户名是否存在
      */
     boolean existsByUsername(String username);
-
-    /**
-     * 检查邮箱是否存在
-     */
-    boolean existsByEmail(String email);
 }

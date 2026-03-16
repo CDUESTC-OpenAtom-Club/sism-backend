@@ -31,7 +31,10 @@ public class OrganizationController {
     @Operation(summary = "Create a new organization")
     public ResponseEntity<ApiResponse<OrgResponse>> createOrganization(
             @Valid @RequestBody OrgRequest request) {
-        SysOrg created = organizationApplicationService.createOrganization(request.getName(), request.getType());
+        // Convert from shared OrgType to domain OrgType
+        com.sism.organization.domain.OrgType domainType = 
+            com.sism.organization.domain.OrgType.fromSharedOrgType(request.getType());
+        SysOrg created = organizationApplicationService.createOrganization(request.getName(), domainType);
         OrgResponse response = orgMapper.toResponse(created);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -123,7 +126,10 @@ public class OrganizationController {
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
         }
-        SysOrg updated = organizationApplicationService.changeOrganizationType(org, newType);
+        // Convert from shared OrgType to domain OrgType
+        com.sism.organization.domain.OrgType domainType = 
+            com.sism.organization.domain.OrgType.fromSharedOrgType(newType);
+        SysOrg updated = organizationApplicationService.changeOrganizationType(org, domainType);
         OrgResponse response = orgMapper.toResponse(updated);
         return ResponseEntity.ok(ApiResponse.success(response));
     }

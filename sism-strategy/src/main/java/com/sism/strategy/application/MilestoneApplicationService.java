@@ -1,7 +1,7 @@
 package com.sism.strategy.application;
 
-import com.sism.execution.domain.model.milestone.Milestone;
-import com.sism.execution.domain.repository.MilestoneRepository;
+import com.sism.strategy.domain.model.milestone.Milestone;
+import com.sism.strategy.domain.repository.MilestoneRepository;
 import com.sism.strategy.interfaces.dto.CreateMilestoneRequest;
 import com.sism.strategy.interfaces.dto.MilestoneResponse;
 import com.sism.strategy.interfaces.dto.UpdateMilestoneRequest;
@@ -34,27 +34,24 @@ public class MilestoneApplicationService {
      */
     @Transactional
     public MilestoneResponse createMilestone(CreateMilestoneRequest request) {
-        // 创建基础里程碑数据（使用Milestone实体）
-        // 注意：Milestone实体使用indicatorId，但Controller的CreateMilestoneRequest使用planId
-        // 这里需要决定是使用indicatorId还是需要扩展Milestone实体支持planId
-
         Milestone milestone = new Milestone();
         milestone.setMilestoneName(request.getMilestoneName());
-        milestone.setTargetDate(request.getTargetDate());
+        milestone.setDescription(request.getDescription());
+        milestone.setTargetDate(request.getDueDate());
         milestone.setStatus(request.getStatus() != null ? request.getStatus() : "PLANNED");
-        milestone.setProgress(request.getPriority() != null && request.getPriority() > 0
-                ? 0
-                : 0);
+        milestone.setProgress(request.getTargetProgress() != null ? request.getTargetProgress() : 0);
+        milestone.setSortOrder(request.getSortOrder());
+        milestone.setIsPaired(request.getIsPaired());
+        milestone.setInheritedFrom(request.getInheritedFrom());
         milestone.setCreatedAt(LocalDateTime.now());
         milestone.setUpdatedAt(LocalDateTime.now());
 
-        // 如果提供了indicatorId，设置它
         if (request.getIndicatorId() != null) {
             milestone.setIndicatorId(request.getIndicatorId());
         }
 
         Milestone saved = milestoneRepository.save(milestone);
-        return convertToResponse(saved, request.getPlanId());
+        return convertToResponse(saved);
     }
 
     /**
@@ -69,26 +66,42 @@ public class MilestoneApplicationService {
             milestone.setMilestoneName(request.getMilestoneName());
         }
 
-        if (request.getTargetDate() != null) {
-            milestone.setTargetDate(request.getTargetDate());
+        if (request.getDescription() != null) {
+            milestone.setDescription(request.getDescription());
+        }
+
+        if (request.getDueDate() != null) {
+            milestone.setTargetDate(request.getDueDate());
         }
 
         if (request.getStatus() != null) {
             milestone.setStatus(request.getStatus());
         }
 
-        if (request.getPriority() != null) {
-            milestone.setProgress(request.getPriority());
+        if (request.getTargetProgress() != null) {
+            milestone.setProgress(request.getTargetProgress());
         }
 
-        if (request.getCompletionPercentage() != null) {
-            milestone.setProgress(request.getCompletionPercentage());
+        if (request.getSortOrder() != null) {
+            milestone.setSortOrder(request.getSortOrder());
+        }
+
+        if (request.getIsPaired() != null) {
+            milestone.setIsPaired(request.getIsPaired());
+        }
+
+        if (request.getInheritedFrom() != null) {
+            milestone.setInheritedFrom(request.getInheritedFrom());
+        }
+
+        if (request.getIndicatorId() != null) {
+            milestone.setIndicatorId(request.getIndicatorId());
         }
 
         milestone.setUpdatedAt(LocalDateTime.now());
 
         Milestone updated = milestoneRepository.save(milestone);
-        return convertToResponse(updated, null);
+        return convertToResponse(updated);
     }
 
     /**
@@ -107,7 +120,7 @@ public class MilestoneApplicationService {
      */
     public Optional<MilestoneResponse> getMilestoneById(Long id) {
         return milestoneRepository.findById(id)
-                .map(milestone -> convertToResponse(milestone, null));
+                .map(this::convertToResponse);
     }
 
     /**
@@ -115,14 +128,14 @@ public class MilestoneApplicationService {
      */
     public List<MilestoneResponse> getAllMilestones() {
         return milestoneRepository.findAll().stream()
-                .map(milestone -> convertToResponse(milestone, null))
+                .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
 
     /**
      * 分页查询里程碑
      */
-    public Page<MilestoneResponse> getMilestones(int page, int size, Long planId, String status) {
+    public Page<MilestoneResponse> getMilestones(int page, int size, Long indicatorId, String status) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         List<Milestone> allMilestones = milestoneRepository.findAll();
@@ -130,9 +143,10 @@ public class MilestoneApplicationService {
         // 应用过滤
         List<Milestone> filteredMilestones = allMilestones.stream()
                 .filter(milestone -> {
-                    boolean matchPlan = planId == null; // 如果需要planId过滤，需要扩展Milestone实体支持planId
+                    boolean matchIndicator = indicatorId == null ||
+                            (milestone.getIndicatorId() != null && milestone.getIndicatorId().equals(indicatorId));
                     boolean matchStatus = status == null || status.equals(milestone.getStatus());
-                    return matchPlan && matchStatus;
+                    return matchIndicator && matchStatus;
                 })
                 .collect(Collectors.toList());
 
@@ -145,7 +159,7 @@ public class MilestoneApplicationService {
         }
 
         List<MilestoneResponse> pageContent = filteredMilestones.subList(start, end).stream()
-                .map(milestone -> convertToResponse(milestone, null))
+                .map(this::convertToResponse)
                 .collect(Collectors.toList());
 
         return new PageImpl<>(pageContent, pageable, filteredMilestones.size());
@@ -156,7 +170,7 @@ public class MilestoneApplicationService {
      */
     public List<MilestoneResponse> getMilestonesByIndicatorId(Long indicatorId) {
         return milestoneRepository.findByIndicatorId(indicatorId).stream()
-                .map(milestone -> convertToResponse(milestone, null))
+                .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
 
@@ -169,22 +183,9 @@ public class MilestoneApplicationService {
 
     /**
      * 将Milestone实体转换为响应DTO
+     * 使用 MilestoneResponse.fromEntity() 静态方法保持一致性
      */
-    private MilestoneResponse convertToResponse(Milestone milestone, Long planId) {
-        return MilestoneResponse.builder()
-                .id(milestone.getId())
-                .milestoneName(milestone.getMilestoneName())
-                .description(null) // Milestone实体当前没有description字段
-                .targetDate(milestone.getTargetDate())
-                .actualDate(null) // Milestone实体当前没有actualDate字段
-                .status(milestone.getStatus())
-                .priority(milestone.getProgress()) // 使用progress字段作为优先级（临时方案）
-                .completionPercentage(milestone.getProgress())
-                .planId(planId)
-                .indicatorId(milestone.getIndicatorId())
-                .createTime(milestone.getCreatedAt())
-                .updateTime(milestone.getUpdatedAt())
-                .progress(milestone.getProgress())
-                .build();
+    private MilestoneResponse convertToResponse(Milestone milestone) {
+        return MilestoneResponse.fromEntity(milestone);
     }
 }

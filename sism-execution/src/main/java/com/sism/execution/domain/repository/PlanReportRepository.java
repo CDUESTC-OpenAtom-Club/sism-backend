@@ -4,18 +4,20 @@ import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
- * PlanReportRepository - 计划报告仓储接口
+ * PlanReportRepository - 计划报告仓储接口（领域层）
+ * 定义领域层所需的仓储方法
+ * 实际 JPA 实现位于 infrastructure.persistence.JpaPlanReportRepository
  */
-@Repository
-public interface PlanReportRepository extends JpaRepository<PlanReport, Long> {
+public interface PlanReportRepository {
+
+    Optional<PlanReport> findById(Long id);
+
+    PlanReport save(PlanReport report);
 
     List<PlanReport> findByReportOrgId(Long reportOrgId);
 
@@ -27,58 +29,32 @@ public interface PlanReportRepository extends JpaRepository<PlanReport, Long> {
 
     List<PlanReport> findByReportOrgIdAndStatus(Long reportOrgId, String status);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportOrgId = :orgId AND pr.reportMonth BETWEEN :startMonth AND :endMonth")
-    List<PlanReport> findByOrgIdAndMonthRange(
-            @Param("orgId") Long orgId,
-            @Param("startMonth") String startMonth,
-            @Param("endMonth") String endMonth);
+    List<PlanReport> findByOrgIdAndMonthRange(Long orgId, String startMonth, String endMonth);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.status = :status AND pr.reportOrgType = :orgType")
-    List<PlanReport> findByStatusAndOrgType(
-            @Param("status") String status,
-            @Param("orgType") ReportOrgType orgType);
+    List<PlanReport> findByStatusAndOrgType(String status, ReportOrgType orgType);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.isDeleted = false")
     List<PlanReport> findAllActive();
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.isDeleted = false")
     Page<PlanReport> findAllActive(Pageable pageable);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE " +
-           "(:reportMonth IS NULL OR pr.reportMonth = :reportMonth) AND " +
-           "(:reportOrgId IS NULL OR pr.reportOrgId = :reportOrgId) AND " +
-           "(:reportOrgType IS NULL OR pr.reportOrgType = :reportOrgType) AND " +
-           "(:planId IS NULL OR pr.planId = :planId) AND " +
-           "(:status IS NULL OR pr.status = :status) AND " +
-           "(:title IS NULL OR pr.title LIKE %:title%) AND " +
-           "(:minProgress IS NULL OR pr.progress >= :minProgress) AND " +
-           "(:maxProgress IS NULL OR pr.progress <= :maxProgress) AND " +
-           "pr.isDeleted = false")
     Page<PlanReport> findByConditions(
-            @Param("reportMonth") String reportMonth,
-            @Param("reportOrgId") Long reportOrgId,
-            @Param("reportOrgType") ReportOrgType reportOrgType,
-            @Param("planId") Long planId,
-            @Param("status") String status,
-            @Param("title") String title,
-            @Param("minProgress") Integer minProgress,
-            @Param("maxProgress") Integer maxProgress,
+            String reportMonth,
+            Long reportOrgId,
+            ReportOrgType reportOrgType,
+            Long planId,
+            String status,
+            String title,
+            Integer minProgress,
+            Integer maxProgress,
             Pageable pageable);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportOrgId = :orgId AND pr.isDeleted = false")
-    Page<PlanReport> findByReportOrgId(@Param("orgId") Long orgId, Pageable pageable);
+    Page<PlanReport> findByReportOrgId(Long orgId, Pageable pageable);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.status = :status AND pr.isDeleted = false")
-    Page<PlanReport> findByStatus(@Param("status") String status, Pageable pageable);
+    Page<PlanReport> findByStatus(String status, Pageable pageable);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.planId = :planId AND pr.isDeleted = false")
-    List<PlanReport> findByPlanId(@Param("planId") Long planId);
+    List<PlanReport> findByPlanId(Long planId);
 
-    @Query("SELECT COUNT(pr) FROM PlanReport pr WHERE pr.status = :status AND pr.isDeleted = false")
-    long countByStatus(@Param("status") String status);
+    long countByStatus(String status);
 
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportMonth = :month AND pr.reportOrgId = :orgId AND pr.isDeleted = false")
-    List<PlanReport> findByMonthAndOrgId(
-            @Param("month") String month,
-            @Param("orgId") Long orgId);
+    List<PlanReport> findByMonthAndOrgId(String month, Long orgId);
 }

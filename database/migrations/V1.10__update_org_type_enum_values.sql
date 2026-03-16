@@ -1,31 +1,48 @@
 -- V1.10: 更新组织类型枚举值以匹配新的代码定义
 -- 将旧的类型值映射到新的 admin/functional/academic 三种类型
+--
+-- 组织类型映射关系：
+--   Admin层级（系统管理层）:    SCHOOL, STRATEGY_DEPT, STRATEGIC_DEPT
+--   Functional层级（职能部门）: FUNCTIONAL_DEPT, FUNCTION_DEPT
+--   Academic层级（二级学院）:   COLLEGE, SECONDARY_COLLEGE, COLLEGE_GROUP, DIVISION
+--
+-- Author: System
+-- Date: 2026-03-15
+-- ============================================
 
 DO $$
 BEGIN
-    -- 步骤 1: 将旧的类型值映射到新的 'functional' 类型
-    -- 包括 FUNCTIONAL_DEPT 和其别名 FUNCTION_DEPT
+    -- 步骤 1: 将旧的类型值映射到新的 'admin' 类型
+    -- 包括校级、战略部门
+    UPDATE sys_org
+    SET type = 'admin'
+    WHERE type IN ('SCHOOL', 'STRATEGY_DEPT', 'STRATEGIC_DEPT');
+
+    RAISE NOTICE '步骤1完成: 已将 SCHOOL, STRATEGY_DEPT, STRATEGIC_DEPT 映射到 admin';
+
+    -- 步骤 2: 将旧的类型值映射到新的 'functional' 类型
+    -- 包括各职能部门
     UPDATE sys_org
     SET type = 'functional'
     WHERE type IN ('FUNCTIONAL_DEPT', 'FUNCTION_DEPT');
 
-    -- 步骤 2: 将旧的学院和学部类型映射到新的 'academic' 类型
-    -- 包括 COLLEGE 和其下的 DIVISION
+    RAISE NOTICE '步骤2完成: 已将 FUNCTIONAL_DEPT, FUNCTION_DEPT 映射到 functional';
+
+    -- 步骤 3: 将旧的学院和学部类型映射到新的 'academic' 类型
+    -- 包括所有学院相关类型
     UPDATE sys_org
     SET type = 'academic'
-    WHERE type IN ('COLLEGE', 'DIVISION');
+    WHERE type IN ('COLLEGE', 'SECONDARY_COLLEGE', 'COLLEGE_GROUP', 'DIVISION');
 
-    -- 步骤 3: 将校级和战略部门映射到新的 'admin' 类型
-    -- 假设 SCHOOL 和 STRATEGY_DEPT 都属于最高管理层级
-    UPDATE sys_org
-    SET type = 'admin'
-    WHERE type IN ('SCHOOL', 'STRATEGY_DEPT');
+    RAISE NOTICE '步骤3完成: 已将 COLLEGE, SECONDARY_COLLEGE, COLLEGE_GROUP, DIVISION 映射到 academic';
 
     -- 步骤 4: 处理 'OTHER' 类型
     -- 将其归类到默认类型 'functional'
     UPDATE sys_org
     SET type = 'functional'
     WHERE type = 'OTHER';
+
+    RAISE NOTICE '步骤4完成: 已将 OTHER 映射到 functional';
 
 END $$;
 

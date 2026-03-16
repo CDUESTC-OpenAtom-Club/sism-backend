@@ -71,11 +71,6 @@ public class JpaIndicatorRepository implements IndicatorRepository {
     }
 
     @Override
-    public Page<Indicator> findByCycleId(Long cycleId, Pageable pageable) {
-        return jpaRepository.findByCycleId(cycleId, pageable);
-    }
-
-    @Override
     public List<Indicator> findByParentIndicatorId(Long parentIndicatorId) {
         return jpaRepository.findByParentIndicatorId(parentIndicatorId);
     }

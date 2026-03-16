@@ -77,9 +77,9 @@ public class MilestoneController {
     public ResponseEntity<ApiResponse<PageResult<MilestoneResponse>>> listMilestones(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) Long planId,
+            @RequestParam(required = false) Long indicatorId,
             @RequestParam(required = false) String status) {
-        Page<MilestoneResponse> resultPage = milestoneApplicationService.getMilestones(page, size, planId, status);
+        Page<MilestoneResponse> resultPage = milestoneApplicationService.getMilestones(page, size, indicatorId, status);
         PageResult<MilestoneResponse> pageResult = PageResult.of(
                 resultPage.getContent(),
                 (int) resultPage.getTotalElements(),

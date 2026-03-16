@@ -19,6 +19,7 @@ import java.util.Objects;
 @NoArgsConstructor
 @Entity
 @Table(name = "adhoc_task")
+@Access(AccessType.FIELD)
 public class DataExport extends AggregateRoot<Long> {
 
     @Id

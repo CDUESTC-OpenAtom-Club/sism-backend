@@ -2,7 +2,7 @@ package com.sism.organization.application;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
-import com.sism.enums.OrgType;
+import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.shared.domain.model.base.DomainEvent;

@@ -19,6 +19,7 @@ import java.util.Objects;
 @Setter
 @Entity
 @Table(name = "plan_report")
+@Access(AccessType.FIELD)
 public class PlanReport extends AggregateRoot<Long> {
 
     public static final String STATUS_DRAFT = "DRAFT";

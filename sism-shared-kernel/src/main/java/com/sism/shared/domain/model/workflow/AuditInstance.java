@@ -19,7 +19,12 @@ import java.util.List;
 @Entity
 @Table(name = "audit_instance")
 @Where(clause = "is_deleted = false")
+@Access(AccessType.FIELD)
 public class AuditInstance extends AggregateRoot<Long> {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_APPROVED = "APPROVED";

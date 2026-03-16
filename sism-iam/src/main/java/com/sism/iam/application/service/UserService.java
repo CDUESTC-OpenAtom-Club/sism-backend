@@ -35,9 +35,8 @@ public class UserService {
         user.setUsername(username);
         user.setPassword(password);
         user.setRealName(realName);
-        user.setEmail(email);
         user.setOrgId(orgId);
-        user.setStatus(User.UserStatus.ACTIVE);
+        user.setIsActive(true);
 
         return userRepository.save(user);
     }
@@ -53,9 +52,6 @@ public class UserService {
         if (realName != null) {
             user.setRealName(realName);
         }
-        if (email != null) {
-            user.setEmail(email);
-        }
         if (orgId != null) {
             user.setOrgId(orgId);
         }
@@ -70,7 +66,7 @@ public class UserService {
     public void deleteUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        user.setStatus(User.UserStatus.INACTIVE);
+        user.setIsActive(false);
         userRepository.save(user);
     }
 
@@ -109,7 +105,7 @@ public class UserService {
     public void lockUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        user.setStatus(User.UserStatus.LOCKED);
+        user.setIsActive(false);
         userRepository.save(user);
     }
 
@@ -120,7 +116,7 @@ public class UserService {
     public void unlockUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
-        user.setStatus(User.UserStatus.ACTIVE);
+        user.setIsActive(true);
         userRepository.save(user);
     }
 }

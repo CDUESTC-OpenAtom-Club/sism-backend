@@ -2,7 +2,6 @@ package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.execution.domain.model.milestone.Milestone;
 import com.sism.strategy.application.StrategyApplicationService;
 import com.sism.strategy.domain.Indicator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,10 +43,11 @@ public class IndicatorController {
         Page<Indicator> indicatorPage;
 
         if (status != null) {
-            // This would need to be implemented in the service
+            // This would need to be implemented in service
             List<Indicator> indicators = strategyApplicationService.getAllIndicators().stream()
                     .filter(i -> i.getStatus() != null && i.getStatus().toString().equals(status))
                     .toList();
+
             // Convert list to page (simplified)
             int start = Math.min((int)pageable.getOffset(), indicators.size());
             int end = Math.min(start + pageable.getPageSize(), indicators.size());
@@ -60,9 +60,13 @@ public class IndicatorController {
             indicatorPage = new org.springframework.data.domain.PageImpl<>(
                     allIndicators.subList(start, end), pageable, allIndicators.size());
         }
-
         PageResult<IndicatorResponse> result = PageResult.of(
                 indicatorPage.map(this::toIndicatorResponse)
+                        .stream()
+                        .toList(),
+                (int) indicatorPage.getTotalElements(),
+                page,
+                size
         );
         return ResponseEntity.ok(ApiResponse.success(result));
     }
@@ -122,7 +126,7 @@ public class IndicatorController {
         if (indicator == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
-        // The current service doesn't accept a reason, we'll use the simple version
+        // The current service doesn't accept a reason, we'll use a simple version
         Indicator rejected = strategyApplicationService.rejectIndicator(indicator);
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(rejected)));
     }
@@ -174,23 +178,6 @@ public class IndicatorController {
         return ResponseEntity.ok(ApiResponse.success(indicator.getDistributionStatus().toString()));
     }
 
-    @PostMapping("/{id}/milestones")
-    @Operation(summary = "Create milestones for indicator")
-    public ResponseEntity<ApiResponse<CreateMilestonesResponse>> createMilestones(
-            @PathVariable Long id,
-            @RequestBody CreateMilestonesRequest request) {
-        List<Milestone> milestones = strategyApplicationService.createMilestones(id, request.getMilestones());
-        CreateMilestonesResponse response = new CreateMilestonesResponse(milestones.size(), milestones);
-        return ResponseEntity.ok(ApiResponse.success(response));
-    }
-
-    @GetMapping("/{id}/milestones")
-    @Operation(summary = "Get milestones by indicator ID")
-    public ResponseEntity<ApiResponse<List<Milestone>>> getMilestonesByIndicatorId(@PathVariable Long id) {
-        List<Milestone> milestones = strategyApplicationService.getMilestonesByIndicatorId(id);
-        return ResponseEntity.ok(ApiResponse.success(milestones));
-    }
-
     @PostMapping("/{id}/breakdown")
     @Operation(summary = "Break down indicator into child indicators")
     public ResponseEntity<ApiResponse<IndicatorResponse>> breakdownIndicator(@PathVariable Long id) {
@@ -212,13 +199,6 @@ public class IndicatorController {
             @RequestBody TerminateRequest request) {
         Indicator terminated = strategyApplicationService.terminateIndicator(id, request.getReason());
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(terminated)));
-    }
-
-    @GetMapping("/milestones/{milestoneId}/is-paired")
-    @Operation(summary = "Check if milestone is paired")
-    public ResponseEntity<ApiResponse<Boolean>> isMilestonePaired(@PathVariable Long milestoneId) {
-        boolean result = strategyApplicationService.isMilestonePaired(milestoneId);
-        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     // ==================== Helper Methods ====================
@@ -306,24 +286,5 @@ public class IndicatorController {
     @Data
     public static class TerminateRequest {
         private String reason;
-    }
-
-    @Data
-    public static class CreateMilestonesRequest {
-        private List<MilestoneRequest> milestones;
-    }
-
-    @Data
-    public static class MilestoneRequest {
-        private Integer month;
-        private Integer targetProgress;
-        private String deadline;
-    }
-
-    @Data
-    @AllArgsConstructor
-    public static class CreateMilestonesResponse {
-        private Integer createdCount;
-        private List<Milestone> milestones;
     }
 }

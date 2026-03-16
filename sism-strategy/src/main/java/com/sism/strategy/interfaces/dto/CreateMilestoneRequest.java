@@ -1,8 +1,9 @@
 package com.sism.strategy.interfaces.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -12,30 +13,27 @@ import java.time.LocalDateTime;
  * 用于接收创建里程碑的请求参数
  */
 @Data
-@Schema(description = "创建里程碑请求")
 public class CreateMilestoneRequest {
 
-    @Schema(description = "里程碑名称", requiredMode = Schema.RequiredMode.REQUIRED)
+    @NotNull(message = "指标ID不能为空")
+    private Long indicatorId;
+
     @NotBlank(message = "里程碑名称不能为空")
     private String milestoneName;
 
-    @Schema(description = "里程碑描述")
     private String description;
 
-    @Schema(description = "目标日期", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "目标日期不能为空")
-    private LocalDateTime targetDate;
+    private LocalDateTime dueDate;
 
-    @Schema(description = "计划ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "计划ID不能为空")
-    private Long planId;
+    @Min(value = 0, message = "目标进度不能小于0")
+    @Max(value = 100, message = "目标进度不能大于100")
+    private Integer targetProgress;
 
-    @Schema(description = "指标ID")
-    private Long indicatorId;
-
-    @Schema(description = "优先级")
-    private Integer priority;
-
-    @Schema(description = "状态", example = "PLANNED")
     private String status;
+
+    private Integer sortOrder;
+
+    private Boolean isPaired;
+
+    private Long inheritedFrom;
 }

@@ -17,7 +17,7 @@ import java.util.Optional;
  * DataExportApplicationService - 数据导出应用服务
  * 负责协调数据导出相关的业务操作
  */
-// @Service  # TEMPORARILY DISABLED - Repository not implemented
+@Service
 @RequiredArgsConstructor
 public class DataExportApplicationService {
 

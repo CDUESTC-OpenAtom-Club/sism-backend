@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Table(name = "cycle", schema = "public")
+@Access(AccessType.FIELD)
 public class Cycle extends AggregateRoot<Long> {
 
     @Id

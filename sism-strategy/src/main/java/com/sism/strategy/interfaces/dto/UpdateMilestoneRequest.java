@@ -1,6 +1,8 @@
 package com.sism.strategy.interfaces.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -10,24 +12,26 @@ import java.time.LocalDateTime;
  * 用于接收更新里程碑信息的请求参数
  */
 @Data
-@Schema(description = "更新里程碑请求")
 public class UpdateMilestoneRequest {
 
-    @Schema(description = "里程碑名称")
+    private Long indicatorId;
+
+    @NotBlank(message = "里程碑名称不能为空")
     private String milestoneName;
 
-    @Schema(description = "里程碑描述")
     private String description;
 
-    @Schema(description = "目标日期")
-    private LocalDateTime targetDate;
+    private LocalDateTime dueDate;
 
-    @Schema(description = "优先级")
-    private Integer priority;
+    @Min(value = 0, message = "目标进度不能小于0")
+    @Max(value = 100, message = "目标进度不能大于100")
+    private Integer targetProgress;
 
-    @Schema(description = "状态", example = "PLANNED")
     private String status;
 
-    @Schema(description = "完成百分比")
-    private Integer completionPercentage;
+    private Integer sortOrder;
+
+    private Boolean isPaired;
+
+    private Long inheritedFrom;
 }

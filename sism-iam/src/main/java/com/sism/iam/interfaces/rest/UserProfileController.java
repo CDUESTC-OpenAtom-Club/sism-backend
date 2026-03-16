@@ -68,10 +68,9 @@ public class UserProfileController {
 
         User user = userOpt.get();
         user.setRealName(request.getRealName());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
         user.setUpdatedAt(LocalDateTime.now());
 
+        // 注意：新版本的 User 不包含 email 和 phone 字段
         // TODO: 更新 avatar 需要单独的文件上传接口
 
         user = userRepository.save(user);
@@ -150,10 +149,8 @@ public class UserProfileController {
         response.setId(user.getId());
         response.setUsername(user.getUsername());
         response.setRealName(user.getRealName());
-        response.setEmail(user.getEmail());
-        response.setPhone(user.getPhone());
         response.setOrgId(user.getOrgId());
-        response.setStatus(user.getStatus().name());
+        response.setIsActive(user.getIsActive());
         response.setRoles(user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
         response.setCreatedAt(user.getCreatedAt());
         response.setLastLoginTime(null); // TODO: 需要记录最后登录时间
@@ -168,10 +165,8 @@ public class UserProfileController {
         private Long id;
         private String username;
         private String realName;
-        private String email;
-        private String phone;
         private Long orgId;
-        private String status;
+        private Boolean isActive;  // 新版本改为 isActive 布尔字段
         private List<String> roles;
         private String avatar;
         private LocalDateTime createdAt;

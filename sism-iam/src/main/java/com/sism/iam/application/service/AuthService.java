@@ -41,7 +41,7 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid username or password");
         }
 
-        if (user.getStatus() != User.UserStatus.ACTIVE) {
+        if (!user.getIsActive()) {
             throw new IllegalStateException("User account is not active");
         }
 
@@ -75,7 +75,7 @@ public class AuthService {
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         user.setRealName(realName);
-        user.setStatus(User.UserStatus.ACTIVE);
+        user.setIsActive(true);
 
         return userRepository.save(user);
     }

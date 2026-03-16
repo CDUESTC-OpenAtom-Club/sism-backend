@@ -7,30 +7,23 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * NotificationRepository - 通知仓储接口
- */
 public interface NotificationRepository {
 
     Optional<Notification> findById(Long id);
 
     List<Notification> findAll();
 
-    Page<Notification> findByRecipientUserId(Long recipientUserId, Pageable pageable);
+    Page<Notification> findByIndicatorId(Long indicatorId, Pageable pageable);
 
-    List<Notification> findByRecipientUserIdAndIsRead(Long recipientUserId, Boolean isRead);
+    List<Notification> findByRuleId(Long ruleId);
 
-    List<Notification> findByRecipientUserIdAndIsReadFalse(Long recipientUserId);
+    List<Notification> findByWindowId(Long windowId);
 
-    long countByRecipientUserId(Long recipientUserId);
+    long countByIndicatorId(Long indicatorId);
 
-    long countByRecipientUserIdAndIsRead(Long recipientUserId, Boolean isRead);
-
-    long countByRecipientUserIdAndPriority(Long recipientUserId, String priority);
+    long countByRuleIdAndStatus(Long ruleId, String status);
 
     Notification save(Notification notification);
 
     void delete(Notification notification);
-
-    Page<Notification> searchNotifications(Long userId, String keyword, Pageable pageable);
 }

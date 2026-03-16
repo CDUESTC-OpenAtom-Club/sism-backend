@@ -12,8 +12,12 @@ import java.util.Set;
 @Setter
 @Entity
 @Table(name = "sys_role")
+@Access(AccessType.FIELD)
 public class Role extends AggregateRoot<Long> {
-    // ID is inherited from AggregateRoot - do not redeclare
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "role_code", nullable = false, unique = true)
     private String roleCode;
@@ -21,19 +25,25 @@ public class Role extends AggregateRoot<Long> {
     @Column(name = "role_name", nullable = false)
     private String roleName;
 
-    @Column(name = "description")
+    @Column(name = "remark")
     private String description;
 
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
+    @Column(name = "is_enabled", nullable = false)
+    private Boolean isEnabled = true;
+
+    @Column(name = "data_access_mode", nullable = false)
+    private String dataAccessMode = "OWN_ORG";
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "sys_role_permission",
         joinColumns = @JoinColumn(name = "role_id"),
-        inverseJoinColumns = @JoinColumn(name = "permission_id")
+        inverseJoinColumns = @JoinColumn(name = "perm_id")
     )
     private Set<Permission> permissions = new HashSet<>();
+
+    @ManyToMany(mappedBy = "roles")
+    private Set<User> users = new HashSet<>();
 
     @Override
     public void validate() {

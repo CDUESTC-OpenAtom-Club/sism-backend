@@ -17,7 +17,12 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "audit_flow_def")
+@Access(AccessType.FIELD)
 public class AuditFlowDef extends AggregateRoot<Long> {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "flow_code", nullable = false, unique = true)
     private String flowCode;
