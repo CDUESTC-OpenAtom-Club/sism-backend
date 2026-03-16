@@ -8,10 +8,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**
@@ -35,21 +32,21 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "plan_id", nullable = false)
+    private Long planId;
+
     @Column(name = "report_month", nullable = false)
     private String reportMonth;
 
     @Column(name = "report_org_id", nullable = false)
     private Long reportOrgId;
 
-    @Column(name = "report_org_name")
-    private String reportOrgName;
-
     @Enumerated(EnumType.STRING)
-    @Column(name = "report_org_type")
+    @Column(name = "report_org_type", nullable = false)
     private ReportOrgType reportOrgType;
 
-    @Column(name = "plan_id")
-    private Long planId;
+    @Column(name = "status", length = 20, nullable = false)
+    private String status = STATUS_DRAFT;
 
     @Column(name = "title")
     private String title;
@@ -69,9 +66,6 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "next_plan", columnDefinition = "TEXT")
     private String nextPlan;
 
-    @Column(name = "status", length = 20)
-    private String status = STATUS_DRAFT;
-
     @Column(name = "submitted_by")
     private Long submittedBy;
 
@@ -87,19 +81,13 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "rejection_reason")
     private String rejectionReason;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
 
     /**
      * 创建月度报告（草稿状态）
      */
-    public static PlanReport createDraft(String reportMonth, Long reportOrgId, String reportOrgName,
+    public static PlanReport createDraft(String reportMonth, Long reportOrgId,
                                           ReportOrgType reportOrgType, Long planId) {
         if (reportMonth == null || reportMonth.trim().isEmpty()) {
             throw new IllegalArgumentException("Report month cannot be null or empty");
@@ -107,18 +95,18 @@ public class PlanReport extends AggregateRoot<Long> {
         if (reportOrgId == null) {
             throw new IllegalArgumentException("Report organization ID cannot be null");
         }
+        if (reportOrgType == null) {
+            throw new IllegalArgumentException("Report organization type cannot be null");
+        }
 
         PlanReport report = new PlanReport();
         report.reportMonth = reportMonth;
         report.reportOrgId = reportOrgId;
-        report.reportOrgName = reportOrgName;
         report.reportOrgType = reportOrgType;
         report.planId = planId;
         report.progress = 0;
         report.status = STATUS_DRAFT;
         report.isDeleted = false;
-        report.createdAt = LocalDateTime.now();
-        report.updatedAt = LocalDateTime.now();
         return report;
     }
 
@@ -132,7 +120,7 @@ public class PlanReport extends AggregateRoot<Long> {
         this.status = STATUS_SUBMITTED;
         this.submittedBy = userId;
         this.submittedAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportSubmittedEvent(this.id, this.reportMonth, this.reportOrgId));
     }
 
@@ -146,7 +134,7 @@ public class PlanReport extends AggregateRoot<Long> {
         this.status = STATUS_APPROVED;
         this.approvedBy = userId;
         this.approvedAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportApprovedEvent(this.id, this.reportMonth, this.reportOrgId));
     }
 
@@ -164,7 +152,7 @@ public class PlanReport extends AggregateRoot<Long> {
         this.approvedBy = userId;
         this.approvedAt = LocalDateTime.now();
         this.rejectionReason = reason;
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportRejectedEvent(this.id, this.reportMonth, this.reportOrgId, reason));
     }
 
@@ -181,7 +169,7 @@ public class PlanReport extends AggregateRoot<Long> {
         this.progress = progress;
         this.issues = issues;
         this.nextPlan = nextPlan;
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
     }
 
     /**
@@ -213,6 +201,17 @@ public class PlanReport extends AggregateRoot<Long> {
         if (reportOrgId == null) {
             throw new IllegalArgumentException("Report organization ID is required");
         }
+        if (reportOrgType == null) {
+            throw new IllegalArgumentException("Report organization type is required");
+        }
+        if (planId == null) {
+            throw new IllegalArgumentException("Plan ID is required");
+        }
+    }
+
+    @Override
+    public boolean canPublish() {
+        return STATUS_APPROVED.equals(status);
     }
 
     @PrePersist
@@ -223,22 +222,16 @@ public class PlanReport extends AggregateRoot<Long> {
         if (isDeleted == null) {
             isDeleted = false;
         }
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+        if (getCreatedAt() == null) {
+            setCreatedAt(LocalDateTime.now());
         }
-        if (updatedAt == null) {
-            updatedAt = LocalDateTime.now();
+        if (getUpdatedAt() == null) {
+            setUpdatedAt(LocalDateTime.now());
         }
     }
 
-    /**
-     * 加载时兼容旧的枚举值
-     * 如果数据库中是FUNC_DEPT，转换为FUNCTIONAL
-     */
-    @PostLoad
-    protected void onLoad() {
-        if (reportOrgType != null && "FUNC_DEPT".equals(reportOrgType.name())) {
-            reportOrgType = ReportOrgType.FUNCTIONAL;
-        }
+    @PreUpdate
+    protected void onUpdate() {
+        setUpdatedAt(LocalDateTime.now());
     }
 }

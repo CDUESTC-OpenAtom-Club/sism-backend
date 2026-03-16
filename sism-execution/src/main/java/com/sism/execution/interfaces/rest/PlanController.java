@@ -10,10 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/execution/plans")
+@RequestMapping("/api/v1/plans")
 @RequiredArgsConstructor
-@Tag(name = "Execution Plans", description = "Execution plan management endpoints")
-public class ExecutionPlanController {
+@Tag(name = "Plans", description = "Plan management endpoints")
+public class PlanController {
 
     private final ExecutionApplicationService executionApplicationService;
 

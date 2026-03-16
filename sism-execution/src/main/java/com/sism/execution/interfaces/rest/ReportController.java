@@ -39,7 +39,6 @@ public class ReportController {
         PlanReport report = reportApplicationService.createReport(
                 request.getReportMonth(),
                 request.getReportOrgId(),
-                request.getReportOrgName(),
                 request.getReportOrgType(),
                 request.getPlanId()
         );
@@ -86,8 +85,8 @@ public class ReportController {
     @Operation(summary = "提交报告", description = "将草稿状态的报告提交审批")
     public ResponseEntity<ApiResponse<PlanReportResponse>> submitReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
-            @Valid @RequestBody SubmitPlanReportRequest request) {
-        PlanReport report = reportApplicationService.submitReport(id, request.getUserId());
+            @Parameter(description = "用户ID") @RequestParam Long userId) {
+        PlanReport report = reportApplicationService.submitReport(id, userId);
         return ResponseEntity.ok(ApiResponse.success(PlanReportResponse.fromEntity(report)));
     }
 
@@ -95,8 +94,8 @@ public class ReportController {
     @Operation(summary = "审批通过报告", description = "审批通过已提交的报告")
     public ResponseEntity<ApiResponse<PlanReportResponse>> approveReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
-            @Valid @RequestBody ApprovePlanReportRequest request) {
-        PlanReport report = reportApplicationService.approveReport(id, request.getUserId());
+            @Parameter(description = "用户ID") @RequestParam Long userId) {
+        PlanReport report = reportApplicationService.approveReport(id, userId);
         return ResponseEntity.ok(ApiResponse.success(PlanReportResponse.fromEntity(report)));
     }
 
@@ -230,7 +229,7 @@ public class ReportController {
     @GetMapping("/org-type/{orgType}")
     @Operation(summary = "根据组织类型查询报告", description = "获取指定组织类型的所有报告")
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByOrgType(
-            @Parameter(description = "组织类型：COLLEGE/FUNCTIONAL/STRATEGIC") @PathVariable ReportOrgType orgType) {
+            @Parameter(description = "组织类型：ADMIN/FUNCTIONAL/ACADEMIC") @PathVariable ReportOrgType orgType) {
         List<PlanReport> reports = reportApplicationService.findReportsByOrgType(orgType);
         List<PlanReportSimpleResponse> responses = reports.stream()
                 .map(PlanReportSimpleResponse::fromEntity)

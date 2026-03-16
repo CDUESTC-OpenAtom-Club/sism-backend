@@ -3,12 +3,14 @@ package com.sism.execution.domain.model.report;
 /**
  * ReportOrgType - 报告组织类型枚举
  * 定义报告所属组织的类型
+ *
+ * 必须与 com.sism.enums.OrgType 保持一致
  */
 public enum ReportOrgType {
     /**
      * 系统管理员
      */
-    SYSTEM_ADMIN,
+    ADMIN,
 
     /**
      * 职能部门
@@ -16,13 +18,7 @@ public enum ReportOrgType {
     FUNCTIONAL,
 
     /**
-     * 学院
+     * 二级学院
      */
-    COLLEGE,
-
-    /**
-     * 其他 (已废弃，保留以兼容旧数据)
-     */
-    @Deprecated
-    OTHER
+    ACADEMIC
 }

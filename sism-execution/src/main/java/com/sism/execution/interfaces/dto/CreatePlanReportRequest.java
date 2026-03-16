@@ -18,9 +18,9 @@ public class CreatePlanReportRequest {
     @NotNull(message = "报告组织ID不能为空")
     private Long reportOrgId;
 
-    private String reportOrgName;
-
+    @NotNull(message = "报告组织类型不能为空")
     private ReportOrgType reportOrgType;
 
+    @NotNull(message = "计划ID不能为空")
     private Long planId;
 }

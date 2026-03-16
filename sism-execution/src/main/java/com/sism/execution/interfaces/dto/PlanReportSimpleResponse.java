@@ -22,7 +22,6 @@ public class PlanReportSimpleResponse {
     private Long id;
     private String reportMonth;
     private Long reportOrgId;
-    private String reportOrgName;
     private ReportOrgType reportOrgType;
     private String title;
     private Integer progress;
@@ -38,7 +37,6 @@ public class PlanReportSimpleResponse {
                 .id(report.getId())
                 .reportMonth(report.getReportMonth())
                 .reportOrgId(report.getReportOrgId())
-                .reportOrgName(report.getReportOrgName())
                 .reportOrgType(report.getReportOrgType())
                 .title(report.getTitle())
                 .progress(report.getProgress())

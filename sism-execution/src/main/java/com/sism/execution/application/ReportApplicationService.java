@@ -29,10 +29,10 @@ public class ReportApplicationService {
      * 创建报告（草稿）
      */
     @Transactional
-    public PlanReport createReport(String reportMonth, Long reportOrgId, String reportOrgName,
+    public PlanReport createReport(String reportMonth, Long reportOrgId,
                                    ReportOrgType reportOrgType, Long planId) {
         PlanReport report = PlanReport.createDraft(
-                reportMonth, reportOrgId, reportOrgName, reportOrgType, planId);
+                reportMonth, reportOrgId, reportOrgType, planId);
         report.validate();
         return planReportRepository.save(report);
     }

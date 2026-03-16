@@ -22,7 +22,6 @@ public class PlanReportResponse {
     private Long id;
     private String reportMonth;
     private Long reportOrgId;
-    private String reportOrgName;
     private ReportOrgType reportOrgType;
     private Long planId;
     private String title;
@@ -48,7 +47,6 @@ public class PlanReportResponse {
                 .id(report.getId())
                 .reportMonth(report.getReportMonth())
                 .reportOrgId(report.getReportOrgId())
-                .reportOrgName(report.getReportOrgName())
                 .reportOrgType(report.getReportOrgType())
                 .planId(report.getPlanId())
                 .title(report.getTitle())
