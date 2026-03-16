@@ -15,13 +15,19 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "alert")
+@Table(name = "alert_event")
 @Where(clause = "is_deleted = false")
 public class Alert extends AggregateRoot<Long> {
 
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_TRIGGERED = "TRIGGERED";
     public static final String STATUS_RESOLVED = "RESOLVED";
+
+    @Id
+    @SequenceGenerator(name = "alert_event_id_seq", sequenceName = "alert_event_id_seq", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "alert_event_id_seq")
+    @Column(name = "id")
+    private Long id;
 
     @Column(name = "alert_type", nullable = false)
     private String alertType;
@@ -59,12 +65,6 @@ public class Alert extends AggregateRoot<Long> {
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     @Override
     public boolean canPublish() {
         return STATUS_RESOLVED.equals(status);
@@ -86,7 +86,7 @@ public class Alert extends AggregateRoot<Long> {
     public void trigger() {
         this.status = STATUS_TRIGGERED;
         this.triggeredAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
     }
 
     public void resolve(Long resolvedBy, String resolution) {
@@ -94,16 +94,36 @@ public class Alert extends AggregateRoot<Long> {
         this.resolvedBy = resolvedBy;
         this.resolution = resolution;
         this.resolvedAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
+    }
+
+    @Override
+    public LocalDateTime getCreatedAt() {
+        return super.getCreatedAt();
+    }
+
+    @Override
+    public void setCreatedAt(LocalDateTime createdAt) {
+        super.setCreatedAt(createdAt);
+    }
+
+    @Override
+    public LocalDateTime getUpdatedAt() {
+        return super.getUpdatedAt();
+    }
+
+    @Override
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        super.setUpdatedAt(updatedAt);
     }
 
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+        if (getCreatedAt() == null) {
+            setCreatedAt(LocalDateTime.now());
         }
-        if (updatedAt == null) {
-            updatedAt = LocalDateTime.now();
+        if (getUpdatedAt() == null) {
+            setUpdatedAt(LocalDateTime.now());
         }
         if (isDeleted == null) {
             isDeleted = false;
@@ -112,6 +132,6 @@ public class Alert extends AggregateRoot<Long> {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
     }
 }
