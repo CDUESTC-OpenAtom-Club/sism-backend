@@ -4,12 +4,15 @@ import com.sism.organization.domain.SysOrg;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
+import com.sism.enums.IndicatorStatus;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -55,8 +58,20 @@ public class StrategyApplicationService {
 
     @Transactional
     public Indicator distributeIndicator(Long id) {
+        return distributeIndicator(id, null, null);
+    }
+
+    @Transactional
+    public Indicator distributeIndicator(Long id, SysOrg targetOrg, String customDesc) {
         Indicator indicator = indicatorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+        if (targetOrg != null) {
+            indicator.setTargetOrg(targetOrg);
+            indicator.setLevel(indicator.calculateLevel());
+        }
+        if (customDesc != null && !customDesc.trim().isEmpty()) {
+            indicator.setIndicatorDesc(customDesc.trim());
+        }
         indicator.distribute();
         indicator = indicatorRepository.save(indicator);
         publishAndSaveEvents(indicator);
@@ -87,6 +102,84 @@ public class StrategyApplicationService {
 
     public List<Indicator> getIndicatorsByTaskId(Long taskId) {
         return indicatorRepository.findByTaskId(taskId);
+    }
+
+    public List<Indicator> getRootIndicatorsByTaskId(Long taskId) {
+        return indicatorRepository.findByTaskId(taskId).stream()
+                .filter(indicator -> indicator.getParentIndicatorId() == null)
+                .toList();
+    }
+
+    public List<Indicator> getIndicatorsByOwnerOrgId(Long ownerOrgId) {
+        return indicatorRepository.findByOwnerOrgId(ownerOrgId);
+    }
+
+    public List<Indicator> getIndicatorsByTargetOrgId(Long targetOrgId) {
+        return indicatorRepository.findByTargetOrgId(targetOrgId);
+    }
+
+    public List<Indicator> getDistributedIndicators(Long parentIndicatorId) {
+        return indicatorRepository.findByParentIndicatorId(parentIndicatorId);
+    }
+
+    @Transactional
+    public Indicator updateIndicator(
+            Long id,
+            String indicatorDesc,
+            BigDecimal weightPercent,
+            Integer progress,
+            Integer sortOrder,
+            String remark,
+            Long taskId,
+            SysOrg ownerOrg,
+            SysOrg targetOrg,
+            IndicatorStatus distributionStatus) {
+        Indicator indicator = indicatorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+
+        if (indicatorDesc != null && !indicatorDesc.trim().isEmpty()) {
+            indicator.setIndicatorDesc(indicatorDesc.trim());
+        }
+        if (weightPercent != null) {
+            indicator.setWeightPercent(weightPercent);
+        }
+        if (progress != null) {
+            indicator.setProgress(progress);
+        }
+        if (sortOrder != null) {
+            indicator.setSortOrder(sortOrder);
+        }
+        if (remark != null) {
+            indicator.setRemark(remark);
+        }
+        if (taskId != null) {
+            indicator.setTaskId(taskId);
+        }
+        if (ownerOrg != null) {
+            indicator.setOwnerOrg(ownerOrg);
+        }
+        if (targetOrg != null) {
+            indicator.setTargetOrg(targetOrg);
+        }
+        if (distributionStatus != null) {
+            indicator.setDistributionStatus(distributionStatus);
+        }
+
+        indicator.setLevel(indicator.calculateLevel());
+        indicator.setUpdatedAt(LocalDateTime.now());
+        indicator.validate();
+        indicator = indicatorRepository.save(indicator);
+        publishAndSaveEvents(indicator);
+        return indicator;
+    }
+
+    @Transactional
+    public void deleteIndicator(Long id) {
+        Indicator indicator = indicatorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+        indicator.archive();
+        indicatorRepository.save(indicator);
+        publishAndSaveEvents(indicator);
     }
 
     @Transactional

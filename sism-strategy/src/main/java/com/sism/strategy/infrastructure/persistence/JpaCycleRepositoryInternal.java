@@ -8,7 +8,5 @@ import java.util.List;
 
 @Repository
 public interface JpaCycleRepositoryInternal extends JpaRepository<Cycle, Long> {
-    List<Cycle> findByStatus(String status);
     List<Cycle> findByYear(Integer year);
-    List<Cycle> findByStatusAndYear(String status, Integer year);
 }

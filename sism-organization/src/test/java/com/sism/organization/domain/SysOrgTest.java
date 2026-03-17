@@ -1,6 +1,6 @@
 package com.sism.organization.domain;
 
-import com.sism.enums.OrgType;
+import com.sism.organization.domain.OrgType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,11 +15,11 @@ class SysOrgTest {
     @Test
     @DisplayName("Should create SysOrg with valid parameters")
     void shouldCreateSysOrgWithValidParameters() {
-        SysOrg org = SysOrg.create("测试部门", OrgType.ACADEMIC);
+        SysOrg org = SysOrg.create("测试部门", OrgType.academic);
 
         assertNotNull(org);
         assertEquals("测试部门", org.getName());
-        assertEquals(OrgType.ACADEMIC, org.getType());
+        assertEquals(OrgType.academic, org.getType());
         assertTrue(org.getIsActive());
         assertFalse(org.getIsDeleted());
         assertNotNull(org.getCreatedAt());
@@ -30,7 +30,7 @@ class SysOrgTest {
     @DisplayName("Should throw exception when creating SysOrg with null name")
     void shouldThrowExceptionWhenCreatingSysOrgWithNullName() {
         assertThrows(IllegalArgumentException.class, () ->
-            SysOrg.create(null, OrgType.ACADEMIC)
+            SysOrg.create(null, OrgType.academic)
         );
     }
 
@@ -38,14 +38,14 @@ class SysOrgTest {
     @DisplayName("Should throw exception when creating SysOrg with empty name")
     void shouldThrowExceptionWhenCreatingSysOrgWithEmptyName() {
         assertThrows(IllegalArgumentException.class, () ->
-            SysOrg.create("", OrgType.ACADEMIC)
+            SysOrg.create("", OrgType.academic)
         );
     }
 
     @Test
     @DisplayName("Should activate SysOrg successfully")
     void shouldActivateSysOrgSuccessfully() {
-        SysOrg org = SysOrg.create("测试部门", OrgType.ACADEMIC);
+        SysOrg org = SysOrg.create("测试部门", OrgType.academic);
         org.setIsActive(false);
 
         org.activate();
@@ -57,7 +57,7 @@ class SysOrgTest {
     @Test
     @DisplayName("Should deactivate SysOrg successfully")
     void shouldDeactivateSysOrgSuccessfully() {
-        SysOrg org = SysOrg.create("测试部门", OrgType.ACADEMIC);
+        SysOrg org = SysOrg.create("测试部门", OrgType.academic);
 
         org.deactivate();
 
@@ -68,7 +68,7 @@ class SysOrgTest {
     @Test
     @DisplayName("Should update organization name successfully")
     void shouldUpdateOrganizationNameSuccessfully() {
-        SysOrg org = SysOrg.create("旧部门名称", OrgType.ACADEMIC);
+        SysOrg org = SysOrg.create("旧部门名称", OrgType.academic);
 
         org.updateName("新部门名称");
 
@@ -79,7 +79,7 @@ class SysOrgTest {
     @Test
     @DisplayName("Should update organization description successfully")
     void shouldUpdateOrganizationDescriptionSuccessfully() {
-        SysOrg org = SysOrg.create("测试部门", OrgType.ACADEMIC);
+        SysOrg org = SysOrg.create("测试部门", OrgType.academic);
         LocalDateTime initialUpdatedAt = org.getUpdatedAt();
 
         org.updateDescription("这是一个测试部门的描述");
@@ -91,8 +91,8 @@ class SysOrgTest {
     @Test
     @DisplayName("Should update organization parent successfully")
     void shouldUpdateOrganizationParentSuccessfully() {
-        SysOrg parentOrg = SysOrg.create("父部门", OrgType.FUNCTIONAL);
-        SysOrg org = SysOrg.create("子部门", OrgType.ACADEMIC);
+        SysOrg parentOrg = SysOrg.create("父部门", OrgType.functional);
+        SysOrg org = SysOrg.create("子部门", OrgType.academic);
 
         org.updateParent(parentOrg);
 
@@ -102,7 +102,7 @@ class SysOrgTest {
     @Test
     @DisplayName("Should delete SysOrg successfully")
     void shouldDeleteSysOrgSuccessfully() {
-        SysOrg org = SysOrg.create("待删除部门", OrgType.ACADEMIC);
+        SysOrg org = SysOrg.create("待删除部门", OrgType.academic);
 
         org.delete();
 
@@ -112,7 +112,7 @@ class SysOrgTest {
     @Test
     @DisplayName("Should validate SysOrg successfully")
     void shouldValidateSysOrgSuccessfully() {
-        SysOrg org = SysOrg.create("有效的部门", OrgType.ACADEMIC);
+        SysOrg org = SysOrg.create("有效的部门", OrgType.academic);
 
         assertDoesNotThrow(org::validate);
     }
@@ -128,8 +128,8 @@ class SysOrgTest {
     @Test
     @DisplayName("Should be considered equal when ids are the same")
     void shouldBeConsideredEqualWhenIdsAreTheSame() {
-        SysOrg org1 = SysOrg.create("部门1", OrgType.ACADEMIC);
-        SysOrg org2 = SysOrg.create("部门2", OrgType.FUNCTIONAL);
+        SysOrg org1 = SysOrg.create("部门1", OrgType.academic);
+        SysOrg org2 = SysOrg.create("部门2", OrgType.functional);
         org2.setId(org1.getId());
 
         assertEquals(org1, org2);
@@ -139,10 +139,10 @@ class SysOrgTest {
     @Test
     @DisplayName("Should not be considered equal when ids are different")
     void shouldNotBeConsideredEqualWhenIdsAreDifferent() {
-        SysOrg org1 = SysOrg.create("部门1", OrgType.ACADEMIC);
+        SysOrg org1 = SysOrg.create("部门1", OrgType.academic);
         org1.setId(1L);
 
-        SysOrg org2 = SysOrg.create("部门1", OrgType.ACADEMIC);
+        SysOrg org2 = SysOrg.create("部门1", OrgType.academic);
         org2.setId(2L);
 
         assertNotEquals(org1, org2);

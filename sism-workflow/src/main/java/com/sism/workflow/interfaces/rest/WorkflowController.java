@@ -132,7 +132,13 @@ public class WorkflowController {
             @RequestBody AuditInstance instance,
             @RequestParam Long userId,
             @RequestParam(required = false) String comment) {
-        AuditInstance approved = workflowApplicationService.approveAuditInstance(instance, userId, comment);
+        // 先从数据库获取完整的实例信息
+        AuditInstance existingInstance = workflowApplicationService.getAuditInstanceById(instanceId);
+        if (existingInstance == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Approval instance not found"));
+        }
+        // 使用数据库中的实例进行操作
+        AuditInstance approved = workflowApplicationService.approveAuditInstance(existingInstance, userId, comment);
         return ResponseEntity.ok(ApiResponse.success(approved));
     }
 
@@ -143,7 +149,13 @@ public class WorkflowController {
             @RequestBody AuditInstance instance,
             @RequestParam Long userId,
             @RequestParam(required = false) String comment) {
-        AuditInstance rejected = workflowApplicationService.rejectAuditInstance(instance, userId, comment);
+        // 先从数据库获取完整的实例信息
+        AuditInstance existingInstance = workflowApplicationService.getAuditInstanceById(instanceId);
+        if (existingInstance == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Approval instance not found"));
+        }
+        // 使用数据库中的实例进行操作
+        AuditInstance rejected = workflowApplicationService.rejectAuditInstance(existingInstance, userId, comment);
         return ResponseEntity.ok(ApiResponse.success(rejected));
     }
 
@@ -152,7 +164,13 @@ public class WorkflowController {
     public ResponseEntity<ApiResponse<AuditInstance>> cancelInstance(
             @PathVariable Long instanceId,
             @RequestBody AuditInstance instance) {
-        AuditInstance cancelled = workflowApplicationService.cancelAuditInstance(instance);
+        // 先从数据库获取完整的实例信息
+        AuditInstance existingInstance = workflowApplicationService.getAuditInstanceById(instanceId);
+        if (existingInstance == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Approval instance not found"));
+        }
+        // 使用数据库中的实例进行操作
+        AuditInstance cancelled = workflowApplicationService.cancelAuditInstance(existingInstance);
         return ResponseEntity.ok(ApiResponse.success(cancelled));
     }
 
@@ -192,6 +210,8 @@ public class WorkflowController {
             @PathVariable Long id,
             @RequestBody WorkflowTask task,
             @RequestParam String result) {
+        // 这里假设 WorkflowTask 没有对应的 get 方法，需要根据实际情况调整
+        // 如果有类似 getWorkflowTaskById 的方法，应该先获取完整实例
         WorkflowTask completed = workflowApplicationService.completeWorkflowTask(task, result);
         return ResponseEntity.ok(ApiResponse.success(completed));
     }

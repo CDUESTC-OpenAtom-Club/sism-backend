@@ -2,7 +2,6 @@ package com.sism.alert.domain.repository;
 
 import com.sism.alert.domain.Alert;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,13 +24,9 @@ public interface AlertRepository {
 
     List<Alert> findByStatus(String status);
 
-    List<Alert> findByAlertType(String alertType);
-
     List<Alert> findBySeverity(String severity);
 
-    List<Alert> findByEntityTypeAndEntityId(String entityType, Long entityId);
-
-    List<Alert> findByStatusAndTriggeredAtAfter(String status, LocalDateTime startTime);
+    List<Alert> findByIndicatorId(Long indicatorId);
 
     List<Alert> findUnresolvedBySeverity(String severity);
 

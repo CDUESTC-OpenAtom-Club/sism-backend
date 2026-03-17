@@ -1,5 +1,6 @@
 package com.sism.strategy.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -24,7 +25,7 @@ public class Cycle extends AggregateRoot<Long> {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "cycle_name", nullable = false)
     private String name;
 
     @Column(name = "year", nullable = false)
@@ -36,10 +37,13 @@ public class Cycle extends AggregateRoot<Long> {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    @Column(name = "status", nullable = false)
+    @Column(name = "description")
+    private String description;
+
+    @Transient
     private String status = "ACTIVE";
 
-    @Column(name = "is_deleted", nullable = false)
+    @Transient
     private Boolean isDeleted = false;
 
     @Column(name = "created_at", nullable = false)
@@ -100,11 +104,45 @@ public class Cycle extends AggregateRoot<Long> {
         if (isDeleted == null) {
             isDeleted = false;
         }
+        if (status == null) {
+            status = deriveStatus();
+        }
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
         if (updatedAt == null) {
             updatedAt = LocalDateTime.now();
         }
+    }
+
+    @PostLoad
+    protected void onLoad() {
+        if (status == null || status.isBlank()) {
+            status = deriveStatus();
+        }
+        if (isDeleted == null) {
+            isDeleted = false;
+        }
+    }
+
+    @JsonProperty("cycleId")
+    public Long getCycleId() {
+        return id;
+    }
+
+    @JsonProperty("cycleName")
+    public String getCycleName() {
+        return name;
+    }
+
+    public String deriveStatus() {
+        LocalDate today = LocalDate.now();
+        if (endDate != null && endDate.isBefore(today)) {
+            return "COMPLETED";
+        }
+        if (startDate != null && startDate.isAfter(today)) {
+            return "UPCOMING";
+        }
+        return "ACTIVE";
     }
 }

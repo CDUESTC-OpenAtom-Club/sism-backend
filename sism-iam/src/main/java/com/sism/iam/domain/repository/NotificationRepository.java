@@ -13,6 +13,8 @@ public interface NotificationRepository {
 
     List<Notification> findAll();
 
+    Page<Notification> findAll(Pageable pageable);
+
     Page<Notification> findByIndicatorId(Long indicatorId, Pageable pageable);
 
     List<Notification> findByRuleId(Long ruleId);

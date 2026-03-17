@@ -11,8 +11,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * MilestoneApplicationService - 里程碑应用服务
@@ -141,6 +144,67 @@ public class MilestoneApplicationService {
      */
     public boolean existsById(Long id) {
         return milestoneRepository.existsById(id);
+    }
+
+    /**
+     * 查询里程碑配对状态
+     */
+    public Optional<Map<String, Object>> getMilestonePairingStatus(Long milestoneId) {
+        return milestoneRepository.findById(milestoneId)
+                .map(milestone -> {
+                    Map<String, Object> status = new HashMap<>();
+                    status.put("milestoneId", milestone.getId());
+                    status.put("isPaired", milestone.getIsPaired() != null ? milestone.getIsPaired() : false);
+                    status.put("pairedIndicatorId", milestone.getIndicatorId());
+                    status.put("pairedAt", milestone.getCreatedAt());
+                    return status;
+                });
+    }
+
+    /**
+     * 查询指标里程碑配对状态
+     */
+    public Map<String, Object> getIndicatorMilestonePairingStatus(Long indicatorId) {
+        List<Milestone> milestones = milestoneRepository.findByIndicatorId(indicatorId);
+        Map<String, Object> status = new HashMap<>();
+        status.put("indicatorId", indicatorId);
+        status.put("pairedMilestoneCount", milestones.stream().filter(m -> m.getIsPaired() != null && m.getIsPaired()).count());
+
+        List<Map<String, Object>> milestoneList = milestones.stream()
+                .map(milestone -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", milestone.getId());
+                    m.put("name", milestone.getMilestoneName());
+                    m.put("isPaired", milestone.getIsPaired() != null ? milestone.getIsPaired() : false);
+                    return m;
+                })
+                .collect(Collectors.toList());
+
+        status.put("milestones", milestoneList);
+        return status;
+    }
+
+    /**
+     * 检查指标里程碑是否可填报
+     */
+    public Map<String, Object> checkIndicatorMilestoneCanReport(Long indicatorId, Long milestoneId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("indicatorId", indicatorId);
+        result.put("milestoneId", milestoneId);
+
+        Optional<Milestone> milestoneOptional = milestoneRepository.findById(milestoneId);
+        if (milestoneOptional.isPresent()) {
+            Milestone milestone = milestoneOptional.get();
+            boolean canReport = milestone.getIsPaired() != null && milestone.getIsPaired()
+                    && milestone.getIndicatorId() != null && milestone.getIndicatorId().equals(indicatorId);
+            result.put("canReport", canReport);
+            result.put("reason", canReport ? "可以填报" : "里程碑未配对或指标不匹配");
+        } else {
+            result.put("canReport", false);
+            result.put("reason", "里程碑不存在");
+        }
+
+        return result;
     }
 
     /**

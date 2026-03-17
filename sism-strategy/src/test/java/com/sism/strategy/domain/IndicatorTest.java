@@ -1,5 +1,6 @@
 package com.sism.strategy.domain;
 
+import com.sism.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.OrgType;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,8 +19,8 @@ class IndicatorTest {
 
     @BeforeEach
     void setUp() {
-        ownerOrg = SysOrg.create("战略发展部", OrgType.ADMIN);
-        targetOrg = SysOrg.create("测试学院", OrgType.ACADEMIC);
+        ownerOrg = SysOrg.create("战略发展部", OrgType.admin);
+        targetOrg = SysOrg.create("测试学院", OrgType.academic);
     }
 
     @Test

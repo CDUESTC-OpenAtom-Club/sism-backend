@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,14 +30,16 @@ public class CycleController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Integer year) {
-        if (status != null && year != null) {
-            return ResponseEntity.ok(ApiResponse.success(Page.empty()));
-        } else if (status != null) {
-            List<Cycle> cycles = cycleApplicationService.getCyclesByStatus(status);
-            return ResponseEntity.ok(ApiResponse.success(Page.empty()));
-        } else if (year != null) {
-            List<Cycle> cycles = cycleApplicationService.getCyclesByYear(year);
-            return ResponseEntity.ok(ApiResponse.success(Page.empty()));
+        if (status != null || year != null) {
+            List<Cycle> cycles;
+            if (status != null && year != null) {
+                cycles = cycleApplicationService.getCyclesByStatusAndYear(status, year);
+            } else if (status != null) {
+                cycles = cycleApplicationService.getCyclesByStatus(status);
+            } else {
+                cycles = cycleApplicationService.getCyclesByYear(year);
+            }
+            return ResponseEntity.ok(ApiResponse.success(toPage(cycles, page, size)));
         }
         Page<Cycle> result = cycleApplicationService.getAllCycles(PageRequest.of(page, size));
         return ResponseEntity.ok(ApiResponse.success(result));
@@ -108,5 +111,11 @@ public class CycleController {
         public void setStartDate(String startDate) { this.startDate = startDate; }
         public String getEndDate() { return endDate; }
         public void setEndDate(String endDate) { this.endDate = endDate; }
+    }
+
+    private Page<Cycle> toPage(List<Cycle> cycles, int page, int size) {
+        int start = Math.min(page * size, cycles.size());
+        int end = Math.min(start + size, cycles.size());
+        return new PageImpl<>(cycles.subList(start, end), PageRequest.of(page, size), cycles.size());
     }
 }

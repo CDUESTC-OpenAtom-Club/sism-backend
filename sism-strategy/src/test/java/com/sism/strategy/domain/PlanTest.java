@@ -1,5 +1,7 @@
 package com.sism.strategy.domain;
 
+import com.sism.execution.domain.model.plan.Plan;
+import com.sism.execution.domain.model.plan.PlanLevel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

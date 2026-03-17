@@ -40,7 +40,8 @@ public class Milestone {
     @Column(name = "is_paired")
     private Boolean isPaired;
 
-    @Column(name = "inherited_from")
+    // 注意：数据库中不存在此字段，标记为@Transient避免JPA读取
+    @Transient
     private Long inheritedFrom;
 
     @Column(name = "created_at")

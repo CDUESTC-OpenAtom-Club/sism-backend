@@ -21,6 +21,9 @@ public class JwtTokenService {
     @Value("${jwt.expiration:86400000}")
     private Long expiration;
 
+    @Value("${jwt.refresh-expiration:604800000}")
+    private Long refreshExpiration;
+
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
@@ -65,5 +68,48 @@ public class JwtTokenService {
 
     private boolean isTokenExpired(String token) {
         return extractClaims(token).getExpiration().before(new Date());
+    }
+
+    public Map<String, Object> refreshToken(String refreshToken) {
+        if (!validateToken(refreshToken)) {
+            throw new IllegalArgumentException("Invalid refresh token");
+        }
+
+        String username = extractUsername(refreshToken);
+        Long userId = getUserIdFromToken(refreshToken);
+
+        User user = new User();
+        user.setId(userId);
+        user.setUsername(username);
+
+        String newAccessToken = generateToken(user);
+        String newRefreshToken = generateRefreshToken(user);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("accessToken", newAccessToken);
+        result.put("refreshToken", newRefreshToken);
+        result.put("expiresIn", expiration / 1000);
+        result.put("tokenType", "Bearer");
+
+        return result;
+    }
+
+    public String generateRefreshToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
+        claims.put("username", user.getUsername());
+        claims.put("type", "refresh");
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(user.getUsername())
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public long getExpirationSeconds() {
+        return expiration / 1000;
     }
 }

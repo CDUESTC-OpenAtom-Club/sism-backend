@@ -16,7 +16,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "audit_flow_def")
+@Table(name = "audit_flow_def", schema = "public")
 @Access(AccessType.FIELD)
 public class AuditFlowDef extends AggregateRoot<Long> {
 
@@ -36,7 +36,7 @@ public class AuditFlowDef extends AggregateRoot<Long> {
     @Column(name = "entity_type", nullable = false)
     private String entityType;  // INDICATOR, PLAN_REPORT, etc.
 
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_enabled", nullable = false)
     private Boolean isActive = true;
 
     @Column(name = "version")

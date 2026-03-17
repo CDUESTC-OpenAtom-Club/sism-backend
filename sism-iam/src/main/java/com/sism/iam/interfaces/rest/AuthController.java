@@ -2,6 +2,7 @@ package com.sism.iam.interfaces.rest;
 
 import com.sism.iam.application.service.AuthService;
 import com.sism.iam.application.service.UserService;
+import com.sism.iam.application.dto.CurrentUser;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.User;
@@ -10,9 +11,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * AuthController - 认证API控制器
@@ -56,10 +60,13 @@ public class AuthController {
      */
     @GetMapping("/me")
     @Operation(summary = "获取当前用户信息")
-    public ResponseEntity<ApiResponse<User>> getCurrentUser(@RequestHeader("Authorization") String token) {
-        Long userId = authService.getUserIdFromToken(token.replace("Bearer ", ""));
-        return userService.findById(userId)
-                .map(user -> ResponseEntity.ok(ApiResponse.success(user)))
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> getCurrentUser(
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        return userService.findById(currentUser.getId())
+                .map(user -> ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -87,8 +94,10 @@ public class AuthController {
      */
     @GetMapping("/users")
     @Operation(summary = "查询所有用户")
-    public ResponseEntity<ApiResponse<List<User>>> getAllUsers() {
-        return ResponseEntity.ok(ApiResponse.success(userService.findAll()));
+    public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getAllUsers() {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.findAll().stream().map(UserSummaryResponse::fromUser).collect(Collectors.toList())
+        ));
     }
 
     /**
@@ -96,9 +105,9 @@ public class AuthController {
      */
     @GetMapping("/users/{id}")
     @Operation(summary = "根据ID查询用户")
-    public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserById(@PathVariable Long id) {
         return userService.findById(id)
-                .map(user -> ResponseEntity.ok(ApiResponse.success(user)))
+                .map(user -> ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -107,9 +116,9 @@ public class AuthController {
      */
     @GetMapping("/users/username/{username}")
     @Operation(summary = "根据用户名查询用户")
-    public ResponseEntity<ApiResponse<User>> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserByUsername(@PathVariable String username) {
         return userService.findByUsername(username)
-                .map(user -> ResponseEntity.ok(ApiResponse.success(user)))
+                .map(user -> ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -118,8 +127,10 @@ public class AuthController {
      */
     @GetMapping("/users/org/{orgId}")
     @Operation(summary = "根据组织ID查询用户")
-    public ResponseEntity<ApiResponse<List<User>>> getUsersByOrgId(@PathVariable Long orgId) {
-        return ResponseEntity.ok(ApiResponse.success(userService.findByOrgId(orgId)));
+    public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getUsersByOrgId(@PathVariable Long orgId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.findByOrgId(orgId).stream().map(UserSummaryResponse::fromUser).collect(Collectors.toList())
+        ));
     }
 
     /**
@@ -127,7 +138,7 @@ public class AuthController {
      */
     @PostMapping("/users")
     @Operation(summary = "创建用户")
-    public ResponseEntity<ApiResponse<User>> createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> createUser(@RequestBody CreateUserRequest request) {
         User user = userService.createUser(
                 request.getUsername(),
                 request.getPassword(),
@@ -135,7 +146,7 @@ public class AuthController {
                 request.getEmail(),
                 request.getOrgId()
         );
-        return ResponseEntity.ok(ApiResponse.success(user));
+        return ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user)));
     }
 
     /**
@@ -143,7 +154,7 @@ public class AuthController {
      */
     @PutMapping("/users/{id}")
     @Operation(summary = "更新用户")
-    public ResponseEntity<ApiResponse<User>> updateUser(
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> updateUser(
             @PathVariable Long id,
             @RequestBody UpdateUserRequest request) {
         User user = userService.updateUser(
@@ -152,7 +163,7 @@ public class AuthController {
                 request.getEmail(),
                 request.getOrgId()
         );
-        return ResponseEntity.ok(ApiResponse.success(user));
+        return ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user)));
     }
 
     /**
@@ -208,5 +219,51 @@ public class AuthController {
         private String realName;
         private String email;
         private Long orgId;
+    }
+
+    @lombok.Data
+    public static class RefreshTokenRequest {
+        private String refreshToken;
+    }
+
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class UserSummaryResponse {
+        private Long id;
+        private String username;
+        private String realName;
+        private Long orgId;
+        private Boolean isActive;
+        private List<String> roles;
+
+        public static UserSummaryResponse fromUser(User user) {
+            return new UserSummaryResponse(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getRealName(),
+                    user.getOrgId(),
+                    user.getIsActive(),
+                    user.getRoles().stream().map(role -> role.getRoleCode()).collect(Collectors.toList())
+            );
+        }
+    }
+
+    /**
+     * 刷新访问令牌
+     */
+    @PostMapping("/refresh")
+    @Operation(summary = "刷新访问令牌")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> refreshToken(
+            @RequestBody RefreshTokenRequest request) {
+        if (request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Refresh token is required"));
+        }
+        try {
+            Map<String, Object> result = authService.refreshToken(request.getRefreshToken());
+            return ResponseEntity.ok(ApiResponse.success(result));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        }
     }
 }

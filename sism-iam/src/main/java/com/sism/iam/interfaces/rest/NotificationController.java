@@ -1,5 +1,7 @@
 package com.sism.iam.interfaces.rest;
 
+import com.sism.common.ApiResponse;
+import com.sism.iam.application.dto.CurrentUser;
 import com.sism.iam.application.service.NotificationService;
 import com.sism.iam.domain.Notification;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,10 +10,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * NotificationController - 通知（告警事件）控制器
@@ -27,6 +32,45 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+
+    // ==================== User Notification Operations ====================
+
+    @GetMapping("/my")
+    @Operation(summary = "查询我的通知", description = "查询当前用户的通知列表，支持分页和状态筛选")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMyNotifications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        Long userId = currentUser.getId();
+        Page<Map<String, Object>> notifications = notificationService.getMyNotifications(userId, page, size, status);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", notifications.getContent());
+        response.put("totalElements", notifications.getTotalElements());
+        response.put("totalPages", notifications.getTotalPages());
+        response.put("number", notifications.getNumber());
+        response.put("size", notifications.getSize());
+
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/read-all")
+    @Operation(summary = "全部标记已读", description = "将所有通知标记为已读")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> markAllNotificationsAsRead() {
+        return ResponseEntity.ok(ApiResponse.success(notificationService.markAllNotificationsAsRead()));
+    }
+
+    @PostMapping("/{id}/read")
+    @Operation(summary = "标记单条已读", description = "将通知标记为已读")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> markNotificationAsRead(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(notificationService.markNotificationAsRead(id)));
+    }
+
+    // ==================== Alert Event Operations ====================
 
     /**
      * 根据指标ID查询告警事件
@@ -114,15 +158,15 @@ public class NotificationController {
             @RequestParam(required = false) BigDecimal actualPercent,
             @RequestParam(required = false) BigDecimal expectedPercent,
             @RequestParam(required = false) BigDecimal gapPercent) {
-        
+
         Notification notification = notificationService.createNotification(
                 indicatorId, ruleId, windowId, severity, status
         );
-        
+
         if (actualPercent != null) notification.setActualPercent(actualPercent);
         if (expectedPercent != null) notification.setExpectedPercent(expectedPercent);
         if (gapPercent != null) notification.setGapPercent(gapPercent);
-        
+
         return ResponseEntity.status(201).body(notification);
     }
 

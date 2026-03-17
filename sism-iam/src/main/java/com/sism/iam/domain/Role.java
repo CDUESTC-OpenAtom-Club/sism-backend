@@ -1,5 +1,6 @@
 package com.sism.iam.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -11,7 +12,7 @@ import java.util.Set;
 @Getter
 @Setter
 @Entity
-@Table(name = "sys_role")
+@Table(name = "sys_role", schema = "public")
 @Access(AccessType.FIELD)
 public class Role extends AggregateRoot<Long> {
 
@@ -36,6 +37,7 @@ public class Role extends AggregateRoot<Long> {
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
+        schema = "public",
         name = "sys_role_permission",
         joinColumns = @JoinColumn(name = "role_id"),
         inverseJoinColumns = @JoinColumn(name = "perm_id")
@@ -43,6 +45,7 @@ public class Role extends AggregateRoot<Long> {
     private Set<Permission> permissions = new HashSet<>();
 
     @ManyToMany(mappedBy = "roles")
+    @JsonIgnore
     private Set<User> users = new HashSet<>();
 
     @Override

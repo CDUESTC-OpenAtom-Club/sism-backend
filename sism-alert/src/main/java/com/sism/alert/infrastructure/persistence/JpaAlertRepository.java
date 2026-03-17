@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -21,17 +20,10 @@ public interface JpaAlertRepository extends JpaRepository<Alert, Long>, AlertRep
     List<Alert> findByStatus(String status);
 
     @Override
-    List<Alert> findByAlertType(String alertType);
-
-    @Override
     List<Alert> findBySeverity(String severity);
 
     @Override
-    List<Alert> findByEntityTypeAndEntityId(String entityType, Long entityId);
-
-    @Override
-    @Query("SELECT a FROM Alert a WHERE a.status = :status AND a.triggeredAt >= :startTime")
-    List<Alert> findByStatusAndTriggeredAtAfter(String status, LocalDateTime startTime);
+    List<Alert> findByIndicatorId(Long indicatorId);
 
     @Override
     @Query("SELECT a FROM Alert a WHERE a.severity = :severity AND a.status != 'RESOLVED'")

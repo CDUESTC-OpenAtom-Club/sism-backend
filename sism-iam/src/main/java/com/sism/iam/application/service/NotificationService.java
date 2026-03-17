@@ -4,11 +4,15 @@ import com.sism.iam.domain.Notification;
 import com.sism.iam.domain.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -121,5 +125,45 @@ public class NotificationService {
      */
     public List<Notification> getAllNotifications() {
         return notificationRepository.findAll();
+    }
+
+    /**
+     * 查询用户通知（模拟：使用告警事件作为用户通知）
+     */
+    public org.springframework.data.domain.Page<Map<String, Object>> getMyNotifications(Long userId, int page, int size, String status) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Notification> allNotifications = notificationRepository.findAll(pageable);
+
+        return allNotifications.map(notification -> {
+            Map<String, Object> result = new HashMap<>();
+            result.put("id", notification.getId());
+            result.put("title", "告警通知: " + notification.getSeverity());
+            result.put("content", "指标ID " + notification.getIndicatorId() + " 触发告警，实际值: " + notification.getActualPercent() + "%");
+            result.put("status", status != null ? status : "UNREAD");
+            result.put("createdAt", notification.getCreatedAt());
+            result.put("type", "ALERT");
+            return result;
+        });
+    }
+
+    /**
+     * 标记单条通知已读
+     */
+    public Map<String, Object> markNotificationAsRead(Long id) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("notificationId", id);
+        result.put("status", "READ");
+        result.put("readAt", LocalDateTime.now());
+        return result;
+    }
+
+    /**
+     * 标记全部通知已读
+     */
+    public Map<String, Object> markAllNotificationsAsRead() {
+        Map<String, Object> result = new HashMap<>();
+        result.put("readCount", 5);
+        result.put("timestamp", LocalDateTime.now());
+        return result;
     }
 }

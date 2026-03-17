@@ -1,5 +1,6 @@
 package com.sism.iam.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -17,7 +18,7 @@ import java.util.Set;
 public class User extends AggregateRoot<Long> {
 
     @Id
-    @SequenceGenerator(name="User_IdSeq", sequenceName="public.sys_user_user_id_seq", allocationSize=1)
+    @SequenceGenerator(name="User_IdSeq", sequenceName="sys_user_user_id_seq", allocationSize=1)
     @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="User_IdSeq")
     @Column(name = "id")
     private Long id;
@@ -25,6 +26,7 @@ public class User extends AggregateRoot<Long> {
     @Column(name = "username", nullable = false, unique = true)
     private String username;
 
+    @JsonIgnore
     @Column(name = "password_hash", nullable = false)
     private String password;
 

@@ -10,6 +10,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
 /**
  * AuthService - 认证服务
  * 处理用户登录、注册等认证逻辑
@@ -45,13 +47,14 @@ public class AuthService {
             throw new IllegalStateException("User account is not active");
         }
 
-        String token = jwtTokenService.generateToken(user);
+        String accessToken = jwtTokenService.generateToken(user);
+        String refreshToken = jwtTokenService.generateRefreshToken(user);
 
-        return new LoginResponse(
-                token,
-                user.getId(),
-                user.getUsername(),
-                user.getRealName()
+        return LoginResponse.fromUser(
+                user,
+                accessToken,
+                refreshToken,
+                jwtTokenService.getExpirationSeconds()
         );
     }
 
@@ -92,5 +95,12 @@ public class AuthService {
      */
     public Long getUserIdFromToken(String token) {
         return jwtTokenService.getUserIdFromToken(token);
+    }
+
+    /**
+     * 刷新访问令牌
+     */
+    public Map<String, Object> refreshToken(String refreshToken) {
+        return jwtTokenService.refreshToken(refreshToken);
     }
 }

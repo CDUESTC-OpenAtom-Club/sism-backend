@@ -1,5 +1,7 @@
 package com.sism.workflow.domain;
 
+import com.sism.shared.domain.model.workflow.AuditFlowDef;
+import com.sism.shared.domain.model.workflow.AuditInstance;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -11,7 +13,7 @@ class AuditInstanceTest {
     @Test
     @DisplayName("Should create AuditInstance with valid parameters")
     void shouldCreateAuditInstanceWithValidParameters() {
-        AuditFlowDef flowDef = AuditFlowDef.create("FLOW_001", "测试流程", "INDICATOR");
+        AuditFlowDef flowDef = buildFlowDef();
 
         AuditInstance instance = AuditInstance.create("测试实例", 1L, "INDICATOR", flowDef);
 
@@ -26,7 +28,7 @@ class AuditInstanceTest {
     @Test
     @DisplayName("Should throw exception when creating AuditInstance with null title")
     void shouldThrowExceptionWhenCreatingAuditInstanceWithNullTitle() {
-        AuditFlowDef flowDef = AuditFlowDef.create("FLOW_001", "测试流程", "INDICATOR");
+        AuditFlowDef flowDef = buildFlowDef();
 
         assertThrows(IllegalArgumentException.class, () ->
             AuditInstance.create(null, 1L, "INDICATOR", flowDef)
@@ -36,7 +38,7 @@ class AuditInstanceTest {
     @Test
     @DisplayName("Should throw exception when creating AuditInstance with invalid entity id")
     void shouldThrowExceptionWhenCreatingAuditInstanceWithInvalidEntityId() {
-        AuditFlowDef flowDef = AuditFlowDef.create("FLOW_001", "测试流程", "INDICATOR");
+        AuditFlowDef flowDef = buildFlowDef();
 
         assertThrows(IllegalArgumentException.class, () ->
             AuditInstance.create("测试实例", -1L, "INDICATOR", flowDef)
@@ -46,9 +48,19 @@ class AuditInstanceTest {
     @Test
     @DisplayName("Should validate AuditInstance with valid parameters")
     void shouldValidateAuditInstanceWithValidParameters() {
-        AuditFlowDef flowDef = AuditFlowDef.create("FLOW_001", "测试流程", "INDICATOR");
+        AuditFlowDef flowDef = buildFlowDef();
         AuditInstance instance = AuditInstance.create("有效实例", 1L, "INDICATOR", flowDef);
 
         assertDoesNotThrow(instance::validate);
+    }
+
+    private AuditFlowDef buildFlowDef() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setId(1L);
+        flowDef.setFlowCode("FLOW_001");
+        flowDef.setFlowName("测试流程");
+        flowDef.setEntityType("INDICATOR");
+        flowDef.setIsActive(true);
+        return flowDef;
     }
 }

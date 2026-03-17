@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/plans")
+@RequestMapping("/api/v1/execution/legacy-plans")
 @RequiredArgsConstructor
 @Tag(name = "Plans", description = "Plan management endpoints")
 public class PlanController {

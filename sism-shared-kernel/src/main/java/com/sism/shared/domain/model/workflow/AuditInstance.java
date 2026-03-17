@@ -26,10 +26,13 @@ public class AuditInstance extends AggregateRoot<Long> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    public static final String STATUS_PENDING = "PENDING";
+    public static final String STATUS_DRAFT = "DRAFT";
+    public static final String STATUS_PENDING = "IN_REVIEW";
+    public static final String STATUS_IN_PROGRESS = "IN_REVIEW";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
-    public static final String STATUS_CANCELLED = "CANCELLED";
+    public static final String STATUS_WITHDRAWN = "WITHDRAWN";
+    public static final String STATUS_CANCELLED = "WITHDRAWN";
 
     @Column(name = "flow_def_id")
     private Long flowDefId;
@@ -71,6 +74,30 @@ public class AuditInstance extends AggregateRoot<Long> {
     @OrderBy("stepIndex ASC")
     private List<AuditStepInstance> stepInstances = new ArrayList<>();
 
+    public static AuditInstance create(String title, Long entityId, String entityType, AuditFlowDef flowDef) {
+        if (title == null || title.trim().isEmpty()) {
+            throw new IllegalArgumentException("Title is required");
+        }
+        if (entityId == null || entityId <= 0) {
+            throw new IllegalArgumentException("Entity ID must be positive");
+        }
+        if (entityType == null || entityType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Entity type is required");
+        }
+        if (flowDef == null) {
+            throw new IllegalArgumentException("Flow definition is required");
+        }
+
+        AuditInstance instance = new AuditInstance();
+        instance.setTitle(title);
+        instance.setEntityId(entityId);
+        instance.setEntityType(entityType);
+        instance.setFlowDefId(flowDef.getId());
+        instance.setStatus(STATUS_PENDING);
+        instance.setStartedAt(LocalDateTime.now());
+        return instance;
+    }
+
     @Override
     public boolean canPublish() {
         return STATUS_APPROVED.equals(status) || STATUS_REJECTED.equals(status);
@@ -88,7 +115,7 @@ public class AuditInstance extends AggregateRoot<Long> {
 
     public void approve(Long userId, String comment) {
         if (!STATUS_PENDING.equals(status)) {
-            throw new IllegalStateException("Cannot approve: workflow is not pending");
+            throw new IllegalStateException("Cannot approve: workflow is not in review");
         }
         this.status = STATUS_APPROVED;
         this.result = "Approved by user " + userId + (comment != null ? ": " + comment : "");
@@ -97,7 +124,7 @@ public class AuditInstance extends AggregateRoot<Long> {
 
     public void reject(Long userId, String comment) {
         if (!STATUS_PENDING.equals(status)) {
-            throw new IllegalStateException("Cannot reject: workflow is not pending");
+            throw new IllegalStateException("Cannot reject: workflow is not in review");
         }
         this.status = STATUS_REJECTED;
         this.result = "Rejected by user " + userId + (comment != null ? ": " + comment : "");
@@ -106,15 +133,16 @@ public class AuditInstance extends AggregateRoot<Long> {
 
     public void cancel() {
         if (!STATUS_PENDING.equals(status)) {
-            throw new IllegalStateException("Cannot cancel: workflow is not pending");
+            throw new IllegalStateException("Cannot cancel: workflow is not in review");
         }
-        this.status = STATUS_CANCELLED;
+        this.status = STATUS_WITHDRAWN;
         this.completedAt = LocalDateTime.now();
     }
 
     public void start(Long requesterId, Long requesterOrgId) {
         this.requesterId = requesterId;
         this.requesterOrgId = requesterOrgId;
+        this.status = STATUS_PENDING;
         this.startedAt = LocalDateTime.now();
     }
 

@@ -1,6 +1,6 @@
 package com.sism.shared.domain.model.workflow;
 
-import com.sism.shared.domain.model.base.AggregateRoot;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +12,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "audit_step_def")
+@Table(name = "audit_step_def", schema = "public")
 public class AuditStepDef {
 
     @Id
@@ -20,13 +20,14 @@ public class AuditStepDef {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "flow_def_id", nullable = false)
+    @JoinColumn(name = "flow_id", nullable = false)
+    @JsonIgnore
     private AuditFlowDef flowDef;
 
     @Column(name = "step_name", nullable = false)
     private String stepName;
 
-    @Column(name = "step_order", nullable = false)
+    @Column(name = "step_no", nullable = false)
     private Integer stepOrder;
 
     @Column(name = "step_type")
@@ -41,7 +42,7 @@ public class AuditStepDef {
     @Column(name = "timeout_hours")
     private Integer timeoutHours;
 
-    @Column(name = "is_required", nullable = false)
+    @Transient
     private Boolean isRequired = true;
 
     @Column(name = "can_skip")

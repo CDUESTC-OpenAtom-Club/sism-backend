@@ -1,5 +1,6 @@
 package com.sism.config;
 
+import com.sism.iam.application.UserDetailsServiceImpl;
 import com.sism.iam.application.JwtTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,6 +18,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -48,7 +50,8 @@ public class SecurityConfig {
      * 从请求头中提取JWT token并验证
      */
     @Bean
-    public OncePerRequestFilter jwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+    public OncePerRequestFilter jwtAuthenticationFilter(JwtTokenService jwtTokenService,
+                                                        UserDetailsServiceImpl userDetailsService) {
         return new OncePerRequestFilter() {
             @Override
             protected void doFilterInternal(HttpServletRequest request,
@@ -60,12 +63,14 @@ public class SecurityConfig {
                     try {
                         if (jwtTokenService.validateToken(token)) {
                             String username = jwtTokenService.extractUsername(token);
-                            Long userId = jwtTokenService.getUserIdFromToken(token);
+                            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                             UsernamePasswordAuthenticationToken auth =
                                     new UsernamePasswordAuthenticationToken(
-                                            username,
-                                            userId,
-                                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                                            userDetails,
+                                            token,
+                                            userDetails.getAuthorities().isEmpty()
+                                                    ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                                                    : userDetails.getAuthorities()
                                     );
                             SecurityContextHolder.getContext().setAuthentication(auth);
                         }
@@ -98,12 +103,16 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints - Authentication
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
-                                 "/api/v1/auth/validate", "/api/v1/auth/logout").permitAll()
+                                 "/api/v1/auth/validate", "/api/v1/auth/logout",
+                                 "/api/v1/auth/refresh").permitAll()
                 // Public endpoints - Swagger/OpenAPI
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
                                  "/api-docs/**", "/v3/api-docs/**").permitAll()
-                // Public endpoints - Health check
-                .requestMatchers("/actuator/**", "/health", "/error").permitAll()
+                // Public endpoints - Health check & Actuator
+                .requestMatchers("/actuator/**", "/api/v1/actuator/**",
+                                 "/health", "/error").permitAll()
+                // Public endpoints - WebSocket
+                .requestMatchers("/ws/**", "/api/v1/ws/**").permitAll()
                 // Allow OPTIONS for CORS preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // All other requests require authentication

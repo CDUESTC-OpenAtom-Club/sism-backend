@@ -4,10 +4,12 @@ package com.sism.workflow.domain;
  * Audit status enumeration
  */
 public enum AuditStatus {
+    DRAFT,
     PENDING,
-    IN_PROGRESS,
+    IN_REVIEW,
     APPROVED,
     REJECTED,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    WITHDRAWN
 }

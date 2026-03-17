@@ -4,19 +4,18 @@ import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Where;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
  * Alert - 预警实体
- * Represents an alert event in the system
+ * Maps to alert_event table in database
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "alert_event")
-@Where(clause = "is_deleted = false")
 @Access(AccessType.FIELD)
 public class Alert extends AggregateRoot<Long> {
 
@@ -25,19 +24,37 @@ public class Alert extends AggregateRoot<Long> {
     public static final String STATUS_RESOLVED = "RESOLVED";
 
     @Id
-    @SequenceGenerator(name = "alert_event_id_seq", sequenceName = "alert_event_id_seq", allocationSize = 1)
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "alert_event_id_seq")
-    @Column(name = "id")
+    @SequenceGenerator(name = "alert_event_event_id_seq", sequenceName = "alert_event_event_id_seq", allocationSize = 1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "alert_event_event_id_seq")
+    @Column(name = "event_id")
     private Long id;
 
-    @Column(name = "alert_type", nullable = false)
-    private String alertType;
+    @Column(name = "indicator_id")
+    private Long indicatorId;
 
-    @Column(name = "title", nullable = false)
-    private String title;
+    @Column(name = "rule_id")
+    private Long ruleId;
 
-    @Column(name = "description")
-    private String description;
+    @Column(name = "window_id")
+    private Long windowId;
+
+    @Column(name = "actual_percent", precision = 10, scale = 2)
+    private BigDecimal actualPercent;
+
+    @Column(name = "expected_percent", precision = 10, scale = 2)
+    private BigDecimal expectedPercent;
+
+    @Column(name = "gap_percent", precision = 10, scale = 2)
+    private BigDecimal gapPercent;
+
+    @Column(name = "detail_json", columnDefinition = "TEXT")
+    private String detailJson;
+
+    @Column(name = "handled_by")
+    private Long handledBy;
+
+    @Column(name = "handled_note")
+    private String handledNote;
 
     @Column(name = "severity", nullable = false)
     private String severity;
@@ -45,26 +62,11 @@ public class Alert extends AggregateRoot<Long> {
     @Column(name = "status", nullable = false)
     private String status = STATUS_PENDING;
 
-    @Column(name = "entity_type")
-    private String entityType;
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
 
-    @Column(name = "entity_id")
-    private Long entityId;
-
-    @Column(name = "triggered_at")
-    private LocalDateTime triggeredAt;
-
-    @Column(name = "resolved_at")
-    private LocalDateTime resolvedAt;
-
-    @Column(name = "resolved_by")
-    private Long resolvedBy;
-
-    @Column(name = "resolution")
-    private String resolution;
-
-    @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted = false;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @Override
     public boolean canPublish() {
@@ -73,11 +75,8 @@ public class Alert extends AggregateRoot<Long> {
 
     @Override
     public void validate() {
-        if (alertType == null || alertType.trim().isEmpty()) {
-            throw new IllegalArgumentException("Alert type is required");
-        }
-        if (title == null || title.trim().isEmpty()) {
-            throw new IllegalArgumentException("Title is required");
+        if (indicatorId == null) {
+            throw new IllegalArgumentException("Indicator ID is required");
         }
         if (severity == null || severity.trim().isEmpty()) {
             throw new IllegalArgumentException("Severity is required");
@@ -86,53 +85,48 @@ public class Alert extends AggregateRoot<Long> {
 
     public void trigger() {
         this.status = STATUS_TRIGGERED;
-        this.triggeredAt = LocalDateTime.now();
-        setUpdatedAt(LocalDateTime.now());
+        this.updatedAt = LocalDateTime.now();
     }
 
-    public void resolve(Long resolvedBy, String resolution) {
+    public void resolve(Long handledBy, String handledNote) {
         this.status = STATUS_RESOLVED;
-        this.resolvedBy = resolvedBy;
-        this.resolution = resolution;
-        this.resolvedAt = LocalDateTime.now();
-        setUpdatedAt(LocalDateTime.now());
+        this.handledBy = handledBy;
+        this.handledNote = handledNote;
+        this.updatedAt = LocalDateTime.now();
     }
 
     @Override
     public LocalDateTime getCreatedAt() {
-        return super.getCreatedAt();
+        return this.createdAt;
     }
 
     @Override
     public void setCreatedAt(LocalDateTime createdAt) {
-        super.setCreatedAt(createdAt);
+        this.createdAt = createdAt;
     }
 
     @Override
     public LocalDateTime getUpdatedAt() {
-        return super.getUpdatedAt();
+        return this.updatedAt;
     }
 
     @Override
     public void setUpdatedAt(LocalDateTime updatedAt) {
-        super.setUpdatedAt(updatedAt);
+        this.updatedAt = updatedAt;
     }
 
     @PrePersist
     protected void onCreate() {
-        if (getCreatedAt() == null) {
-            setCreatedAt(LocalDateTime.now());
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
         }
-        if (getUpdatedAt() == null) {
-            setUpdatedAt(LocalDateTime.now());
-        }
-        if (isDeleted == null) {
-            isDeleted = false;
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
         }
     }
 
     @PreUpdate
     protected void onUpdate() {
-        setUpdatedAt(LocalDateTime.now());
+        updatedAt = LocalDateTime.now();
     }
 }

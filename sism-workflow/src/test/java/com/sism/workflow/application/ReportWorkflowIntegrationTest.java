@@ -4,14 +4,22 @@ import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.infrastructure.ExecutionModuleConfig;
+import com.sism.shared.domain.model.workflow.AuditFlowDef;
+import com.sism.shared.infrastructure.event.EventStoreInMemory;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
+import com.sism.workflow.infrastructure.WorkflowModuleConfig;
 import com.sism.workflow.domain.repository.WorkflowRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +34,7 @@ import static org.assertj.core.api.Assertions.*;
  * 测试报告提交事件是否能够正确触发审批工作流的启动。
  * 这是验证 sism-execution 和 sism-workflow 两个模块是否正确集成的关键测试。
  */
-@SpringBootTest
+@SpringBootTest(classes = ReportWorkflowIntegrationTest.TestConfig.class)
 @ActiveProfiles("test")
 @Transactional
 @DisplayName("报告工作流集成测试")
@@ -55,12 +63,18 @@ class ReportWorkflowIntegrationTest {
     void setUp() {
         testOrgId = 1L;
         testReportMonth = "2026-03";
+
+        if (eventStore instanceof EventStoreInMemory inMemoryEventStore) {
+            inMemoryEventStore.clear();
+        }
+
+        ensureReportApprovalFlow();
         
         // 创建一个报告用于测试
         PlanReport report = PlanReport.createDraft(
                 testReportMonth,
                 testOrgId,
-                ReportOrgType.FUNCTIONAL_DEPT,
+                ReportOrgType.FUNC_DEPT,
                 1L  // planId
         );
         report.validate();
@@ -173,12 +187,18 @@ class ReportWorkflowIntegrationTest {
         // ============ 执行阶段：提交报告 ============
         report.submit(1L);
         planReportRepository.save(report);
+        domainEventPublisher.publishAll(report.getDomainEvents());
+        report.clearEvents();
 
         // ============ 验证阶段：验证事件的内容 ============
         var storedEvents = eventStore.findByEventType("PlanReportSubmittedEvent");
         assertThat(storedEvents).isNotEmpty();
 
-        com.sism.shared.domain.model.base.DomainEvent storedEvent = storedEvents.get(0);
+        com.sism.shared.domain.model.base.DomainEvent storedEvent = storedEvents.stream()
+                .filter(PlanReportSubmittedEvent.class::isInstance)
+                .filter(event -> ((PlanReportSubmittedEvent) event).getReportId().equals(testReportId))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected event for report " + testReportId));
         assertThat(storedEvent)
                 .as("应该是 PlanReportSubmittedEvent 类型")
                 .isInstanceOf(PlanReportSubmittedEvent.class);
@@ -216,9 +236,13 @@ class ReportWorkflowIntegrationTest {
         // ============ 执行阶段：提交两个报告 ============
         report1.submit(1L);
         planReportRepository.save(report1);
+        domainEventPublisher.publishAll(report1.getDomainEvents());
+        report1.clearEvents();
 
         report2.submit(1L);
         planReportRepository.save(report2);
+        domainEventPublisher.publishAll(report2.getDomainEvents());
+        report2.clearEvents();
 
         // ============ 验证阶段：每个报告都应该有独立的工作流 ============
         try {
@@ -277,5 +301,33 @@ class ReportWorkflowIntegrationTest {
         // 这里我们只是验证不会创建多个活跃工作流
 
         System.out.println("✅ 重复提交防护已验证");
+    }
+
+    @SpringBootConfiguration
+    @EnableAutoConfiguration
+    @Import({ExecutionModuleConfig.class, WorkflowModuleConfig.class})
+    @ComponentScan(basePackages = {
+            "com.sism.execution.application",
+            "com.sism.execution.infrastructure.persistence",
+            "com.sism.workflow.application",
+            "com.sism.workflow.infrastructure.persistence",
+            "com.sism.shared.infrastructure.event"
+    })
+    static class TestConfig {
+    }
+
+    private void ensureReportApprovalFlow() {
+        if (workflowRepository.findAuditFlowDefByCode("REPORT_APPROVAL").isPresent()) {
+            return;
+        }
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setFlowCode("REPORT_APPROVAL");
+        flowDef.setFlowName("报告审批");
+        flowDef.setEntityType("PlanReport");
+        flowDef.setDescription("测试用报告审批流");
+        flowDef.setIsActive(true);
+        flowDef.setVersion(1);
+        workflowRepository.saveAuditFlowDef(flowDef);
     }
 }

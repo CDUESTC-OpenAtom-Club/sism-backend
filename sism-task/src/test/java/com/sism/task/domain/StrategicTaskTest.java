@@ -1,7 +1,6 @@
 package com.sism.task.domain;
 
 import com.sism.organization.domain.SysOrg;
-import com.sism.enums.OrgType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,8 +15,8 @@ class StrategicTaskTest {
 
     @BeforeEach
     void setUp() {
-        org = SysOrg.create("测试学院", OrgType.ACADEMIC);
-        createdByOrg = SysOrg.create("战略发展部", OrgType.ADMIN);
+        org = SysOrg.create("测试学院", com.sism.organization.domain.OrgType.academic);
+        createdByOrg = SysOrg.create("战略发展部", com.sism.organization.domain.OrgType.admin);
     }
 
     @Test

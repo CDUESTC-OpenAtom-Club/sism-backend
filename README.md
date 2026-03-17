@@ -8,73 +8,34 @@
 - **语言**: Java 17
 - **构建工具**: Maven
 - **数据库**: PostgreSQL
+- **数据库迁移**: Flyway
 - **ORM**: Spring Data JPA (Hibernate)
-- **API 文档**: SpringDoc OpenAPI (Swagger)
+- **API 文档**: SpringDoc OpenAPI
 - **安全**: Spring Security + JWT
-- **测试**: JUnit 5, Mockito, jqwik (属性测试)
+- **DTO 映射**: MapStruct
+- **测试**: JUnit 5, Mockito, Testcontainers
 
 ## 项目结构
 
+本后端项目采用**领域驱动设计（DDD）**的分层架构，将业务逻辑按模块划分。
+
 ```
-src/main/java/com/sism/
-├── config/         # 配置类
-├── controller/     # REST API 控制器
-├── service/        # 业务逻辑层
-├── repository/     # 数据访问层 (JPA 仓库)
-├── entity/         # JPA 实体类
-├── dto/            # 数据传输对象 (请求)
-├── vo/             # 值对象 (响应)
-├── enums/          # 枚举类型
-├── exception/      # 异常处理
-├── common/         # 通用工具
-└── util/           # 工具类
-
-docs/               # 项目文档
-└── audit/          # 代码审计与重构文档
-    └── task-1.1-code-review.md  # Task 1.1 代码审查报告
-
-database/           # 数据库脚本
-├── migrations/     # 数据库迁移脚本（按版本）
-│   ├── V1.0__init.sql
-│   └── V1.1__add_refresh_tokens.sql
-├── seeds/          # 种子数据
-│   ├── seed-data.sql
-│   └── seed-indicators-2026.sql
-└── scripts/        # 维护脚本
-    ├── add-college-users.sql
-    ├── fix-weight-to-integer.sql
-    ├── optimize-performance.sql
-    ├── verify-schema.sql
-    ├── drop-all.sql
-    ├── validate-data.sql
-    ├── db-setup.js
-    └── fix-college-users.sh
-
-scripts/            # 数据同步与维护脚本
-├── sync/           # 数据同步
-│   ├── sync-all.js
-│   ├── sync-context.js
-│   ├── config.js
-│   ├── verify.js
-│   └── phases/
-│       ├── sync-org.js
-│       ├── sync-cycle.js
-│       ├── sync-indicator.js
-│       ├── sync-milestone.js
-│       └── sync-task.js
-├── maintenance/    # 数据维护
-│   └── verify-data-consistency.cjs
-├── deployment/     # 部署脚本
-│   ├── deploy-and-restart-nopasswd.sh
-│   ├── setup-sudoers.sh
-│   ├── health-check.sh
-│   ├── backup-database.sh
-│   ├── restore-database.sh
-│   ├── init-database.sh
-│   ├── quick-setup.sh
-│   └── deploy.sh
-└── archive/        # 归档的一次性脚本
-    └── 2026-02-one-time-fixes/
+sism-backend/
+├── sism-main/                # 主应用模块 (包含 Spring Boot 启动类)
+├── sism-shared-kernel/       # 跨领域共享的核心工具和定义
+├── sism-iam/                 # 身份与访问管理 (Identity & Access Management)
+├── sism-organization/        # 组织架构管理
+├── sism-strategy/            # 战略规划与指标管理
+├── sism-task/                # 具体任务管理
+├── sism-workflow/            # 业务工作流引擎
+├── sism-execution/           # 任务执行与报告
+├── sism-analytics/           # 数据分析与洞察
+├── sism-alert/               # 预警与通知
+├── database/                 # 数据库相关
+│   ├── migrations/           # Flyway 数据库迁移脚本
+│   └── scripts/              # 辅助数据库脚本
+├── docs/                     # 项目文档
+└── scripts/                  # 应用层维护和测试脚本
 ```
 
 ## 快速开始
@@ -1543,7 +1504,6 @@ mvn flyway:migrate
 5. 使用全局异常处理器处理异常
 6. 使用 OpenAPI 注解编写 API 文档
 7. 编写单元测试和属性测试
-8. 重构时遵循 `.kiro/specs/backend-architecture-refactoring/` 中的规范
 
 ## 许可证
 

@@ -32,18 +32,8 @@ public class JpaCycleRepository implements CycleRepository {
     }
 
     @Override
-    public List<Cycle> findByStatus(String status) {
-        return jpaRepository.findByStatus(status);
-    }
-
-    @Override
     public List<Cycle> findByYear(Integer year) {
         return jpaRepository.findByYear(year);
-    }
-
-    @Override
-    public List<Cycle> findByStatusAndYear(String status, Integer year) {
-        return jpaRepository.findByStatusAndYear(status, year);
     }
 
     @Override

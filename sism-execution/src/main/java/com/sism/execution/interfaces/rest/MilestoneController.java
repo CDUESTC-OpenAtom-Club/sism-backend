@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -22,7 +23,7 @@ import java.util.stream.Collectors;
  * 提供里程碑管理相关的REST API端点
  */
 @RestController("executionMilestoneController")
-@RequestMapping("/api/v1/milestones")
+@RequestMapping("/api/v1/execution/milestones")
 @RequiredArgsConstructor
 @Tag(name = "Milestones", description = "Milestone management endpoints")
 public class MilestoneController {
@@ -163,5 +164,35 @@ public class MilestoneController {
             @Parameter(description = "里程碑ID") @PathVariable Long id) {
         boolean exists = milestoneApplicationService.existsById(id);
         return ResponseEntity.ok(ApiResponse.success(exists));
+    }
+
+    // ==================== Milestone Advanced Validation Operations ====================
+
+    @GetMapping("/{id}/pairing-status")
+    @Operation(summary = "查询里程碑配对状态", description = "查询指定里程碑的配对状态")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getMilestonePairingStatus(
+            @Parameter(description = "里程碑ID") @PathVariable Long id) {
+        return milestoneApplicationService.getMilestonePairingStatus(id)
+                .map(status -> ResponseEntity.ok(ApiResponse.success(status)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/indicator/{indicatorId}/pairing-status")
+    @Operation(summary = "查询指标里程碑配对状态", description = "查询指定指标的所有里程碑配对状态")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getIndicatorMilestonePairingStatus(
+            @Parameter(description = "指标ID") @PathVariable Long indicatorId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                milestoneApplicationService.getIndicatorMilestonePairingStatus(indicatorId)
+        ));
+    }
+
+    @GetMapping("/indicator/{indicatorId}/can-report/{milestoneId}")
+    @Operation(summary = "检查指标里程碑是否可填报", description = "检查指标和里程碑是否可以进行进度填报")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> checkIndicatorMilestoneCanReport(
+            @Parameter(description = "指标ID") @PathVariable Long indicatorId,
+            @Parameter(description = "里程碑ID") @PathVariable Long milestoneId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                milestoneApplicationService.checkIndicatorMilestoneCanReport(indicatorId, milestoneId)
+        ));
     }
 }

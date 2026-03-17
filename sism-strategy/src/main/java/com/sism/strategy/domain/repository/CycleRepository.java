@@ -18,11 +18,7 @@ public interface CycleRepository {
 
     Page<Cycle> findAll(Pageable pageable);
 
-    List<Cycle> findByStatus(String status);
-
     List<Cycle> findByYear(Integer year);
-
-    List<Cycle> findByStatusAndYear(String status, Integer year);
 
     Cycle save(Cycle cycle);
 

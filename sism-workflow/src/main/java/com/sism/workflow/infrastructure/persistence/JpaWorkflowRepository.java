@@ -84,7 +84,7 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.id = :instanceId")
     Optional<AuditInstance> findAuditInstanceById(@Param("instanceId") Long instanceId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.status = 'PENDING' AND a.requesterId = :userId")
+    @Query("SELECT a FROM AuditInstance a WHERE a.status = 'IN_REVIEW' AND a.requesterId = :userId")
     List<AuditInstance> findPendingAuditInstancesByUserId(@Param("userId") Long userId);
 
     @Query("SELECT a FROM AuditInstance a WHERE a.status = 'APPROVED' AND a.requesterId = :userId")
@@ -104,7 +104,7 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT COUNT(a) FROM AuditInstance a")
     long countAuditInstances();
 
-    @Query("SELECT COUNT(a) FROM AuditInstance a WHERE a.status = 'PENDING'")
+    @Query("SELECT COUNT(a) FROM AuditInstance a WHERE a.status = 'IN_REVIEW'")
     long countPendingAuditInstances();
 
     @Query("SELECT COUNT(a) FROM AuditInstance a WHERE a.status = 'APPROVED'")
@@ -118,7 +118,7 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT COUNT(a) > 0 FROM AuditInstance a WHERE " +
             "a.entityId = :businessEntityId AND " +
             "a.entityType = :entityType AND " +
-            "a.status = 'PENDING'")
+            "a.status = 'IN_REVIEW'")
     boolean hasActiveInstance(@Param("businessEntityId") Long businessEntityId,
                               @Param("entityType") String entityType);
 

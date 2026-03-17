@@ -29,11 +29,10 @@ public class EnvConfigPostProcessor implements EnvironmentPostProcessor {
     @Override
     public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
         try {
-            // Get project directory (parent of sism-main module)
-            File projectDir = new File(System.getProperty("user.dir")).getParentFile();
-            if (projectDir == null || !projectDir.exists()) {
-                projectDir = new File(System.getProperty("user.dir"));
-            }
+            // Resolve directory containing .env file.
+            // user.dir may be sism-backend/ (root run) or sism-backend/sism-main/ (module run).
+            // We search current dir first, then parent, to cover both cases.
+            File projectDir = resolveEnvDirectory();
 
             // Load .env file
             Dotenv dotenv = Dotenv.configure()
@@ -44,9 +43,15 @@ public class EnvConfigPostProcessor implements EnvironmentPostProcessor {
             // Convert to Map for Spring PropertySource
             Map<String, Object> envMap = new HashMap<>();
             dotenv.entries().forEach(entry -> {
-                // Map .env variable names to Spring Boot property names
-                String key = mapEnvVariableToProperty(entry.getKey());
-                envMap.put(key, entry.getValue());
+                String originalKey = entry.getKey();
+                String mappedKey = mapEnvVariableToProperty(originalKey);
+                // Always put the mapped Spring property name
+                envMap.put(mappedKey, entry.getValue());
+                // Also preserve the original .env key so that ${DB_URL:default}
+                // placeholders in application.yml resolve correctly
+                if (!originalKey.equals(mappedKey)) {
+                    envMap.put(originalKey, entry.getValue());
+                }
             });
 
             // Add as property source with low priority (can be overridden by system properties)
@@ -60,6 +65,34 @@ public class EnvConfigPostProcessor implements EnvironmentPostProcessor {
             System.err.println("Failed to load .env file: " + e.getMessage());
             // Continue without .env - application will use defaults or system properties
         }
+    }
+
+    /**
+     * Resolve the directory containing the .env file.
+     * Handles multiple launch scenarios:
+     * - Running from sism-backend/ (root): user.dir = sism-backend/, .env is here
+     * - Running from sism-backend/sism-main/ (submodule): user.dir = sism-main/, .env is in parent
+     * - Running packaged JAR from any directory: search upward
+     */
+    private File resolveEnvDirectory() {
+        File cwd = new File(System.getProperty("user.dir"));
+
+        // 1. Check current directory first
+        if (new File(cwd, ".env").exists()) {
+            System.out.println("[EnvConfig] Found .env in current dir: " + cwd.getAbsolutePath());
+            return cwd;
+        }
+
+        // 2. Check parent directory (handles running from submodule like sism-main/)
+        File parent = cwd.getParentFile();
+        if (parent != null && new File(parent, ".env").exists()) {
+            System.out.println("[EnvConfig] Found .env in parent dir: " + parent.getAbsolutePath());
+            return parent;
+        }
+
+        // 3. Fallback to current directory (ignoreIfMissing will handle absence)
+        System.out.println("[EnvConfig] .env not found in " + cwd.getAbsolutePath() + " or parent, using cwd as fallback");
+        return cwd;
     }
 
     /**

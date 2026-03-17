@@ -43,12 +43,14 @@ public class AlertController {
             Authentication authentication
     ) {
         Alert alert = alertApplicationService.createAlert(
-                request.getAlertType(),
-                request.getTitle(),
-                request.getDescription(),
+                request.getIndicatorId(),
+                request.getRuleId(),
+                request.getWindowId(),
                 request.getSeverity(),
-                request.getEntityType(),
-                request.getEntityId()
+                request.getActualPercent(),
+                request.getExpectedPercent(),
+                request.getGapPercent(),
+                request.getDetailJson()
         );
         return ResponseEntity.ok(ApiResponse.success(alert));
     }
@@ -60,13 +62,9 @@ public class AlertController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        // 验证alert是否存在
         Alert alert = alertRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Alert not found: " + id));
-
-        // 检查权限：管理员或预警关联实体的相关用户可以触发
         checkAlertAccessPermission(alert, authentication);
-
         Alert triggeredAlert = alertApplicationService.triggerAlert(id);
         return ResponseEntity.ok(ApiResponse.success(triggeredAlert));
     }
@@ -77,7 +75,6 @@ public class AlertController {
     @Operation(summary = "Get all alerts", description = "Query all alerts")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getAllAlerts(Authentication authentication) {
-        // 非管理员只能查询与自己相关的预警
         List<Alert> alerts = alertApplicationService.getAllAlerts();
         List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
@@ -92,7 +89,6 @@ public class AlertController {
     ) {
         return alertApplicationService.getAlertById(id)
                 .map(alert -> {
-                    // 检查权限：只能查看自己有权限的预警
                     checkAlertAccessPermission(alert, authentication);
                     return ResponseEntity.ok(ApiResponse.success(alert));
                 })
@@ -111,18 +107,6 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
-    @GetMapping("/type/{alertType}")
-    @Operation(summary = "Get alerts by type", description = "Query alerts by type")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<Alert>>> getAlertsByType(
-            @PathVariable String alertType,
-            Authentication authentication
-    ) {
-        List<Alert> alerts = alertApplicationService.getAlertsByType(alertType);
-        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
-        return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
-    }
-
     @GetMapping("/severity/{severity}")
     @Operation(summary = "Get alerts by severity", description = "Query alerts by severity")
     @PreAuthorize("isAuthenticated()")
@@ -135,20 +119,16 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
-    @GetMapping("/entity")
-    @Operation(summary = "Get alerts by entity", description = "Query alerts by entity type and ID")
+    @GetMapping("/indicator/{indicatorId}")
+    @Operation(summary = "Get alerts by indicator", description = "Query alerts by indicator ID")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<Alert>>> getAlertsByEntity(
-            @RequestParam String entityType,
-            @RequestParam Long entityId,
+    public ResponseEntity<ApiResponse<List<Alert>>> getAlertsByIndicator(
+            @PathVariable Long indicatorId,
             Authentication authentication
     ) {
-        List<Alert> alerts = alertApplicationService.getAlertsByEntity(entityType, entityId);
-        // 检查权限：只能查询与自己相关的实体的预警
-        if (!hasEntityAccessPermission(entityType, entityId, authentication)) {
-            throw new AuthorizationException("没有权限访问该实体的预警");
-        }
-        return ResponseEntity.ok(ApiResponse.success(alerts));
+        List<Alert> alerts = alertApplicationService.getAlertsByIndicatorId(indicatorId);
+        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
     @GetMapping("/unresolved")
@@ -170,20 +150,13 @@ public class AlertController {
             @Valid @RequestBody ResolveAlertRequest request,
             Authentication authentication
     ) {
-        // 验证alert是否存在
         Alert alert = alertRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Alert not found: " + id));
-
-        // // 检查权限：只有预警关联实体的相关用户或管理员可以解决
         checkAlertAccessPermission(alert, authentication);
 
-        // 使用当前用户ID作为解决人
-        Long resolvedBy = extractUserId(authentication);
-
+        Long handledBy = extractUserId(authentication);
         Alert resolvedAlert = alertApplicationService.resolveAlert(
-                id,
-                resolvedBy,
-                request.getResolution()
+                id, handledBy, request.getResolution()
         );
         return ResponseEntity.ok(ApiResponse.success(resolvedAlert));
     }
@@ -206,77 +179,42 @@ public class AlertController {
         )));
     }
 
+    @GetMapping("/stats")
+    @Operation(summary = "Get alert stats", description = "Get alert statistics with severity breakdown")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAlertStats(Authentication authentication) {
+        Map<String, Object> stats = alertApplicationService.getAlertStats();
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
     // ==================== 权限检查辅助方法 ====================
 
-    /**
-     * 检查当前用户是否有权限访问指定预警
-     */
     private void checkAlertAccessPermission(Alert alert, Authentication authentication) {
-        // 管理员拥有所有权限
         if (isAdmin(authentication)) {
             return;
         }
-
-        // 检查预警关联实体的访问权限
-        if (alert.getEntityType() != null && alert.getEntityId() != null) {
-            if (!hasEntityAccessPermission(alert.getEntityType(), alert.getEntityId(), authentication)) {
-                throw new AuthorizationException("没有权限访问该预警");
-            }
-        }
+        // All authenticated users can access alerts for now
+        // Future: check indicator ownership via indicatorId
     }
 
-    /**
-     * 过滤用户有权限访问的预警列表
-     */
     private List<Alert> filterAlertsByPermission(List<Alert> alerts, Authentication authentication) {
-        // 管理员可以查看所有预警
         if (isAdmin(authentication)) {
             return alerts;
         }
-
-        // 非管理员只能查看与自己相关的预警
-        return alerts.stream()
-                .filter(alert -> alert.getEntityType() == null || alert.getEntityId() == null ||
-                        hasEntityAccessPermission(alert.getEntityType(), alert.getEntityId(), authentication))
-                .toList();
+        // All authenticated users can view alerts for now
+        // Future: filter by indicator ownership
+        return alerts;
     }
 
-    /**
-     * 检查用户是否有权限访问指定实体
-     * TODO: 需要根据实际的业务逻辑实现
-     */
-    private boolean hasEntityAccessPermission(String entityType, Long entityId, Authentication authentication) {
-        // 管理员可以访问所有实体
-        if (isAdmin(authentication)) {
-            return true;
-        }
-
-        // TODO: 根据entityType和entityId查询相关实体，
-        // 检查当前用户是否有权限访问该实体
-        // 例如：如果entityType是"TASK"，需要查询Task并检查负责人或参与人
-
-        // 暂时返回true，待实现具体权限逻辑
-        return true;
-    }
-
-    /**
-     * 检查当前用户是否是管理员
-     */
     private boolean isAdmin(Authentication authentication) {
         return authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
     }
 
-    /**
-     * 从Authentication中提取用户ID
-     */
     private Long extractUserId(Authentication authentication) {
-        // 尝试从CurrentUser获取用户ID
         if (authentication.getPrincipal() instanceof CurrentUser currentUser) {
             return currentUser.getId();
         }
-
-        // 如果不是CurrentUser，尝试从name属性中解析
         String username = authentication.getName();
         try {
             return Long.parseLong(username);

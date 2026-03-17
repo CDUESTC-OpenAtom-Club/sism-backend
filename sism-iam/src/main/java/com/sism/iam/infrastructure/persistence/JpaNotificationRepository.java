@@ -60,4 +60,9 @@ public class JpaNotificationRepository implements NotificationRepository {
     public void delete(Notification notification) {
         jpaRepository.delete(notification);
     }
+
+    @Override
+    public Page<Notification> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable);
+    }
 }

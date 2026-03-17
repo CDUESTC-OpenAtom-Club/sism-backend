@@ -2,8 +2,10 @@ package com.sism.alert.interfaces.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 /**
  * AlertRequest - 创建预警请求DTO
@@ -12,29 +14,29 @@ import lombok.Data;
 @Schema(description = "创建预警请求")
 public class AlertRequest {
 
-    @Schema(description = "预警类型（如TASK_OVERDUE, INDICATOR_THRESHOLD等）", requiredMode = Schema.RequiredMode.REQUIRED, example = "TASK_OVERDUE")
-    @NotBlank(message = "预警类型不能为空")
-    @Size(max = 100, message = "预警类型长度不能超过100个字符")
-    private String alertType;
+    @Schema(description = "关联指标ID", requiredMode = Schema.RequiredMode.REQUIRED, example = "1")
+    @NotNull(message = "指标ID不能为空")
+    private Long indicatorId;
 
-    @Schema(description = "预警标题", requiredMode = Schema.RequiredMode.REQUIRED, example = "任务即将超期预警")
-    @NotBlank(message = "预警标题不能为空")
-    @Size(max = 200, message = "预警标题长度不能超过200个字符")
-    private String title;
+    @Schema(description = "预警规则ID", example = "1")
+    private Long ruleId;
 
-    @Schema(description = "预警描述", example = "任务XXX将在3天后到期，请及时处理")
-    @Size(max = 1000, message = "预警描述长度不能超过1000个字符")
-    private String description;
+    @Schema(description = "预警窗口ID", example = "1")
+    private Long windowId;
 
-    @Schema(description = "严重程度（LOW, MEDIUM, HIGH, CRITICAL）", requiredMode = Schema.RequiredMode.REQUIRED, example = "MEDIUM")
+    @Schema(description = "严重程度（CRITICAL, MAJOR, MINOR）", requiredMode = Schema.RequiredMode.REQUIRED, example = "MAJOR")
     @NotBlank(message = "严重程度不能为空")
-    @Size(max = 20, message = "严重程度长度不能超过20个字符")
     private String severity;
 
-    @Schema(description = "关联实体类型（如TASK, INDICATOR等）", example = "TASK")
-    @Size(max = 50, message = "实体类型长度不能超过50个字符")
-    private String entityType;
+    @Schema(description = "实际完成百分比", example = "45.50")
+    private BigDecimal actualPercent;
 
-    @Schema(description = "关联实体ID", example = "1")
-    private Long entityId;
+    @Schema(description = "预期完成百分比", example = "80.00")
+    private BigDecimal expectedPercent;
+
+    @Schema(description = "差距百分比", example = "-34.50")
+    private BigDecimal gapPercent;
+
+    @Schema(description = "详情JSON", example = "{}")
+    private String detailJson;
 }

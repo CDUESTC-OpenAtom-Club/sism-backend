@@ -2,6 +2,7 @@ package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
+import com.sism.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.application.StrategyApplicationService;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/v1/indicators")
@@ -100,6 +102,50 @@ public class IndicatorController {
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(created)));
     }
 
+    @PutMapping("/{id}")
+    @Operation(summary = "Update indicator")
+    public ResponseEntity<ApiResponse<IndicatorResponse>> updateIndicator(
+            @PathVariable Long id,
+            @RequestBody UpdateIndicatorRequest request) {
+        SysOrg ownerOrg = request.getOwnerOrgId() != null
+                ? organizationRepository.findById(request.getOwnerOrgId())
+                    .orElseThrow(() -> new IllegalArgumentException("Owner organization not found: " + request.getOwnerOrgId()))
+                : null;
+        SysOrg targetOrg = request.getTargetOrgId() != null
+                ? organizationRepository.findById(request.getTargetOrgId())
+                    .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + request.getTargetOrgId()))
+                : null;
+        IndicatorStatus distributionStatus = request.getDistributionStatus() != null
+                ? IndicatorStatus.valueOf(request.getDistributionStatus())
+                : null;
+
+        String indicatorDesc = request.getIndicatorDesc();
+        if ((indicatorDesc == null || indicatorDesc.isBlank()) && request.getIndicatorName() != null) {
+            indicatorDesc = request.getIndicatorName();
+        }
+
+        Indicator updated = strategyApplicationService.updateIndicator(
+                id,
+                indicatorDesc,
+                request.getWeightPercent(),
+                request.getProgress(),
+                request.getSortOrder(),
+                request.getRemark(),
+                request.getTaskId(),
+                ownerOrg,
+                targetOrg,
+                distributionStatus
+        );
+        return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(updated)));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete indicator")
+    public ResponseEntity<ApiResponse<Void>> deleteIndicator(@PathVariable Long id) {
+        strategyApplicationService.deleteIndicator(id);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
     @PostMapping("/{id}/submit")
     @Operation(summary = "Submit indicator for review")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReview(@PathVariable Long id) {
@@ -111,6 +157,12 @@ public class IndicatorController {
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(submitted)));
     }
 
+    @PostMapping("/{id}/submit-review")
+    @Operation(summary = "Submit indicator for review (legacy alias)")
+    public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReviewAlias(@PathVariable Long id) {
+        return submitForReview(id);
+    }
+
     @PostMapping("/{id}/approve")
     @Operation(summary = "Approve indicator")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicator(@PathVariable Long id) {
@@ -120,6 +172,12 @@ public class IndicatorController {
         }
         Indicator approved = strategyApplicationService.approveIndicator(indicator);
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(approved)));
+    }
+
+    @PostMapping("/{id}/approve-review")
+    @Operation(summary = "Approve indicator (legacy alias)")
+    public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicatorAlias(@PathVariable Long id) {
+        return approveIndicator(id);
     }
 
     @PostMapping("/{id}/reject")
@@ -136,10 +194,46 @@ public class IndicatorController {
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(rejected)));
     }
 
+    @PostMapping("/{id}/reject-review")
+    @Operation(summary = "Reject indicator (legacy alias)")
+    public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicatorAlias(
+            @PathVariable Long id,
+            @RequestBody(required = false) RejectRequest request) {
+        return rejectIndicator(id, request != null ? request : new RejectRequest());
+    }
+
     @PostMapping("/{id}/distribute")
     @Operation(summary = "Distribute indicator to target organization")
-    public ResponseEntity<ApiResponse<IndicatorResponse>> distributeIndicator(@PathVariable Long id) {
-        Indicator distributed = strategyApplicationService.distributeIndicator(id);
+    public ResponseEntity<ApiResponse<IndicatorResponse>> distributeIndicator(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long targetOrgId,
+            @RequestParam(required = false) String customDesc,
+            @RequestBody(required = false) DistributeIndicatorRequest request) {
+        Long resolvedTargetOrgId = targetOrgId;
+        String resolvedCustomDesc = customDesc;
+
+        if (request != null) {
+            if (resolvedTargetOrgId == null) {
+                resolvedTargetOrgId = request.getTargetOrgId();
+            }
+            if (resolvedTargetOrgId == null && request.getTargetOrgIds() != null && !request.getTargetOrgIds().isEmpty()) {
+                resolvedTargetOrgId = request.getTargetOrgIds().get(0);
+            }
+            if (resolvedCustomDesc == null || resolvedCustomDesc.isBlank()) {
+                resolvedCustomDesc = request.getCustomDesc();
+            }
+            if ((resolvedCustomDesc == null || resolvedCustomDesc.isBlank()) && request.getMessage() != null) {
+                resolvedCustomDesc = request.getMessage();
+            }
+        }
+
+        final Long finalTargetOrgId = resolvedTargetOrgId;
+        SysOrg targetOrg = finalTargetOrgId != null
+                ? organizationRepository.findById(finalTargetOrgId)
+                    .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + finalTargetOrgId))
+                : null;
+
+        Indicator distributed = strategyApplicationService.distributeIndicator(id, targetOrg, resolvedCustomDesc);
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(distributed)));
     }
 
@@ -147,8 +241,11 @@ public class IndicatorController {
     @Operation(summary = "Withdraw distributed indicator")
     public ResponseEntity<ApiResponse<IndicatorResponse>> withdrawIndicator(
             @PathVariable Long id,
-            @RequestBody WithdrawRequest request) {
-        Indicator withdrawn = strategyApplicationService.withdrawIndicator(id, request.getReason());
+            @RequestBody(required = false) WithdrawRequest request) {
+        Indicator withdrawn = strategyApplicationService.withdrawIndicator(
+                id,
+                request != null ? request.getReason() : null
+        );
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(withdrawn)));
     }
 
@@ -173,6 +270,33 @@ public class IndicatorController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
+    @GetMapping("/task/{taskId}/root")
+    @Operation(summary = "Get root indicators by task ID")
+    public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getRootIndicatorsByTaskId(@PathVariable Long taskId) {
+        List<IndicatorResponse> responses = strategyApplicationService.getRootIndicatorsByTaskId(taskId).stream()
+                .map(this::toIndicatorResponse)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/owner/{orgId}")
+    @Operation(summary = "Get indicators by owner organization")
+    public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByOwnerOrg(@PathVariable Long orgId) {
+        List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByOwnerOrgId(orgId).stream()
+                .map(this::toIndicatorResponse)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @GetMapping("/target/{orgId}")
+    @Operation(summary = "Get indicators by target organization")
+    public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByTargetOrg(@PathVariable Long orgId) {
+        List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByTargetOrgId(orgId).stream()
+                .map(this::toIndicatorResponse)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
     @GetMapping("/{id}/distribution-status")
     @Operation(summary = "Get indicator distribution status")
     public ResponseEntity<ApiResponse<String>> getDistributionStatus(@PathVariable Long id) {
@@ -181,6 +305,39 @@ public class IndicatorController {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         return ResponseEntity.ok(ApiResponse.success(indicator.getDistributionStatus().toString()));
+    }
+
+    @GetMapping("/{id}/distribution-eligibility")
+    @Operation(summary = "Check indicator distribution eligibility")
+    public ResponseEntity<ApiResponse<DistributionEligibilityResponse>> getDistributionEligibility(@PathVariable Long id) {
+        Indicator indicator = strategyApplicationService.getIndicatorById(id);
+        if (indicator == null) {
+            return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
+        }
+
+        boolean eligible = Objects.equals(indicator.getStatus(), IndicatorStatus.DRAFT);
+        String reason = eligible ? null : "Only draft indicators can be distributed";
+        List<DistributionTargetOrgResponse> availableTargetOrgs = organizationRepository.findAll().stream()
+                .filter(org -> Boolean.TRUE.equals(org.getIsActive()))
+                .filter(org -> indicator.getOwnerOrg() == null || !Objects.equals(org.getId(), indicator.getOwnerOrg().getId()))
+                .map(org -> new DistributionTargetOrgResponse(org.getId(), org.getName()))
+                .toList();
+
+        DistributionEligibilityResponse response = new DistributionEligibilityResponse(
+                eligible,
+                reason,
+                availableTargetOrgs
+        );
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{id}/distributed")
+    @Operation(summary = "Get distributed child indicators")
+    public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getDistributedIndicators(@PathVariable Long id) {
+        List<IndicatorResponse> responses = strategyApplicationService.getDistributedIndicators(id).stream()
+                .map(this::toIndicatorResponse)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @PostMapping("/{id}/breakdown")
@@ -213,7 +370,9 @@ public class IndicatorController {
         response.setId(indicator.getId());
         response.setIndicatorDesc(indicator.getIndicatorDesc());
         response.setIndicatorName(indicator.getIndicatorDesc()); // Using desc as name for now
+        response.setParentIndicatorId(indicator.getParentIndicatorId());
         response.setWeightPercent(indicator.getWeightPercent());
+        response.setSortOrder(indicator.getSortOrder());
         response.setStatus(indicator.getStatus() != null ? indicator.getStatus().toString() : null);
         response.setLevel(indicator.getLevel() != null ? indicator.getLevel().toString() : null);
         response.setProgress(indicator.getProgress());
@@ -235,6 +394,7 @@ public class IndicatorController {
     @AllArgsConstructor
     public static class IndicatorResponse {
         private Long id;
+        private Long parentIndicatorId;
         private String indicatorName;
         private String indicatorCode;
         private String indicatorDesc;
@@ -247,6 +407,7 @@ public class IndicatorController {
         private String status;
         private String dimension;
         private BigDecimal weightPercent;
+        private Integer sortOrder;
         private String level;
         private Integer progress;
         private java.time.LocalDateTime createdAt;
@@ -284,6 +445,30 @@ public class IndicatorController {
     }
 
     @Data
+    public static class UpdateIndicatorRequest {
+        private String indicatorName;
+        private String indicatorDesc;
+        private Long taskId;
+        private Long ownerOrgId;
+        private Long targetOrgId;
+        private BigDecimal weightPercent;
+        private Integer progress;
+        private Integer sortOrder;
+        private String remark;
+        private String distributionStatus;
+    }
+
+    @Data
+    public static class DistributeIndicatorRequest {
+        private Long targetOrgId;
+        private List<Long> targetOrgIds;
+        private String customDesc;
+        private String message;
+        private String deadline;
+        private Long actorUserId;
+    }
+
+    @Data
     public static class WithdrawRequest {
         private String reason;
     }
@@ -291,5 +476,22 @@ public class IndicatorController {
     @Data
     public static class TerminateRequest {
         private String reason;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DistributionEligibilityResponse {
+        private boolean eligible;
+        private String reason;
+        private List<DistributionTargetOrgResponse> availableTargetOrgs;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DistributionTargetOrgResponse {
+        private Long orgId;
+        private String orgName;
     }
 }

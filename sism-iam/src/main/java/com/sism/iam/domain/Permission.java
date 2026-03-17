@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "sys_permission")
+@Table(name = "sys_permission", schema = "public")
 public class Permission {
 
     @Id
