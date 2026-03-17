@@ -63,9 +63,6 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
            "(:reportOrgType IS NULL OR pr.reportOrgType = :reportOrgType) AND " +
            "(:planId IS NULL OR pr.planId = :planId) AND " +
            "(:status IS NULL OR pr.status = :status) AND " +
-           "(:title IS NULL OR pr.title LIKE %:title%) AND " +
-           "(:minProgress IS NULL OR pr.progress >= :minProgress) AND " +
-           "(:maxProgress IS NULL OR pr.progress <= :maxProgress) AND " +
            "pr.isDeleted = false")
     Page<PlanReport> findByConditions(
             @Param("reportMonth") String reportMonth,
@@ -73,9 +70,6 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
             @Param("reportOrgType") ReportOrgType reportOrgType,
             @Param("planId") Long planId,
             @Param("status") String status,
-            @Param("title") String title,
-            @Param("minProgress") Integer minProgress,
-            @Param("maxProgress") Integer maxProgress,
             Pageable pageable);
 
     @Override

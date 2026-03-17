@@ -55,7 +55,6 @@ public class TaskController {
             @Parameter(description = "组织ID") @RequestParam(required = false) Long orgId,
             @Parameter(description = "创建组织ID") @RequestParam(required = false) Long createdByOrgId,
             @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
-            @Parameter(description = "任务状态") @RequestParam(required = false) String status,
             @Parameter(description = "任务名称模糊搜索") @RequestParam(required = false) String taskName,
             @Parameter(description = "页码") @RequestParam(required = false, defaultValue = "0") Integer page,
             @Parameter(description = "每页大小") @RequestParam(required = false, defaultValue = "10") Integer size) {
@@ -65,7 +64,6 @@ public class TaskController {
         queryRequest.setOrgId(orgId);
         queryRequest.setCreatedByOrgId(createdByOrgId);
         queryRequest.setTaskType(taskType != null ? TaskType.valueOf(taskType) : null);
-        queryRequest.setStatus(status);
         queryRequest.setTaskName(taskName);
         queryRequest.setPage(page);
         queryRequest.setSize(size);
@@ -177,14 +175,6 @@ public class TaskController {
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasksByType(
             @PathVariable @Parameter(description = "任务类型") TaskType taskType) {
         List<TaskResponse> tasks = taskApplicationService.getTasksByType(taskType);
-        return ResponseEntity.ok(ApiResponse.success(tasks));
-    }
-
-    @GetMapping("/by-status/{status}")
-    @Operation(summary = "Get tasks by status")
-    public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasksByStatus(
-            @PathVariable @Parameter(description = "任务状态") String status) {
-        List<TaskResponse> tasks = taskApplicationService.getTasksByStatus(status);
         return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 }

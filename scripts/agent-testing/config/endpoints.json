@@ -1,0 +1,67 @@
+{
+  "endpoints": {
+    "iam": {
+      "login": "/auth/login",
+      "refreshToken": "/auth/refresh",
+      "logout": "/auth/logout",
+      "getUserProfile": "/users/profile",
+      "getUsers": "/users"
+    },
+    "indicators": {
+      "create": "/indicators",
+      "getById": "/indicators/{id}",
+      "list": "/indicators",
+      "update": "/indicators/{id}",
+      "delete": "/indicators/{id}",
+      "distribute": "/indicators/{id}/distribute",
+      "getChildren": "/indicators/{id}/children",
+      "getParent": "/indicators/{id}/parent"
+    },
+    "reports": {
+      "create": "/reports",
+      "getById": "/reports/{id}",
+      "list": "/reports",
+      "update": "/reports/{id}",
+      "delete": "/reports/{id}",
+      "submit": "/reports/{id}/submit",
+      "withdraw": "/reports/{id}/withdraw",
+      "getByIndicator": "/indicators/{indicatorId}/reports",
+      "getByPeriod": "/reports?period={period}"
+    },
+    "workflow": {
+      "getDefinitions": "/workflow/definitions",
+      "getDefinitionById": "/workflow/definitions/{id}",
+      "getInstances": "/workflow/instances",
+      "getInstanceById": "/workflow/instances/{id}",
+      "getTimeline": "/workflow/instances/{id}/timeline",
+      "getHistory": "/workflow/instances/{id}/history",
+      "approve": "/workflow/instances/{id}/approve",
+      "reject": "/workflow/instances/{id}/reject",
+      "withdraw": "/workflow/instances/{id}/withdraw"
+    },
+    "organization": {
+      "getOrgTree": "/organizations/tree",
+      "getById": "/organizations/{id}",
+      "getUsers": "/organizations/{id}/users"
+    },
+    "cycles": {
+      "create": "/cycles",
+      "list": "/cycles",
+      "getById": "/cycles/{id}",
+      "activate": "/cycles/{id}/activate",
+      "close": "/cycles/{id}/close"
+    },
+    "analytics": {
+      "getDashboard": "/analytics/dashboard",
+      "getIndicatorProgress": "/analytics/indicators/{id}/progress",
+      "getOrgProgress": "/analytics/organizations/{id}/progress",
+      "exportData": "/analytics/export"
+    },
+    "alerts": {
+      "list": "/alerts",
+      "getById": "/alerts/{id}",
+      "markAsRead": "/alerts/{id}/read",
+      "getMyAlerts": "/alerts/my"
+    }
+  }
+}

@@ -38,7 +38,7 @@ public class SysOrg extends AggregateRoot<Long> {
     private String name;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false)
+    @Column(name = "type", nullable = false, columnDefinition = "org_type")
     private OrgType type;
 
     @Column(name = "is_active", nullable = false)

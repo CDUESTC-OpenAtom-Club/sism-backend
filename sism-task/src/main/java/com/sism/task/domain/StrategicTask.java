@@ -68,7 +68,9 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="is_deleted", nullable=false)
     private Boolean isDeleted = false;
 
-    @Column(name="status", nullable=false)
+    // 注意：status 字段不存储在数据库中，而是从关联的 Plan 获取
+    // 这是 transient 字段，不映射到数据库列
+    @Transient
     private String status = STATUS_DRAFT;
 
     // 数据库中的冗余字段，保留以匹配表结构

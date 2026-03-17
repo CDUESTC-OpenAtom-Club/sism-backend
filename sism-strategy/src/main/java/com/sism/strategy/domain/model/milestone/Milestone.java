@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Setter
-@Entity
+@Entity(name = "IndicatorMilestone")
 @Table(name = "indicator_milestone")
 public class Milestone {
 

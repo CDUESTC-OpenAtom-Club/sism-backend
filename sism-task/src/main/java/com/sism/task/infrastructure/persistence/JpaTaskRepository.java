@@ -52,11 +52,6 @@ public class JpaTaskRepository implements TaskRepository {
     }
 
     @Override
-    public List<StrategicTask> findByStatus(String status) {
-        return jpaRepository.findByStatus(status);
-    }
-
-    @Override
     public List<StrategicTask> findByTaskType(TaskType taskType) {
         return jpaRepository.findByTaskType(taskType);
     }
@@ -79,9 +74,9 @@ public class JpaTaskRepository implements TaskRepository {
     @Override
     public Page<StrategicTask> findByCriteria(
             Long planId, Long cycleId, Long orgId, Long createdByOrgId,
-            TaskType taskType, String status, String taskName, Pageable pageable) {
+            TaskType taskType, String taskName, Pageable pageable) {
         return jpaRepository.findByCriteria(planId, cycleId, orgId, createdByOrgId,
-                taskType, status, taskName, pageable);
+                taskType, taskName, pageable);
     }
 
     @Override

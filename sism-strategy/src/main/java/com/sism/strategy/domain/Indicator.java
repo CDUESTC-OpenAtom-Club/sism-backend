@@ -85,8 +85,9 @@ public class Indicator extends AggregateRoot<Long> {
     @Column(name = "status", length = 20)
     private IndicatorStatus status = IndicatorStatus.DRAFT;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "level", length = 20)
+    // Level is calculated dynamically from ownerOrg and targetOrg types
+    // Marked as transient to avoid persisting to database
+    @Transient
     private IndicatorLevel level;
 
     @Enumerated(EnumType.STRING)
@@ -107,7 +108,7 @@ public class Indicator extends AggregateRoot<Long> {
         indicator.targetOrg = Objects.requireNonNull(targetOrg, "Target organization cannot be null");
         indicator.weightPercent = BigDecimal.valueOf(100);
         indicator.sortOrder = 0;
-        indicator.type = "NORMAL";
+        indicator.type = "定量";  // Database constraint only allows '定量' or '定性'
         indicator.progress = 0;
         indicator.status = IndicatorStatus.DRAFT;
         indicator.distributionStatus = IndicatorStatus.DRAFT;
@@ -147,7 +148,7 @@ public class Indicator extends AggregateRoot<Long> {
         indicator.targetOrg = targetOrg;
         indicator.weightPercent = weight;
         indicator.sortOrder = 0;
-        indicator.type = "NORMAL";
+        indicator.type = "定量";  // Database constraint only allows '定量' or '定性'
         indicator.progress = 0;
         indicator.status = IndicatorStatus.DRAFT;
         indicator.createdAt = LocalDateTime.now();
@@ -456,7 +457,8 @@ public class Indicator extends AggregateRoot<Long> {
      * Mark indicator as broken down (has child indicators)
      */
     public void markAsBrokenDown() {
-        this.type = "BROKEN_DOWN";
+        // Don't change type - keep it as "定量" or "定性"
+        // Just update the timestamp to track when breakdown happened
         this.updatedAt = LocalDateTime.now();
     }
 

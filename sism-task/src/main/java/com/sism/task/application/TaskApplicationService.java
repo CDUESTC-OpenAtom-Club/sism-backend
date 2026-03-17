@@ -103,7 +103,7 @@ public class TaskApplicationService {
         task.setTaskType(request.getTaskType());
         task.setPlanId(request.getPlanId());
         task.setCycleId(request.getCycleId());
-        task.setStatus(request.getStatus());
+        // 注意：Task 的状态从关联的 Plan 获取，不能直接设置
 
         if (request.getSortOrder() != null) {
             task.updateSortOrder(request.getSortOrder());
@@ -217,7 +217,6 @@ public class TaskApplicationService {
                 request.getOrgId(),
                 request.getCreatedByOrgId(),
                 request.getTaskType(),
-                request.getStatus(),
                 request.getTaskName(),
                 pageable
         );
@@ -251,12 +250,6 @@ public class TaskApplicationService {
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByType(TaskType taskType) {
         List<StrategicTask> tasks = taskRepository.findByTaskType(taskType);
-        return tasks.stream().map(TaskResponse::fromEntity).toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<TaskResponse> getTasksByStatus(String status) {
-        List<StrategicTask> tasks = taskRepository.findByStatus(status);
         return tasks.stream().map(TaskResponse::fromEntity).toList();
     }
 

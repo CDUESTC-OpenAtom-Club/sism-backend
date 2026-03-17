@@ -1,0 +1,32 @@
+{
+  "name": "sism-module-tests",
+  "version": "1.0.0",
+  "description": "SISM各模块API测试流程代码 - 基于业务流程文档设计",
+  "main": "run-full-workflow.js",
+  "scripts": {
+    "test:iam": "node iam/test-auth.js",
+    "test:strategy": "node strategy/test-indicator.js",
+    "test:execution": "node execution/test-report.js",
+    "test:workflow": "node workflow/test-workflow.js",
+    "test:organization": "node organization/test-organization.js",
+    "test:analytics": "node analytics/test-analytics.js",
+    "test:task": "node task/test-task.js",
+    "test:alert": "node alert/test-alert.js",
+    "test:full": "node run-full-workflow.js",
+    "test:all": "npm run test:iam && npm run test:strategy && npm run test:execution && npm run test:workflow && npm run test:analytics && npm run test:alert"
+  },
+  "keywords": [
+    "sism",
+    "api",
+    "testing",
+    "workflow"
+  ],
+  "author": "SISM Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

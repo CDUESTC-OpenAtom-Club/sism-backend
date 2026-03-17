@@ -1,0 +1,38 @@
+{
+  "name": "sism-agent-testing-framework",
+  "version": "1.0.0",
+  "description": "SISM多Agent API测试框架 - 基于业务流程的自动化测试系统",
+  "main": "agents/master-agent.js",
+  "scripts": {
+    "test": "node agents/master-agent.js",
+    "test:sequential": "node agents/master-agent.js",
+    "test:parallel": "node agents/master-agent.js --parallel",
+    "test:workflow": "node agents/master-agent.js --workflow",
+    "test:indicator-distribution": "node agents/master-agent.js --workflow indicator-distribution",
+    "test:multi-level-approval": "node agents/master-agent.js --workflow multi-level-approval",
+    "test:report-submission": "node agents/master-agent.js --workflow report-submission",
+    "agent:iam": "node agents/iam-agent.js",
+    "agent:strategy": "node agents/strategy-agent.js",
+    "agent:functional": "node agents/functional-agent.js",
+    "agent:college": "node agents/college-agent.js",
+    "agent:workflow": "node agents/workflow-agent.js"
+  },
+  "keywords": [
+    "testing",
+    "api",
+    "agent",
+    "automation",
+    "sism"
+  ],
+  "author": "SISM Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "chalk": "^4.1.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

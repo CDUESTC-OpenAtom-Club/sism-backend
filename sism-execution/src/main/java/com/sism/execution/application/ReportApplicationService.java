@@ -189,6 +189,8 @@ public class ReportApplicationService {
 
     /**
      * 根据条件分页查询报告
+     * Note: title, minProgress, maxProgress parameters are not used in query
+     * as these fields are transient (not stored in database)
      */
     public Page<PlanReport> findReportsByConditions(PlanReportQueryRequest queryRequest) {
         Pageable pageable = PageRequest.of(
@@ -203,9 +205,6 @@ public class ReportApplicationService {
                 queryRequest.getReportOrgType(),
                 queryRequest.getPlanId(),
                 queryRequest.getStatus(),
-                queryRequest.getTitle(),
-                queryRequest.getMinProgress(),
-                queryRequest.getMaxProgress(),
                 pageable
         );
     }

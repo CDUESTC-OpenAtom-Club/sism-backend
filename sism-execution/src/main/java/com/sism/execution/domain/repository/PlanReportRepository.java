@@ -43,9 +43,6 @@ public interface PlanReportRepository {
             ReportOrgType reportOrgType,
             Long planId,
             String status,
-            String title,
-            Integer minProgress,
-            Integer maxProgress,
             Pageable pageable);
 
     Page<PlanReport> findByReportOrgId(Long orgId, Pageable pageable);

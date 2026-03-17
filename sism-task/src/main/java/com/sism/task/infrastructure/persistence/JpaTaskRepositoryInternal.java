@@ -37,14 +37,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
     List<StrategicTask> findByOrgId(Long orgId);
 
     /**
-     * 根据状态查找任务
-     *
-     * @param status 任务状态
-     * @return 指定状态的任务列表
-     */
-    List<StrategicTask> findByStatus(String status);
-
-    /**
      * 根据任务类型查找任务
      *
      * @param taskType 任务类型
@@ -83,13 +75,15 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
      * 该查询会自动过滤已删除的任务（isDeleted = false）。
      * 所有参数都是可选的，传入null表示不限制该条件。
      * </p>
+     * <p>
+     * 注意：Task 的状态从关联的 Plan 获取，因此不支持按状态查询。
+     * </p>
      *
      * @param planId 计划ID（可选）
      * @param cycleId 周期ID（可选）
      * @param orgId 执行组织ID（可选）
      * @param createdByOrgId 创建组织ID（可选）
      * @param taskType 任务类型（可选）
-     * @param status 任务状态（可选）
      * @param taskName 任务名称（支持模糊查询，可选）
      * @param pageable 分页参数
      * @return 分页任务结果
@@ -100,7 +94,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
             "(:orgId IS NULL OR t.org.id = :orgId) AND " +
             "(:createdByOrgId IS NULL OR t.createdByOrg.id = :createdByOrgId) AND " +
             "(:taskType IS NULL OR t.taskType = :taskType) AND " +
-            "(:status IS NULL OR t.status = :status) AND " +
             "(:taskName IS NULL OR t.taskName LIKE %:taskName%) AND " +
             "t.isDeleted = false")
     Page<StrategicTask> findByCriteria(
@@ -109,7 +102,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
             @Param("orgId") Long orgId,
             @Param("createdByOrgId") Long createdByOrgId,
             @Param("taskType") TaskType taskType,
-            @Param("status") String status,
             @Param("taskName") String taskName,
             Pageable pageable);
 }

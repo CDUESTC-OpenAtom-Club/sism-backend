@@ -4,21 +4,17 @@ package com.sism.execution.domain.model.report;
  * ReportOrgType - 报告组织类型枚举
  * 定义报告所属组织的类型
  *
- * 必须与 com.sism.enums.OrgType 保持一致
+ * IMPORTANT: Enum constant names must match database constraint values
+ * Database check constraint: (report_org_type::text = ANY (ARRAY['FUNC_DEPT'::character varying, 'COLLEGE'::character varying]::text[]))
  */
 public enum ReportOrgType {
     /**
-     * 系统管理员
+     * 职能部门 - FUNC_DEPT
      */
-    ADMIN,
+    FUNC_DEPT,
 
     /**
-     * 职能部门
+     * 二级学院 - COLLEGE
      */
-    FUNCTIONAL,
-
-    /**
-     * 二级学院
-     */
-    ACADEMIC
+    COLLEGE
 }

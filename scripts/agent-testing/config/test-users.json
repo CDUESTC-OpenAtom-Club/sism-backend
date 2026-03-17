@@ -1,0 +1,29 @@
+{
+  "users": [
+    {
+      "role": "strategic",
+      "username": "admin",
+      "password": "admin123",
+      "description": "战略发展部 - 系统管理员",
+      "permissions": ["CREATE_INDICATOR", "APPROVE_INDICATOR", "VIEW_ALL_INDICATORS"]
+    },
+    {
+      "role": "functional",
+      "username": "func_user",
+      "password": "func123",
+      "description": "职能部门 - 中层管理",
+      "permissions": ["RECEIVE_INDICATOR", "SPLIT_INDICATOR", "APPROVE_REPORT"]
+    },
+    {
+      "role": "college",
+      "username": "college_user",
+      "password": "college123",
+      "description": "学院 - 执行层",
+      "permissions": ["RECEIVE_INDICATOR", "SUBMIT_REPORT", "VIEW_OWN_REPORTS"]
+    }
+  ],
+  "baseUrl": "http://localhost:8080/api/v1",
+  "timeout": 30000,
+  "retryAttempts": 3,
+  "retryDelay": 1000
+}

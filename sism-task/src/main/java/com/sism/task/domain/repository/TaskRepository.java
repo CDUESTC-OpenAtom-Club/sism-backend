@@ -52,14 +52,6 @@ public interface TaskRepository {
     List<StrategicTask> findByOrgId(Long orgId);
 
     /**
-     * 根据状态查找任务
-     *
-     * @param status 任务状态
-     * @return 指定状态的任务列表
-     */
-    List<StrategicTask> findByStatus(String status);
-
-    /**
      * 根据任务类型查找任务
      *
      * @param taskType 任务类型
@@ -95,19 +87,21 @@ public interface TaskRepository {
     /**
      * 根据多个条件查询任务（支持组合查询）
      *
+     * 注意：Task 的状态从关联的 Plan 获取，因此不支持按状态查询。
+     * 如需按状态筛选，请先查询 Plan，再根据 planId 查询 Task。
+     *
      * @param planId 计划ID（可选）
      * @param cycleId 周期ID（可选）
      * @param orgId 执行组织ID（可选）
      * @param createdByOrgId 创建组织ID（可选）
      * @param taskType 任务类型（可选）
-     * @param status 任务状态（可选）
      * @param taskName 任务名称（支持模糊查询，可选）
      * @param pageable 分页参数
      * @return 分页任务结果
      */
     Page<StrategicTask> findByCriteria(
             Long planId, Long cycleId, Long orgId, Long createdByOrgId,
-            TaskType taskType, String status, String taskName, Pageable pageable);
+            TaskType taskType, String taskName, Pageable pageable);
 
     /**
      * 保存任务（新增或更新）

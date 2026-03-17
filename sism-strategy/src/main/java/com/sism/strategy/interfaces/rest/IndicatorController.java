@@ -2,6 +2,8 @@ package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
+import com.sism.organization.domain.SysOrg;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.application.StrategyApplicationService;
 import com.sism.strategy.domain.Indicator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,6 +33,7 @@ import java.util.List;
 public class IndicatorController {
 
     private final StrategyApplicationService strategyApplicationService;
+    private final OrganizationRepository organizationRepository;
 
     @GetMapping
     @Operation(summary = "Get all indicators with pagination")
@@ -85,13 +88,15 @@ public class IndicatorController {
     @Operation(summary = "Create a new indicator")
     public ResponseEntity<ApiResponse<IndicatorResponse>> createIndicator(
             @Valid @RequestBody CreateIndicatorRequest request) {
-        // Note: This would need proper implementation with SysOrg lookup
-        // For now, we'll create a simplified version
-        Indicator created = strategyApplicationService.createIndicator(
-                request.getDescription() != null ? request.getDescription() : request.getIndicatorName(),
-                null,  // ownerOrg would need to be looked up
-                null   // targetOrg would need to be looked up
-        );
+        // Look up owner organization (当前用户所在的组织)
+        SysOrg ownerOrg = organizationRepository.findById(request.getDepartmentId())
+                .orElseThrow(() -> new IllegalArgumentException("Owner organization not found: " + request.getDepartmentId()));
+
+        // For now, use ownerOrg as targetOrg as well (can be specified later)
+        SysOrg targetOrg = ownerOrg;
+
+        String description = request.getDescription() != null ? request.getDescription() : request.getIndicatorName();
+        Indicator created = strategyApplicationService.createIndicator(description, ownerOrg, targetOrg);
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(created)));
     }
 
