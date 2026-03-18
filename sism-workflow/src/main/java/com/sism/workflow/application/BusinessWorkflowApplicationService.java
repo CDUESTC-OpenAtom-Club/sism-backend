@@ -374,7 +374,7 @@ public class BusinessWorkflowApplicationService {
 
     private WorkflowInstanceResponse convertToInstanceResponse(AuditInstance instance) {
         return WorkflowInstanceResponse.builder()
-                .instanceId(instance.getId().toString())
+                .instanceId(instance.getId() != null ? instance.getId().toString() : null)
                 .definitionId(instance.getFlowDefId() != null ? instance.getFlowDefId().toString() : null)
                 .status(instance.getStatus())
                 .businessEntityId(instance.getEntityId())

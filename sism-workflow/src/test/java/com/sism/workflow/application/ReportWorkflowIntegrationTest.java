@@ -5,26 +5,40 @@ import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.infrastructure.ExecutionModuleConfig;
+import com.sism.iam.domain.User;
+import com.sism.iam.domain.repository.UserRepository;
 import com.sism.shared.domain.model.workflow.AuditFlowDef;
 import com.sism.shared.infrastructure.event.EventStoreInMemory;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.workflow.infrastructure.WorkflowModuleConfig;
 import com.sism.workflow.domain.repository.WorkflowRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.context.transaction.TestTransaction;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -39,6 +53,8 @@ import static org.assertj.core.api.Assertions.*;
 @Transactional
 @DisplayName("报告工作流集成测试")
 class ReportWorkflowIntegrationTest {
+
+    private static final AtomicLong TEST_SEQUENCE = new AtomicLong(1);
 
     @Autowired
     private PlanReportRepository planReportRepository;
@@ -55,14 +71,21 @@ class ReportWorkflowIntegrationTest {
     @Autowired
     private ApplicationEventPublisher applicationEventPublisher;
 
+    @Autowired
+    private EntityManager entityManager;
+
     private Long testReportId;
     private Long testOrgId;
     private String testReportMonth;
+    private Long testPlanId;
+    private final Set<Long> createdReportIds = new HashSet<>();
 
     @BeforeEach
     void setUp() {
-        testOrgId = 1L;
-        testReportMonth = "2026-03";
+        long sequence = TEST_SEQUENCE.getAndIncrement();
+        testOrgId = 10_000L + sequence;
+        testPlanId = 20_000L + sequence;
+        testReportMonth = "2026" + String.format("%02d", (int) ((sequence - 1) % 12) + 1);
 
         if (eventStore instanceof EventStoreInMemory inMemoryEventStore) {
             inMemoryEventStore.clear();
@@ -75,11 +98,37 @@ class ReportWorkflowIntegrationTest {
                 testReportMonth,
                 testOrgId,
                 ReportOrgType.FUNC_DEPT,
-                1L  // planId
+                testPlanId
         );
         report.validate();
         planReportRepository.save(report);
         testReportId = report.getId();
+        createdReportIds.add(testReportId);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (!TestTransaction.isActive()) {
+            return;
+        }
+
+        for (Long reportId : createdReportIds) {
+            entityManager.createNativeQuery(
+                            "DELETE FROM audit_step_instance WHERE instance_id IN (" +
+                                    "SELECT id FROM audit_instance WHERE entity_type = 'PlanReport' AND entity_id = :reportId)")
+                    .setParameter("reportId", reportId)
+                    .executeUpdate();
+            entityManager.createNativeQuery(
+                            "DELETE FROM audit_instance WHERE entity_type = 'PlanReport' AND entity_id = :reportId")
+                    .setParameter("reportId", reportId)
+                    .executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM plan_report WHERE id = :reportId")
+                    .setParameter("reportId", reportId)
+                    .executeUpdate();
+        }
+
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
     }
 
     @Test
@@ -97,6 +146,7 @@ class ReportWorkflowIntegrationTest {
         // 发布事件
         domainEventPublisher.publishAll(report.getDomainEvents());
         report.clearEvents();
+        commitCurrentTransactionAndStartNewOne();
 
         // ============ 验证阶段 1: 事件已被创建和发布 ============
         System.out.println("✅ 事件已发布");
@@ -158,6 +208,7 @@ class ReportWorkflowIntegrationTest {
 
         // 通过 domainEventPublisher 发布
         domainEventPublisher.publish(event);
+        commitCurrentTransactionAndStartNewOne();
 
         // ============ 验证阶段：工作流应该被启动 ============
         try {
@@ -189,6 +240,7 @@ class ReportWorkflowIntegrationTest {
         planReportRepository.save(report);
         domainEventPublisher.publishAll(report.getDomainEvents());
         report.clearEvents();
+        commitCurrentTransactionAndStartNewOne();
 
         // ============ 验证阶段：验证事件的内容 ============
         var storedEvents = eventStore.findByEventType("PlanReportSubmittedEvent");
@@ -225,13 +277,14 @@ class ReportWorkflowIntegrationTest {
                 .orElseThrow();
 
         PlanReport report2 = PlanReport.createDraft(
-                "2026-04",
+                "2025" + String.format("%02d", (int) ((TEST_SEQUENCE.get() - 1) % 12) + 1),
                 testOrgId + 1,
                 ReportOrgType.COLLEGE,
-                2L
+                testPlanId + 1
         );
         report2.validate();
         planReportRepository.save(report2);
+        createdReportIds.add(report2.getId());
 
         // ============ 执行阶段：提交两个报告 ============
         report1.submit(1L);
@@ -243,6 +296,7 @@ class ReportWorkflowIntegrationTest {
         planReportRepository.save(report2);
         domainEventPublisher.publishAll(report2.getDomainEvents());
         report2.clearEvents();
+        commitCurrentTransactionAndStartNewOne();
 
         // ============ 验证阶段：每个报告都应该有独立的工作流 ============
         try {
@@ -282,6 +336,7 @@ class ReportWorkflowIntegrationTest {
         planReportRepository.save(report);
         domainEventPublisher.publishAll(report.getDomainEvents());
         report.clearEvents();
+        commitCurrentTransactionAndStartNewOne();
 
         try {
             Thread.sleep(1000);
@@ -314,6 +369,82 @@ class ReportWorkflowIntegrationTest {
             "com.sism.shared.infrastructure.event"
     })
     static class TestConfig {
+        @Bean
+        UserRepository userRepository() {
+            ConcurrentHashMap<Long, User> users = new ConcurrentHashMap<>();
+
+            User defaultUser = new User();
+            defaultUser.setId(1L);
+            defaultUser.setUsername("workflow-tester");
+            defaultUser.setPassword("not-used");
+            defaultUser.setRealName("Workflow Tester");
+            defaultUser.setOrgId(1L);
+            defaultUser.setIsActive(true);
+            users.put(defaultUser.getId(), defaultUser);
+
+            return new UserRepository() {
+                @Override
+                public Optional<User> findById(Long id) {
+                    return Optional.ofNullable(users.get(id));
+                }
+
+                @Override
+                public List<User> findAll() {
+                    return new ArrayList<>(users.values());
+                }
+
+                @Override
+                public Optional<User> findByUsername(String username) {
+                    return users.values().stream()
+                            .filter(user -> username != null && username.equals(user.getUsername()))
+                            .findFirst();
+                }
+
+                @Override
+                public List<User> findByOrgId(Long orgId) {
+                    return users.values().stream()
+                            .filter(user -> orgId != null && orgId.equals(user.getOrgId()))
+                            .sorted(Comparator.comparing(User::getId))
+                            .toList();
+                }
+
+                @Override
+                public List<User> findByRoleId(Long roleId) {
+                    return List.of();
+                }
+
+                @Override
+                public List<User> findByIsActive(Boolean isActive) {
+                    return users.values().stream()
+                            .filter(user -> isActive != null && isActive.equals(user.getIsActive()))
+                            .sorted(Comparator.comparing(User::getId))
+                            .toList();
+                }
+
+                @Override
+                public User save(User user) {
+                    users.put(user.getId(), user);
+                    return user;
+                }
+
+                @Override
+                public void delete(User user) {
+                    if (user != null && user.getId() != null) {
+                        users.remove(user.getId());
+                    }
+                }
+
+                @Override
+                public boolean existsById(Long id) {
+                    return users.containsKey(id);
+                }
+
+                @Override
+                public boolean existsByUsername(String username) {
+                    return findByUsername(username).isPresent();
+                }
+            };
+        }
     }
 
     private void ensureReportApprovalFlow() {
@@ -329,5 +460,14 @@ class ReportWorkflowIntegrationTest {
         flowDef.setIsActive(true);
         flowDef.setVersion(1);
         workflowRepository.saveAuditFlowDef(flowDef);
+    }
+
+    private void commitCurrentTransactionAndStartNewOne() {
+        if (!TestTransaction.isActive()) {
+            return;
+        }
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+        TestTransaction.start();
     }
 }
