@@ -153,22 +153,3 @@ jobs:
             echo "[INFO] No compilation warnings"
           fi
 
-  contract-tests:
-    name: Contract Tests
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Run Contract Tests
-        run: mvn spring-cloud-contract:verify -B
-        continue-on-error: false

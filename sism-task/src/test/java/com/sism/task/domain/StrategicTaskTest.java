@@ -114,29 +114,4 @@ class StrategicTaskTest {
             StrategicTask.create(null, null, null, null, null, null);
         });
     }
-
-    @Test
-    @DisplayName("Should initialize redundant fields in create()")
-    void shouldInitializeRedundantFieldsInCreate() {
-        StrategicTask task = StrategicTask.create("测试任务", TaskType.BASIC, 1L, 1L, org, createdByOrg);
-
-        // 验证冗余字段是否正确初始化
-        assertEquals("测试任务", task.getName(), "冗余字段 'name' 应该等于 taskName");
-        assertEquals(TaskType.BASIC, task.getType(), "冗余字段 'type' 应该等于 taskType");
-        assertNull(task.getDesc(), "冗余字段 'desc' 应该为 null");
-    }
-
-    @Test
-    @DisplayName("Should sync redundant fields via @PrePersist")
-    void shouldSyncRedundantFieldsViaPrePersist() {
-        StrategicTask task = new StrategicTask();
-        task.setTaskName("预持久化任务");
-        task.setTaskType(TaskType.DEVELOPMENT);
-
-        // 模拟 @PrePersist 行为
-        task.onCreate();
-
-        assertEquals("预持久化任务", task.getName(), "@PrePersist 应该同步 name 字段");
-        assertEquals(TaskType.DEVELOPMENT, task.getType(), "@PrePersist 应该同步 type 字段");
-    }
 }

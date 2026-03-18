@@ -4,6 +4,8 @@ import com.sism.execution.domain.model.plan.Plan;
 import com.sism.execution.domain.model.plan.PlanLevel;
 import com.sism.execution.domain.repository.PlanRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -23,6 +25,15 @@ public class JpaPlanRepository implements PlanRepository {
     @Override
     public List<Plan> findAll() {
         return jpaRepository.findAll();
+    }
+
+    @Override
+    public Page<Plan> findPage(List<Long> cycleIds, String status, Pageable pageable) {
+        boolean skipCycleFilter = cycleIds == null || cycleIds.isEmpty();
+        if (status == null || status.isBlank()) {
+            return jpaRepository.findPage(cycleIds, skipCycleFilter, pageable);
+        }
+        return jpaRepository.findPageByStatus(cycleIds, skipCycleFilter, status, pageable);
     }
 
     @Override

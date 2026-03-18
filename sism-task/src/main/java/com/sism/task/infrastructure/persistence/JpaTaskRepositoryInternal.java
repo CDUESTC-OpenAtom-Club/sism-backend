@@ -34,7 +34,14 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
      * @param orgId 组织ID
      * @return 该组织的任务列表
      */
-    List<StrategicTask> findByOrgId(Long orgId);
+    @Query("""
+            SELECT t FROM StrategicTask t
+            LEFT JOIN FETCH t.org
+            LEFT JOIN FETCH t.createdByOrg
+            WHERE t.org.id = :orgId
+              AND t.isDeleted = false
+            """)
+    List<StrategicTask> findByOrgId(@Param("orgId") Long orgId);
 
     /**
      * 根据任务类型查找任务
@@ -42,7 +49,14 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
      * @param taskType 任务类型
      * @return 指定类型的任务列表
      */
-    List<StrategicTask> findByTaskType(TaskType taskType);
+    @Query("""
+            SELECT t FROM StrategicTask t
+            LEFT JOIN FETCH t.org
+            LEFT JOIN FETCH t.createdByOrg
+            WHERE t.taskType = :taskType
+              AND t.isDeleted = false
+            """)
+    List<StrategicTask> findByTaskType(@Param("taskType") TaskType taskType);
 
     /**
      * 根据计划ID查找任务
@@ -50,7 +64,14 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
      * @param planId 计划ID
      * @return 该计划的任务列表
      */
-    List<StrategicTask> findByPlanId(Long planId);
+    @Query("""
+            SELECT t FROM StrategicTask t
+            LEFT JOIN FETCH t.org
+            LEFT JOIN FETCH t.createdByOrg
+            WHERE t.planId = :planId
+              AND t.isDeleted = false
+            """)
+    List<StrategicTask> findByPlanId(@Param("planId") Long planId);
 
     /**
      * 根据周期ID查找任务
@@ -58,7 +79,81 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
      * @param cycleId 周期ID
      * @return 该周期的任务列表
      */
-    List<StrategicTask> findByCycleId(Long cycleId);
+    @Query("""
+            SELECT t FROM StrategicTask t
+            LEFT JOIN FETCH t.org
+            LEFT JOIN FETCH t.createdByOrg
+            WHERE t.cycleId = :cycleId
+              AND t.isDeleted = false
+            """)
+    List<StrategicTask> findByCycleId(@Param("cycleId") Long cycleId);
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.task_name AS taskName,
+                t.task_desc AS taskDesc,
+                t.task_type AS taskType,
+                t.plan_id AS planId,
+                t.cycle_id AS cycleId,
+                t.org_id AS orgId,
+                t.created_by_org_id AS createdByOrgId,
+                t.sort_order AS sortOrder,
+                COALESCE(p.status, 'DRAFT') AS status,
+                t.remark AS remark,
+                t.created_at AS createdAt,
+                t.updated_at AS updatedAt
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE t.cycle_id = :cycleId
+              AND COALESCE(t.is_deleted, false) = false
+            ORDER BY t.sort_order ASC, t.task_id ASC
+            """, nativeQuery = true)
+    List<TaskFlatView> findFlatViewsByCycleId(@Param("cycleId") Long cycleId);
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.task_name AS taskName,
+                t.task_desc AS taskDesc,
+                t.task_type AS taskType,
+                t.plan_id AS planId,
+                t.cycle_id AS cycleId,
+                t.org_id AS orgId,
+                t.created_by_org_id AS createdByOrgId,
+                t.sort_order AS sortOrder,
+                COALESCE(p.status, 'DRAFT') AS status,
+                t.remark AS remark,
+                t.created_at AS createdAt,
+                t.updated_at AS updatedAt
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE COALESCE(t.is_deleted, false) = false
+              AND (:planId IS NULL OR t.plan_id = :planId)
+              AND (:cycleId IS NULL OR t.cycle_id = :cycleId)
+              AND (:orgId IS NULL OR t.org_id = :orgId)
+              AND (:createdByOrgId IS NULL OR t.created_by_org_id = :createdByOrgId)
+              AND (CAST(:taskType AS TEXT) = '' OR t.task_type = CAST(:taskType AS TEXT))
+              AND (CAST(:taskName AS TEXT) = '' OR t.task_name ILIKE CONCAT('%', CAST(:taskName AS TEXT), '%'))
+            ORDER BY t.sort_order ASC, t.task_id ASC
+            """, nativeQuery = true)
+    List<TaskFlatView> findFlatViewsByCriteria(
+            @Param("planId") Long planId,
+            @Param("cycleId") Long cycleId,
+            @Param("orgId") Long orgId,
+            @Param("createdByOrgId") Long createdByOrgId,
+            @Param("taskType") String taskType,
+            @Param("taskName") String taskName);
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.task_name AS taskName
+            FROM sys_task t
+            WHERE t.task_id IN (:taskIds)
+              AND COALESCE(t.is_deleted, false) = false
+            """, nativeQuery = true)
+    List<TaskNameView> findTaskNamesByIds(@Param("taskIds") List<Long> taskIds);
 
     /**
      * 根据计划ID和周期ID查找任务
@@ -67,7 +162,15 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
      * @param cycleId 周期ID
      * @return 指定计划和周期的任务列表
      */
-    List<StrategicTask> findByPlanIdAndCycleId(Long planId, Long cycleId);
+    @Query("""
+            SELECT t FROM StrategicTask t
+            LEFT JOIN FETCH t.org
+            LEFT JOIN FETCH t.createdByOrg
+            WHERE t.planId = :planId
+              AND t.cycleId = :cycleId
+              AND t.isDeleted = false
+            """)
+    List<StrategicTask> findByPlanIdAndCycleId(@Param("planId") Long planId, @Param("cycleId") Long cycleId);
 
     /**
      * 根据多个条件查询任务（支持组合查询）

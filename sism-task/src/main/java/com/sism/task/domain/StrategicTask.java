@@ -7,6 +7,8 @@ import com.sism.task.domain.event.TaskStatusChangedEvent;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -38,6 +40,9 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="task_name", nullable=false)
     private String taskName;
 
+    @Column(name = "name", nullable = false)
+    private String legacyName;
+
     @Column(name="task_desc")
     private String taskDesc;
 
@@ -47,10 +52,12 @@ public class StrategicTask extends AggregateRoot<Long> {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "org_id", nullable = false)
+    @NotFound(action = NotFoundAction.IGNORE)
     private SysOrg org;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by_org_id", nullable = false)
+    @NotFound(action = NotFoundAction.IGNORE)
     private SysOrg createdByOrg;
 
     @Column(name = "sort_order", nullable = false)
@@ -72,17 +79,6 @@ public class StrategicTask extends AggregateRoot<Long> {
     // 这是 transient 字段，不映射到数据库列
     @Transient
     private String status = STATUS_DRAFT;
-
-    // 数据库中的冗余字段，保留以匹配表结构
-    @Column(name="name", nullable=false, length = 255)
-    private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name="type", nullable=false)
-    private TaskType type;
-
-    @Column(name="desc", length = 255)
-    private String desc;
 
     public static StrategicTask create(String taskName, TaskType taskType, Long planId, Long cycleId,
                                         SysOrg org, SysOrg createdByOrg) {
@@ -107,6 +103,7 @@ public class StrategicTask extends AggregateRoot<Long> {
 
         StrategicTask task = new StrategicTask();
         task.taskName = taskName;
+        task.legacyName = taskName;
         task.taskType = taskType;
         task.planId = planId;
         task.cycleId = cycleId;
@@ -117,10 +114,6 @@ public class StrategicTask extends AggregateRoot<Long> {
         task.createdAt = LocalDateTime.now();
         task.updatedAt = LocalDateTime.now();
         task.isDeleted = false;
-        // 初始化数据库冗余字段
-        task.name = taskName;
-        task.type = taskType;
-        task.desc = null;
         task.addEvent(new TaskCreatedEvent(task.id, taskName, org.getId()));
         return task;
     }
@@ -160,6 +153,7 @@ public class StrategicTask extends AggregateRoot<Long> {
             throw new IllegalArgumentException("Task name cannot be empty");
         }
         this.taskName = taskName;
+        this.legacyName = taskName;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -202,13 +196,6 @@ public class StrategicTask extends AggregateRoot<Long> {
         }
         if (isDeleted == null) {
             isDeleted = false;
-        }
-        // 初始化数据库冗余字段
-        if (name == null && taskName != null) {
-            name = taskName;
-        }
-        if (type == null && taskType != null) {
-            type = taskType;
         }
     }
 }

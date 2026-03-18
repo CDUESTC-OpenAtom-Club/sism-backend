@@ -25,4 +25,9 @@ public interface CycleRepository {
     void delete(Cycle cycle);
 
     boolean existsById(Long id);
+
+    /**
+     * 获取所有不重复的年份（用于年份选择器）
+     */
+    List<Integer> findDistinctYears();
 }

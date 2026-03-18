@@ -93,6 +93,14 @@ public class CycleApplicationService {
         cycleRepository.delete(cycle);
     }
 
+    /**
+     * 获取所有可用的年份（用于年份选择器）
+     * 返回从数据库中实际存在的年份
+     */
+    public List<Integer> getAvailableYears() {
+        return cycleRepository.findDistinctYears();
+    }
+
     private void normalizeCycle(Cycle cycle) {
         cycle.setStatus(cycle.deriveStatus());
         if (cycle.getIsDeleted() == null) {

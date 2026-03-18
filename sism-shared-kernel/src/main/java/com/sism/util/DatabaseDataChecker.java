@@ -88,8 +88,8 @@ public class DatabaseDataChecker {
             List<Map<String, Object>> orphanIndicators = jdbcTemplate.queryForList("""
                 SELECT i.id, i.indicator_desc, i.task_id
                 FROM indicator i
-                LEFT JOIN sys_task t ON i.task_id = t.id
-                WHERE t.id IS NULL
+                LEFT JOIN sys_task t ON i.task_id = t.task_id
+                WHERE t.task_id IS NULL
                 LIMIT 10
                 """);
 
@@ -187,9 +187,9 @@ public class DatabaseDataChecker {
         // Sample tasks
         try {
             List<Map<String, Object>> tasks = jdbcTemplate.queryForList("""
-                SELECT id, task_name, cycle_id, org_id, created_by_org_id, status
+                SELECT task_id, task_name, task_type, cycle_id, org_id, created_by_org_id
                 FROM sys_task
-                ORDER BY id
+                ORDER BY task_id
                 LIMIT 5
                 """);
             samples.put("tasks", tasks);

@@ -1,5 +1,6 @@
 package com.sism.iam.application;
 
+import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Base64;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -214,6 +216,24 @@ class JwtTokenServiceTest {
 
         assertTrue(payload.contains("\"username\""));
         assertTrue(payload.contains(username));
+    }
+
+    @Test
+    @DisplayName("Should include org ID and roles in token claims")
+    void shouldIncludeOrgIdAndRolesInTokenClaims() {
+        User user = new User();
+        user.setId(123L);
+        user.setUsername("testuser");
+        user.setOrgId(42L);
+
+        Role role = new Role();
+        role.setRoleCode("ADMIN");
+        user.setRoles(Set.of(role));
+
+        String token = jwtTokenService.generateToken(user);
+
+        assertEquals(42L, jwtTokenService.getOrgIdFromToken(token));
+        assertEquals(java.util.List.of("ADMIN"), jwtTokenService.getRolesFromToken(token));
     }
 
     @Test

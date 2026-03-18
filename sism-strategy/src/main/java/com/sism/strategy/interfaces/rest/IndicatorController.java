@@ -7,13 +7,13 @@ import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.application.StrategyApplicationService;
 import com.sism.strategy.domain.Indicator;
+import com.sism.task.domain.repository.TaskRepository;
+import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,7 +25,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @RestController
@@ -36,6 +39,8 @@ public class IndicatorController {
 
     private final StrategyApplicationService strategyApplicationService;
     private final OrganizationRepository organizationRepository;
+    private final TaskRepository taskRepository;
+    private final JpaTaskRepositoryInternal jpaTaskRepository;
 
     @GetMapping
     @Operation(summary = "Get all indicators with pagination")
@@ -48,26 +53,15 @@ public class IndicatorController {
         Page<Indicator> indicatorPage;
 
         if (status != null) {
-            // This would need to be implemented in service
-            List<Indicator> indicators = strategyApplicationService.getAllIndicators().stream()
-                    .filter(i -> i.getStatus() != null && i.getStatus().toString().equals(status))
-                    .toList();
-
-            // Convert list to page (simplified)
-            int start = Math.min((int)pageable.getOffset(), indicators.size());
-            int end = Math.min(start + pageable.getPageSize(), indicators.size());
-            indicatorPage = new org.springframework.data.domain.PageImpl<>(
-                    indicators.subList(start, end), pageable, indicators.size());
+            indicatorPage = strategyApplicationService.getIndicatorsByStatus(status, pageable);
         } else {
-            List<Indicator> allIndicators = strategyApplicationService.getAllIndicators();
-            int start = Math.min((int)pageable.getOffset(), allIndicators.size());
-            int end = Math.min(start + pageable.getPageSize(), allIndicators.size());
-            indicatorPage = new org.springframework.data.domain.PageImpl<>(
-                    allIndicators.subList(start, end), pageable, allIndicators.size());
+            indicatorPage = strategyApplicationService.getIndicators(pageable);
         }
+
+        Map<Long, String> taskNameMap = buildTaskNameMap(indicatorPage.getContent());
         PageResult<IndicatorResponse> result = PageResult.of(
-                indicatorPage.map(this::toIndicatorResponse)
-                        .stream()
+                indicatorPage.getContent().stream()
+                        .map(indicator -> toIndicatorResponse(indicator, taskNameMap))
                         .toList(),
                 (int) indicatorPage.getTotalElements(),
                 page,
@@ -90,15 +84,46 @@ public class IndicatorController {
     @Operation(summary = "Create a new indicator")
     public ResponseEntity<ApiResponse<IndicatorResponse>> createIndicator(
             @Valid @RequestBody CreateIndicatorRequest request) {
-        // Look up owner organization (当前用户所在的组织)
-        SysOrg ownerOrg = organizationRepository.findById(request.getDepartmentId())
-                .orElseThrow(() -> new IllegalArgumentException("Owner organization not found: " + request.getDepartmentId()));
+        // 兼容两种请求格式：
+        // 1) 旧格式：indicatorName + departmentId
+        // 2) 新格式：indicatorDesc + taskId + ownerOrgId + targetOrgId + parentIndicatorId
+        String description = firstNonBlank(
+                request.getIndicatorDesc(),
+                request.getDescription(),
+                request.getIndicatorName()
+        );
+        if (description == null || description.isBlank()) {
+            throw new IllegalArgumentException("Indicator description is required");
+        }
 
-        // For now, use ownerOrg as targetOrg as well (can be specified later)
-        SysOrg targetOrg = ownerOrg;
+        Long ownerOrgId = request.getOwnerOrgId() != null ? request.getOwnerOrgId() : request.getDepartmentId();
+        if (ownerOrgId == null) {
+            throw new IllegalArgumentException("Owner organization is required");
+        }
+        Long targetOrgId = request.getTargetOrgId() != null ? request.getTargetOrgId() : ownerOrgId;
 
-        String description = request.getDescription() != null ? request.getDescription() : request.getIndicatorName();
-        Indicator created = strategyApplicationService.createIndicator(description, ownerOrg, targetOrg);
+        SysOrg ownerOrg = organizationRepository.findById(ownerOrgId)
+                .orElseThrow(() -> new IllegalArgumentException("Owner organization not found: " + ownerOrgId));
+        SysOrg targetOrg = organizationRepository.findById(targetOrgId)
+                .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + targetOrgId));
+
+        IndicatorStatus distributionStatus = null;
+        if (request.getDistributionStatus() != null && !request.getDistributionStatus().isBlank()) {
+            distributionStatus = IndicatorStatus.valueOf(request.getDistributionStatus().trim().toUpperCase());
+        }
+
+        Indicator created = strategyApplicationService.createIndicator(
+                description,
+                ownerOrg,
+                targetOrg,
+                request.getTaskId(),
+                request.getParentIndicatorId(),
+                request.getWeightPercent(),
+                request.getSortOrder(),
+                request.getRemark(),
+                request.getProgress(),
+                distributionStatus
+        );
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(created)));
     }
 
@@ -366,8 +391,22 @@ public class IndicatorController {
     // ==================== Helper Methods ====================
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator) {
+        return toIndicatorResponse(indicator, Map.of());
+    }
+
+    private IndicatorResponse toIndicatorResponse(Indicator indicator, Map<Long, String> taskNameMap) {
         IndicatorResponse response = new IndicatorResponse();
         response.setId(indicator.getId());
+        response.setTaskId(indicator.getTaskId());
+        if (indicator.getTaskId() != null) {
+            String taskName = taskNameMap.get(indicator.getTaskId());
+            if (taskName == null) {
+                taskName = taskRepository.findById(indicator.getTaskId())
+                        .map(com.sism.task.domain.StrategicTask::getTaskName)
+                        .orElse("计划-" + indicator.getTaskId());
+            }
+            response.setTaskName(taskName);
+        }
         response.setIndicatorDesc(indicator.getIndicatorDesc());
         response.setIndicatorName(indicator.getIndicatorDesc()); // Using desc as name for now
         response.setParentIndicatorId(indicator.getParentIndicatorId());
@@ -376,15 +415,53 @@ public class IndicatorController {
         response.setStatus(indicator.getStatus() != null ? indicator.getStatus().toString() : null);
         response.setLevel(indicator.getLevel() != null ? indicator.getLevel().toString() : null);
         response.setProgress(indicator.getProgress());
+        response.setRemark(indicator.getRemark());
+        response.setIndicatorType(indicator.getType());
         response.setCreatedAt(indicator.getCreatedAt());
         response.setUpdatedAt(indicator.getUpdatedAt());
         if (indicator.getOwnerOrg() != null) {
             response.setOwnerOrgId(indicator.getOwnerOrg().getId());
+            response.setOwnerOrgName(indicator.getOwnerOrg().getName());
         }
         if (indicator.getTargetOrg() != null) {
             response.setTargetOrgId(indicator.getTargetOrg().getId());
+            response.setTargetOrgName(indicator.getTargetOrg().getName());
         }
         return response;
+    }
+
+    private Map<Long, String> buildTaskNameMap(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> taskIds = indicators.stream()
+                .map(Indicator::getTaskId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new))
+                .stream()
+                .toList();
+
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, String> taskNameMap = new HashMap<>();
+        jpaTaskRepository.findTaskNamesByIds(taskIds)
+                .forEach(task -> taskNameMap.put(task.getId(), task.getTaskName()));
+        return taskNameMap;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     // ==================== Request/Response DTOs ====================
@@ -394,13 +471,17 @@ public class IndicatorController {
     @AllArgsConstructor
     public static class IndicatorResponse {
         private Long id;
+        private Long taskId;
+        private String taskName;
         private Long parentIndicatorId;
         private String indicatorName;
         private String indicatorCode;
         private String indicatorDesc;
         private Long cycleId;
         private Long ownerOrgId;
+        private String ownerOrgName;
         private Long targetOrgId;
+        private String targetOrgName;
         private String departmentName;
         private BigDecimal targetValue;
         private String unit;
@@ -410,27 +491,34 @@ public class IndicatorController {
         private Integer sortOrder;
         private String level;
         private Integer progress;
+        private String remark;
+        private String indicatorType;
         private java.time.LocalDateTime createdAt;
         private java.time.LocalDateTime updatedAt;
     }
 
     @Data
     public static class CreateIndicatorRequest {
-        @NotBlank(message = "Indicator name is required")
         private String indicatorName;
 
-        @NotBlank(message = "Indicator code is required")
         private String indicatorCode;
 
         private String description;
+        private String indicatorDesc;
+        private Long taskId;
+        private Long parentIndicatorId;
+        private Long ownerOrgId;
+        private Long targetOrgId;
+        private BigDecimal weightPercent;
+        private Integer sortOrder;
+        private String remark;
+        private Integer progress;
+        private String distributionStatus;
 
-        @NotNull(message = "Cycle ID is required")
         private Long cycleId;
 
-        @NotNull(message = "Department ID is required")
         private Long departmentId;
 
-        @NotNull(message = "Target value is required")
         @DecimalMin(value = "0", message = "Target value must be positive")
         @DecimalMax(value = "100", message = "Target value cannot exceed 100")
         private BigDecimal targetValue;

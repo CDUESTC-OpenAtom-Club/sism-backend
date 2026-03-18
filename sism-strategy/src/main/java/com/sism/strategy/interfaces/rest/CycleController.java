@@ -52,7 +52,14 @@ public class CycleController {
         return ResponseEntity.ok(ApiResponse.success(cycles));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/years")
+    @Operation(summary = "Get all available years for year selector")
+    public ResponseEntity<ApiResponse<List<Integer>>> getAvailableYears() {
+        List<Integer> years = cycleApplicationService.getAvailableYears();
+        return ResponseEntity.ok(ApiResponse.success(years));
+    }
+
+    @GetMapping("/{id:[0-9]+}")
     @Operation(summary = "Get cycle by ID")
     public ResponseEntity<ApiResponse<Cycle>> getCycleById(@PathVariable Long id) {
         Cycle cycle = cycleApplicationService.getCycleById(id);
@@ -74,21 +81,21 @@ public class CycleController {
         return ResponseEntity.ok(ApiResponse.success(cycle));
     }
 
-    @PostMapping("/{id}/activate")
+    @PostMapping("/{id:[0-9]+}/activate")
     @Operation(summary = "Activate cycle")
     public ResponseEntity<ApiResponse<Cycle>> activateCycle(@PathVariable Long id) {
         Cycle cycle = cycleApplicationService.activateCycle(id);
         return ResponseEntity.ok(ApiResponse.success(cycle));
     }
 
-    @PostMapping("/{id}/deactivate")
+    @PostMapping("/{id:[0-9]+}/deactivate")
     @Operation(summary = "Deactivate cycle")
     public ResponseEntity<ApiResponse<Cycle>> deactivateCycle(@PathVariable Long id) {
         Cycle cycle = cycleApplicationService.deactivateCycle(id);
         return ResponseEntity.ok(ApiResponse.success(cycle));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:[0-9]+}")
     @Operation(summary = "Delete cycle")
     public ResponseEntity<ApiResponse<Void>> deleteCycle(@PathVariable Long id) {
         cycleApplicationService.deleteCycle(id);

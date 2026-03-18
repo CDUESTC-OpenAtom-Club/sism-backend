@@ -2,9 +2,11 @@ package com.sism.task.application.dto;
 
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.TaskType;
+import com.sism.task.infrastructure.persistence.TaskFlatView;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 /**
  * TaskResponse - 任务响应DTO
@@ -42,5 +44,41 @@ public class TaskResponse {
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
         return response;
+    }
+
+    public static TaskResponse fromView(TaskFlatView task) {
+        TaskResponse response = new TaskResponse();
+        response.setId(task.getId());
+        response.setTaskName(task.getTaskName());
+        response.setTaskDesc(task.getTaskDesc());
+        response.setTaskType(parseTaskType(task.getTaskType()));
+        response.setPlanId(task.getPlanId());
+        response.setCycleId(task.getCycleId());
+        response.setOrgId(task.getOrgId());
+        response.setCreatedByOrgId(task.getCreatedByOrgId());
+        response.setSortOrder(task.getSortOrder());
+        response.setStatus(task.getStatus());
+        response.setRemark(task.getRemark());
+        response.setCreatedAt(task.getCreatedAt());
+        response.setUpdatedAt(task.getUpdatedAt());
+        return response;
+    }
+
+    static TaskType parseTaskType(String rawTaskType) {
+        if (rawTaskType == null || rawTaskType.isBlank()) {
+            return null;
+        }
+
+        String normalized = rawTaskType.trim().toUpperCase(Locale.ROOT);
+
+        return switch (normalized) {
+            case "BASIC", "基础", "基础性" -> TaskType.BASIC;
+            case "REGULAR", "常规", "常规性" -> TaskType.REGULAR;
+            case "KEY", "重点" -> TaskType.KEY;
+            case "SPECIAL", "专项" -> TaskType.SPECIAL;
+            case "QUANTITATIVE", "量化" -> TaskType.QUANTITATIVE;
+            case "DEVELOPMENT", "发展", "发展性" -> TaskType.DEVELOPMENT;
+            default -> null;
+        };
     }
 }

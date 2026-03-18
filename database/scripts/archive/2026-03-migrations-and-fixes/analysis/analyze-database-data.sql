@@ -321,7 +321,7 @@ SELECT id, name, year, status FROM assessment_cycle ORDER BY id LIMIT 5;
 
 \echo ''
 \echo '--- sys_task 样例 ---'
-SELECT id, task_name, cycle_id, org_id FROM sys_task ORDER BY id LIMIT 5;
+SELECT task_id, task_name, task_type, cycle_id, org_id FROM sys_task ORDER BY task_id LIMIT 5;
 
 \echo ''
 \echo '--- indicator 样例 ---'

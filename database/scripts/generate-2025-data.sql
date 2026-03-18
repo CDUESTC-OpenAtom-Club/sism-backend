@@ -21,10 +21,7 @@ INSERT INTO sys_task (
     remark,
     created_at,
     updated_at,
-    is_deleted,
-    name,
-    type,
-    "desc"
+    is_deleted
 )
 SELECT 
     plan_id,
@@ -38,10 +35,7 @@ SELECT
     REPLACE(COALESCE(remark, ''), '2026', '2025') AS remark,
     NOW() AS created_at,
     NOW() AS updated_at,
-    false AS is_deleted,
-    REPLACE(name, '2026', '2025') AS name,
-    type,
-    REPLACE(COALESCE("desc", ''), '2026', '2025') AS "desc"
+    false AS is_deleted
 FROM sys_task
 WHERE cycle_id = 1  -- 复制所有 cycle_id = 1 的任务（实际上是 2026 年的任务）
 AND is_deleted = false;

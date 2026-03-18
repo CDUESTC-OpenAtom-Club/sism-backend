@@ -7,7 +7,11 @@ import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.enums.IndicatorStatus;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
+import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +26,64 @@ public class StrategyApplicationService {
     private final DomainEventPublisher eventPublisher;
     private final EventStore eventStore;
     private final IndicatorRepository indicatorRepository;
+    private final TaskRepository taskRepository;
+    private final BasicTaskWeightValidationService basicTaskWeightValidationService;
 
     @Transactional
     public Indicator createIndicator(String indicatorDesc, SysOrg ownerOrg, SysOrg targetOrg) {
         Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg);
+        indicator.validate();
+        indicator = indicatorRepository.save(indicator);
+        publishAndSaveEvents(indicator);
+        return indicator;
+    }
+
+    @Transactional
+    public Indicator createIndicator(
+            String indicatorDesc,
+            SysOrg ownerOrg,
+            SysOrg targetOrg,
+            Long taskId,
+            Long parentIndicatorId,
+            BigDecimal weightPercent,
+            Integer sortOrder,
+            String remark,
+            Integer progress,
+            IndicatorStatus distributionStatus) {
+        Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg);
+
+        if (taskId != null) {
+            indicator.setTaskId(taskId);
+        }
+        if (parentIndicatorId != null) {
+            Indicator parent = indicatorRepository.findById(parentIndicatorId)
+                    .orElseThrow(() -> new IllegalArgumentException("Parent indicator not found: " + parentIndicatorId));
+            indicator.setParent(parent);
+        }
+        if (weightPercent != null) {
+            indicator.setWeightPercent(weightPercent);
+        }
+        if (sortOrder != null) {
+            indicator.setSortOrder(sortOrder);
+        }
+        if (remark != null) {
+            indicator.setRemark(remark);
+        }
+        if (progress != null) {
+            indicator.setProgress(progress);
+        }
+        if (distributionStatus != null) {
+            indicator.setDistributionStatus(distributionStatus);
+            if (distributionStatus == IndicatorStatus.DISTRIBUTED) {
+                indicator.setStatus(IndicatorStatus.DISTRIBUTED);
+            } else if (distributionStatus == IndicatorStatus.DRAFT) {
+                indicator.setStatus(IndicatorStatus.DRAFT);
+            } else if (distributionStatus == IndicatorStatus.PENDING) {
+                indicator.setStatus(IndicatorStatus.PENDING);
+            }
+        }
+
+        indicator.setLevel(indicator.calculateLevel());
         indicator.validate();
         indicator = indicatorRepository.save(indicator);
         publishAndSaveEvents(indicator);
@@ -65,6 +123,13 @@ public class StrategyApplicationService {
     public Indicator distributeIndicator(Long id, SysOrg targetOrg, String customDesc) {
         Indicator indicator = indicatorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+
+        Long resolvedTargetOrgId = targetOrg != null
+                ? targetOrg.getId()
+                : indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null;
+
+        validatePlanBasicWeightBeforeDistribution(indicator, resolvedTargetOrgId);
+
         if (targetOrg != null) {
             indicator.setTargetOrg(targetOrg);
             indicator.setLevel(indicator.calculateLevel());
@@ -76,6 +141,17 @@ public class StrategyApplicationService {
         indicator = indicatorRepository.save(indicator);
         publishAndSaveEvents(indicator);
         return indicator;
+    }
+
+    private void validatePlanBasicWeightBeforeDistribution(Indicator indicator, Long targetOrgId) {
+        if (indicator.getParentIndicatorId() != null || indicator.getTaskId() == null) {
+            return;
+        }
+
+        StrategicTask task = taskRepository.findById(indicator.getTaskId())
+                .orElseThrow(() -> new IllegalArgumentException("Task not found for indicator: " + indicator.getTaskId()));
+
+        basicTaskWeightValidationService.validatePlanBasicWeight(task.getPlanId(), targetOrgId);
     }
 
     @Transactional
@@ -94,6 +170,14 @@ public class StrategyApplicationService {
 
     public List<Indicator> getAllIndicators() {
         return indicatorRepository.findAll();
+    }
+
+    public Page<Indicator> getIndicators(Pageable pageable) {
+        return indicatorRepository.findAll(pageable);
+    }
+
+    public Page<Indicator> getIndicatorsByStatus(String status, Pageable pageable) {
+        return indicatorRepository.findByStatus(status, pageable);
     }
 
     public List<Indicator> searchIndicators(String keyword) {

@@ -2,6 +2,8 @@ package com.sism.execution.domain.repository;
 
 import com.sism.execution.domain.model.plan.Plan;
 import com.sism.execution.domain.model.plan.PlanLevel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +23,11 @@ public interface PlanRepository {
      * 查询所有计划
      */
     List<Plan> findAll();
+
+    /**
+     * 分页查询计划
+     */
+    Page<Plan> findPage(List<Long> cycleIds, String status, Pageable pageable);
 
     /**
      * 根据目标组织ID查询计划

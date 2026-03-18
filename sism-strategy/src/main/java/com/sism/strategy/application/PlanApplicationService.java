@@ -1,8 +1,11 @@
 package com.sism.strategy.application;
 
+import com.sism.enums.IndicatorStatus;
 import com.sism.execution.domain.model.plan.Plan;
 import com.sism.execution.domain.model.plan.PlanLevel;
 import com.sism.execution.domain.repository.PlanRepository;
+import com.sism.organization.domain.SysOrg;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.domain.Cycle;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.CycleRepository;
@@ -10,9 +13,10 @@ import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.interfaces.dto.CreatePlanRequest;
 import com.sism.strategy.interfaces.dto.PlanResponse;
 import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
+import com.sism.task.domain.repository.TaskRepository;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -20,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -29,11 +34,15 @@ import java.util.stream.Collectors;
  */
 @Service("strategyPlanApplicationService")
 @RequiredArgsConstructor
+@Slf4j
 public class PlanApplicationService {
 
     private final PlanRepository planRepository;
     private final CycleRepository cycleRepository;
     private final IndicatorRepository indicatorRepository;
+    private final OrganizationRepository organizationRepository;
+    private final BasicTaskWeightValidationService basicTaskWeightValidationService;
+    private final TaskRepository taskRepository;
 
     /**
      * 创建计划
@@ -99,14 +108,78 @@ public class PlanApplicationService {
     }
 
     /**
-     * 发布计划
+     * 发布计划（下发）
+     * 同时同步所有关联指标的状态为 DISTRIBUTED
      */
     @Transactional
     public PlanResponse publishPlan(Long id) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
+        basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
         plan.activate();
+        Plan saved = planRepository.save(plan);
+
+        // 同步所有关联指标的状态
+        syncIndicatorStatusWithPlan(saved);
+
+        return convertToResponse(saved, null);
+    }
+
+    /**
+     * 提交计划审批
+     */
+    @Transactional
+    public PlanResponse submitPlanForApproval(Long id) {
+        Plan plan = planRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+
+        plan.submitForApproval();
+        Plan saved = planRepository.save(plan);
+        return convertToResponse(saved, null);
+    }
+
+    /**
+     * 审批通过计划
+     * 同时同步所有关联指标的状态为 DISTRIBUTED
+     */
+    @Transactional
+    public PlanResponse approvePlan(Long id) {
+        Plan plan = planRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+
+        basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
+        plan.approve();
+        Plan saved = planRepository.save(plan);
+
+        // 同步所有关联指标的状态
+        syncIndicatorStatusWithPlan(saved);
+
+        return convertToResponse(saved, null);
+    }
+
+    /**
+     * 驳回计划
+     */
+    @Transactional
+    public PlanResponse rejectPlan(Long id) {
+        Plan plan = planRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+
+        plan.reject();
+        Plan saved = planRepository.save(plan);
+        return convertToResponse(saved, null);
+    }
+
+    /**
+     * 撤回计划到草稿
+     */
+    @Transactional
+    public PlanResponse withdrawPlan(Long id) {
+        Plan plan = planRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+
+        plan.withdraw();
         Plan saved = planRepository.save(plan);
         return convertToResponse(saved, null);
     }
@@ -128,16 +201,30 @@ public class PlanApplicationService {
      * 根据ID查询计划
      */
     public Optional<PlanResponse> getPlanById(Long id) {
+        Map<Long, String> orgNamesById = loadOrgNamesById();
         return planRepository.findById(id)
-                .map(plan -> convertToResponse(plan, null));
+                .map(plan -> convertToResponse(plan, null, orgNamesById));
+    }
+
+    /**
+     * 根据Task ID查询关联的Plan
+     * Task 与 Plan 通过 sys_task.plan_id 关联。
+     */
+    public Optional<PlanResponse> getPlanByTaskId(Long taskId) {
+        Map<Long, String> orgNamesById = loadOrgNamesById();
+        return taskRepository.findById(taskId)
+                .map(com.sism.task.domain.StrategicTask::getPlanId)
+                .flatMap(planRepository::findById)
+                .map(plan -> convertToResponse(plan, null, orgNamesById));
     }
 
     /**
      * 查询所有计划
      */
     public List<PlanResponse> getAllPlans() {
+        Map<Long, String> orgNamesById = loadOrgNamesById();
         return planRepository.findAll().stream()
-                .map(plan -> convertToResponse(plan, null))
+                .map(plan -> convertToResponse(plan, null, orgNamesById))
                 .collect(Collectors.toList());
     }
 
@@ -145,32 +232,41 @@ public class PlanApplicationService {
      * 分页查询计划
      */
     public Page<PlanResponse> getPlans(int page, int size, Integer year, String status) {
+        long startedAt = System.currentTimeMillis();
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        List<Long> cycleIds = year == null
+                ? List.of()
+                : cycleRepository.findByYear(year).stream()
+                .map(Cycle::getId)
+                .toList();
 
-        List<Plan> allPlans = planRepository.findAll();
-
-        // 应用过滤
-        List<Plan> filteredPlans = allPlans.stream()
-                .filter(plan -> {
-                    boolean matchYear = year == null; // 如果需要年份过滤，需要关联Cycle表
-                    boolean matchStatus = status == null || status.equals(plan.getStatus());
-                    return matchYear && matchStatus;
-                })
-                .collect(Collectors.toList());
-
-        // 分页
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), filteredPlans.size());
-
-        if (start >= filteredPlans.size()) {
-            return new PageImpl<>(List.of(), pageable, filteredPlans.size());
+        if (year != null && cycleIds.isEmpty()) {
+            log.info(
+                    "Loaded plans page={}, size={}, year={}, status={}, results=0, total=0, durationMs={}",
+                    page,
+                    size,
+                    year,
+                    status,
+                    System.currentTimeMillis() - startedAt
+            );
+            return Page.empty(pageable);
         }
 
-        List<PlanResponse> pageContent = filteredPlans.subList(start, end).stream()
-                .map(plan -> convertToResponse(plan, null))
-                .collect(Collectors.toList());
+        Page<Plan> planPage = planRepository.findPage(cycleIds, status, pageable);
+        Map<Long, String> orgNamesById = loadOrgNamesById();
+        Page<PlanResponse> responsePage = planPage.map(plan -> convertToResponse(plan, null, orgNamesById));
 
-        return new PageImpl<>(pageContent, pageable, filteredPlans.size());
+        log.info(
+                "Loaded plans page={}, size={}, year={}, status={}, results={}, total={}, durationMs={}",
+                page,
+                size,
+                year,
+                status,
+                responsePage.getNumberOfElements(),
+                responsePage.getTotalElements(),
+                System.currentTimeMillis() - startedAt
+        );
+        return responsePage;
     }
 
     /**
@@ -180,8 +276,9 @@ public class PlanApplicationService {
         Cycle cycle = cycleRepository.findById(cycleId)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
 
+        Map<Long, String> orgNamesById = loadOrgNamesById();
         return planRepository.findByCycleId(cycleId).stream()
-                .map(plan -> convertToResponse(plan, cycle.getYear().toString()))
+                .map(plan -> convertToResponse(plan, cycle.getYear().toString(), orgNamesById))
                 .collect(Collectors.toList());
     }
 
@@ -189,12 +286,17 @@ public class PlanApplicationService {
      * 获取计划详情（包含指标和里程碑）
      */
     public PlanDetailsResponse getPlanDetails(Long id) {
+        long startedAt = System.currentTimeMillis();
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
         Cycle cycle = cycleRepository.findById(plan.getCycleId()).orElse(null);
 
-        PlanResponse planResponse = convertToResponse(plan, cycle != null ? cycle.getYear().toString() : null);
+        PlanResponse planResponse = convertToResponse(
+                plan,
+                cycle != null ? cycle.getYear().toString() : null,
+                loadOrgNamesById()
+        );
 
         PlanDetailsResponse details = new PlanDetailsResponse();
         details.setId(planResponse.getId());
@@ -215,15 +317,21 @@ public class PlanApplicationService {
         details.setCreatedByOrgId(planResponse.getCreatedByOrgId());
         details.setPlanLevel(planResponse.getPlanLevel());
 
-        // 查询相关指标
-        List<InternalIndicatorResponse> indicators = indicatorRepository.findAll().stream()
-                .filter(indicator -> id.equals(indicator.getTaskId()))
-                .map(this::convertIndicatorToResponse)
+        // 查询相关指标（使用 Plan 状态作为指标状态）
+        String planStatus = plan.getStatus();
+        List<InternalIndicatorResponse> indicators = indicatorRepository.findByTaskId(id).stream()
+                .map(indicator -> convertIndicatorToResponse(indicator, planStatus))
                 .collect(Collectors.toList());
         details.setIndicators(indicators);
 
         // TODO: 查询相关里程碑（需要扩展MilestoneRepository支持按planId查询）
 
+        log.info(
+                "Loaded plan details id={}, indicators={}, durationMs={}",
+                id,
+                indicators.size(),
+                System.currentTimeMillis() - startedAt
+        );
         return details;
     }
 
@@ -232,16 +340,16 @@ public class PlanApplicationService {
      */
     private PlanLevel determinePlanLevel(String planType) {
         if (planType == null) {
-            return PlanLevel.STRATEGIC;
+            return PlanLevel.STRAT_TO_FUNC;
         }
 
         String typeUpper = planType.toUpperCase();
         if (typeUpper.equals("OPERATION") || typeUpper.equals("OPERATIONAL")) {
-            return PlanLevel.OPERATIONAL;
+            return PlanLevel.FUNC_TO_COLLEGE;
         } else if (typeUpper.equals("COMPREHENSIVE")) {
-            return PlanLevel.COMPREHENSIVE;
+            return PlanLevel.FUNC_TO_COLLEGE;
         } else {
-            return PlanLevel.STRATEGIC;
+            return PlanLevel.STRAT_TO_FUNC;
         }
     }
 
@@ -249,6 +357,12 @@ public class PlanApplicationService {
      * 将Plan实体转换为响应DTO
      */
     private PlanResponse convertToResponse(Plan plan, String year) {
+        return convertToResponse(plan, year, loadOrgNamesById());
+    }
+
+    private PlanResponse convertToResponse(Plan plan, String year, Map<Long, String> orgNamesById) {
+        String targetOrgName = plan.getTargetOrgId() == null ? null : orgNamesById.get(plan.getTargetOrgId());
+
         return PlanResponse.builder()
                 .id(plan.getId())
                 .planName("Plan " + plan.getId()) // 计划名称需要从Plan实体获取或单独存储
@@ -265,15 +379,26 @@ public class PlanApplicationService {
                 .year(year)
                 .cycleId(plan.getCycleId())
                 .targetOrgId(plan.getTargetOrgId())
+                .targetOrgName(targetOrgName) // 设置目标组织名称
                 .createdByOrgId(plan.getCreatedByOrgId())
                 .planLevel(plan.getPlanLevel() != null ? plan.getPlanLevel().name() : null)
                 .build();
     }
 
+    private Map<Long, String> loadOrgNamesById() {
+        return organizationRepository.findAll().stream()
+                .collect(Collectors.toMap(SysOrg::getId, SysOrg::getOrgName, (existing, replacement) -> existing));
+    }
+
     /**
      * 将Indicator实体转换为响应DTO
+     * 指标状态统一使用 Plan 的状态
      */
-    private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator) {
+    private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator, String planStatus) {
+        // 使用 Plan 的状态作为指标状态
+        String effectiveStatus = planStatus != null ? planStatus :
+                (indicator.getStatus() != null ? indicator.getStatus().name() : "DRAFT");
+
         return InternalIndicatorResponse.builder()
                 .id(indicator.getId())
                 .indicatorName(indicator.getName())
@@ -283,11 +408,49 @@ public class PlanApplicationService {
                 .ownerOrgId(indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getId() : null)
                 .targetOrgId(indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null)
                 .weightPercent(indicator.getWeight())
-                .status(indicator.getStatus() != null ? indicator.getStatus().name() : "DRAFT")
+                .status(effectiveStatus)
                 .progress(indicator.getProgress())
                 .createdAt(indicator.getCreatedAt())
                 .updatedAt(indicator.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * 将Indicator实体转换为响应DTO（兼容旧方法，用于非Plan关联场景）
+     */
+    private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator) {
+        return convertIndicatorToResponse(indicator, null);
+    }
+
+    /**
+     * 同步指标状态与 Plan 状态
+     * 当 Plan 状态变更时，统一更新所有关联指标的状态
+     */
+    @Transactional
+    public void syncIndicatorStatusWithPlan(Plan plan) {
+        // 获取 Plan 对应的状态
+        IndicatorStatus targetStatus = mapPlanStatusToIndicatorStatus(plan.getStatus());
+
+        // 查找所有关联的指标（通过 taskId 关联）
+        List<Indicator> indicators = indicatorRepository.findByTaskId(plan.getId());
+
+        // 更新所有指标的状态
+        for (Indicator indicator : indicators) {
+            indicator.setStatus(targetStatus);
+            indicatorRepository.save(indicator);
+        }
+    }
+
+    /**
+     * 将 Plan 状态映射为 Indicator 状态
+     */
+    private IndicatorStatus mapPlanStatusToIndicatorStatus(String planStatus) {
+        return switch (planStatus != null ? planStatus.toUpperCase() : "DRAFT") {
+            case "ACTIVE" -> IndicatorStatus.DISTRIBUTED;
+            case "PENDING" -> IndicatorStatus.PENDING;
+            case "REJECTED", "CANCELLED" -> IndicatorStatus.DRAFT;
+            default -> IndicatorStatus.DRAFT;
+        };
     }
 
     /**

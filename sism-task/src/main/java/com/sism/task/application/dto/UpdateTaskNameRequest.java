@@ -1,6 +1,6 @@
 package com.sism.task.application.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -9,9 +9,6 @@ import lombok.Data;
 @Data
 public class UpdateTaskNameRequest {
 
-    @NotNull(message = "任务ID不能为空")
-    private Long taskId;
-
-    @NotNull(message = "任务名称不能为空")
+    @NotBlank(message = "任务名称不能为空")
     private String taskName;
 }

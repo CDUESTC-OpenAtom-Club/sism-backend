@@ -10,12 +10,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -171,12 +174,30 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
         String requestId = getOrGenerateRequestId();
         String requestContext = getRequestContext();
-        
-        log.warn("Illegal argument: message={}, requestId={}, context=[{}]", 
+
+        log.warn("Illegal argument: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
-        
+
         ApiResponse<Void> response = ApiResponse.error(1001, e.getMessage());
-        
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    /**
+     * Handle illegal state exceptions.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalStateException(IllegalStateException e) {
+        String requestId = getOrGenerateRequestId();
+        String requestContext = getRequestContext();
+
+        log.warn("Illegal state: message={}, requestId={}, context=[{}]",
+                e.getMessage(), requestId, requestContext);
+
+        ApiResponse<Void> response = ApiResponse.error(1000, e.getMessage());
+
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
@@ -305,6 +326,60 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    /**
+     * Handle endpoint not found (404).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(NoResourceFoundException e) {
+        String requestId = getOrGenerateRequestId();
+        String requestContext = getRequestContext();
+
+        log.warn("Resource endpoint not found: message={}, requestId={}, context=[{}]",
+                e.getMessage(), requestId, requestContext);
+
+        ApiResponse<Void> response = ApiResponse.error(1002, "接口不存在");
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
+
+    /**
+     * Handle method not supported (405).
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
+        String requestId = getOrGenerateRequestId();
+        String requestContext = getRequestContext();
+
+        log.warn("Method not supported: method={}, message={}, requestId={}, context=[{}]",
+                e.getMethod(), e.getMessage(), requestId, requestContext);
+
+        ApiResponse<Void> response = ApiResponse.error(1001, "请求方法不支持");
+
+        return ResponseEntity
+                .status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(response);
+    }
+
+    /**
+     * Handle access denied (403).
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
+        String requestId = getOrGenerateRequestId();
+        String requestContext = getRequestContext();
+
+        log.warn("Access denied: message={}, requestId={}, context=[{}]",
+                e.getMessage(), requestId, requestContext);
+
+        ApiResponse<Void> response = ApiResponse.error(2003, "无权限访问");
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
                 .body(response);
     }
 

@@ -31,6 +31,10 @@
             <groupId>com.sism</groupId>
             <artifactId>sism-execution</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.sism</groupId>
+            <artifactId>sism-task</artifactId>
+        </dependency>
 
         <!-- Spring Boot Starters -->
         <dependency>

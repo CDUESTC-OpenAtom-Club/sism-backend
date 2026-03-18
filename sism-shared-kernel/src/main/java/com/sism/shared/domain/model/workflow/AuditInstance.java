@@ -8,7 +8,10 @@ import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * AuditInstance - 审批实例聚合根
@@ -33,6 +36,10 @@ public class AuditInstance extends AggregateRoot<Long> {
     public static final String STATUS_REJECTED = "REJECTED";
     public static final String STATUS_WITHDRAWN = "WITHDRAWN";
     public static final String STATUS_CANCELLED = "WITHDRAWN";
+    public static final String STEP_STATUS_PENDING = "PENDING";
+    public static final String STEP_STATUS_WAITING = "WAITING";
+    public static final String STEP_STATUS_APPROVED = "APPROVED";
+    public static final String STEP_STATUS_REJECTED = "REJECTED";
 
     @Column(name = "flow_def_id")
     private Long flowDefId;
@@ -117,14 +124,54 @@ public class AuditInstance extends AggregateRoot<Long> {
         if (!STATUS_PENDING.equals(status)) {
             throw new IllegalStateException("Cannot approve: workflow is not in review");
         }
-        this.status = STATUS_APPROVED;
-        this.result = "Approved by user " + userId + (comment != null ? ": " + comment : "");
-        this.completedAt = LocalDateTime.now();
+        if (stepInstances == null || stepInstances.isEmpty()) {
+            this.status = STATUS_APPROVED;
+            this.result = "Approved by user " + userId + (comment != null ? ": " + comment : "");
+            this.completedAt = LocalDateTime.now();
+            return;
+        }
+
+        AuditStepInstance current = resolveCurrentPendingStep()
+                .orElseThrow(() -> new IllegalStateException("No pending step available for approval"));
+
+        if (current.getApproverId() != null && !Objects.equals(current.getApproverId(), userId)) {
+            throw new IllegalStateException("Cannot approve: current step is assigned to another approver");
+        }
+
+        current.setStatus(STEP_STATUS_APPROVED);
+        current.setComment(comment);
+        current.setApprovedAt(LocalDateTime.now());
+
+        Optional<AuditStepInstance> next = stepInstances.stream()
+                .filter(step -> STEP_STATUS_WAITING.equals(step.getStatus()))
+                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .findFirst();
+
+        if (next.isPresent()) {
+            AuditStepInstance nextStep = next.get();
+            nextStep.setStatus(STEP_STATUS_PENDING);
+            this.currentStepIndex = nextStep.getStepIndex();
+            this.result = "Approved step " + current.getStepName() + " by user " + userId;
+        } else {
+            this.status = STATUS_APPROVED;
+            this.result = "Approved by user " + userId + (comment != null ? ": " + comment : "");
+            this.completedAt = LocalDateTime.now();
+        }
     }
 
     public void reject(Long userId, String comment) {
         if (!STATUS_PENDING.equals(status)) {
             throw new IllegalStateException("Cannot reject: workflow is not in review");
+        }
+        if (stepInstances != null && !stepInstances.isEmpty()) {
+            AuditStepInstance current = resolveCurrentPendingStep()
+                    .orElseThrow(() -> new IllegalStateException("No pending step available for rejection"));
+            if (current.getApproverId() != null && !Objects.equals(current.getApproverId(), userId)) {
+                throw new IllegalStateException("Cannot reject: current step is assigned to another approver");
+            }
+            current.setStatus(STEP_STATUS_REJECTED);
+            current.setComment(comment);
+            current.setApprovedAt(LocalDateTime.now());
         }
         this.status = STATUS_REJECTED;
         this.result = "Rejected by user " + userId + (comment != null ? ": " + comment : "");
@@ -159,6 +206,23 @@ public class AuditInstance extends AggregateRoot<Long> {
     public void addStepInstance(AuditStepInstance stepInstance) {
         stepInstances.add(stepInstance);
         stepInstance.setInstance(this);
+        if (stepInstance.getCreatedAt() == null) {
+            stepInstance.setCreatedAt(LocalDateTime.now());
+        }
+    }
+
+    private Optional<AuditStepInstance> resolveCurrentPendingStep() {
+        Optional<AuditStepInstance> byIndex = stepInstances.stream()
+                .filter(step -> Objects.equals(step.getStepIndex(), currentStepIndex))
+                .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()))
+                .findFirst();
+        if (byIndex.isPresent()) {
+            return byIndex;
+        }
+        return stepInstances.stream()
+                .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()))
+                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .findFirst();
     }
 
     @PrePersist

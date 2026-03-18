@@ -1,5 +1,6 @@
 package com.sism.shared.domain.model.workflow;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +23,7 @@ public class AuditStepInstance {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "instance_id", nullable = false)
+    @JsonIgnore
     private AuditInstance instance;
 
     @Column(name = "step_index", nullable = false)

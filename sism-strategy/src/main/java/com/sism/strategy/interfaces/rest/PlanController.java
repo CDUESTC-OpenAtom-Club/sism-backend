@@ -43,7 +43,7 @@ public class PlanController {
         return ResponseEntity.ok(ApiResponse.success(pageResult));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     @Operation(summary = "Get plan by ID")
     public ResponseEntity<ApiResponse<PlanResponse>> getPlanById(@PathVariable Long id) {
         return planApplicationService.getPlanById(id)
@@ -96,10 +96,47 @@ public class PlanController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @GetMapping("/{id}/details")
+    @PostMapping("/{id}/submit")
+    @Operation(summary = "Submit plan for approval")
+    public ResponseEntity<ApiResponse<PlanResponse>> submitPlanForApproval(@PathVariable Long id) {
+        PlanResponse response = planApplicationService.submitPlanForApproval(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/{id}/approve")
+    @Operation(summary = "Approve a plan")
+    public ResponseEntity<ApiResponse<PlanResponse>> approvePlan(@PathVariable Long id) {
+        PlanResponse response = planApplicationService.approvePlan(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/{id}/reject")
+    @Operation(summary = "Reject a plan")
+    public ResponseEntity<ApiResponse<PlanResponse>> rejectPlan(@PathVariable Long id) {
+        PlanResponse response = planApplicationService.rejectPlan(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/{id}/withdraw")
+    @Operation(summary = "Withdraw plan to draft")
+    public ResponseEntity<ApiResponse<PlanResponse>> withdrawPlan(@PathVariable Long id) {
+        PlanResponse response = planApplicationService.withdrawPlan(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{id:[0-9]+}/details")
     @Operation(summary = "Get plan details with indicators and milestones")
     public ResponseEntity<ApiResponse<PlanApplicationService.PlanDetailsResponse>> getPlanDetails(@PathVariable Long id) {
         PlanApplicationService.PlanDetailsResponse response = planApplicationService.getPlanDetails(id);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/task/{taskId}")
+    @Operation(summary = "Get plan by task ID")
+    public ResponseEntity<ApiResponse<PlanResponse>> getPlanByTaskId(@PathVariable Long taskId) {
+        // 通过 taskId 查找关联的 plan
+        return planApplicationService.getPlanByTaskId(taskId)
+                .map(plan -> ResponseEntity.ok(ApiResponse.success(plan)))
+                .orElse(ResponseEntity.ok(ApiResponse.error(404, "Plan not found for task: " + taskId)));
     }
 }

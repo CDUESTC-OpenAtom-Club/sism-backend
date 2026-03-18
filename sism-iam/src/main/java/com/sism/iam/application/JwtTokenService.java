@@ -1,6 +1,7 @@
 package com.sism.iam.application;
 
 import com.sism.iam.domain.User;
+import com.sism.iam.domain.Role;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,8 +9,10 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -32,6 +35,8 @@ public class JwtTokenService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("username", user.getUsername());
+        claims.put("orgId", user.getOrgId());
+        claims.put("roles", extractRoleCodes(user.getRoles()));
 
         return Jwts.builder()
                 .claims(claims)
@@ -58,6 +63,21 @@ public class JwtTokenService {
         return extractClaims(token).get("userId", Long.class);
     }
 
+    public Long getOrgIdFromToken(String token) {
+        return extractClaims(token).get("orgId", Long.class);
+    }
+
+    public List<String> getRolesFromToken(String token) {
+        Object rawRoles = extractClaims(token).get("roles");
+        if (rawRoles instanceof Collection<?> roles) {
+            return roles.stream()
+                    .map(String::valueOf)
+                    .filter(role -> !role.isBlank())
+                    .toList();
+        }
+        return List.of();
+    }
+
     private Claims extractClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -81,6 +101,7 @@ public class JwtTokenService {
         User user = new User();
         user.setId(userId);
         user.setUsername(username);
+        user.setOrgId(getOrgIdFromToken(refreshToken));
 
         String newAccessToken = generateToken(user);
         String newRefreshToken = generateRefreshToken(user);
@@ -98,6 +119,8 @@ public class JwtTokenService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("username", user.getUsername());
+        claims.put("orgId", user.getOrgId());
+        claims.put("roles", extractRoleCodes(user.getRoles()));
         claims.put("type", "refresh");
 
         return Jwts.builder()
@@ -111,5 +134,17 @@ public class JwtTokenService {
 
     public long getExpirationSeconds() {
         return expiration / 1000;
+    }
+
+    private List<String> extractRoleCodes(Collection<Role> roles) {
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
+
+        return roles.stream()
+                .map(Role::getRoleCode)
+                .filter(roleCode -> roleCode != null && !roleCode.isBlank())
+                .distinct()
+                .toList();
     }
 }

@@ -64,6 +64,9 @@ public class PlanResponse {
     @Schema(description = "目标组织ID")
     private Long targetOrgId;
 
+    @Schema(description = "目标组织名称")
+    private String targetOrgName;
+
     @Schema(description = "创建组织ID")
     private Long createdByOrgId;
 

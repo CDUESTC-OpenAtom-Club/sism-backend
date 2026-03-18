@@ -140,6 +140,16 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
+    @GetMapping("/events/unclosed")
+    @Operation(summary = "Get unclosed alert events", description = "Query all unclosed alert events (frontend compatibility)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<Alert>>> getUnclosedAlertEvents(Authentication authentication) {
+        // Alias for /unresolved to match frontend API expectations
+        List<Alert> alerts = alertApplicationService.getUnresolvedAlerts();
+        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
+    }
+
     // ==================== Update ====================
 
     @PostMapping("/{id}/resolve")

@@ -10,14 +10,13 @@ import com.sism.task.application.dto.*;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
+import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -25,6 +24,7 @@ import java.util.List;
 public class TaskApplicationService {
 
     private final TaskRepository taskRepository;
+    private final JpaTaskRepositoryInternal jpaTaskRepository;
     private final OrganizationRepository organizationRepository;
     private final DomainEventPublisher eventPublisher;
     private final EventStore eventStore;
@@ -196,36 +196,37 @@ public class TaskApplicationService {
 
     @Transactional(readOnly = true)
     public PageResult<TaskResponse> searchTasks(TaskQueryRequest request) {
-        Sort sort = Sort.unsorted();
-        if (request.getSortBy() != null && !request.getSortBy().isEmpty()) {
-            Sort.Direction direction = Sort.Direction.ASC;
-            if (request.getSortDirection() != null && "desc".equalsIgnoreCase(request.getSortDirection())) {
-                direction = Sort.Direction.DESC;
-            }
-            sort = Sort.by(direction, request.getSortBy());
-        }
+        int page = request.getPage() != null ? request.getPage() : 0;
+        int size = request.getSize() != null ? request.getSize() : 10;
 
-        Pageable pageable = PageRequest.of(
-                request.getPage() != null ? request.getPage() : 0,
-                request.getSize() != null ? request.getSize() : 10,
-                sort
-        );
-
-        Page<StrategicTask> page = taskRepository.findByCriteria(
+        List<TaskResponse> matches = jpaTaskRepository.findFlatViewsByCriteria(
                 request.getPlanId(),
                 request.getCycleId(),
                 request.getOrgId(),
                 request.getCreatedByOrgId(),
-                request.getTaskType(),
-                request.getTaskName(),
-                pageable
-        );
+                request.getTaskType() != null ? request.getTaskType().name() : "",
+                request.getTaskName() != null ? request.getTaskName() : ""
+        ).stream()
+                .map(TaskResponse::fromView)
+                .toList();
+
+        Comparator<TaskResponse> comparator = buildSearchComparator(request.getSortBy());
+        if (comparator != null) {
+            if ("desc".equalsIgnoreCase(request.getSortDirection())) {
+                comparator = comparator.reversed();
+            }
+            matches = matches.stream().sorted(comparator).toList();
+        }
+
+        int fromIndex = Math.min(page * size, matches.size());
+        int toIndex = Math.min(fromIndex + size, matches.size());
+        List<TaskResponse> items = matches.subList(fromIndex, toIndex);
 
         return PageResult.of(
-                page.getContent().stream().map(TaskResponse::fromEntity).toList(),
-                page.getTotalElements(),
-                page.getNumber(),
-                page.getSize()
+                items,
+                matches.size(),
+                page,
+                size
         );
     }
 
@@ -243,8 +244,9 @@ public class TaskApplicationService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByCycleId(Long cycleId) {
-        List<StrategicTask> tasks = taskRepository.findByCycleId(cycleId);
-        return tasks.stream().map(TaskResponse::fromEntity).toList();
+        return jpaTaskRepository.findFlatViewsByCycleId(cycleId).stream()
+                .map(TaskResponse::fromView)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -269,5 +271,29 @@ public class TaskApplicationService {
         eventPublisher.publishAll(events);
 
         aggregate.clearEvents();
+    }
+
+    private Comparator<TaskResponse> buildSearchComparator(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return null;
+        }
+
+        return switch (sortBy) {
+            case "id" -> Comparator.comparing(TaskResponse::getId, Comparator.nullsLast(Long::compareTo));
+            case "taskName" -> Comparator.comparing(TaskResponse::getTaskName, Comparator.nullsLast(String::compareTo));
+            case "taskType" -> Comparator.comparing(
+                    response -> response.getTaskType() != null ? response.getTaskType().name() : null,
+                    Comparator.nullsLast(String::compareTo)
+            );
+            case "planId" -> Comparator.comparing(TaskResponse::getPlanId, Comparator.nullsLast(Long::compareTo));
+            case "cycleId" -> Comparator.comparing(TaskResponse::getCycleId, Comparator.nullsLast(Long::compareTo));
+            case "orgId" -> Comparator.comparing(TaskResponse::getOrgId, Comparator.nullsLast(Long::compareTo));
+            case "createdByOrgId" -> Comparator.comparing(TaskResponse::getCreatedByOrgId, Comparator.nullsLast(Long::compareTo));
+            case "sortOrder" -> Comparator.comparing(TaskResponse::getSortOrder, Comparator.nullsLast(Integer::compareTo));
+            case "status" -> Comparator.comparing(TaskResponse::getStatus, Comparator.nullsLast(String::compareTo));
+            case "createdAt" -> Comparator.comparing(TaskResponse::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo));
+            case "updatedAt" -> Comparator.comparing(TaskResponse::getUpdatedAt, Comparator.nullsLast(LocalDateTime::compareTo));
+            default -> null;
+        };
     }
 }

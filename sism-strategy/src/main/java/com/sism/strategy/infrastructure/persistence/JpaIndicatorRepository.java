@@ -21,17 +21,17 @@ public class JpaIndicatorRepository implements IndicatorRepository {
 
     @Override
     public Optional<Indicator> findById(Long id) {
-        return jpaRepository.findById(id);
+        return jpaRepository.findByIdAndIsDeletedFalse(id);
     }
 
     @Override
     public List<Indicator> findAll() {
-        return jpaRepository.findAll();
+        return jpaRepository.findAllByIsDeletedFalse();
     }
 
     @Override
     public Page<Indicator> findAll(Pageable pageable) {
-        return jpaRepository.findAll(pageable);
+        return jpaRepository.findAllByIsDeletedFalse(pageable);
     }
 
     @Override
@@ -44,7 +44,7 @@ public class JpaIndicatorRepository implements IndicatorRepository {
 
     @Override
     public List<Indicator> findByTargetOrgId(Long targetOrgId) {
-        return jpaRepository.findByTargetOrgId(targetOrgId);
+        return jpaRepository.findByTargetOrgIdAndIsDeletedFalse(targetOrgId);
     }
 
     @Override
@@ -57,27 +57,27 @@ public class JpaIndicatorRepository implements IndicatorRepository {
 
     @Override
     public List<Indicator> findByOwnerOrgId(Long ownerOrgId) {
-        return jpaRepository.findByOwnerOrgId(ownerOrgId);
+        return jpaRepository.findByOwnerOrgIdAndIsDeletedFalse(ownerOrgId);
     }
 
     @Override
     public List<Indicator> findByStatus(String status) {
-        return jpaRepository.findByStatus(status);
+        return jpaRepository.findByStatusAndIsDeletedFalse(status);
     }
 
     @Override
     public Page<Indicator> findByStatus(String status, Pageable pageable) {
-        return jpaRepository.findByStatus(status, pageable);
+        return jpaRepository.findByStatusAndIsDeletedFalse(status, pageable);
     }
 
     @Override
     public List<Indicator> findByParentIndicatorId(Long parentIndicatorId) {
-        return jpaRepository.findByParentIndicatorId(parentIndicatorId);
+        return jpaRepository.findByParentIndicatorIdAndIsDeletedFalse(parentIndicatorId);
     }
 
     @Override
     public List<Indicator> findByTaskId(Long taskId) {
-        return jpaRepository.findByTaskId(taskId);
+        return jpaRepository.findByTaskIdAndIsDeletedFalse(taskId);
     }
 
     @Override
@@ -92,7 +92,7 @@ public class JpaIndicatorRepository implements IndicatorRepository {
 
     @Override
     public boolean existsById(Long id) {
-        return jpaRepository.existsById(id);
+        return jpaRepository.existsByIdAndIsDeletedFalse(id);
     }
 
     @Override

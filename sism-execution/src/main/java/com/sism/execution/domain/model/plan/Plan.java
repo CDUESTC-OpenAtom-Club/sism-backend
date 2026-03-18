@@ -73,6 +73,10 @@ public class Plan extends AggregateRoot<Long> {
         return plan;
     }
 
+    /**
+     * 激活计划（下发）
+     * DRAFT -> ACTIVE
+     */
     public void activate() {
         if ("ACTIVE".equals(this.status)) {
             throw new IllegalStateException("Plan is already active");
@@ -81,6 +85,58 @@ public class Plan extends AggregateRoot<Long> {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /**
+     * 提交计划审批
+     * DRAFT -> PENDING
+     */
+    public void submitForApproval() {
+        if (!"DRAFT".equals(this.status)) {
+            throw new IllegalStateException("Plan must be in DRAFT state to submit for approval");
+        }
+        this.status = "PENDING";
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 审批通过计划
+     * PENDING -> ACTIVE
+     */
+    public void approve() {
+        if (!"PENDING".equals(this.status)) {
+            throw new IllegalStateException("Plan must be in PENDING state to approve");
+        }
+        this.status = "ACTIVE";
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 驳回计划
+     * PENDING -> REJECTED
+     */
+    public void reject() {
+        if (!"PENDING".equals(this.status)) {
+            throw new IllegalStateException("Plan must be in PENDING state to reject");
+        }
+        this.status = "REJECTED";
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 撤回计划到草稿
+     * PENDING/REJECTED -> DRAFT
+     */
+    public void withdraw() {
+        if ("DRAFT".equals(this.status) || "ACTIVE".equals(this.status) || "COMPLETED".equals(this.status)) {
+            throw new IllegalStateException("Cannot withdraw plan in current state: " + this.status);
+        }
+        this.status = "DRAFT";
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 完成计划
+     * ACTIVE -> COMPLETED
+     */
     public void complete() {
         if (!"ACTIVE".equals(this.status)) {
             throw new IllegalStateException("Plan must be active to complete");
@@ -89,12 +145,36 @@ public class Plan extends AggregateRoot<Long> {
         this.updatedAt = LocalDateTime.now();
     }
 
+    /**
+     * 取消计划
+     */
     public void cancel() {
         if ("CANCELLED".equals(this.status) || "COMPLETED".equals(this.status)) {
             throw new IllegalStateException("Plan cannot be cancelled");
         }
         this.status = "CANCELLED";
         this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 检查计划是否可编辑（草稿或被驳回状态）
+     */
+    public boolean isEditable() {
+        return "DRAFT".equals(this.status) || "REJECTED".equals(this.status);
+    }
+
+    /**
+     * 检查计划是否已下发（激活状态）
+     */
+    public boolean isDistributed() {
+        return "ACTIVE".equals(this.status);
+    }
+
+    /**
+     * 检查计划是否处于审批中
+     */
+    public boolean isPending() {
+        return "PENDING".equals(this.status);
     }
 
     @Override

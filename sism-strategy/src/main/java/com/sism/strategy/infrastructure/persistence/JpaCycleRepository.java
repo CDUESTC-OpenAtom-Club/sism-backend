@@ -50,4 +50,9 @@ public class JpaCycleRepository implements CycleRepository {
     public boolean existsById(Long id) {
         return jpaRepository.existsById(id);
     }
+
+    @Override
+    public List<Integer> findDistinctYears() {
+        return jpaRepository.findDistinctYears();
+    }
 }

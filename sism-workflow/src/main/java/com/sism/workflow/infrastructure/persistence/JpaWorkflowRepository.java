@@ -60,11 +60,9 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.status = :status")
     List<AuditInstance> findByStatus(@Param("status") AuditStatus status);
 
-    // 注意：AuditInstance 没有 currentApproverId 字段，此方法返回空列表
-    // 实际的审批人查询应通过 stepInstances 关联查询
-    default List<AuditInstance> findByCurrentApproverId(Long approverId) {
-        return List.of();
-    }
+    @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s " +
+            "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :approverId")
+    List<AuditInstance> findByCurrentApproverId(@Param("approverId") Long approverId);
 
     @Query("SELECT a FROM AuditInstance a WHERE a.requesterId = :initiatorId")
     List<AuditInstance> findByInitiatorId(@Param("initiatorId") Long initiatorId);
@@ -84,10 +82,12 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.id = :instanceId")
     Optional<AuditInstance> findAuditInstanceById(@Param("instanceId") Long instanceId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.status = 'IN_REVIEW' AND a.requesterId = :userId")
+    @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s " +
+            "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :userId")
     List<AuditInstance> findPendingAuditInstancesByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.status = 'APPROVED' AND a.requesterId = :userId")
+    @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s " +
+            "WHERE a.status = 'APPROVED' AND s.approverId = :userId")
     List<AuditInstance> findApprovedAuditInstancesByUserId(@Param("userId") Long userId);
 
     @Query("SELECT a FROM AuditInstance a WHERE a.requesterId = :userId")

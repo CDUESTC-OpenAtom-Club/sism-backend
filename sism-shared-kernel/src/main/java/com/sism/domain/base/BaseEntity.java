@@ -1,4 +1,4 @@
-package com.sism.entity;
+package com.sism.domain.base;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;

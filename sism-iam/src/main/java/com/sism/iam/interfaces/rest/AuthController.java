@@ -90,6 +90,18 @@ public class AuthController {
     }
 
     /**
+     * Health check endpoint
+     */
+    @GetMapping("/health")
+    @Operation(summary = "Health check")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> health() {
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+                "status", "UP",
+                "timestamp", java.time.Instant.now().toString()
+        )));
+    }
+
+    /**
      * 查询所有用户
      */
     @GetMapping("/users")

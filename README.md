@@ -137,8 +137,8 @@ mvn flyway:validate
 # 加载基础数据
 psql -U your_username -d sism_dev -f database/seeds/seed-data.sql
 
-# 加载 2026 年指标数据
-psql -U your_username -d sism_dev -f database/seeds/seed-indicators-2026.sql
+# 审核新版种子草案（仅审阅，不会落库）
+psql -U your_username -d sism_dev -f database/seeds/seed_data_v3_review.sql
 ```
 
 #### 6. 构建项目

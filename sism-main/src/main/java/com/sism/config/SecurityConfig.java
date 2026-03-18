@@ -1,5 +1,7 @@
 package com.sism.config;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.iam.application.UserDetailsServiceImpl;
 import com.sism.iam.application.JwtTokenService;
 import jakarta.servlet.FilterChain;
@@ -24,7 +26,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Base64;
+import java.util.List;
 import java.util.Collections;
+import java.util.Map;
 
 /**
  * Security Configuration
@@ -36,6 +41,8 @@ import java.util.Collections;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * Password encoder bean for hashing passwords
@@ -63,7 +70,10 @@ public class SecurityConfig {
                     try {
                         if (jwtTokenService.validateToken(token)) {
                             String username = jwtTokenService.extractUsername(token);
-                            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                            UserDetails userDetails = buildUserDetailsFromToken(jwtTokenService, token, username);
+                            if (userDetails == null) {
+                                userDetails = userDetailsService.loadUserByUsername(username);
+                            }
                             UsernamePasswordAuthenticationToken auth =
                                     new UsernamePasswordAuthenticationToken(
                                             userDetails,
@@ -79,6 +89,73 @@ public class SecurityConfig {
                     }
                 }
                 filterChain.doFilter(request, response);
+            }
+
+            private UserDetails buildUserDetailsFromToken(JwtTokenService jwtTokenService,
+                                                          String token,
+                                                          String username) {
+                Long userId = jwtTokenService.getUserIdFromToken(token);
+                Map<String, Object> claims = decodeTokenPayload(token);
+                Long orgId = parseLongClaim(claims.get("orgId"));
+                List<String> roles = parseRoleClaims(claims.get("roles"));
+
+                if (userId == null || username == null || username.isBlank()) {
+                    return null;
+                }
+
+                List<SimpleGrantedAuthority> authorities = roles.isEmpty()
+                        ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                        : roles.stream()
+                                .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+                                .map(SimpleGrantedAuthority::new)
+                                .toList();
+
+                return new com.sism.iam.application.dto.CurrentUser(
+                        userId,
+                        username,
+                        username,
+                        null,
+                        orgId,
+                        authorities
+                );
+            }
+
+            private Map<String, Object> decodeTokenPayload(String token) {
+                try {
+                    String[] parts = token.split("\\.");
+                    if (parts.length < 2) {
+                        return Map.of();
+                    }
+
+                    byte[] payloadBytes = Base64.getUrlDecoder().decode(parts[1]);
+                    return OBJECT_MAPPER.readValue(payloadBytes, new TypeReference<>() {});
+                } catch (Exception ignored) {
+                    return Map.of();
+                }
+            }
+
+            private Long parseLongClaim(Object value) {
+                if (value instanceof Number number) {
+                    return number.longValue();
+                }
+                if (value instanceof String text && !text.isBlank()) {
+                    try {
+                        return Long.parseLong(text);
+                    } catch (NumberFormatException ignored) {
+                        return null;
+                    }
+                }
+                return null;
+            }
+
+            private List<String> parseRoleClaims(Object value) {
+                if (value instanceof List<?> roles) {
+                    return roles.stream()
+                            .map(String::valueOf)
+                            .filter(role -> !role.isBlank())
+                            .toList();
+                }
+                return List.of();
             }
         };
     }
@@ -104,7 +181,7 @@ public class SecurityConfig {
                 // Public endpoints - Authentication
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
                                  "/api/v1/auth/validate", "/api/v1/auth/logout",
-                                 "/api/v1/auth/refresh").permitAll()
+                                 "/api/v1/auth/refresh", "/api/v1/auth/health").permitAll()
                 // Public endpoints - Swagger/OpenAPI
                 .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
                                  "/api-docs/**", "/v3/api-docs/**").permitAll()

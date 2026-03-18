@@ -107,7 +107,6 @@ public class TaskController {
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskName(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskNameRequest request) {
-        request.setTaskId(id);
         TaskResponse updated = taskApplicationService.updateTaskName(id, request.getTaskName());
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
