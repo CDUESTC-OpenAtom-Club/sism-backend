@@ -54,9 +54,9 @@ jobs:
       - name: Deploy JAR
         run: |
           echo "[INFO] Deploying JAR to /opt/sism/backend/"
-          sudo cp target/${{ env.JAR_NAME }} /opt/sism/backend/${{ env.JAR_NAME }}
-          sudo chown root:sism /opt/sism/backend/${{ env.JAR_NAME }}
-          sudo chmod 775 /opt/sism/backend/${{ env.JAR_NAME }}
+          sudo cp sism-main/target/sism-main-1.0.0.jar /opt/sism/backend/sism-backend-1.0.0.jar
+          sudo chown root:sism /opt/sism/backend/sism-backend-1.0.0.jar
+          sudo chmod 775 /opt/sism/backend/sism-backend-1.0.0.jar
           echo "[INFO] JAR deployed successfully"
 
       - name: Start backend service
