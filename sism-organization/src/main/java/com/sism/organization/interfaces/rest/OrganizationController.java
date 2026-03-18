@@ -47,6 +47,12 @@ public class OrganizationController {
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
+    @GetMapping("/departments")
+    @Operation(summary = "Get all departments (legacy alias)")
+    public ResponseEntity<ApiResponse<List<OrgResponse>>> getAllDepartments() {
+        return getAllOrganizations();
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get organization by ID")
     public ResponseEntity<ApiResponse<OrgResponse>> getOrganizationById(
