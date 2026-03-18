@@ -1,0 +1,215 @@
+package com.sism.task.domain;
+
+import com.sism.execution.domain.model.plan.Plan;
+import com.sism.organization.domain.SysOrg;
+import com.sism.shared.domain.model.base.AggregateRoot;
+import com.sism.task.domain.event.TaskCreatedEvent;
+import com.sism.task.domain.event.TaskStatusChangedEvent;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+import java.util.Objects;
+
+@Getter
+@Setter
+@Entity
+@Table(name = "sys_task")
+@Access(AccessType.FIELD)
+public class StrategicTask extends AggregateRoot<Long> {
+
+    public static final String STATUS_DRAFT = "DRAFT";
+    public static final String STATUS_ACTIVE = "ACTIVE";
+    public static final String STATUS_COMPLETED = "COMPLETED";
+    public static final String STATUS_CANCELLED = "CANCELLED";
+
+    @Id
+    @SequenceGenerator(name="Task_IdSeq", sequenceName="strategic_task_task_id_seq", allocationSize=1)
+    @GeneratedValue(strategy=GenerationType.SEQUENCE, generator="Task_IdSeq")
+    @Column(name="task_id")
+    private Long id;
+
+    @Column(name="plan_id", nullable=false)
+    private Long planId;
+
+    @Column(name="cycle_id", nullable=false)
+    private Long cycleId;
+
+    @Column(name="task_name", nullable=false)
+    private String taskName;
+
+    @Column(name="task_desc")
+    private String taskDesc;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name="task_type", nullable=false)
+    private TaskType taskType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "org_id", nullable = false)
+    private SysOrg org;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_org_id", nullable = false)
+    private SysOrg createdByOrg;
+
+    @Column(name = "sort_order", nullable = false)
+    private Integer sortOrder = 0;
+
+    @Column(columnDefinition = "TEXT")
+    private String remark;
+
+    @Column(name="created_at", nullable=false)
+    private LocalDateTime createdAt;
+
+    @Column(name="updated_at", nullable=false)
+    private LocalDateTime updatedAt;
+
+    @Column(name="is_deleted", nullable=false)
+    private Boolean isDeleted = false;
+
+    // 注意：status 字段不存储在数据库中，而是从关联的 Plan 获取
+    // 这是 transient 字段，不映射到数据库列
+    @Transient
+    private String status = STATUS_DRAFT;
+
+    // 数据库中的冗余字段，保留以匹配表结构
+    @Column(name="name", nullable=false, length = 255)
+    private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name="type", nullable=false)
+    private TaskType type;
+
+    @Column(name="desc", length = 255)
+    private String desc;
+
+    public static StrategicTask create(String taskName, TaskType taskType, Long planId, Long cycleId,
+                                        SysOrg org, SysOrg createdByOrg) {
+        if (taskName == null || taskName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Task name cannot be null or empty");
+        }
+        if (taskType == null) {
+            throw new IllegalArgumentException("Task type cannot be null");
+        }
+        if (planId == null) {
+            throw new IllegalArgumentException("Plan ID cannot be null");
+        }
+        if (cycleId == null) {
+            throw new IllegalArgumentException("Cycle ID cannot be null");
+        }
+        if (org == null) {
+            throw new IllegalArgumentException("Organization cannot be null");
+        }
+        if (createdByOrg == null) {
+            throw new IllegalArgumentException("Created by org cannot be null");
+        }
+
+        StrategicTask task = new StrategicTask();
+        task.taskName = taskName;
+        task.taskType = taskType;
+        task.planId = planId;
+        task.cycleId = cycleId;
+        task.org = org;
+        task.createdByOrg = createdByOrg;
+        task.sortOrder = 0;
+        task.status = STATUS_DRAFT;
+        task.createdAt = LocalDateTime.now();
+        task.updatedAt = LocalDateTime.now();
+        task.isDeleted = false;
+        // 初始化数据库冗余字段
+        task.name = taskName;
+        task.type = taskType;
+        task.desc = null;
+        task.addEvent(new TaskCreatedEvent(task.id, taskName, org.getId()));
+        return task;
+    }
+
+    public void activate() {
+        if (!STATUS_DRAFT.equals(this.status)) {
+            throw new IllegalStateException("Cannot activate task: not in DRAFT state");
+        }
+        String oldStatus = this.status;
+        this.status = STATUS_ACTIVE;
+        this.updatedAt = LocalDateTime.now();
+        this.addEvent(new TaskStatusChangedEvent(this.id, oldStatus, STATUS_ACTIVE));
+    }
+
+    public void complete() {
+        if (!STATUS_ACTIVE.equals(this.status)) {
+            throw new IllegalStateException("Cannot complete task: not in ACTIVE state");
+        }
+        String oldStatus = this.status;
+        this.status = STATUS_COMPLETED;
+        this.updatedAt = LocalDateTime.now();
+        this.addEvent(new TaskStatusChangedEvent(this.id, oldStatus, STATUS_COMPLETED));
+    }
+
+    public void cancel() {
+        if (!STATUS_DRAFT.equals(this.status) && !STATUS_ACTIVE.equals(this.status)) {
+            throw new IllegalStateException("Cannot cancel task: not in DRAFT or ACTIVE state");
+        }
+        String oldStatus = this.status;
+        this.status = STATUS_CANCELLED;
+        this.updatedAt = LocalDateTime.now();
+        this.addEvent(new TaskStatusChangedEvent(this.id, oldStatus, STATUS_CANCELLED));
+    }
+
+    public void updateTaskName(String taskName) {
+        if (Objects.isNull(taskName) || taskName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Task name cannot be empty");
+        }
+        this.taskName = taskName;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateTaskDesc(String taskDesc) {
+        this.taskDesc = taskDesc;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateSortOrder(Integer sortOrder) {
+        if (Objects.isNull(sortOrder) || sortOrder < 0) {
+            throw new IllegalArgumentException("Sort order must be non-negative");
+        }
+        this.sortOrder = sortOrder;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @Override
+    public void validate() {
+        if (taskName == null || taskName.trim().isEmpty()) {
+            throw new IllegalArgumentException("Task name is required");
+        }
+        if (taskType == null) {
+            throw new IllegalArgumentException("Task type is required");
+        }
+        if (planId == null) {
+            throw new IllegalArgumentException("Plan ID is required");
+        }
+        if (cycleId == null) {
+            throw new IllegalArgumentException("Cycle ID is required");
+        }
+        if (sortOrder == null || sortOrder < 0) {
+            throw new IllegalArgumentException("Sort order must be non-negative");
+        }
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        if (status == null) {
+            status = STATUS_DRAFT;
+        }
+        if (isDeleted == null) {
+            isDeleted = false;
+        }
+        // 初始化数据库冗余字段
+        if (name == null && taskName != null) {
+            name = taskName;
+        }
+        if (type == null && taskType != null) {
+            type = taskType;
+        }
+    }
+}
