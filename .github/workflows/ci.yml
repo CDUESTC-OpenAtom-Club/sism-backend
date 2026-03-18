@@ -88,6 +88,13 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Build and install dependencies
+        run: mvn install -DskipTests -B
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/sism_test
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+
       - name: Check Flyway migration status (before)
         run: |
           echo "[INFO] Checking Flyway migration status before applying..."

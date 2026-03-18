@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -14,6 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -40,7 +42,7 @@ class JpaPlanRepositoryTest {
 
         assertEquals(1, result.getTotalElements());
         verify(jpaRepository).findPage(List.of(2026L), false, pageable);
-        verify(jpaRepository, never()).findPageByStatus(any(), any(), any(), any());
+        verify(jpaRepository, never()).findPageByStatus(any(), anyBoolean(), any(), any());
     }
 
     @Test
@@ -57,7 +59,7 @@ class JpaPlanRepositoryTest {
 
         assertEquals(1, result.getTotalElements());
         verify(jpaRepository).findPageByStatus(List.of(2026L), false, "ACTIVE", pageable);
-        verify(jpaRepository, never()).findPage(any(), any(), any());
+        verify(jpaRepository, never()).findPage(any(), anyBoolean(), any());
     }
 
     @Test
@@ -67,7 +69,7 @@ class JpaPlanRepositoryTest {
         PageRequest pageable = PageRequest.of(0, 20);
 
         when(jpaRepository.findPage(eq(List.of()), eq(true), eq(pageable)))
-                .thenReturn(PageImpl.empty(pageable));
+                .thenReturn(Page.empty(pageable));
 
         var result = repository.findPage(List.of(), null, pageable);
 
