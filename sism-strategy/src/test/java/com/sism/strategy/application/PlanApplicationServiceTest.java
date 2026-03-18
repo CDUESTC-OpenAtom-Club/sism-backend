@@ -96,15 +96,15 @@ class PlanApplicationServiceTest {
         plan.setId(1L);
 
         when(cycleRepository.findByYear(2026)).thenReturn(List.of(cycle));
-        when(planRepository.findPage(eq(List.of(2026L)), eq("ACTIVE"), any(PageRequest.class)))
+        when(planRepository.findPage(eq(List.of(2026L)), eq(List.of("DISTRIBUTED", "APPROVED", "ACTIVE", "PUBLISHED")), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(plan), PageRequest.of(0, 20), 1));
 
-        var result = service.getPlans(0, 20, 2026, "ACTIVE");
+        var result = service.getPlans(0, 20, 2026, "DISTRIBUTED");
 
         assertEquals(1, result.getTotalElements());
         assertEquals(1L, result.getContent().get(0).getId());
         verify(cycleRepository).findByYear(2026);
-        verify(planRepository).findPage(eq(List.of(2026L)), eq("ACTIVE"), any(PageRequest.class));
+        verify(planRepository).findPage(eq(List.of(2026L)), eq(List.of("DISTRIBUTED", "APPROVED", "ACTIVE", "PUBLISHED")), any(PageRequest.class));
     }
 
     @Test

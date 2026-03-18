@@ -38,7 +38,7 @@ class JpaPlanRepositoryTest {
         when(jpaRepository.findPage(eq(List.of(2026L)), eq(false), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(plan), pageable, 1));
 
-        var result = repository.findPage(List.of(2026L), "   ", pageable);
+        var result = repository.findPage(List.of(2026L), List.of(), pageable);
 
         assertEquals(1, result.getTotalElements());
         verify(jpaRepository).findPage(List.of(2026L), false, pageable);
@@ -52,13 +52,13 @@ class JpaPlanRepositoryTest {
         PageRequest pageable = PageRequest.of(0, 20);
         Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
 
-        when(jpaRepository.findPageByStatus(eq(List.of(2026L)), eq(false), eq("ACTIVE"), eq(pageable)))
+        when(jpaRepository.findPageByStatus(eq(List.of(2026L)), eq(false), eq(List.of("DISTRIBUTED", "APPROVED")), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(plan), pageable, 1));
 
-        var result = repository.findPage(List.of(2026L), "ACTIVE", pageable);
+        var result = repository.findPage(List.of(2026L), List.of("DISTRIBUTED", "APPROVED"), pageable);
 
         assertEquals(1, result.getTotalElements());
-        verify(jpaRepository).findPageByStatus(List.of(2026L), false, "ACTIVE", pageable);
+        verify(jpaRepository).findPageByStatus(List.of(2026L), false, List.of("DISTRIBUTED", "APPROVED"), pageable);
         verify(jpaRepository, never()).findPage(any(), anyBoolean(), any());
     }
 
@@ -71,7 +71,7 @@ class JpaPlanRepositoryTest {
         when(jpaRepository.findPage(eq(List.of()), eq(true), eq(pageable)))
                 .thenReturn(Page.empty(pageable));
 
-        var result = repository.findPage(List.of(), null, pageable);
+        var result = repository.findPage(List.of(), List.of(), pageable);
 
         assertEquals(0, result.getTotalElements());
         verify(jpaRepository).findPage(List.of(), true, pageable);

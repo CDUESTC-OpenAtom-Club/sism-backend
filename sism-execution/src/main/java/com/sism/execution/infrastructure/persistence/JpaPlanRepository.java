@@ -28,12 +28,12 @@ public class JpaPlanRepository implements PlanRepository {
     }
 
     @Override
-    public Page<Plan> findPage(List<Long> cycleIds, String status, Pageable pageable) {
+    public Page<Plan> findPage(List<Long> cycleIds, List<String> statuses, Pageable pageable) {
         boolean skipCycleFilter = cycleIds == null || cycleIds.isEmpty();
-        if (status == null || status.isBlank()) {
+        if (statuses == null || statuses.isEmpty()) {
             return jpaRepository.findPage(cycleIds, skipCycleFilter, pageable);
         }
-        return jpaRepository.findPageByStatus(cycleIds, skipCycleFilter, status, pageable);
+        return jpaRepository.findPageByStatus(cycleIds, skipCycleFilter, statuses, pageable);
     }
 
     @Override
@@ -57,8 +57,11 @@ public class JpaPlanRepository implements PlanRepository {
     }
 
     @Override
-    public List<Plan> findByStatus(String status) {
-        return jpaRepository.findByStatus(status);
+    public List<Plan> findByStatuses(List<String> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByStatusIn(statuses);
     }
 
     @Override

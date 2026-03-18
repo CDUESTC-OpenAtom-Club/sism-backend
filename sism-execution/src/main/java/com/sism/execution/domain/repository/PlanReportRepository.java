@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Optional;
 
 /**
  * PlanReportRepository - 计划报告仓储接口（领域层）
@@ -54,4 +55,6 @@ public interface PlanReportRepository {
     long countByStatus(String status);
 
     List<PlanReport> findByMonthAndOrgId(String month, Long orgId);
+
+    Optional<PlanReport> findByUniqueKey(Long planId, String reportMonth, ReportOrgType reportOrgType, Long reportOrgId);
 }

@@ -2,6 +2,7 @@ package com.sism.execution.domain.service;
 
 import com.sism.execution.domain.model.plan.Plan;
 import com.sism.execution.domain.model.plan.PlanLevel;
+import com.sism.execution.domain.model.plan.PlanStatus;
 import com.sism.execution.domain.repository.PlanRepository;
 import com.sism.execution.domain.event.PlanCreatedEvent;
 import lombok.RequiredArgsConstructor;
@@ -46,18 +47,6 @@ public class PlanDomainService {
     }
 
     /**
-     * 完成计划
-     */
-    @Transactional
-    public Plan complete(Long planId) {
-        Plan plan = planRepository.findById(planId)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found"));
-
-        plan.complete();
-        return planRepository.save(plan);
-    }
-
-    /**
      * 查询目标组织的所有计划
      */
     public List<Plan> findByTargetOrg(Long orgId) {
@@ -82,6 +71,6 @@ public class PlanDomainService {
      * 查询某状态的所有计划
      */
     public List<Plan> findByStatus(String status) {
-        return planRepository.findByStatus(status);
+        return planRepository.findByStatuses(PlanStatus.expandQueryStatuses(status));
     }
 }

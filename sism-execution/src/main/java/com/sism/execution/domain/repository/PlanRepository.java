@@ -27,7 +27,7 @@ public interface PlanRepository {
     /**
      * 分页查询计划
      */
-    Page<Plan> findPage(List<Long> cycleIds, String status, Pageable pageable);
+    Page<Plan> findPage(List<Long> cycleIds, List<String> statuses, Pageable pageable);
 
     /**
      * 根据目标组织ID查询计划
@@ -52,7 +52,7 @@ public interface PlanRepository {
     /**
      * 根据状态查询计划
      */
-    List<Plan> findByStatus(String status);
+    List<Plan> findByStatuses(List<String> statuses);
 
     /**
      * 保存计划

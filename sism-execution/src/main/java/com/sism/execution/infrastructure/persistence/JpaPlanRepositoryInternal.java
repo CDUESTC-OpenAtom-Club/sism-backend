@@ -22,7 +22,7 @@ public interface JpaPlanRepositoryInternal extends JpaRepository<Plan, Long> {
 
     List<Plan> findByPlanLevel(PlanLevel planLevel);
 
-    List<Plan> findByStatus(String status);
+    List<Plan> findByStatusIn(List<String> statuses);
 
     @Query("""
             SELECT p
@@ -40,13 +40,13 @@ public interface JpaPlanRepositoryInternal extends JpaRepository<Plan, Long> {
             SELECT p
             FROM Plan p
             WHERE p.isDeleted = false
-              AND p.status = :status
+              AND p.status IN :statuses
               AND (:skipCycleFilter = true OR p.cycleId IN :cycleIds)
             """)
     Page<Plan> findPageByStatus(
             @Param("cycleIds") List<Long> cycleIds,
             @Param("skipCycleFilter") boolean skipCycleFilter,
-            @Param("status") String status,
+            @Param("statuses") List<String> statuses,
             Pageable pageable
     );
 }

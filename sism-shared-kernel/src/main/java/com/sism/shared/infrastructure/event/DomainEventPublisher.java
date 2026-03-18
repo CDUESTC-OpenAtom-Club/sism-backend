@@ -39,15 +39,13 @@ public class DomainEventPublisher {
         log.debug("Publishing domain event: {}", event.getEventType());
 
         try {
-            // 存储事件
             eventStore.save(event);
-
-            // 发布到Spring事件系统
-            applicationEventPublisher.publishEvent(event);
         } catch (Exception e) {
-            log.error("Failed to publish event: {}", event.getEventId(), e);
-            throw new RuntimeException("Failed to publish domain event: " + event.getEventType(), e);
+            log.warn("Failed to persist event {}, continuing with in-process publish: {}",
+                    event.getEventId(), e.getMessage());
         }
+
+        applicationEventPublisher.publishEvent(event);
     }
 
     /**

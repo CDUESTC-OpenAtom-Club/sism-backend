@@ -68,20 +68,20 @@ public class Plan extends AggregateRoot<Long> {
         plan.createdAt = LocalDateTime.now();
         plan.updatedAt = LocalDateTime.now();
         plan.isDeleted = false;
-        plan.status = "DRAFT";
+        plan.status = PlanStatus.DRAFT.value();
         plan.addEvent(new PlanCreatedEvent(plan.id, planLevel.name(), targetOrgId));
         return plan;
     }
 
     /**
      * 激活计划（下发）
-     * DRAFT -> ACTIVE
+     * DRAFT -> DISTRIBUTED
      */
     public void activate() {
-        if ("ACTIVE".equals(this.status)) {
-            throw new IllegalStateException("Plan is already active");
+        if (PlanStatus.DISTRIBUTED.value().equals(this.status)) {
+            throw new IllegalStateException("Plan is already distributed");
         }
-        this.status = "ACTIVE";
+        this.status = PlanStatus.DISTRIBUTED.value();
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -90,34 +90,34 @@ public class Plan extends AggregateRoot<Long> {
      * DRAFT -> PENDING
      */
     public void submitForApproval() {
-        if (!"DRAFT".equals(this.status)) {
+        if (!PlanStatus.DRAFT.value().equals(this.status)) {
             throw new IllegalStateException("Plan must be in DRAFT state to submit for approval");
         }
-        this.status = "PENDING";
+        this.status = PlanStatus.PENDING.value();
         this.updatedAt = LocalDateTime.now();
     }
 
     /**
      * 审批通过计划
-     * PENDING -> ACTIVE
+     * PENDING -> DISTRIBUTED
      */
     public void approve() {
-        if (!"PENDING".equals(this.status)) {
+        if (!PlanStatus.PENDING.value().equals(this.status)) {
             throw new IllegalStateException("Plan must be in PENDING state to approve");
         }
-        this.status = "ACTIVE";
+        this.status = PlanStatus.DISTRIBUTED.value();
         this.updatedAt = LocalDateTime.now();
     }
 
     /**
      * 驳回计划
-     * PENDING -> REJECTED
+     * PENDING -> DRAFT
      */
     public void reject() {
-        if (!"PENDING".equals(this.status)) {
+        if (!PlanStatus.PENDING.value().equals(this.status)) {
             throw new IllegalStateException("Plan must be in PENDING state to reject");
         }
-        this.status = "REJECTED";
+        this.status = PlanStatus.DRAFT.value();
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -126,55 +126,32 @@ public class Plan extends AggregateRoot<Long> {
      * PENDING/REJECTED -> DRAFT
      */
     public void withdraw() {
-        if ("DRAFT".equals(this.status) || "ACTIVE".equals(this.status) || "COMPLETED".equals(this.status)) {
+        if (!PlanStatus.PENDING.value().equals(this.status)) {
             throw new IllegalStateException("Cannot withdraw plan in current state: " + this.status);
         }
-        this.status = "DRAFT";
+        this.status = PlanStatus.DRAFT.value();
         this.updatedAt = LocalDateTime.now();
     }
 
     /**
-     * 完成计划
-     * ACTIVE -> COMPLETED
-     */
-    public void complete() {
-        if (!"ACTIVE".equals(this.status)) {
-            throw new IllegalStateException("Plan must be active to complete");
-        }
-        this.status = "COMPLETED";
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * 取消计划
-     */
-    public void cancel() {
-        if ("CANCELLED".equals(this.status) || "COMPLETED".equals(this.status)) {
-            throw new IllegalStateException("Plan cannot be cancelled");
-        }
-        this.status = "CANCELLED";
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    /**
-     * 检查计划是否可编辑（草稿或被驳回状态）
+     * 检查计划是否可编辑（仅草稿状态）
      */
     public boolean isEditable() {
-        return "DRAFT".equals(this.status) || "REJECTED".equals(this.status);
+        return PlanStatus.DRAFT.value().equals(this.status);
     }
 
     /**
      * 检查计划是否已下发（激活状态）
      */
     public boolean isDistributed() {
-        return "ACTIVE".equals(this.status);
+        return PlanStatus.DISTRIBUTED.value().equals(this.status);
     }
 
     /**
      * 检查计划是否处于审批中
      */
     public boolean isPending() {
-        return "PENDING".equals(this.status);
+        return PlanStatus.PENDING.value().equals(this.status);
     }
 
     @Override

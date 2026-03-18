@@ -1,14 +1,16 @@
 package com.sism.workflow.application;
 
+import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportApprovedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportRejectedEvent;
+import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * ReportWorkflowEventListener - 报告相关事件的工作流监听器
@@ -29,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportWorkflowEventListener {
 
     private final BusinessWorkflowApplicationService businessWorkflowService;
+    private final PlanReportRepository planReportRepository;
 
     /**
      * 处理"计划报告已提交"事件
@@ -36,8 +39,7 @@ public class ReportWorkflowEventListener {
      *
      * @param event PlanReportSubmittedEvent 事件，包含报告ID、月份和组织ID
      */
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePlanReportSubmitted(PlanReportSubmittedEvent event) {
         if (event == null) {
             log.warn("Received null PlanReportSubmittedEvent");
@@ -49,9 +51,12 @@ public class ReportWorkflowEventListener {
             log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}",
                     event.getReportId(), event.getReportMonth(), event.getReportOrgId());
 
+            var report = planReportRepository.findById(event.getReportId())
+                    .orElseThrow(() -> new IllegalArgumentException("Report not found: " + event.getReportId()));
+
             // 构建工作流启动请求
             StartWorkflowRequest request = new StartWorkflowRequest();
-            request.setWorkflowCode("REPORT_APPROVAL");  // 报告审批工作流代码
+            request.setWorkflowCode(resolveWorkflowCode(report.getReportOrgType()));
             request.setBusinessEntityId(event.getReportId());
             request.setBusinessEntityType("PlanReport");
             request.setVariables(buildWorkflowVariables(event));
@@ -87,8 +92,7 @@ public class ReportWorkflowEventListener {
      *
      * @param event PlanReportApprovedEvent 事件
      */
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePlanReportApproved(PlanReportApprovedEvent event) {
         if (event == null) {
             log.warn("Received null PlanReportApprovedEvent");
@@ -116,8 +120,7 @@ public class ReportWorkflowEventListener {
      *
      * @param event PlanReportRejectedEvent 事件
      */
-    @EventListener
-    @Transactional
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handlePlanReportRejected(PlanReportRejectedEvent event) {
         if (event == null) {
             log.warn("Received null PlanReportRejectedEvent");
@@ -155,5 +158,12 @@ public class ReportWorkflowEventListener {
         variables.put("eventId", event.getEventId());
         variables.put("occurredOn", event.getOccurredOn());
         return variables;
+    }
+
+    private String resolveWorkflowCode(ReportOrgType reportOrgType) {
+        if (reportOrgType == ReportOrgType.COLLEGE) {
+            return "PLAN_REPORT_COLLEGE";
+        }
+        return "PLAN_REPORT_FUNC";
     }
 }

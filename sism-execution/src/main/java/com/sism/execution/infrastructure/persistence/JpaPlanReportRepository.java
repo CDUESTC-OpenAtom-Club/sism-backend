@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * JpaPlanReportRepository - PlanReport 的 JPA 仓储实现
@@ -93,4 +94,12 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
     List<PlanReport> findByMonthAndOrgId(
             @Param("month") String month,
             @Param("orgId") Long orgId);
+
+    @Override
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.planId = :planId AND pr.reportMonth = :reportMonth AND pr.reportOrgType = :reportOrgType AND pr.reportOrgId = :reportOrgId")
+    Optional<PlanReport> findByUniqueKey(
+            @Param("planId") Long planId,
+            @Param("reportMonth") String reportMonth,
+            @Param("reportOrgType") ReportOrgType reportOrgType,
+            @Param("reportOrgId") Long reportOrgId);
 }

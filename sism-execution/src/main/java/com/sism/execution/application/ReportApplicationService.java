@@ -15,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,6 +37,24 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport createReport(String reportMonth, Long reportOrgId,
                                    ReportOrgType reportOrgType, Long planId) {
+        Optional<PlanReport> existingReport = planReportRepository.findByUniqueKey(
+                planId, reportMonth, reportOrgType, reportOrgId);
+
+        if (existingReport.isPresent()) {
+            PlanReport report = existingReport.get();
+
+            if (Boolean.TRUE.equals(report.getIsDeleted())) {
+                report.setIsDeleted(false);
+                report.setStatus(PlanReport.STATUS_DRAFT);
+                report.setSubmittedAt(null);
+                report.setUpdatedAt(LocalDateTime.now());
+                report.validate();
+                return planReportRepository.save(report);
+            }
+
+            throw new IllegalStateException("当前月份已存在报告，请勿重复创建");
+        }
+
         PlanReport report = PlanReport.createDraft(
                 reportMonth, reportOrgId, reportOrgType, planId);
         report.validate();
@@ -252,13 +271,7 @@ public class ReportApplicationService {
      */
     private void publishAndSaveEvents(com.sism.shared.domain.model.base.AggregateRoot<?> aggregate) {
         List<DomainEvent> events = aggregate.getDomainEvents();
-
-        for (DomainEvent event : events) {
-            eventStore.save(event);
-        }
-
         eventPublisher.publishAll(events);
-
         aggregate.clearEvents();
     }
 }

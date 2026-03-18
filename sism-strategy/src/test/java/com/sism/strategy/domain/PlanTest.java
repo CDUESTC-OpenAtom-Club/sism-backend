@@ -41,31 +41,31 @@ class PlanTest {
 
         plan.activate();
 
-        assertEquals("ACTIVE", plan.getStatus());
+        assertEquals("DISTRIBUTED", plan.getStatus());
         assertNotNull(plan.getUpdatedAt());
     }
 
     @Test
-    @DisplayName("Should complete Plan successfully")
-    void shouldCompletePlanSuccessfully() {
+    @DisplayName("Should submit and approve Plan through three-state flow")
+    void shouldSubmitAndApprovePlanThroughThreeStateFlow() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
-        plan.activate();
+        plan.submitForApproval();
+        assertEquals("PENDING", plan.getStatus());
 
-        plan.complete();
-
-        assertEquals("COMPLETED", plan.getStatus());
+        plan.approve();
+        assertEquals("DISTRIBUTED", plan.getStatus());
         assertNotNull(plan.getUpdatedAt());
     }
 
     @Test
-    @DisplayName("Should cancel Plan successfully")
-    void shouldCancelPlanSuccessfully() {
+    @DisplayName("Should reject Plan back to draft")
+    void shouldRejectPlanBackToDraft() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
-        plan.activate();
+        plan.submitForApproval();
 
-        plan.cancel();
+        plan.reject();
 
-        assertEquals("CANCELLED", plan.getStatus());
+        assertEquals("DRAFT", plan.getStatus());
         assertNotNull(plan.getUpdatedAt());
     }
 

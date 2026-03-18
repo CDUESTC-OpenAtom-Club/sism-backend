@@ -3,6 +3,7 @@ package com.sism.strategy.application;
 import com.sism.enums.IndicatorStatus;
 import com.sism.execution.domain.model.plan.Plan;
 import com.sism.execution.domain.model.plan.PlanLevel;
+import com.sism.execution.domain.model.plan.PlanStatus;
 import com.sism.execution.domain.repository.PlanRepository;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
@@ -192,7 +193,7 @@ public class PlanApplicationService {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
-        plan.complete();
+        plan.setIsDeleted(true);
         Plan saved = planRepository.save(plan);
         return convertToResponse(saved, null);
     }
@@ -252,7 +253,11 @@ public class PlanApplicationService {
             return Page.empty(pageable);
         }
 
-        Page<Plan> planPage = planRepository.findPage(cycleIds, status, pageable);
+        List<String> queryStatuses = (status == null || status.isBlank())
+                ? List.of()
+                : PlanStatus.expandQueryStatuses(status);
+
+        Page<Plan> planPage = planRepository.findPage(cycleIds, queryStatuses, pageable);
         Map<Long, String> orgNamesById = loadOrgNamesById();
         Page<PlanResponse> responsePage = planPage.map(plan -> convertToResponse(plan, null, orgNamesById));
 
@@ -317,9 +322,10 @@ public class PlanApplicationService {
         details.setCreatedByOrgId(planResponse.getCreatedByOrgId());
         details.setPlanLevel(planResponse.getPlanLevel());
 
-        // 查询相关指标（使用 Plan 状态作为指标状态）
-        String planStatus = plan.getStatus();
-        List<InternalIndicatorResponse> indicators = indicatorRepository.findByTaskId(id).stream()
+        // 查询计划下所有任务的指标（指标按 taskId 关联，不是按 planId 直接关联）
+        String planStatus = PlanStatus.fromRaw(plan.getStatus()).value();
+        List<InternalIndicatorResponse> indicators = taskRepository.findByPlanId(id).stream()
+                .flatMap(task -> indicatorRepository.findByTaskId(task.getId()).stream())
                 .map(indicator -> convertIndicatorToResponse(indicator, planStatus))
                 .collect(Collectors.toList());
         details.setIndicators(indicators);
@@ -368,7 +374,7 @@ public class PlanApplicationService {
                 .planName("Plan " + plan.getId()) // 计划名称需要从Plan实体获取或单独存储
                 .description(null) // 需要从Plan实体获取或单独存储
                 .planType(plan.getPlanLevel() != null ? plan.getPlanLevel().name() : "STRATEGY")
-                .status(plan.getStatus())
+                .status(PlanStatus.fromRaw(plan.getStatus()).value())
                 .startDate(plan.getCreatedAt())
                 .endDate(plan.getUpdatedAt())
                 .ownerDepartment(null) // 需要从Plan实体获取或单独存储
@@ -431,8 +437,10 @@ public class PlanApplicationService {
         // 获取 Plan 对应的状态
         IndicatorStatus targetStatus = mapPlanStatusToIndicatorStatus(plan.getStatus());
 
-        // 查找所有关联的指标（通过 taskId 关联）
-        List<Indicator> indicators = indicatorRepository.findByTaskId(plan.getId());
+        // 查找计划下所有任务关联的指标（指标按 taskId 关联）
+        List<Indicator> indicators = taskRepository.findByPlanId(plan.getId()).stream()
+                .flatMap(task -> indicatorRepository.findByTaskId(task.getId()).stream())
+                .collect(Collectors.toList());
 
         // 更新所有指标的状态
         for (Indicator indicator : indicators) {
@@ -445,11 +453,10 @@ public class PlanApplicationService {
      * 将 Plan 状态映射为 Indicator 状态
      */
     private IndicatorStatus mapPlanStatusToIndicatorStatus(String planStatus) {
-        return switch (planStatus != null ? planStatus.toUpperCase() : "DRAFT") {
-            case "ACTIVE" -> IndicatorStatus.DISTRIBUTED;
-            case "PENDING" -> IndicatorStatus.PENDING;
-            case "REJECTED", "CANCELLED" -> IndicatorStatus.DRAFT;
-            default -> IndicatorStatus.DRAFT;
+        return switch (PlanStatus.fromRaw(planStatus)) {
+            case DISTRIBUTED -> IndicatorStatus.DISTRIBUTED;
+            case PENDING -> IndicatorStatus.PENDING;
+            case DRAFT -> IndicatorStatus.DRAFT;
         };
     }
 

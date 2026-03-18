@@ -74,16 +74,18 @@ class DomainEventPublisherTest {
         }
 
         @Test
-        @DisplayName("事件存储失败应该抛出运行时异常")
-        void shouldThrowExceptionWhenStoreFails() {
+        @DisplayName("事件存储失败时仍应继续发布应用事件")
+        void shouldContinuePublishingWhenStoreFails() {
             // Given
             TestDomainEvent event = new TestDomainEvent("test-data", 1L);
             doThrow(new RuntimeException("Storage error")).when(eventStore).save(event);
 
-            // When/Then
-            assertThatThrownBy(() -> domainEventPublisher.publish(event))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Failed to publish domain event");
+            // When
+            domainEventPublisher.publish(event);
+
+            // Then
+            verify(eventStore).save(event);
+            verify(applicationEventPublisher).publishEvent(event);
         }
 
         @Test
@@ -96,7 +98,7 @@ class DomainEventPublisherTest {
             // When/Then
             assertThatThrownBy(() -> domainEventPublisher.publish(event))
                     .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Failed to publish domain event");
+                    .hasMessageContaining("Publish error");
         }
     }
 
@@ -162,9 +164,9 @@ class DomainEventPublisherTest {
 
             // Then - 应该尝试保存所有3个事件
             verify(eventStore, times(3)).save(any(DomainEvent.class));
-            // 第1和第3个事件应该被发布到ApplicationEventPublisher
+            // 即使第2个事件存储失败，也应该继续发布到 ApplicationEventPublisher
             verify(applicationEventPublisher, times(1)).publishEvent(event1);
-            verify(applicationEventPublisher, never()).publishEvent(event2); // 第2个失败了
+            verify(applicationEventPublisher, times(1)).publishEvent(event2);
             verify(applicationEventPublisher, times(1)).publishEvent(event3);
         }
     }
