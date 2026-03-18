@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.springframework.data.domain.PageImpl;
@@ -104,5 +105,18 @@ class PlanApplicationServiceTest {
         assertEquals(1L, result.getContent().get(0).getId());
         verify(cycleRepository).findByYear(2026);
         verify(planRepository).findPage(eq(List.of(2026L)), eq("ACTIVE"), any(PageRequest.class));
+    }
+
+    @Test
+    @DisplayName("Should return empty page when year filter has no matching cycles")
+    void shouldReturnEmptyPageWhenYearHasNoMatchingCycles() {
+        when(cycleRepository.findByYear(2030)).thenReturn(List.of());
+
+        var result = service.getPlans(0, 20, 2030, null);
+
+        assertTrue(result.isEmpty());
+        assertEquals(0, result.getTotalElements());
+        verify(cycleRepository).findByYear(2030);
+        verify(planRepository, never()).findPage(any(), any(), any(PageRequest.class));
     }
 }
