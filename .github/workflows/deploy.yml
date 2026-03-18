@@ -78,7 +78,7 @@ jobs:
             echo "[INFO] Health check attempt $ATTEMPT/$MAX_ATTEMPTS..."
 
             # Check if server responds (any valid API endpoint)
-            HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/api/users/me 2>/dev/null)
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/users/me 2>/dev/null)
             if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
               echo "[SUCCESS] Backend is healthy! (HTTP $HTTP_CODE)"
               exit 0
