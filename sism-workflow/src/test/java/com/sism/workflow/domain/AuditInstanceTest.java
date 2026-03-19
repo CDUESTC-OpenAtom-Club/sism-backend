@@ -1,7 +1,8 @@
 package com.sism.workflow.domain;
 
-import com.sism.shared.domain.model.workflow.AuditFlowDef;
-import com.sism.shared.domain.model.workflow.AuditInstance;
+import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.model.AuditStepInstance;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -15,24 +16,13 @@ class AuditInstanceTest {
     void shouldCreateAuditInstanceWithValidParameters() {
         AuditFlowDef flowDef = buildFlowDef();
 
-        AuditInstance instance = AuditInstance.create("测试实例", 1L, "INDICATOR", flowDef);
+        AuditInstance instance = AuditInstance.create(1L, "INDICATOR", flowDef);
 
         assertNotNull(instance);
-        assertEquals("测试实例", instance.getTitle());
         assertEquals(1L, instance.getEntityId());
         assertEquals("INDICATOR", instance.getEntityType());
         assertEquals(AuditInstance.STATUS_PENDING, instance.getStatus());
         assertNotNull(instance.getStartedAt());
-    }
-
-    @Test
-    @DisplayName("Should throw exception when creating AuditInstance with null title")
-    void shouldThrowExceptionWhenCreatingAuditInstanceWithNullTitle() {
-        AuditFlowDef flowDef = buildFlowDef();
-
-        assertThrows(IllegalArgumentException.class, () ->
-            AuditInstance.create(null, 1L, "INDICATOR", flowDef)
-        );
     }
 
     @Test
@@ -41,7 +31,7 @@ class AuditInstanceTest {
         AuditFlowDef flowDef = buildFlowDef();
 
         assertThrows(IllegalArgumentException.class, () ->
-            AuditInstance.create("测试实例", -1L, "INDICATOR", flowDef)
+            AuditInstance.create(-1L, "INDICATOR", flowDef)
         );
     }
 
@@ -49,9 +39,28 @@ class AuditInstanceTest {
     @DisplayName("Should validate AuditInstance with valid parameters")
     void shouldValidateAuditInstanceWithValidParameters() {
         AuditFlowDef flowDef = buildFlowDef();
-        AuditInstance instance = AuditInstance.create("有效实例", 1L, "INDICATOR", flowDef);
+        AuditInstance instance = AuditInstance.create(1L, "INDICATOR", flowDef);
 
         assertDoesNotThrow(instance::validate);
+    }
+
+    @Test
+    @DisplayName("Should resolve current pending step from step instances instead of currentStepIndex")
+    void shouldResolveCurrentPendingStepFromStepInstances() {
+        AuditInstance instance = new AuditInstance();
+
+        AuditStepInstance waitingStep = new AuditStepInstance();
+        waitingStep.setStepIndex(1);
+        waitingStep.setStatus(AuditInstance.STEP_STATUS_WAITING);
+
+        AuditStepInstance pendingStep = new AuditStepInstance();
+        pendingStep.setStepIndex(2);
+        pendingStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+
+        instance.addStepInstance(waitingStep);
+        instance.addStepInstance(pendingStep);
+
+        assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepIndex());
     }
 
     private AuditFlowDef buildFlowDef() {

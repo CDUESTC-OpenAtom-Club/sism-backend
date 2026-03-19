@@ -9,6 +9,8 @@ import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -40,6 +42,7 @@ public class ReportWorkflowEventListener {
      * @param event PlanReportSubmittedEvent 事件，包含报告ID、月份和组织ID
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePlanReportSubmitted(PlanReportSubmittedEvent event) {
         if (event == null) {
             log.warn("Received null PlanReportSubmittedEvent");

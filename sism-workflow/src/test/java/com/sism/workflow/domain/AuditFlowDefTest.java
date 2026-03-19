@@ -1,7 +1,7 @@
 package com.sism.workflow.domain;
 
-import com.sism.shared.domain.model.workflow.AuditFlowDef;
-import com.sism.shared.domain.model.workflow.AuditStepDef;
+import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.model.AuditStepDef;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -38,8 +38,8 @@ class AuditFlowDefTest {
         AuditStepDef step = new AuditStepDef();
         step.setStepName("审核步骤");
         step.setStepOrder(1);
-        step.setApproverType("ROLE");
-        step.setApproverId(1L);
+        step.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
+        step.setRoleId(1L);
 
         flowDef.addStep(step);
 

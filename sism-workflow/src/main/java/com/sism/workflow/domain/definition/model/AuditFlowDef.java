@@ -1,4 +1,4 @@
-package com.sism.shared.domain.model.workflow;
+package com.sism.workflow.domain.definition.model;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * AuditFlowDef - 审批流定义聚合根
- * Defines approval flow templates for different entity types
+ * Defines approval flow templates for different entity types.
  */
 @Getter
 @Setter
@@ -34,7 +34,7 @@ public class AuditFlowDef extends AggregateRoot<Long> {
     private String description;
 
     @Column(name = "entity_type", nullable = false)
-    private String entityType;  // INDICATOR, PLAN_REPORT, etc.
+    private String entityType;
 
     @Column(name = "is_enabled", nullable = false)
     private Boolean isActive = true;

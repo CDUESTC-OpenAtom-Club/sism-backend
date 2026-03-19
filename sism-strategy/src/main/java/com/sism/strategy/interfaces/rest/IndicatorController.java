@@ -48,11 +48,15 @@ public class IndicatorController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Long cycleId) {
+            @RequestParam(required = false) Long cycleId,
+            @RequestParam(required = false) Integer year) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Indicator> indicatorPage;
 
-        if (status != null) {
+        if (year != null) {
+            // 按年份过滤：通过 cycle -> task -> indicator 关系链
+            indicatorPage = strategyApplicationService.getIndicatorsByYear(year, pageable);
+        } else if (status != null) {
             indicatorPage = strategyApplicationService.getIndicatorsByStatus(status, pageable);
         } else {
             indicatorPage = strategyApplicationService.getIndicators(pageable);

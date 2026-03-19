@@ -9934,9 +9934,6 @@
           "status": {
             "type": "string"
           },
-          "title": {
-            "type": "string"
-          },
           "requesterId": {
             "type": "integer",
             "format": "int64"
@@ -9945,10 +9942,6 @@
             "type": "integer",
             "format": "int64"
           },
-          "currentStepIndex": {
-            "type": "integer",
-            "format": "int32"
-          },
           "startedAt": {
             "type": "string",
             "format": "date-time"
@@ -9956,9 +9949,6 @@
           "completedAt": {
             "type": "string",
             "format": "date-time"
-          },
-          "result": {
-            "type": "string"
           },
           "isDeleted": {
             "type": "boolean"
@@ -9994,9 +9984,6 @@
           "approverId": {
             "type": "integer",
             "format": "int64"
-          },
-          "approverName": {
-            "type": "string"
           },
           "comment": {
             "type": "string"
@@ -10104,21 +10091,7 @@
           "stepType": {
             "type": "string"
           },
-          "approverType": {
-            "type": "string"
-          },
-          "approverId": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "timeoutHours": {
-            "type": "integer",
-            "format": "int32"
-          },
           "isRequired": {
-            "type": "boolean"
-          },
-          "canSkip": {
             "type": "boolean"
           }
         }

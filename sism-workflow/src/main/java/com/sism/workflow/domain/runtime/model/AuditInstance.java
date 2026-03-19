@@ -1,6 +1,7 @@
-package com.sism.shared.domain.model.workflow;
+package com.sism.workflow.domain.runtime.model;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
+import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,7 +16,7 @@ import java.util.Optional;
 
 /**
  * AuditInstance - 审批实例聚合根
- * Represents an active approval workflow instance
+ * Represents an active approval workflow instance.
  */
 @Getter
 @Setter
@@ -53,26 +54,17 @@ public class AuditInstance extends AggregateRoot<Long> {
     @Column(nullable = false)
     private String status = STATUS_PENDING;
 
-    @Column(name = "title")
-    private String title;
-
     @Column(name = "requester_id")
     private Long requesterId;
 
     @Column(name = "requester_org_id")
     private Long requesterOrgId;
 
-    @Column(name = "current_step_index")
-    private Integer currentStepIndex = 0;
-
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
-
-    @Column(name = "result")
-    private String result;
 
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
@@ -81,10 +73,7 @@ public class AuditInstance extends AggregateRoot<Long> {
     @OrderBy("stepIndex ASC")
     private List<AuditStepInstance> stepInstances = new ArrayList<>();
 
-    public static AuditInstance create(String title, Long entityId, String entityType, AuditFlowDef flowDef) {
-        if (title == null || title.trim().isEmpty()) {
-            throw new IllegalArgumentException("Title is required");
-        }
+    public static AuditInstance create(Long entityId, String entityType, AuditFlowDef flowDef) {
         if (entityId == null || entityId <= 0) {
             throw new IllegalArgumentException("Entity ID must be positive");
         }
@@ -96,7 +85,6 @@ public class AuditInstance extends AggregateRoot<Long> {
         }
 
         AuditInstance instance = new AuditInstance();
-        instance.setTitle(title);
         instance.setEntityId(entityId);
         instance.setEntityType(entityType);
         instance.setFlowDefId(flowDef.getId());
@@ -126,7 +114,6 @@ public class AuditInstance extends AggregateRoot<Long> {
         }
         if (stepInstances == null || stepInstances.isEmpty()) {
             this.status = STATUS_APPROVED;
-            this.result = "Approved by user " + userId + (comment != null ? ": " + comment : "");
             this.completedAt = LocalDateTime.now();
             return;
         }
@@ -150,11 +137,8 @@ public class AuditInstance extends AggregateRoot<Long> {
         if (next.isPresent()) {
             AuditStepInstance nextStep = next.get();
             nextStep.setStatus(STEP_STATUS_PENDING);
-            this.currentStepIndex = nextStep.getStepIndex();
-            this.result = "Approved step " + current.getStepName() + " by user " + userId;
         } else {
             this.status = STATUS_APPROVED;
-            this.result = "Approved by user " + userId + (comment != null ? ": " + comment : "");
             this.completedAt = LocalDateTime.now();
         }
     }
@@ -174,7 +158,6 @@ public class AuditInstance extends AggregateRoot<Long> {
             current.setApprovedAt(LocalDateTime.now());
         }
         this.status = STATUS_REJECTED;
-        this.result = "Rejected by user " + userId + (comment != null ? ": " + comment : "");
         this.completedAt = LocalDateTime.now();
     }
 
@@ -194,13 +177,11 @@ public class AuditInstance extends AggregateRoot<Long> {
     }
 
     public void transfer(Long targetUserId) {
-        // 转交审批逻辑 - 这里只是一个占位符
-        // 实际应该更新当前审批人等信息
+        // Placeholder - retained for behavior compatibility in phase one.
     }
 
     public void addApprover(Long approverId) {
-        // 添加审批人逻辑 - 这里只是一个占位符
-        // 实际应该添加到 stepInstances 或其他关联表
+        // Placeholder - retained for behavior compatibility in phase one.
     }
 
     public void addStepInstance(AuditStepInstance stepInstance) {
@@ -211,14 +192,7 @@ public class AuditInstance extends AggregateRoot<Long> {
         }
     }
 
-    private Optional<AuditStepInstance> resolveCurrentPendingStep() {
-        Optional<AuditStepInstance> byIndex = stepInstances.stream()
-                .filter(step -> Objects.equals(step.getStepIndex(), currentStepIndex))
-                .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()))
-                .findFirst();
-        if (byIndex.isPresent()) {
-            return byIndex;
-        }
+    public Optional<AuditStepInstance> resolveCurrentPendingStep() {
         return stepInstances.stream()
                 .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()))
                 .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))

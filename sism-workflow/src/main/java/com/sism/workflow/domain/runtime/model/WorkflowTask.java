@@ -1,4 +1,4 @@
-package com.sism.shared.domain.model.workflow;
+package com.sism.workflow.domain.runtime.model;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * WorkflowTask aggregate root - manages workflow task state
+ * WorkflowTask aggregate root - manages workflow task state.
  */
 @Getter
 @Setter

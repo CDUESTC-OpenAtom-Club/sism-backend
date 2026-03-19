@@ -3,6 +3,8 @@ package com.sism.strategy.infrastructure.persistence;
 import com.sism.strategy.domain.Indicator;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -31,4 +33,25 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
 
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
     List<Indicator> findByTaskIdAndIsDeletedFalse(Long taskId);
+
+    /**
+     * 根据任务ID列表分页查询指标
+     */
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    @Query("""
+            SELECT i FROM Indicator i
+            WHERE i.taskId IN :taskIds
+              AND i.isDeleted = false
+            """)
+    Page<Indicator> findByTaskIds(@Param("taskIds") List<Long> taskIds, Pageable pageable);
+
+    /**
+     * 根据任务ID列表统计指标数量
+     */
+    @Query("""
+            SELECT COUNT(i) FROM Indicator i
+            WHERE i.taskId IN :taskIds
+              AND i.isDeleted = false
+            """)
+    long countByTaskIds(@Param("taskIds") List<Long> taskIds);
 }

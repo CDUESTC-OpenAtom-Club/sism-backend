@@ -2,9 +2,9 @@ package com.sism.workflow.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.workflow.application.WorkflowApplicationService;
-import com.sism.shared.domain.model.workflow.AuditFlowDef;
-import com.sism.shared.domain.model.workflow.AuditInstance;
-import com.sism.shared.domain.model.workflow.WorkflowTask;
+import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.model.WorkflowTask;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

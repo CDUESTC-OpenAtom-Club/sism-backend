@@ -5,10 +5,13 @@ import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.enums.IndicatorStatus;
+import com.sism.strategy.domain.Cycle;
 import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
+import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,8 @@ public class StrategyApplicationService {
     private final IndicatorRepository indicatorRepository;
     private final TaskRepository taskRepository;
     private final BasicTaskWeightValidationService basicTaskWeightValidationService;
+    private final CycleRepository cycleRepository;
+    private final JpaTaskRepositoryInternal jpaTaskRepository;
 
     @Transactional
     public Indicator createIndicator(String indicatorDesc, SysOrg ownerOrg, SysOrg targetOrg) {
@@ -178,6 +184,44 @@ public class StrategyApplicationService {
 
     public Page<Indicator> getIndicatorsByStatus(String status, Pageable pageable) {
         return indicatorRepository.findByStatus(status, pageable);
+    }
+
+    /**
+     * 根据年份获取指标
+     * 通过 cycle -> task -> indicator 关系链过滤
+     *
+     * @param year 年份
+     * @param pageable 分页参数
+     * @return 分页指标列表
+     */
+    public Page<Indicator> getIndicatorsByYear(Integer year, Pageable pageable) {
+        // 1. 根据年份查找 Cycle
+        List<Cycle> cycles = cycleRepository.findByYear(year);
+        if (cycles.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // 2. 获取所有相关 Cycle 的 ID
+        List<Long> cycleIds = cycles.stream()
+                .map(Cycle::getId)
+                .collect(Collectors.toList());
+
+        // 3. 根据 Cycle IDs 查找所有任务
+        List<StrategicTask> tasks = cycleIds.stream()
+                .flatMap(cycleId -> jpaTaskRepository.findByCycleId(cycleId).stream())
+                .collect(Collectors.toList());
+
+        if (tasks.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        // 4. 获取所有任务 ID
+        List<Long> taskIds = tasks.stream()
+                .map(StrategicTask::getId)
+                .collect(Collectors.toList());
+
+        // 5. 根据任务 ID 列表分页查询指标
+        return indicatorRepository.findByTaskIds(taskIds, pageable);
     }
 
     public List<Indicator> searchIndicators(String keyword) {

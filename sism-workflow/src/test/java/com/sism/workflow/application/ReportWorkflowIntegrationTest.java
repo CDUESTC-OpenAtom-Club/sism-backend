@@ -7,12 +7,13 @@ import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.infrastructure.ExecutionModuleConfig;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
-import com.sism.shared.domain.model.workflow.AuditFlowDef;
 import com.sism.shared.infrastructure.event.EventStoreInMemory;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
+import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.repository.FlowDefinitionRepository;
+import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import com.sism.workflow.infrastructure.WorkflowModuleConfig;
-import com.sism.workflow.domain.repository.WorkflowRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
@@ -60,7 +61,10 @@ class ReportWorkflowIntegrationTest {
     private PlanReportRepository planReportRepository;
 
     @Autowired
-    private WorkflowRepository workflowRepository;
+    private FlowDefinitionRepository flowDefinitionRepository;
+
+    @Autowired
+    private AuditInstanceRepository auditInstanceRepository;
 
     @Autowired
     private DomainEventPublisher domainEventPublisher;
@@ -167,7 +171,7 @@ class ReportWorkflowIntegrationTest {
         }
 
         // 检查是否为这个报告创建了活跃的工作流实例
-        boolean hasActiveWorkflow = workflowRepository.hasActiveInstance(
+        boolean hasActiveWorkflow = auditInstanceRepository.hasActiveInstance(
                 testReportId,
                 "PlanReport"
         );
@@ -217,7 +221,7 @@ class ReportWorkflowIntegrationTest {
             Thread.currentThread().interrupt();
         }
 
-        boolean hasActiveWorkflow = workflowRepository.hasActiveInstance(
+        boolean hasActiveWorkflow = auditInstanceRepository.hasActiveInstance(
                 testReportId,
                 "PlanReport"
         );
@@ -305,11 +309,11 @@ class ReportWorkflowIntegrationTest {
             Thread.currentThread().interrupt();
         }
 
-        boolean hasWorkflow1 = workflowRepository.hasActiveInstance(
+        boolean hasWorkflow1 = auditInstanceRepository.hasActiveInstance(
                 testReportId,
                 "PlanReport"
         );
-        boolean hasWorkflow2 = workflowRepository.hasActiveInstance(
+        boolean hasWorkflow2 = auditInstanceRepository.hasActiveInstance(
                 report2.getId(),
                 "PlanReport"
         );
@@ -345,7 +349,7 @@ class ReportWorkflowIntegrationTest {
         }
 
         // ============ 验证：第一个工作流应该存在 ============
-        boolean hasFirstWorkflow = workflowRepository.hasActiveInstance(
+        boolean hasFirstWorkflow = auditInstanceRepository.hasActiveInstance(
                 testReportId,
                 "PlanReport"
         );
@@ -448,7 +452,7 @@ class ReportWorkflowIntegrationTest {
     }
 
     private void ensureReportApprovalFlow() {
-        if (workflowRepository.findAuditFlowDefByCode("REPORT_APPROVAL").isPresent()) {
+        if (flowDefinitionRepository.findByCode("REPORT_APPROVAL").isPresent()) {
             return;
         }
 
@@ -459,7 +463,7 @@ class ReportWorkflowIntegrationTest {
         flowDef.setDescription("测试用报告审批流");
         flowDef.setIsActive(true);
         flowDef.setVersion(1);
-        workflowRepository.saveAuditFlowDef(flowDef);
+        flowDefinitionRepository.save(flowDef);
     }
 
     private void commitCurrentTransactionAndStartNewOne() {

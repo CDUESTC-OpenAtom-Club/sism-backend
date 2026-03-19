@@ -1,4 +1,4 @@
-package com.sism.shared.domain.model.workflow;
+package com.sism.workflow.domain.runtime.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 /**
  * AuditStepInstance - 审批步骤实例
- * Represents a single step in an approval workflow instance
+ * Represents a single step in an approval workflow instance.
  */
 @Getter
 @Setter
@@ -32,14 +32,14 @@ public class AuditStepInstance {
     @Column(name = "step_name", nullable = false)
     private String stepName;
 
+    @Column(name = "step_def_id")
+    private Long stepDefId;
+
     @Column(name = "status")
-    private String status;  // PENDING, APPROVED, REJECTED, SKIPPED
+    private String status;
 
     @Column(name = "approver_id")
     private Long approverId;
-
-    @Column(name = "approver_name")
-    private String approverName;
 
     @Column(name = "comment")
     private String comment;
