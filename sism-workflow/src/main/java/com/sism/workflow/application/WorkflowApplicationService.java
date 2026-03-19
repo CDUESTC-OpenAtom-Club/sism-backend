@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -196,7 +197,58 @@ public class WorkflowApplicationService {
             instance.addStepInstance(step);
             order++;
         }
-        instance.setCurrentStepIndex(instance.getStepInstances().get(0).getStepIndex());
+        autoCompleteSubmissionStep(instance, requesterId);
+    }
+
+    private void autoCompleteSubmissionStep(AuditInstance instance, Long requesterId) {
+        if (instance.getStepInstances() == null || instance.getStepInstances().isEmpty()) {
+            return;
+        }
+
+        AuditStepInstance firstStep = instance.getStepInstances().stream()
+                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .findFirst()
+                .orElse(null);
+
+        if (firstStep == null) {
+            return;
+        }
+
+        instance.setCurrentStepIndex(firstStep.getStepIndex());
+
+        if (!shouldAutoCompleteSubmissionStep(firstStep, requesterId)) {
+            return;
+        }
+
+        firstStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+        firstStep.setApprovedAt(LocalDateTime.now());
+        firstStep.setComment("系统自动完成提交流程节点");
+
+        AuditStepInstance nextStep = instance.getStepInstances().stream()
+                .filter(step -> !step.equals(firstStep))
+                .filter(step -> AuditInstance.STEP_STATUS_WAITING.equals(step.getStatus()))
+                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .findFirst()
+                .orElse(null);
+
+        if (nextStep != null) {
+            nextStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+            instance.setCurrentStepIndex(nextStep.getStepIndex());
+        }
+    }
+
+    private boolean shouldAutoCompleteSubmissionStep(AuditStepInstance firstStep, Long requesterId) {
+        if (!AuditInstance.STEP_STATUS_PENDING.equals(firstStep.getStatus())) {
+            return false;
+        }
+
+        String stepName = firstStep.getStepName() != null ? firstStep.getStepName().trim() : "";
+        boolean isSubmissionStep = stepName.contains("提交");
+        if (!isSubmissionStep) {
+            return false;
+        }
+
+        return requesterId != null && requesterId.equals(firstStep.getApproverId());
     }
 
     private Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId) {
