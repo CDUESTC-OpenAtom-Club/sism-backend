@@ -975,37 +975,13 @@ async validateToken() {
 
 ---
 
-### 2.12 查询指标下发状态
+### 2.12 指标状态口径说明
 
-**接口地址**: `GET /api/v1/indicators/{id}/distribution-status`
+指标状态已统一收敛为指标主资源中的 `status` 字段。
 
-**业务说明**: 查询指标的下发状态、接收情况、以及下发历史
-
-**路径参数**:
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| id | Long | 是 | 指标ID |
-
-**响应示例**:
-```json
-{
-  "code": 200,
-  "data": {
-    "status": "DISTRIBUTED",
-    "distributedAt": "2024-01-15T10:00:00",
-    "distributedBy": 145,
-    "receivedBy": [
-      {
-        "orgId": 5,
-        "orgName": "计算机学院",
-        "receivedAt": "2024-01-15T10:30:00"
-      }
-    ],
-    "withdrawn": false
-  }
-}
-```
+- 查询状态：直接读取指标详情、列表或分页结果中的 `status`
+- 变更状态：通过下发、撤回、提交审核、审批通过、审批驳回等正式业务接口完成
+- 历史兼容查询接口已下线，不再提供单独的下发状态查询能力
 
 ---
 
@@ -1042,7 +1018,7 @@ async validateToken() {
       "indicatorId": 10,
       "targetOrgId": 6,
       "targetOrgName": "软件学院",
-      "status": "PENDING_RECEIVE",
+      "status": "DISTRIBUTED",
       "distributedAt": "2024-01-15T10:00:00",
       "distributedBy": 145,
       "deadline": "2024-12-31"
@@ -1055,42 +1031,21 @@ async validateToken() {
 
 | 状态 | 说明 |
 |------|------|
-| PENDING_RECEIVE | 待接收 |
-| RECEIVED | 已接收 |
+| DISTRIBUTED | 已下发 |
+| RECEIVED | 已接收（历史口径） |
 | DECOMPOSED | 已分解 |
 | COMPLETED | 已完成 |
 | WITHDRAWN | 已撤回 |
 
 ---
 
-### 2.14 变更指标下发状态（待实现）
+### 2.14 指标状态变更口径
 
-**接口地址**: `PATCH /api/v1/indicators/{id}/distribution-status`
+指标状态不再通过单独的“下发状态修改接口”处理。
 
-**业务说明**: 直接变更指标的下发状态（仅管理员权限）
-
-**注意**: 此接口暂未实现，需评估业务需求后决定是否开发
-
-**路径参数**:
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| id | Long | 是 | 指标ID |
-
-**请求参数**:
-```json
-{
-  "status": "DISTRIBUTED",
-  "reason": "直接变更状态说明"
-}
-```
-
-**参数说明**:
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| status | String | 是 | 目标状态：DRAFT/PENDING/DISTRIBUTED |
-| reason | String | 否 | 变更状态的原因 |
+- 不应再新增对历史“下发状态接口”的依赖
+- 如需获取指标状态，请直接读取指标详情中的 `status`
+- 如需修改指标状态，请调用对应业务动作接口
 
 ---
 
@@ -2362,7 +2317,7 @@ async validateToken() {
       {
         "indicatorId": 1,
         "orgId": 5,
-        "status": "PENDING_RECEIVE"
+        "status": "DISTRIBUTED"
       }
     ]
   }
@@ -2371,37 +2326,7 @@ async validateToken() {
 
 ---
 
-#### 6.1.2 确认接收指标
-
-**接口地址**: `POST /workflow/indicator/{id}/confirm-receive`
-
-**业务说明**: 接收方确认已收到下发的指标
-
-**路径参数**:
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| id | Long | 是 | 指标ID |
-
-**请求参数**:
-
-```json
-{
-  "comment": "已确认，将尽快分解落实"
-}
-```
-
-**响应示例**:
-```json
-{
-  "code": 200,
-  "message": "接收成功"
-}
-```
-
----
-
-#### 6.1.3 分解指标
+#### 6.1.2 分解指标
 
 **接口地址**: `POST /workflow/indicator/{id}/decompose`
 
@@ -2464,7 +2389,7 @@ async validateToken() {
 
 ---
 
-#### 6.1.4 提 fanc交指标进度
+#### 6.1.3 提交指标进度
 
 **接口地址**: `POST /workflow/indicator/{indicatorId}/submit-progress`
 
@@ -2500,44 +2425,12 @@ async validateToken() {
 
 ---
 
-#### 6.1.5 查询指标下发状态
+#### 6.1.4 指标工作流状态说明
 
-**接口地址**: `GET /workflow/indicator/{indicatorId}/distribution-status`
+工作流相关页面如需展示指标状态，请直接读取指标主接口中的 `status` 字段，并结合审批实例或分发记录补充上下文。
 
-**业务说明**: 查询指标的下发状态和接收情况
-
-**路径参数**:
-
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| indicatorId | Long | 是 | 指标ID |
-
-**响应示例**:
-```json
-{
-  "code": 200,
-  "data": {
-    "indicatorId": 1,
-    "indicatorName": "年度学生满意度",
-    "distributionStatus": "COMPLETED",
-    "targetOrgs": [
-      {
-        "orgId": 5,
-        "orgName": "计算机学院",
-        "status": "COMPLETED",
-        "receivedAt": "2024-01-16T09:00:00",
-        "decomposedAt": "2024-01-17T10:00:00",
-        "submittedAt": "2024-01-20T15:00:00"
-      },
-      {
-        "orgId": 6,
-        "orgName": "软件学院",
-        "status": "PENDING_RECEIVE"
-      }
-    ]
-  }
-}
-```
+- 历史工作流状态查询路径不再作为现行接口口径
+- 面向新实现时，应避免继续扩散“distribution status”这一独立概念
 
 ---
 

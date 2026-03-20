@@ -67,6 +67,8 @@ class TaskApplicationServiceTest {
         assertEquals(2, result.getItems().size());
         assertEquals(1L, result.getItems().get(0).getId());
         assertEquals(2L, result.getItems().get(1).getId());
+        assertEquals("DRAFT", result.getItems().get(0).getPlanStatus());
+        assertEquals("DRAFT", result.getItems().get(0).getTaskStatus());
 
         verify(jpaTaskRepository).findFlatViewsByCriteria(null, 90L, null, null, "", "");
         verifyNoInteractions(taskRepository);
@@ -120,7 +122,12 @@ class TaskApplicationServiceTest {
         }
 
         @Override
-        public String getStatus() {
+        public String getPlanStatus() {
+            return "DRAFT";
+        }
+
+        @Override
+        public String getTaskStatus() {
             return "DRAFT";
         }
 

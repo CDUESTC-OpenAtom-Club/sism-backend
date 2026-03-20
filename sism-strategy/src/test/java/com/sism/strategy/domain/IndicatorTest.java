@@ -1,8 +1,8 @@
 package com.sism.strategy.domain;
 
-import com.sism.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.OrgType;
+import com.sism.strategy.domain.enums.IndicatorStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

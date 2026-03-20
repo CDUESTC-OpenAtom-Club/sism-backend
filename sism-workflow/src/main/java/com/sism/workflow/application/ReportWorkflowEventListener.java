@@ -5,10 +5,14 @@ import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportApprovedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportRejectedEvent;
 import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -30,8 +34,11 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class ReportWorkflowEventListener {
 
+    private static final String PLAN_REPORT_ENTITY_TYPE = "PlanReport";
+
     private final BusinessWorkflowApplicationService businessWorkflowService;
     private final PlanReportRepository planReportRepository;
+    private final AuditInstanceRepository auditInstanceRepository;
 
     /**
      * 处理"计划报告已提交"事件
@@ -40,6 +47,7 @@ public class ReportWorkflowEventListener {
      * @param event PlanReportSubmittedEvent 事件，包含报告ID、月份和组织ID
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePlanReportSubmitted(PlanReportSubmittedEvent event) {
         if (event == null) {
             log.warn("Received null PlanReportSubmittedEvent");
@@ -58,15 +66,14 @@ public class ReportWorkflowEventListener {
             StartWorkflowRequest request = new StartWorkflowRequest();
             request.setWorkflowCode(resolveWorkflowCode(report.getReportOrgType()));
             request.setBusinessEntityId(event.getReportId());
-            request.setBusinessEntityType("PlanReport");
+            request.setBusinessEntityType(PLAN_REPORT_ENTITY_TYPE);
             request.setVariables(buildWorkflowVariables(event));
 
-            // 启动工作流实例
-            // userId 和 orgId 应该从事件中获取，或者从上下文中获取
-            // 这里使用 1L 作为系统管理员用户，实际应该从事件中获取
+            Long initiatorId = resolveSubmitterId(event);
+
             var response = businessWorkflowService.startWorkflow(
                     request,
-                    1L,  // systemAdminUserId - TODO: 从事件或审计信息中获取
+                    initiatorId,
                     event.getReportOrgId()
             );
 
@@ -93,6 +100,7 @@ public class ReportWorkflowEventListener {
      * @param event PlanReportApprovedEvent 事件
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePlanReportApproved(PlanReportApprovedEvent event) {
         if (event == null) {
             log.warn("Received null PlanReportApprovedEvent");
@@ -101,12 +109,23 @@ public class ReportWorkflowEventListener {
 
         try {
             log.info("=== [工作流事件监听器] 接收到报告批准事件 ===");
-            log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}",
-                    event.getReportId(), event.getReportMonth(), event.getReportOrgId());
+            log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}, 审批人: {}",
+                    event.getReportId(), event.getReportMonth(), event.getReportOrgId(), event.getApproverId());
 
-            // TODO: 在这里实现报告批准后的业务逻辑
-            // 例如：触发数据汇总、发送通知等
-            log.info("✅ 报告批准事件已记录，可在此处添加后续业务逻辑");
+            var report = planReportRepository.findById(event.getReportId())
+                    .orElseThrow(() -> new IllegalArgumentException("Report not found: " + event.getReportId()));
+
+            if (!report.isApproved()) {
+                throw new IllegalStateException("Report is not approved yet: " + event.getReportId());
+            }
+
+            int syncedCount = syncWorkflowTerminalStatus(
+                    event.getReportId(),
+                    AuditInstance.STATUS_APPROVED,
+                    event.getApproverId(),
+                    "Plan report approved"
+            );
+            log.info("✅ 报告批准后置处理完成，同步工作流实例数量: {}", syncedCount);
 
         } catch (Exception e) {
             log.error("❌ 处理报告批准事件失败: reportId={}, 错误信息={}",
@@ -121,6 +140,7 @@ public class ReportWorkflowEventListener {
      * @param event PlanReportRejectedEvent 事件
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handlePlanReportRejected(PlanReportRejectedEvent event) {
         if (event == null) {
             log.warn("Received null PlanReportRejectedEvent");
@@ -129,13 +149,24 @@ public class ReportWorkflowEventListener {
 
         try {
             log.info("=== [工作流事件监听器] 接收到报告驳回事件 ===");
-            log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}, 驳回原因: {}",
+            log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}, 驳回人: {}, 驳回原因: {}",
                     event.getReportId(), event.getReportMonth(), event.getReportOrgId(),
-                    event.getReason());
+                    event.getApproverId(), event.getReason());
 
-            // TODO: 在这里实现报告驳回后的业务逻辑
-            // 例如：发送回复通知、重置报告状态等
-            log.info("✅ 报告驳回事件已记录，可在此处添加后续业务逻辑");
+            var report = planReportRepository.findById(event.getReportId())
+                    .orElseThrow(() -> new IllegalArgumentException("Report not found: " + event.getReportId()));
+
+            if (!report.isRejected()) {
+                throw new IllegalStateException("Report is not rejected yet: " + event.getReportId());
+            }
+
+            int syncedCount = syncWorkflowTerminalStatus(
+                    event.getReportId(),
+                    AuditInstance.STATUS_REJECTED,
+                    event.getApproverId(),
+                    event.getReason()
+            );
+            log.info("✅ 报告驳回后置处理完成，同步工作流实例数量: {}", syncedCount);
 
         } catch (Exception e) {
             log.error("❌ 处理报告驳回事件失败: reportId={}, 错误信息={}",
@@ -155,9 +186,30 @@ public class ReportWorkflowEventListener {
         variables.put("reportId", event.getReportId());
         variables.put("reportMonth", event.getReportMonth());
         variables.put("reportOrgId", event.getReportOrgId());
+        variables.put("submitterId", event.getSubmitterId());
         variables.put("eventId", event.getEventId());
         variables.put("occurredOn", event.getOccurredOn());
         return variables;
+    }
+
+    private Long resolveSubmitterId(PlanReportSubmittedEvent event) {
+        if (event.getSubmitterId() == null) {
+            throw new IllegalArgumentException("PlanReportSubmittedEvent missing submitterId: " + event.getReportId());
+        }
+        return event.getSubmitterId();
+    }
+
+    private int syncWorkflowTerminalStatus(Long reportId, String terminalStatus, Long operatorId, String comment) {
+        int syncedCount = 0;
+        for (var instance : auditInstanceRepository.findByBusinessTypeAndBusinessId(PLAN_REPORT_ENTITY_TYPE, reportId)) {
+            if (!AuditInstance.STATUS_PENDING.equals(instance.getStatus())) {
+                continue;
+            }
+            instance.completeExternally(terminalStatus, operatorId, comment);
+            auditInstanceRepository.save(instance);
+            syncedCount++;
+        }
+        return syncedCount;
     }
 
     private String resolveWorkflowCode(ReportOrgType reportOrgType) {

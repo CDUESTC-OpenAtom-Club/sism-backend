@@ -1,7 +1,6 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.service.UserService;
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
@@ -33,7 +32,6 @@ import java.util.stream.Collectors;
 @Tag(name = "User Profile", description = "User profile management endpoints")
 public class UserProfileController {
 
-    private final UserService userService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 

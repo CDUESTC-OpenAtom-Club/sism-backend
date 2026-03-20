@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * JpaTaskRepositoryInternal - JPA内部仓储接口
@@ -99,7 +100,8 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.org_id AS orgId,
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
-                COALESCE(p.status, 'DRAFT') AS status,
+                COALESCE(p.status, 'DRAFT') AS planStatus,
+                'DRAFT' AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -122,7 +124,8 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.org_id AS orgId,
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
-                COALESCE(p.status, 'DRAFT') AS status,
+                COALESCE(p.status, 'DRAFT') AS planStatus,
+                'DRAFT' AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -144,6 +147,29 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
             @Param("createdByOrgId") Long createdByOrgId,
             @Param("taskType") String taskType,
             @Param("taskName") String taskName);
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.task_name AS taskName,
+                t.task_desc AS taskDesc,
+                t.task_type AS taskType,
+                t.plan_id AS planId,
+                t.cycle_id AS cycleId,
+                t.org_id AS orgId,
+                t.created_by_org_id AS createdByOrgId,
+                t.sort_order AS sortOrder,
+                COALESCE(p.status, 'DRAFT') AS planStatus,
+                'DRAFT' AS taskStatus,
+                t.remark AS remark,
+                t.created_at AS createdAt,
+                t.updated_at AS updatedAt
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE t.task_id = :taskId
+              AND COALESCE(t.is_deleted, false) = false
+            """, nativeQuery = true)
+    Optional<TaskFlatView> findFlatViewById(@Param("taskId") Long taskId);
 
     @Query(value = """
             SELECT

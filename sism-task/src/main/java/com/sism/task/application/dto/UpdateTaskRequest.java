@@ -1,5 +1,6 @@
 package com.sism.task.application.dto;
 
+import com.sism.task.domain.TaskCategory;
 import com.sism.task.domain.TaskType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +12,8 @@ import lombok.Data;
  */
 @Data
 public class UpdateTaskRequest {
+
+    private TaskCategory taskCategory = TaskCategory.STRATEGIC;
 
     @NotBlank(message = "任务名称不能为空")
     private String taskName;
@@ -35,7 +38,4 @@ public class UpdateTaskRequest {
     private Integer sortOrder;
 
     private String remark;
-
-    @NotNull(message = "任务状态不能为空")
-    private String status;
 }

@@ -1,18 +1,21 @@
 package com.sism.strategy.application;
 
-import com.sism.enums.IndicatorStatus;
-import com.sism.execution.domain.model.plan.Plan;
-import com.sism.execution.domain.model.plan.PlanLevel;
-import com.sism.execution.domain.model.plan.PlanStatus;
-import com.sism.execution.domain.repository.PlanRepository;
+import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.domain.Cycle;
 import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.event.PlanSubmittedForApprovalEvent;
+import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.plan.PlanLevel;
+import com.sism.strategy.domain.plan.PlanStatus;
 import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.IndicatorRepository;
+import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.strategy.interfaces.dto.CreatePlanRequest;
 import com.sism.strategy.interfaces.dto.PlanResponse;
+import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
 import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
 import com.sism.task.domain.repository.TaskRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +47,8 @@ public class PlanApplicationService {
     private final OrganizationRepository organizationRepository;
     private final BasicTaskWeightValidationService basicTaskWeightValidationService;
     private final TaskRepository taskRepository;
+    private final DomainEventPublisher eventPublisher;
+    private final PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService;
 
     /**
      * 创建计划
@@ -131,13 +136,21 @@ public class PlanApplicationService {
      * 提交计划审批
      */
     @Transactional
-    public PlanResponse submitPlanForApproval(Long id) {
+    public PlanResponse submitPlanForApproval(Long id,
+                                              SubmitPlanApprovalRequest request,
+                                              Long currentUserId,
+                                              Long currentOrgId) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
-        plan.submitForApproval();
-        Plan saved = planRepository.save(plan);
-        return convertToResponse(saved, null);
+        plan.ensureCanSubmitForApproval();
+        eventPublisher.publish(new PlanSubmittedForApprovalEvent(
+                plan.getId(),
+                request.getWorkflowCode(),
+                currentUserId,
+                currentOrgId
+        ));
+        return enrichWorkflowFields(convertToResponse(plan, null), plan);
     }
 
     /**
@@ -167,7 +180,7 @@ public class PlanApplicationService {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
-        plan.reject();
+        plan.returnForRevision();
         Plan saved = planRepository.save(plan);
         return convertToResponse(saved, null);
     }
@@ -183,6 +196,32 @@ public class PlanApplicationService {
         plan.withdraw();
         Plan saved = planRepository.save(plan);
         return convertToResponse(saved, null);
+    }
+
+    @Transactional
+    public void markWorkflowApproved(Long planId) {
+        planRepository.findById(planId).ifPresent(plan -> {
+            basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
+            plan.approve();
+            Plan saved = planRepository.save(plan);
+            syncIndicatorStatusWithPlan(saved);
+        });
+    }
+
+    @Transactional
+    public void markWorkflowRejected(Long planId, String reason) {
+        planRepository.findById(planId).ifPresent(plan -> {
+            plan.returnForRevision();
+            planRepository.save(plan);
+        });
+    }
+
+    @Transactional
+    public void markWorkflowWithdrawn(Long planId) {
+        planRepository.findById(planId).ifPresent(plan -> {
+            plan.withdraw();
+            planRepository.save(plan);
+        });
     }
 
     /**
@@ -204,7 +243,7 @@ public class PlanApplicationService {
     public Optional<PlanResponse> getPlanById(Long id) {
         Map<Long, String> orgNamesById = loadOrgNamesById();
         return planRepository.findById(id)
-                .map(plan -> convertToResponse(plan, null, orgNamesById));
+                .map(plan -> enrichWorkflowFields(convertToResponse(plan, null, orgNamesById), plan));
     }
 
     /**
@@ -216,7 +255,7 @@ public class PlanApplicationService {
         return taskRepository.findById(taskId)
                 .map(com.sism.task.domain.StrategicTask::getPlanId)
                 .flatMap(planRepository::findById)
-                .map(plan -> convertToResponse(plan, null, orgNamesById));
+                .map(plan -> enrichWorkflowFields(convertToResponse(plan, null, orgNamesById), plan));
     }
 
     /**
@@ -224,8 +263,15 @@ public class PlanApplicationService {
      */
     public List<PlanResponse> getAllPlans() {
         Map<Long, String> orgNamesById = loadOrgNamesById();
-        return planRepository.findAll().stream()
-                .map(plan -> convertToResponse(plan, null, orgNamesById))
+        List<Plan> plans = planRepository.findAll();
+        Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
+                        plans.stream().map(Plan::getId).toList()
+                );
+        return plans.stream()
+                .map(plan -> enrichWorkflowFields(
+                        convertToResponse(plan, null, orgNamesById),
+                        workflowSnapshotsByPlanId.get(plan.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -259,7 +305,14 @@ public class PlanApplicationService {
 
         Page<Plan> planPage = planRepository.findPage(cycleIds, queryStatuses, pageable);
         Map<Long, String> orgNamesById = loadOrgNamesById();
-        Page<PlanResponse> responsePage = planPage.map(plan -> convertToResponse(plan, null, orgNamesById));
+        Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
+                        planPage.getContent().stream().map(Plan::getId).toList()
+                );
+        Page<PlanResponse> responsePage = planPage.map(
+                plan -> enrichWorkflowFields(
+                        convertToResponse(plan, null, orgNamesById),
+                        workflowSnapshotsByPlanId.get(plan.getId())));
 
         log.info(
                 "Loaded plans page={}, size={}, year={}, status={}, results={}, total={}, durationMs={}",
@@ -282,8 +335,15 @@ public class PlanApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
 
         Map<Long, String> orgNamesById = loadOrgNamesById();
-        return planRepository.findByCycleId(cycleId).stream()
-                .map(plan -> convertToResponse(plan, cycle.getYear().toString(), orgNamesById))
+        List<Plan> plans = planRepository.findByCycleId(cycleId);
+        Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
+                        plans.stream().map(Plan::getId).toList()
+                );
+        return plans.stream()
+                .map(plan -> enrichWorkflowFields(
+                        convertToResponse(plan, cycle.getYear().toString(), orgNamesById),
+                        workflowSnapshotsByPlanId.get(plan.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -302,6 +362,7 @@ public class PlanApplicationService {
                 cycle != null ? cycle.getYear().toString() : null,
                 loadOrgNamesById()
         );
+        planResponse = enrichWorkflowFields(planResponse, plan);
 
         PlanDetailsResponse details = new PlanDetailsResponse();
         details.setId(planResponse.getId());
@@ -321,6 +382,14 @@ public class PlanApplicationService {
         details.setTargetOrgId(planResponse.getTargetOrgId());
         details.setCreatedByOrgId(planResponse.getCreatedByOrgId());
         details.setPlanLevel(planResponse.getPlanLevel());
+        details.setCanEdit(planResponse.getCanEdit());
+        details.setCanResubmit(planResponse.getCanResubmit());
+        details.setWorkflowInstanceId(planResponse.getWorkflowInstanceId());
+        details.setWorkflowStatus(planResponse.getWorkflowStatus());
+        details.setCurrentStepName(planResponse.getCurrentStepName());
+        details.setCurrentApproverId(planResponse.getCurrentApproverId());
+        details.setCurrentApproverName(planResponse.getCurrentApproverName());
+        details.setCanWithdraw(planResponse.getCanWithdraw());
 
         // 查询计划下所有任务的指标（指标按 taskId 关联，不是按 planId 直接关联）
         String planStatus = PlanStatus.fromRaw(plan.getStatus()).value();
@@ -329,6 +398,7 @@ public class PlanApplicationService {
                 .map(indicator -> convertIndicatorToResponse(indicator, planStatus))
                 .collect(Collectors.toList());
         details.setIndicators(indicators);
+        details.setWorkflowHistory(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(plan.getId()));
 
         // TODO: 查询相关里程碑（需要扩展MilestoneRepository支持按planId查询）
 
@@ -388,7 +458,45 @@ public class PlanApplicationService {
                 .targetOrgName(targetOrgName) // 设置目标组织名称
                 .createdByOrgId(plan.getCreatedByOrgId())
                 .planLevel(plan.getPlanLevel() != null ? plan.getPlanLevel().name() : null)
+                .canEdit(plan.isEditable())
+                .canResubmit(plan.isEditable())
+                .workflowStatus(null)
+                .currentStepName(null)
+                .currentApproverId(null)
+                .currentApproverName(null)
+                .canWithdraw(null)
                 .build();
+    }
+
+    private PlanResponse enrichWorkflowFields(PlanResponse response, Plan plan) {
+        if (response == null || plan == null || plan.getId() == null) {
+            return response;
+        }
+
+        PlanWorkflowSnapshotQueryService.WorkflowSnapshot workflowSnapshot =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(plan.getId());
+        return enrichWorkflowFields(response, workflowSnapshot);
+    }
+
+    private PlanResponse enrichWorkflowFields(PlanResponse response,
+                                              PlanWorkflowSnapshotQueryService.WorkflowSnapshot workflowSnapshot) {
+        if (response == null) {
+            return response;
+        }
+        if (workflowSnapshot == null) {
+            return response;
+        }
+
+        response.setWorkflowInstanceId(workflowSnapshot.getWorkflowInstanceId());
+        response.setSubmittedBy(workflowSnapshot.getStarterId());
+        response.setSubmittedAt(workflowSnapshot.getStartedAt());
+        response.setLastRejectReason(workflowSnapshot.getLastRejectReason());
+        response.setWorkflowStatus(workflowSnapshot.getWorkflowStatus());
+        response.setCurrentStepName(workflowSnapshot.getCurrentStepName());
+        response.setCurrentApproverId(workflowSnapshot.getCurrentApproverId());
+        response.setCurrentApproverName(workflowSnapshot.getCurrentApproverName());
+        response.setCanWithdraw(workflowSnapshot.getCanWithdraw());
+        return response;
     }
 
     private Map<Long, String> loadOrgNamesById() {
@@ -455,8 +563,7 @@ public class PlanApplicationService {
     private IndicatorStatus mapPlanStatusToIndicatorStatus(String planStatus) {
         return switch (PlanStatus.fromRaw(planStatus)) {
             case DISTRIBUTED -> IndicatorStatus.DISTRIBUTED;
-            case PENDING -> IndicatorStatus.PENDING;
-            case DRAFT -> IndicatorStatus.DRAFT;
+            case PENDING, DRAFT, RETURNED -> IndicatorStatus.DRAFT;
         };
     }
 
@@ -467,6 +574,7 @@ public class PlanApplicationService {
     public static class PlanDetailsResponse extends PlanResponse {
         private List<InternalIndicatorResponse> indicators;
         private List<InternalMilestoneResponse> milestones;
+        private List<PlanWorkflowSnapshotQueryService.WorkflowHistoryItem> workflowHistory;
     }
 
     /**

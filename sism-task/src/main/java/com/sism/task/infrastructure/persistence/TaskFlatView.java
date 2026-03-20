@@ -25,7 +25,9 @@ public interface TaskFlatView {
 
     Integer getSortOrder();
 
-    String getStatus();
+    String getPlanStatus();
+
+    String getTaskStatus();
 
     String getRemark();
 

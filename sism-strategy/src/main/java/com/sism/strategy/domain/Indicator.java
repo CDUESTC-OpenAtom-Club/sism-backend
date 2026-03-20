@@ -1,7 +1,7 @@
 package com.sism.strategy.domain;
 
-import com.sism.enums.IndicatorStatus;
-import com.sism.enums.IndicatorLevel;
+import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.enums.IndicatorLevel;
 import com.sism.strategy.domain.event.IndicatorCreatedEvent;
 import com.sism.strategy.domain.event.IndicatorStatusChangedEvent;
 import com.sism.shared.domain.model.base.AggregateRoot;
@@ -90,10 +90,6 @@ public class Indicator extends AggregateRoot<Long> {
     @Transient
     private IndicatorLevel level;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "distribution_status", length = 20)
-    private IndicatorStatus distributionStatus;
-
     @Column(name = "responsible_user_id")
     private Long responsibleUserId;
 
@@ -111,7 +107,6 @@ public class Indicator extends AggregateRoot<Long> {
         indicator.type = "定量";  // Database constraint only allows '定量' or '定性'
         indicator.progress = 0;
         indicator.status = IndicatorStatus.DRAFT;
-        indicator.distributionStatus = IndicatorStatus.DRAFT;
         indicator.level = indicator.calculateLevel();
         indicator.createdAt = LocalDateTime.now();
         indicator.updatedAt = LocalDateTime.now();
@@ -380,26 +375,6 @@ public class Indicator extends AggregateRoot<Long> {
      */
     public void setLevel(IndicatorLevel level) {
         this.level = level;
-    }
-
-    /**
-     * 获取下发状态
-     * 优先使用数据库字段，如果没有则根据status计算
-     *
-     * @return IndicatorStatus: DRAFT, PENDING, 或 DISTRIBUTED
-     */
-    public IndicatorStatus getDistributionStatus() {
-        if (this.distributionStatus != null) {
-            return this.distributionStatus;
-        }
-        return this.status;
-    }
-
-    /**
-     * 设置下发状态
-     */
-    public void setDistributionStatus(IndicatorStatus distributionStatus) {
-        this.distributionStatus = distributionStatus;
     }
 
     /**

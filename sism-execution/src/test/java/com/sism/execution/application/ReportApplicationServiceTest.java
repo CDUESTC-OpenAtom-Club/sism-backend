@@ -4,7 +4,6 @@ import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
-import com.sism.shared.infrastructure.event.EventStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,17 +27,13 @@ class ReportApplicationServiceTest {
     @Mock
     private DomainEventPublisher eventPublisher;
 
-    @Mock
-    private EventStore eventStore;
-
     private ReportApplicationService reportApplicationService;
 
     @BeforeEach
     void setUp() {
         reportApplicationService = new ReportApplicationService(
                 planReportRepository,
-                eventPublisher,
-                eventStore
+                eventPublisher
         );
     }
 

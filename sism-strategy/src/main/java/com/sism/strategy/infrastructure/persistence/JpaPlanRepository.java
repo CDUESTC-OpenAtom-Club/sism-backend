@@ -1,0 +1,81 @@
+package com.sism.strategy.infrastructure.persistence;
+
+import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.plan.PlanLevel;
+import com.sism.strategy.domain.repository.PlanRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+@RequiredArgsConstructor
+public class JpaPlanRepository implements PlanRepository {
+
+    private final JpaPlanRepositoryInternal jpaRepository;
+
+    @Override
+    public Optional<Plan> findById(Long id) {
+        return jpaRepository.findById(id);
+    }
+
+    @Override
+    public List<Plan> findAll() {
+        return jpaRepository.findAll();
+    }
+
+    @Override
+    public Page<Plan> findPage(List<Long> cycleIds, List<String> statuses, Pageable pageable) {
+        boolean skipCycleFilter = cycleIds == null || cycleIds.isEmpty();
+        if (statuses == null || statuses.isEmpty()) {
+            return jpaRepository.findPage(cycleIds, skipCycleFilter, pageable);
+        }
+        return jpaRepository.findPageByStatus(cycleIds, skipCycleFilter, statuses, pageable);
+    }
+
+    @Override
+    public List<Plan> findByTargetOrgId(Long targetOrgId) {
+        return jpaRepository.findByTargetOrgId(targetOrgId);
+    }
+
+    @Override
+    public List<Plan> findByCreatedByOrgId(Long createdByOrgId) {
+        return jpaRepository.findByCreatedByOrgId(createdByOrgId);
+    }
+
+    @Override
+    public List<Plan> findByCycleId(Long cycleId) {
+        return jpaRepository.findByCycleId(cycleId);
+    }
+
+    @Override
+    public List<Plan> findByPlanLevel(PlanLevel planLevel) {
+        return jpaRepository.findByPlanLevel(planLevel);
+    }
+
+    @Override
+    public List<Plan> findByStatuses(List<String> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByStatusIn(statuses);
+    }
+
+    @Override
+    public Plan save(Plan plan) {
+        return jpaRepository.save(plan);
+    }
+
+    @Override
+    public void delete(Plan plan) {
+        jpaRepository.delete(plan);
+    }
+
+    @Override
+    public boolean existsById(Long id) {
+        return jpaRepository.existsById(id);
+    }
+}

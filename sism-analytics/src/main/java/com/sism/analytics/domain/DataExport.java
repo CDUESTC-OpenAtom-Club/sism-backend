@@ -1,7 +1,6 @@
 package com.sism.analytics.domain;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
-import com.sism.shared.domain.model.base.DomainEvent;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

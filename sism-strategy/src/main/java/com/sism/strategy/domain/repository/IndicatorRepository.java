@@ -98,4 +98,14 @@ public interface IndicatorRepository {
      * 根据关键字搜索指标
      */
     List<Indicator> findByKeyword(String keyword);
+
+    /**
+     * 根据任务ID列表分页查询指标
+     */
+    Page<Indicator> findByTaskIds(List<Long> taskIds, Pageable pageable);
+
+    /**
+     * 根据年份获取指标（通过 Cycle -> Plan -> Task -> Indicator 关系链）
+     */
+    Page<Indicator> findByYear(Integer year, Pageable pageable);
 }

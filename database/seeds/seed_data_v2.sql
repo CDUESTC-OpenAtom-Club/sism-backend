@@ -27,38 +27,38 @@ TRUNCATE TABLE sys_user_role, sys_role_permission, sys_user, sys_org, cycle, sys
 
 INSERT INTO sys_org (id, name, type, is_active, sort_order, created_at, updated_at, parent_org_id, level, is_deleted) VALUES
 -- 一级组织: 战略发展部
-(35, '战略发展部', 'admin', true, 1, NOW(), NOW(), NULL, 1, false),
+(35, '战略发展部', 'STRATEGIC', true, 1, NOW(), NOW(), NULL, 1, false),
 
 -- 二级组织: 9个职能部门
-(36, '党委办公室', 'functional', true, 10, NOW(), NOW(), 35, 2, false),
-(37, '纪委办公室', 'functional', true, 20, NOW(), NOW(), 35, 2, false),
-(38, '党委宣传部', 'functional', true, 30, NOW(), NOW(), 35, 2, false),
-(39, '党委组织部', 'functional', true, 40, NOW(), NOW(), 35, 2, false),
-(40, '人力资源处', 'functional', true, 50, NOW(), NOW(), 35, 2, false),
-(41, '学生工作部', 'functional', true, 60, NOW(), NOW(), 35, 2, false),
-(42, '保卫处', 'functional', true, 70, NOW(), NOW(), 35, 2, false),
-(43, '学校办公室', 'functional', true, 80, NOW(), NOW(), 35, 2, false),
-(44, '教务处', 'functional', true, 90, NOW(), NOW(), 35, 2, false),
-(45, '科技处', 'functional', true, 100, NOW(), NOW(), 35, 2, false),
-(46, '财务处', 'functional', true, 110, NOW(), NOW(), 35, 2, false),
-(47, '招生就业处', 'functional', true, 120, NOW(), NOW(), 35, 2, false),
-(48, '就业创业指导中心', 'functional', true, 130, NOW(), NOW(), 35, 2, false),
-(49, '实验室与资产管理处', 'functional', true, 140, NOW(), NOW(), 35, 2, false),
-(50, '数字化校园建设办公室', 'functional', true, 150, NOW(), NOW(), 35, 2, false),
-(51, '图书馆', 'functional', true, 160, NOW(), NOW(), 35, 2, false),
-(52, '后勤保障处', 'functional', true, 170, NOW(), NOW(), 35, 2, false),
-(53, '继续教育学院', 'functional', true, 180, NOW(), NOW(), 35, 2, false),
-(54, '国际交流与合作处', 'functional', true, 190, NOW(), NOW(), 35, 2, false),
+(36, '党委办公室', 'FUNCTIONAL', true, 10, NOW(), NOW(), 35, 2, false),
+(37, '纪委办公室', 'FUNCTIONAL', true, 20, NOW(), NOW(), 35, 2, false),
+(38, '党委宣传部', 'FUNCTIONAL', true, 30, NOW(), NOW(), 35, 2, false),
+(39, '党委组织部', 'FUNCTIONAL', true, 40, NOW(), NOW(), 35, 2, false),
+(40, '人力资源处', 'FUNCTIONAL', true, 50, NOW(), NOW(), 35, 2, false),
+(41, '学生工作部', 'FUNCTIONAL', true, 60, NOW(), NOW(), 35, 2, false),
+(42, '保卫处', 'FUNCTIONAL', true, 70, NOW(), NOW(), 35, 2, false),
+(43, '学校办公室', 'FUNCTIONAL', true, 80, NOW(), NOW(), 35, 2, false),
+(44, '教务处', 'FUNCTIONAL', true, 90, NOW(), NOW(), 35, 2, false),
+(45, '科技处', 'FUNCTIONAL', true, 100, NOW(), NOW(), 35, 2, false),
+(46, '财务处', 'FUNCTIONAL', true, 110, NOW(), NOW(), 35, 2, false),
+(47, '招生就业处', 'FUNCTIONAL', true, 120, NOW(), NOW(), 35, 2, false),
+(48, '就业创业指导中心', 'FUNCTIONAL', true, 130, NOW(), NOW(), 35, 2, false),
+(49, '实验室与资产管理处', 'FUNCTIONAL', true, 140, NOW(), NOW(), 35, 2, false),
+(50, '数字化校园建设办公室', 'FUNCTIONAL', true, 150, NOW(), NOW(), 35, 2, false),
+(51, '图书馆', 'FUNCTIONAL', true, 160, NOW(), NOW(), 35, 2, false),
+(52, '后勤保障处', 'FUNCTIONAL', true, 170, NOW(), NOW(), 35, 2, false),
+(53, '继续教育学院', 'FUNCTIONAL', true, 180, NOW(), NOW(), 35, 2, false),
+(54, '国际交流与合作处', 'FUNCTIONAL', true, 190, NOW(), NOW(), 35, 2, false),
 
 -- 三级组织: 8个二级学院
-(55, '马克思主义学院', 'academic', true, 201, NOW(), NOW(), 35, 3, false),
-(56, '法学院', 'academic', true, 202, NOW(), NOW(), 35, 3, false),
-(57, '计算机学院', 'academic', true, 203, NOW(), NOW(), 35, 3, false),
-(58, '商学院', 'academic', true, 204, NOW(), NOW(), 35, 3, false),
-(59, '文理学院', 'academic', true, 205, NOW(), NOW(), 35, 3, false),
-(60, '艺术与设计学院', 'academic', true, 206, NOW(), NOW(), 35, 3, false),
-(61, '航空学院', 'academic', true, 207, NOW(), NOW(), 35, 3, false),
-(62, '国际教育学院', 'academic', true, 208, NOW(), NOW(), 35, 3, false);
+(55, '马克思主义学院', 'COLLEGE', true, 201, NOW(), NOW(), 35, 3, false),
+(56, '法学院', 'COLLEGE', true, 202, NOW(), NOW(), 35, 3, false),
+(57, '计算机学院', 'COLLEGE', true, 203, NOW(), NOW(), 35, 3, false),
+(58, '商学院', 'COLLEGE', true, 204, NOW(), NOW(), 35, 3, false),
+(59, '文理学院', 'COLLEGE', true, 205, NOW(), NOW(), 35, 3, false),
+(60, '艺术与设计学院', 'COLLEGE', true, 206, NOW(), NOW(), 35, 3, false),
+(61, '航空学院', 'COLLEGE', true, 207, NOW(), NOW(), 35, 3, false),
+(62, '国际教育学院', 'COLLEGE', true, 208, NOW(), NOW(), 35, 3, false);
 
 -- =============================================================================
 -- 3. 角色 (sys_role) - 7个角色
@@ -544,27 +544,27 @@ INSERT INTO sys_user_role (id, user_id, role_id, created_at) VALUES
 -- =============================================================================
 
 -- 战略部负责人拥有所有权限
-INSERT INTO sys_role_permission (role_id, perm_id, created_at)
+INSERT INTO sys_role_permission (role_id, permission_id, created_at)
 SELECT 8, id, NOW() FROM sys_permission;
 
 -- 职能部门负责人拥有大部分权限
-INSERT INTO sys_role_permission (role_id, perm_id, created_at)
+INSERT INTO sys_role_permission (role_id, permission_id, created_at)
 SELECT 6, id, NOW() FROM sys_permission WHERE perm_code NOT IN ('org', 'user', 'system');
 
 -- 学院院长拥有指标和报告权限
-INSERT INTO sys_role_permission (role_id, perm_id, created_at)
+INSERT INTO sys_role_permission (role_id, permission_id, created_at)
 SELECT 7, id, NOW() FROM sys_permission WHERE perm_code IN ('dashboard', 'indicator', 'indicator:list', 'indicator:edit', 'report', 'report:list', 'report:create', 'report:submit', 'approval', 'approval:list', 'approval:approve');
 
 -- 填报人只能填报和查看
-INSERT INTO sys_role_permission (role_id, perm_id, created_at)
+INSERT INTO sys_role_permission (role_id, permission_id, created_at)
 SELECT 5, id, NOW() FROM sys_permission WHERE perm_code IN ('dashboard', 'indicator', 'indicator:list', 'report', 'report:list', 'report:create', 'report:submit');
 
 -- 战略部员工权限
-INSERT INTO sys_role_permission (role_id, perm_id, created_at)
+INSERT INTO sys_role_permission (role_id, permission_id, created_at)
 SELECT 10, id, NOW() FROM sys_permission WHERE perm_code NOT IN ('org', 'user', 'system');
 
 -- 下发人权限
-INSERT INTO sys_role_permission (role_id, perm_id, created_at)
+INSERT INTO sys_role_permission (role_id, permission_id, created_at)
 SELECT 11, id, NOW() FROM sys_permission WHERE perm_code IN ('dashboard', 'indicator', 'indicator:list', 'indicator:create', 'indicator:distribute', 'plan', 'plan:list', 'plan:create', 'plan:distribute', 'report', 'report:list', 'approval', 'approval:list');
 
 -- =============================================================================
@@ -584,192 +584,192 @@ INSERT INTO cycle (id, cycle_name, year, start_date, end_date, description, crea
 -- 战略部 -> 职能部门的一级指标 (每个职能部门约3-8个)
 -- 指标类型: '职能' 表示职能部门指标
 
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
 -- 党委办公室指标 (目标36)
-(19501, NULL, NULL, '党建工作质量提升', 10, 1, '加强党组织建设', NOW(), NOW(), ''职能'', 0, false, 35, 36, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19502, NULL, NULL, '思想政治教育', 10, 2, '加强思想政治工作', NOW(), NOW(), ''职能'', 0, false, 35, 36, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19503, NULL, NULL, '党委重要决策执行', 10, 3, '落实党委决策', NOW(), NOW(), ''职能'', 0, false, 35, 36, 'PENDING', 'PENDING', NULL, true),
+(19501, NULL, NULL, '党建工作质量提升', 10, 1, '加强党组织建设', NOW(), NOW(), ''职能'', 0, false, 35, 36, 'DISTRIBUTED', NULL, true),
+(19502, NULL, NULL, '思想政治教育', 10, 2, '加强思想政治工作', NOW(), NOW(), ''职能'', 0, false, 35, 36, 'DISTRIBUTED', NULL, true),
+(19503, NULL, NULL, '党委重要决策执行', 10, 3, '落实党委决策', NOW(), NOW(), ''职能'', 0, false, 35, 36, 'PENDING', NULL, true),
 
 -- 纪委办公室指标 (目标37)
-(19504, NULL, NULL, '党风廉政建设', 10, 1, '廉政风险防控', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19505, NULL, NULL, '纪检监察工作', 10, 2, '监督执纪问责', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19506, NULL, NULL, '廉洁教育', 10, 3, '廉洁文化进校园', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'PENDING', 'PENDING', NULL, true),
-(19507, NULL, NULL, '案件查办', 10, 4, '违纪案件处理', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DRAFT', 'DRAFT', NULL, true),
-(19508, NULL, NULL, '巡视巡察', 10, 5, '巡视问题整改', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DRAFT', 'DRAFT', NULL, true),
+(19504, NULL, NULL, '党风廉政建设', 10, 1, '廉政风险防控', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DISTRIBUTED', NULL, true),
+(19505, NULL, NULL, '纪检监察工作', 10, 2, '监督执纪问责', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DISTRIBUTED', NULL, true),
+(19506, NULL, NULL, '廉洁教育', 10, 3, '廉洁文化进校园', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'PENDING', NULL, true),
+(19507, NULL, NULL, '案件查办', 10, 4, '违纪案件处理', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DRAFT', NULL, true),
+(19508, NULL, NULL, '巡视巡察', 10, 5, '巡视问题整改', NOW(), NOW(), ''职能'', 0, false, 35, 37, 'DRAFT', NULL, true),
 
 -- 党委宣传部指标 (目标38)
-(19509, NULL, NULL, '意识形态工作', 10, 1, '意识形态责任制', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19510, NULL, NULL, '新闻宣传', 10, 2, '校园文化建设', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19511, NULL, NULL, '舆论引导', 10, 3, '网络舆情应对', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', 'DRAFT', NULL, true),
-(19512, NULL, NULL, '精神文明建设', 10, 4, '文明校园创建', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'PENDING', 'PENDING', NULL, true),
-(19513, NULL, NULL, '文化活动', 10, 5, '校园文化活动', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', 'DRAFT', NULL, true),
-(19514, NULL, NULL, '对外宣传', 10, 6, '学校形象宣传', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', 'DRAFT', NULL, true),
-(19515, NULL, NULL, '思政课程建设', 10, 7, '思政课教学质量', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', 'DRAFT', NULL, true),
+(19509, NULL, NULL, '意识形态工作', 10, 1, '意识形态责任制', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DISTRIBUTED', NULL, true),
+(19510, NULL, NULL, '新闻宣传', 10, 2, '校园文化建设', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DISTRIBUTED', NULL, true),
+(19511, NULL, NULL, '舆论引导', 10, 3, '网络舆情应对', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', NULL, true),
+(19512, NULL, NULL, '精神文明建设', 10, 4, '文明校园创建', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'PENDING', NULL, true),
+(19513, NULL, NULL, '文化活动', 10, 5, '校园文化活动', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', NULL, true),
+(19514, NULL, NULL, '对外宣传', 10, 6, '学校形象宣传', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', NULL, true),
+(19515, NULL, NULL, '思政课程建设', 10, 7, '思政课教学质量', NOW(), NOW(), ''职能'', 0, false, 35, 38, 'DRAFT', NULL, true),
 
 -- 党委组织部指标 (目标39)
-(19516, NULL, NULL, '组织建设', 10, 1, '基层党组织建设', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19517, NULL, NULL, '干部队伍建设', 10, 2, '干部培养选拔', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19518, NULL, NULL, '人才工作', 10, 3, '人才引进培养', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'PENDING', 'PENDING', NULL, true),
-(19519, NULL, NULL, '党员教育管理', 10, 4, '党员培训发展', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', 'DRAFT', NULL, true),
-(19520, NULL, NULL, '党建工作考核', 10, 5, '党建述职评议', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', 'DRAFT', NULL, true),
-(19521, NULL, NULL, '组织制度建设', 10, 6, '组织制度完善', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', 'DRAFT', NULL, true),
-(19522, NULL, NULL, '干部培训', 10, 7, '干部能力提升', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', 'DRAFT', NULL, true),
-(19523, NULL, NULL, '人事制度改革', 10, 8, '人事制度改革', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', 'DRAFT', NULL, true),
-(19524, NULL, NULL, '师资队伍建设', 10, 9, '教师队伍建设', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', 'DRAFT', NULL, true),
+(19516, NULL, NULL, '组织建设', 10, 1, '基层党组织建设', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DISTRIBUTED', NULL, true),
+(19517, NULL, NULL, '干部队伍建设', 10, 2, '干部培养选拔', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DISTRIBUTED', NULL, true),
+(19518, NULL, NULL, '人才工作', 10, 3, '人才引进培养', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'PENDING', NULL, true),
+(19519, NULL, NULL, '党员教育管理', 10, 4, '党员培训发展', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', NULL, true),
+(19520, NULL, NULL, '党建工作考核', 10, 5, '党建述职评议', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', NULL, true),
+(19521, NULL, NULL, '组织制度建设', 10, 6, '组织制度完善', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', NULL, true),
+(19522, NULL, NULL, '干部培训', 10, 7, '干部能力提升', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', NULL, true),
+(19523, NULL, NULL, '人事制度改革', 10, 8, '人事制度改革', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', NULL, true),
+(19524, NULL, NULL, '师资队伍建设', 10, 9, '教师队伍建设', NOW(), NOW(), ''职能'', 0, false, 35, 39, 'DRAFT', NULL, true),
 
 -- 人力资源处指标 (目标40)
-(19525, NULL, NULL, '人事管理', 10, 1, '人事制度改革', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19526, NULL, NULL, '师资队伍建设', 10, 2, '教师发展', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19527, NULL, NULL, '人才引进', 10, 3, '高层次人才引进', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'PENDING', 'PENDING', NULL, true),
-(19528, NULL, NULL, '职称评审', 10, 4, '职称评审改革', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', 'DRAFT', NULL, true),
-(19529, NULL, NULL, '绩效考核', 10, 5, '教职工考核', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', 'DRAFT', NULL, true),
-(19530, NULL, NULL, '薪酬福利', 10, 6, '薪酬制度改革', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', 'DRAFT', NULL, true),
-(19531, NULL, NULL, '博士后管理', 10, 7, '博士后工作站', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', 'DRAFT', NULL, true),
-(19532, NULL, NULL, '劳动争议处理', 10, 8, '劳动关系和谐', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', 'DRAFT', NULL, true),
+(19525, NULL, NULL, '人事管理', 10, 1, '人事制度改革', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DISTRIBUTED', NULL, true),
+(19526, NULL, NULL, '师资队伍建设', 10, 2, '教师发展', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DISTRIBUTED', NULL, true),
+(19527, NULL, NULL, '人才引进', 10, 3, '高层次人才引进', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'PENDING', NULL, true),
+(19528, NULL, NULL, '职称评审', 10, 4, '职称评审改革', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', NULL, true),
+(19529, NULL, NULL, '绩效考核', 10, 5, '教职工考核', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', NULL, true),
+(19530, NULL, NULL, '薪酬福利', 10, 6, '薪酬制度改革', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', NULL, true),
+(19531, NULL, NULL, '博士后管理', 10, 7, '博士后工作站', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', NULL, true),
+(19532, NULL, NULL, '劳动争议处理', 10, 8, '劳动关系和谐', NOW(), NOW(), ''职能'', 0, false, 35, 40, 'DRAFT', NULL, true),
 
 -- 学生工作部指标 (目标41)
-(19533, NULL, NULL, '学生思想政治教育', 10, 1, '学生思政工作', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19534, NULL, NULL, '学生日常管理', 10, 2, '学生行为管理', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19535, NULL, NULL, '心理健康教育', 10, 3, '心理健康服务', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'PENDING', 'PENDING', NULL, true),
-(19536, NULL, NULL, '学风建设', 10, 4, '学风督导', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', 'DRAFT', NULL, true),
-(19537, NULL, NULL, '学生资助', 10, 5, '奖助学金', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', 'DRAFT', NULL, true),
-(19538, NULL, NULL, '辅导员队伍建设', 10, 6, '辅导员培训', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', 'DRAFT', NULL, true),
-(19539, NULL, NULL, '校园安全', 10, 7, '校园安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', 'DRAFT', NULL, true),
-(19540, NULL, NULL, '学生创新创业', 10, 8, '创新创业教育', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', 'DRAFT', NULL, true),
-(19541, NULL, NULL, '社会实践', 10, 9, '社会实践项目', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', 'DRAFT', NULL, true),
-(19542, NULL, NULL, '社团管理', 10, 10, '学生社团指导', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', 'DRAFT', NULL, true),
+(19533, NULL, NULL, '学生思想政治教育', 10, 1, '学生思政工作', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DISTRIBUTED', NULL, true),
+(19534, NULL, NULL, '学生日常管理', 10, 2, '学生行为管理', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DISTRIBUTED', NULL, true),
+(19535, NULL, NULL, '心理健康教育', 10, 3, '心理健康服务', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'PENDING', NULL, true),
+(19536, NULL, NULL, '学风建设', 10, 4, '学风督导', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', NULL, true),
+(19537, NULL, NULL, '学生资助', 10, 5, '奖助学金', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', NULL, true),
+(19538, NULL, NULL, '辅导员队伍建设', 10, 6, '辅导员培训', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', NULL, true),
+(19539, NULL, NULL, '校园安全', 10, 7, '校园安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', NULL, true),
+(19540, NULL, NULL, '学生创新创业', 10, 8, '创新创业教育', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', NULL, true),
+(19541, NULL, NULL, '社会实践', 10, 9, '社会实践项目', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', NULL, true),
+(19542, NULL, NULL, '社团管理', 10, 10, '学生社团指导', NOW(), NOW(), ''职能'', 0, false, 35, 41, 'DRAFT', NULL, true),
 
 -- 保卫处指标 (目标42)
-(19543, NULL, NULL, '校园安全管理', 10, 1, '安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19544, NULL, NULL, '消防安全', 10, 2, '消防检查', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19545, NULL, NULL, '治安管理', 10, 3, '校园治安', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'PENDING', 'PENDING', NULL, true),
-(19546, NULL, NULL, '交通安全', 10, 4, '交通秩序', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19547, NULL, NULL, '安全教育', 10, 5, '安全培训', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19548, NULL, NULL, '应急预案', 10, 6, '突发事件应对', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19549, NULL, NULL, '保密工作', 10, 7, '保密管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19550, NULL, NULL, '国家安全', 10, 8, '国家安全教育', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19551, NULL, NULL, '政治安全', 10, 9, '政治安全维护', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19552, NULL, NULL, '网络安全', 10, 10, '网络安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19553, NULL, NULL, '实验室安全', 10, 11, '实验室安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
-(19554, NULL, NULL, '食品安全', 10, 12, '食堂安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', 'DRAFT', NULL, true),
+(19543, NULL, NULL, '校园安全管理', 10, 1, '安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DISTRIBUTED', NULL, true),
+(19544, NULL, NULL, '消防安全', 10, 2, '消防检查', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DISTRIBUTED', NULL, true),
+(19545, NULL, NULL, '治安管理', 10, 3, '校园治安', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'PENDING', NULL, true),
+(19546, NULL, NULL, '交通安全', 10, 4, '交通秩序', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19547, NULL, NULL, '安全教育', 10, 5, '安全培训', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19548, NULL, NULL, '应急预案', 10, 6, '突发事件应对', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19549, NULL, NULL, '保密工作', 10, 7, '保密管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19550, NULL, NULL, '国家安全', 10, 8, '国家安全教育', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19551, NULL, NULL, '政治安全', 10, 9, '政治安全维护', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19552, NULL, NULL, '网络安全', 10, 10, '网络安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19553, NULL, NULL, '实验室安全', 10, 11, '实验室安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
+(19554, NULL, NULL, '食品安全', 10, 12, '食堂安全管理', NOW(), NOW(), ''职能'', 0, false, 35, 42, 'DRAFT', NULL, true),
 
 -- 学校办公室指标 (目标43)
-(19555, NULL, NULL, '综合协调', 10, 1, '校内外协调', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19556, NULL, NULL, '公文处理', 10, 2, '公文管理', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19557, NULL, NULL, '信息公开', 10, 3, '校务公开', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'PENDING', 'PENDING', NULL, true),
-(19558, NULL, NULL, '档案管理', 10, 4, '档案工作', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DRAFT', 'DRAFT', NULL, true),
-(19559, NULL, NULL, '印章管理', 10, 5, '印章使用', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DRAFT', 'DRAFT', NULL, true),
-(19560, NULL, NULL, '重要活动组织', 10, 6, '校级活动', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DRAFT', 'DRAFT', NULL, true),
+(19555, NULL, NULL, '综合协调', 10, 1, '校内外协调', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DISTRIBUTED', NULL, true),
+(19556, NULL, NULL, '公文处理', 10, 2, '公文管理', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DISTRIBUTED', NULL, true),
+(19557, NULL, NULL, '信息公开', 10, 3, '校务公开', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'PENDING', NULL, true),
+(19558, NULL, NULL, '档案管理', 10, 4, '档案工作', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DRAFT', NULL, true),
+(19559, NULL, NULL, '印章管理', 10, 5, '印章使用', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DRAFT', NULL, true),
+(19560, NULL, NULL, '重要活动组织', 10, 6, '校级活动', NOW(), NOW(), ''职能'', 0, false, 35, 43, 'DRAFT', NULL, true),
 
 -- 教务处指标 (目标44)
-(19561, NULL, NULL, '教学质量提升', 10, 1, '教学改革', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19562, NULL, NULL, '专业建设', 10, 2, '专业评估', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19563, NULL, NULL, '课程建设', 10, 3, '精品课程', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'PENDING', 'PENDING', NULL, true),
-(19564, NULL, NULL, '实践教学', 10, 4, '实验实习', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19565, NULL, NULL, '学籍管理', 10, 5, '学生学籍', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19566, NULL, NULL, '教材建设', 10, 6, '教材选用', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19567, NULL, NULL, '教学评估', 10, 7, '教学质量监控', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19568, NULL, NULL, '教师培训', 10, 8, '教师发展', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19569, NULL, NULL, '招生工作', 10, 9, '招生质量', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19570, NULL, NULL, '学位管理', 10, 10, '学位授予', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19571, NULL, NULL, '教务管理', 10, 11, '教学运行', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19572, NULL, NULL, '教学资源建设', 10, 12, '教学资源', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19573, NULL, NULL, '在线课程建设', 10, 13, '慕课建设', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19574, NULL, NULL, '产教融合', 10, 14, '校企合作', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19575, NULL, NULL, '双创教育', 10, 15, '创新创业', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19576, NULL, NULL, '国际交流', 10, 16, '国际合作', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
-(19577, NULL, NULL, '继续教育', 10, 17, '继续教育发展', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', 'DRAFT', NULL, true),
+(19561, NULL, NULL, '教学质量提升', 10, 1, '教学改革', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DISTRIBUTED', NULL, true),
+(19562, NULL, NULL, '专业建设', 10, 2, '专业评估', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DISTRIBUTED', NULL, true),
+(19563, NULL, NULL, '课程建设', 10, 3, '精品课程', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'PENDING', NULL, true),
+(19564, NULL, NULL, '实践教学', 10, 4, '实验实习', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19565, NULL, NULL, '学籍管理', 10, 5, '学生学籍', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19566, NULL, NULL, '教材建设', 10, 6, '教材选用', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19567, NULL, NULL, '教学评估', 10, 7, '教学质量监控', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19568, NULL, NULL, '教师培训', 10, 8, '教师发展', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19569, NULL, NULL, '招生工作', 10, 9, '招生质量', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19570, NULL, NULL, '学位管理', 10, 10, '学位授予', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19571, NULL, NULL, '教务管理', 10, 11, '教学运行', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19572, NULL, NULL, '教学资源建设', 10, 12, '教学资源', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19573, NULL, NULL, '在线课程建设', 10, 13, '慕课建设', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19574, NULL, NULL, '产教融合', 10, 14, '校企合作', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19575, NULL, NULL, '双创教育', 10, 15, '创新创业', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19576, NULL, NULL, '国际交流', 10, 16, '国际合作', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
+(19577, NULL, NULL, '继续教育', 10, 17, '继续教育发展', NOW(), NOW(), ''职能'', 0, false, 35, 44, 'DRAFT', NULL, true),
 
 -- 科技处指标 (目标45)
-(19578, NULL, NULL, '科研项目', 10, 1, '科研立项', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19579, NULL, NULL, '科研成果', 10, 2, '科技成果', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DISTRIBUTED', 'DISTRIBUTED', NULL, true),
-(19580, NULL, NULL, '科研平台', 10, 3, '科研基地', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'PENDING', 'PENDING', NULL, true),
-(19581, NULL, NULL, '科研经费', 10, 4, '经费管理', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19582, NULL, NULL, '学术交流', 10, 5, '学术活动', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19583, NULL, NULL, '知识产权', 10, 6, '专利管理', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19584, NULL, NULL, '产学研合作', 10, 7, '校企合作', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19585, NULL, NULL, '科研团队建设', 10, 8, '团队建设', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19586, NULL, NULL, '科研奖励', 10, 9, '科技成果奖', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19587, NULL, NULL, '科研诚信', 10, 10, '学术规范', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19588, NULL, NULL, '技术转移', 10, 11, '成果转化', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true),
-(19589, NULL, NULL, '国防科研', 10, 12, '军工项目', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', 'DRAFT', NULL, true);
+(19578, NULL, NULL, '科研项目', 10, 1, '科研立项', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DISTRIBUTED', NULL, true),
+(19579, NULL, NULL, '科研成果', 10, 2, '科技成果', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DISTRIBUTED', NULL, true),
+(19580, NULL, NULL, '科研平台', 10, 3, '科研基地', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'PENDING', NULL, true),
+(19581, NULL, NULL, '科研经费', 10, 4, '经费管理', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19582, NULL, NULL, '学术交流', 10, 5, '学术活动', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19583, NULL, NULL, '知识产权', 10, 6, '专利管理', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19584, NULL, NULL, '产学研合作', 10, 7, '校企合作', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19585, NULL, NULL, '科研团队建设', 10, 8, '团队建设', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19586, NULL, NULL, '科研奖励', 10, 9, '科技成果奖', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19587, NULL, NULL, '科研诚信', 10, 10, '学术规范', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19588, NULL, NULL, '技术转移', 10, 11, '成果转化', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true),
+(19589, NULL, NULL, '国防科研', 10, 12, '军工项目', NOW(), NOW(), ''职能'', 0, false, 35, 45, 'DRAFT', NULL, true);
 
 -- 财务处指标 (目标46)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19590, NULL, NULL, '预算管理', 10, 1, '预算编制执行', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', 'DRAFT', NULL, true),
-(19591, NULL, NULL, '财务管理', 10, 2, '财务核算', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', 'DRAFT', NULL, true),
-(19592, NULL, NULL, '资金管理', 10, 3, '资金使用', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', 'DRAFT', NULL, true),
-(19593, NULL, NULL, '资产管理', 10, 4, '资产配置', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19590, NULL, NULL, '预算管理', 10, 1, '预算编制执行', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', NULL, true),
+(19591, NULL, NULL, '财务管理', 10, 2, '财务核算', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', NULL, true),
+(19592, NULL, NULL, '资金管理', 10, 3, '资金使用', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', NULL, true),
+(19593, NULL, NULL, '资产管理', 10, 4, '资产配置', NOW(), NOW(), ''职能'', 0, false, 35, 46, 'DRAFT', NULL, true);
 
 -- 招生就业处指标 (目标47)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19594, NULL, NULL, '招生工作', 10, 1, '招生宣传录取', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', 'DRAFT', NULL, true),
-(19595, NULL, NULL, '就业指导', 10, 2, '就业服务', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', 'DRAFT', NULL, true),
-(19596, NULL, NULL, '就业率', 10, 3, '毕业生就业率', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', 'DRAFT', NULL, true),
-(19597, NULL, NULL, '创新创业', 10, 4, '创业扶持', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19594, NULL, NULL, '招生工作', 10, 1, '招生宣传录取', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', NULL, true),
+(19595, NULL, NULL, '就业指导', 10, 2, '就业服务', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', NULL, true),
+(19596, NULL, NULL, '就业率', 10, 3, '毕业生就业率', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', NULL, true),
+(19597, NULL, NULL, '创新创业', 10, 4, '创业扶持', NOW(), NOW(), ''职能'', 0, false, 35, 47, 'DRAFT', NULL, true);
 
 -- 就业创业指导中心指标 (目标48)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19598, NULL, NULL, '创业教育', 10, 1, '创业课程', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', 'DRAFT', NULL, true),
-(19599, NULL, NULL, '创业孵化', 10, 2, '孵化基地', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', 'DRAFT', NULL, true),
-(19600, NULL, NULL, '创业大赛', 10, 3, '创新创业大赛', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', 'DRAFT', NULL, true),
-(19601, NULL, NULL, '创业服务', 10, 4, '创业指导', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19598, NULL, NULL, '创业教育', 10, 1, '创业课程', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', NULL, true),
+(19599, NULL, NULL, '创业孵化', 10, 2, '孵化基地', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', NULL, true),
+(19600, NULL, NULL, '创业大赛', 10, 3, '创新创业大赛', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', NULL, true),
+(19601, NULL, NULL, '创业服务', 10, 4, '创业指导', NOW(), NOW(), ''职能'', 0, false, 35, 48, 'DRAFT', NULL, true);
 
 -- 实验室与资产管理处指标 (目标49)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19602, NULL, NULL, '实验室建设', 10, 1, '实验室发展', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', 'DRAFT', NULL, true),
-(19603, NULL, NULL, '设备管理', 10, 2, '仪器设备', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', 'DRAFT', NULL, true),
-(19604, NULL, NULL, '资产管理', 10, 3, '固定资产', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', 'DRAFT', NULL, true),
-(19605, NULL, NULL, '实验室安全', 10, 4, '安全检查', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19602, NULL, NULL, '实验室建设', 10, 1, '实验室发展', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', NULL, true),
+(19603, NULL, NULL, '设备管理', 10, 2, '仪器设备', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', NULL, true),
+(19604, NULL, NULL, '资产管理', 10, 3, '固定资产', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', NULL, true),
+(19605, NULL, NULL, '实验室安全', 10, 4, '安全检查', NOW(), NOW(), ''职能'', 0, false, 35, 49, 'DRAFT', NULL, true);
 
 -- 数字化校园建设办公室指标 (目标50)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19606, NULL, NULL, '信息化建设', 10, 1, '智慧校园', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', 'DRAFT', NULL, true),
-(19607, NULL, NULL, '网络建设', 10, 2, '校园网络', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', 'DRAFT', NULL, true),
-(19608, NULL, NULL, '数据中心', 10, 3, '数据管理', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', 'DRAFT', NULL, true),
-(19609, NULL, NULL, '信息安全', 10, 4, '网络安全', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19606, NULL, NULL, '信息化建设', 10, 1, '智慧校园', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', NULL, true),
+(19607, NULL, NULL, '网络建设', 10, 2, '校园网络', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', NULL, true),
+(19608, NULL, NULL, '数据中心', 10, 3, '数据管理', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', NULL, true),
+(19609, NULL, NULL, '信息安全', 10, 4, '网络安全', NOW(), NOW(), ''职能'', 0, false, 35, 50, 'DRAFT', NULL, true);
 
 -- 图书馆指标 (目标51)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19610, NULL, NULL, '文献资源建设', 10, 1, '图书采购', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', 'DRAFT', NULL, true),
-(19611, NULL, NULL, '读者服务', 10, 2, '借阅服务', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', 'DRAFT', NULL, true),
-(19612, NULL, NULL, '情报服务', 10, 3, '信息服务', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', 'DRAFT', NULL, true),
-(19613, NULL, NULL, '数字图书馆', 10, 4, '电子资源', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19610, NULL, NULL, '文献资源建设', 10, 1, '图书采购', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', NULL, true),
+(19611, NULL, NULL, '读者服务', 10, 2, '借阅服务', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', NULL, true),
+(19612, NULL, NULL, '情报服务', 10, 3, '信息服务', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', NULL, true),
+(19613, NULL, NULL, '数字图书馆', 10, 4, '电子资源', NOW(), NOW(), ''职能'', 0, false, 35, 51, 'DRAFT', NULL, true);
 
 -- 后勤保障处指标 (目标52)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19614, NULL, NULL, '后勤服务', 10, 1, '服务保障', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true),
-(19615, NULL, NULL, '校园环境', 10, 2, '环境整治', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true),
-(19616, NULL, NULL, '餐饮服务', 10, 3, '食堂管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true),
-(19617, NULL, NULL, '水电管理', 10, 4, '能源管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true),
-(19618, NULL, NULL, '物业服务', 10, 5, '物业管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true),
-(19619, NULL, NULL, '基建维修', 10, 6, '维修管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true),
-(19620, NULL, NULL, '医疗服务', 10, 7, '卫生保健', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true),
-(19621, NULL, NULL, '住房管理', 10, 8, '周转房', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19614, NULL, NULL, '后勤服务', 10, 1, '服务保障', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true),
+(19615, NULL, NULL, '校园环境', 10, 2, '环境整治', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true),
+(19616, NULL, NULL, '餐饮服务', 10, 3, '食堂管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true),
+(19617, NULL, NULL, '水电管理', 10, 4, '能源管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true),
+(19618, NULL, NULL, '物业服务', 10, 5, '物业管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true),
+(19619, NULL, NULL, '基建维修', 10, 6, '维修管理', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true),
+(19620, NULL, NULL, '医疗服务', 10, 7, '卫生保健', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true),
+(19621, NULL, NULL, '住房管理', 10, 8, '周转房', NOW(), NOW(), ''职能'', 0, false, 35, 52, 'DRAFT', NULL, true);
 
 -- 继续教育学院指标 (目标53)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19622, NULL, NULL, '继续教育规模', 10, 1, '培训人数', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true),
-(19623, NULL, NULL, '教学质量', 10, 2, '培训质量', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true),
-(19624, NULL, NULL, '社会培训', 10, 3, '社会服务', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true),
-(19625, NULL, NULL, '学历教育', 10, 4, '成教招生', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true),
-(19626, NULL, NULL, '非学历培训', 10, 5, '技能培训', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true),
-(19627, NULL, NULL, '合作办学', 10, 6, '校企合作', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true),
-(19628, NULL, NULL, '在线教育', 10, 7, '网络培训', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true),
-(19629, NULL, NULL, '证书管理', 10, 8, '证书发放', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19622, NULL, NULL, '继续教育规模', 10, 1, '培训人数', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true),
+(19623, NULL, NULL, '教学质量', 10, 2, '培训质量', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true),
+(19624, NULL, NULL, '社会培训', 10, 3, '社会服务', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true),
+(19625, NULL, NULL, '学历教育', 10, 4, '成教招生', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true),
+(19626, NULL, NULL, '非学历培训', 10, 5, '技能培训', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true),
+(19627, NULL, NULL, '合作办学', 10, 6, '校企合作', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true),
+(19628, NULL, NULL, '在线教育', 10, 7, '网络培训', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true),
+(19629, NULL, NULL, '证书管理', 10, 8, '证书发放', NOW(), NOW(), ''职能'', 0, false, 35, 53, 'DRAFT', NULL, true);
 
 -- 国际交流与合作处指标 (目标54)
-INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, distribution_status, responsible_user_id, is_enabled) VALUES
-(19630, NULL, NULL, '国际交流', 10, 1, '交流项目', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19631, NULL, NULL, '留学生教育', 10, 2, '留学生管理', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19632, NULL, NULL, '合作办学', 10, 3, '中外合作', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19633, NULL, NULL, '外籍教师管理', 10, 4, '外教聘请', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19634, NULL, NULL, '出国管理', 10, 5, '因公出国', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19635, NULL, NULL, '国际会议', 10, 6, '学术会议', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19636, NULL, NULL, '孔子学院', 10, 7, '汉语推广', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19637, NULL, NULL, '雅思考试', 10, 8, '语言考试', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19638, NULL, NULL, '海外基地', 10, 9, '海外办学', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true),
-(19639, NULL, NULL, '国际科研合作', 10, 10, '合作项目', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', 'DRAFT', NULL, true);
+INSERT INTO indicator (id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order, remark, created_at, updated_at, type, progress, is_deleted, owner_org_id, target_org_id, status, responsible_user_id, is_enabled) VALUES
+(19630, NULL, NULL, '国际交流', 10, 1, '交流项目', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19631, NULL, NULL, '留学生教育', 10, 2, '留学生管理', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19632, NULL, NULL, '合作办学', 10, 3, '中外合作', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19633, NULL, NULL, '外籍教师管理', 10, 4, '外教聘请', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19634, NULL, NULL, '出国管理', 10, 5, '因公出国', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19635, NULL, NULL, '国际会议', 10, 6, '学术会议', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19636, NULL, NULL, '孔子学院', 10, 7, '汉语推广', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19637, NULL, NULL, '雅思考试', 10, 8, '语言考试', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19638, NULL, NULL, '海外基地', 10, 9, '海外办学', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true),
+(19639, NULL, NULL, '国际科研合作', 10, 10, '合作项目', NOW(), NOW(), ''职能'', 0, false, 35, 54, 'DRAFT', NULL, true);
 
 -- =============================================================================
 -- 10. 计划 (plan) - 职能部门计划
@@ -799,14 +799,14 @@ INSERT INTO plan (id, cycle_id, created_at, updated_at, is_deleted, target_org_i
 
 -- 职能部门创建的下发到学院的计划
 INSERT INTO plan (id, cycle_id, created_at, updated_at, is_deleted, target_org_id, created_by_org_id, plan_level, status) VALUES
-(20, 90, NOW(), NOW(), false, 55, 44, 'academic', 'DISTRIBUTED'),  -- 教务处->马院
-(21, 90, NOW(), NOW(), false, 56, 44, 'academic', 'DISTRIBUTED'),  -- 教务处->法学院
-(22, 90, NOW(), NOW(), false, 57, 44, 'academic', 'DISTRIBUTED'),  -- 教务处->计算机学院
-(23, 90, NOW(), NOW(), false, 58, 44, 'academic', 'PENDING'),  -- 教务处->商学院
-(24, 90, NOW(), NOW(), false, 59, 44, 'academic', 'DRAFT'),  -- 教务处->文理学院
-(25, 90, NOW(), NOW(), false, 60, 44, 'academic', 'DRAFT'),  -- 教务处->艺术学院
-(26, 90, NOW(), NOW(), false, 61, 44, 'academic', 'DRAFT'),  -- 教务处->航空学院
-(27, 90, NOW(), NOW(), false, 62, 44, 'academic', 'DRAFT');  -- 教务处->国教院
+(20, 90, NOW(), NOW(), false, 55, 44, 'COLLEGE', 'DISTRIBUTED'),  -- 教务处->马院
+(21, 90, NOW(), NOW(), false, 56, 44, 'COLLEGE', 'DISTRIBUTED'),  -- 教务处->法学院
+(22, 90, NOW(), NOW(), false, 57, 44, 'COLLEGE', 'DISTRIBUTED'),  -- 教务处->计算机学院
+(23, 90, NOW(), NOW(), false, 58, 44, 'COLLEGE', 'PENDING'),  -- 教务处->商学院
+(24, 90, NOW(), NOW(), false, 59, 44, 'COLLEGE', 'DRAFT'),  -- 教务处->文理学院
+(25, 90, NOW(), NOW(), false, 60, 44, 'COLLEGE', 'DRAFT'),  -- 教务处->艺术学院
+(26, 90, NOW(), NOW(), false, 61, 44, 'COLLEGE', 'DRAFT'),  -- 教务处->航空学院
+(27, 90, NOW(), NOW(), false, 62, 44, 'COLLEGE', 'DRAFT');  -- 教务处->国教院
 
 -- =============================================================================
 -- 11. 用户上级关系 (sys_user_supervisor) - 部分

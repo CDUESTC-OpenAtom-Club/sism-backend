@@ -135,8 +135,8 @@ Authorization: Bearer {{token}}
 POST /api/v1/indicators/{id}/distribute
 Authorization: Bearer {{token}}
 
-# 4. 查询下发状态
-GET /api/v1/indicators/{id}/distribution-status
+# 4. 查询指标状态（直接读取主接口中的 status）
+GET /api/v1/indicators/{id}
 Authorization: Bearer {{token}}
 ```
 

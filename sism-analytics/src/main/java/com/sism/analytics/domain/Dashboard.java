@@ -1,15 +1,12 @@
 package com.sism.analytics.domain;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
-import com.sism.shared.domain.model.base.DomainEvent;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 
 /**

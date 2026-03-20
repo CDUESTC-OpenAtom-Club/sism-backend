@@ -35,10 +35,9 @@ public class TaskQueryRequest {
      */
     private TaskType taskType;
 
-    /**
-     * 任务状态（可选）
-     */
-    private String status;
+    private String planStatus;
+
+    private String taskStatus;
 
     /**
      * 任务名称模糊搜索（可选）

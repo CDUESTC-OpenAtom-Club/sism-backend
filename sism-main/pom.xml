@@ -53,11 +53,6 @@
             <groupId>com.sism</groupId>
             <artifactId>sism-execution</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.sism</groupId>
-            <artifactId>sism-alert</artifactId>
-        </dependency>
-
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

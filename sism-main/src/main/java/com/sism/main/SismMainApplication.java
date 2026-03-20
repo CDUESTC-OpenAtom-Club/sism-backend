@@ -26,7 +26,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @SpringBootApplication(scanBasePackages = {"com.sism.iam", "com.sism.organization",
                                    "com.sism.strategy", "com.sism.task",
                                    "com.sism.workflow", "com.sism.execution",
-                                   "com.sism.analytics", "com.sism.alert",
+                                   "com.sism.analytics",
                                    "com.sism.shared", "com.sism.config",
                                    "com.sism.exception", "com.sism.common",
                                    "com.sism.main"})
@@ -35,7 +35,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @ComponentScan(basePackages = {"com.sism.iam", "com.sism.organization",
                                "com.sism.strategy", "com.sism.task",
                                "com.sism.workflow", "com.sism.execution",
-                               "com.sism.analytics", "com.sism.alert",
+                               "com.sism.analytics",
                                "com.sism.shared", "com.sism.config",
                                "com.sism.exception", "com.sism.common",
                                "com.sism.main"})

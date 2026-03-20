@@ -1,6 +1,7 @@
 package com.sism.task.application.dto;
 
 import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.TaskCategory;
 import com.sism.task.domain.TaskType;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import lombok.Data;
@@ -17,29 +18,33 @@ public class TaskResponse {
     private Long id;
     private String taskName;
     private String taskDesc;
+    private TaskCategory taskCategory;
     private TaskType taskType;
     private Long planId;
     private Long cycleId;
     private Long orgId;
     private Long createdByOrgId;
     private Integer sortOrder;
-    private String status;
+    private String planStatus;
+    private String taskStatus;
     private String remark;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static TaskResponse fromEntity(StrategicTask task) {
+    public static TaskResponse fromEntity(StrategicTask task, String planStatus) {
         TaskResponse response = new TaskResponse();
         response.setId(task.getId());
         response.setTaskName(task.getTaskName());
         response.setTaskDesc(task.getTaskDesc());
+        response.setTaskCategory(task.getTaskCategory());
         response.setTaskType(task.getTaskType());
         response.setPlanId(task.getPlanId());
         response.setCycleId(task.getCycleId());
         response.setOrgId(task.getOrg() != null ? task.getOrg().getId() : null);
         response.setCreatedByOrgId(task.getCreatedByOrg() != null ? task.getCreatedByOrg().getId() : null);
         response.setSortOrder(task.getSortOrder());
-        response.setStatus(task.getStatus());
+        response.setPlanStatus(planStatus);
+        response.setTaskStatus(task.getStatus());
         response.setRemark(task.getRemark());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
@@ -51,13 +56,15 @@ public class TaskResponse {
         response.setId(task.getId());
         response.setTaskName(task.getTaskName());
         response.setTaskDesc(task.getTaskDesc());
+        response.setTaskCategory(TaskCategory.STRATEGIC);
         response.setTaskType(parseTaskType(task.getTaskType()));
         response.setPlanId(task.getPlanId());
         response.setCycleId(task.getCycleId());
         response.setOrgId(task.getOrgId());
         response.setCreatedByOrgId(task.getCreatedByOrgId());
         response.setSortOrder(task.getSortOrder());
-        response.setStatus(task.getStatus());
+        response.setPlanStatus(task.getPlanStatus());
+        response.setTaskStatus(task.getTaskStatus());
         response.setRemark(task.getRemark());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());

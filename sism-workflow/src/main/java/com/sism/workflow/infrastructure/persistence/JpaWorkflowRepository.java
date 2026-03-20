@@ -1,9 +1,9 @@
 package com.sism.workflow.infrastructure.persistence;
 
-import com.sism.shared.domain.model.workflow.AuditFlowDef;
-import com.sism.shared.domain.model.workflow.AuditInstance;
-import com.sism.shared.domain.model.workflow.WorkflowTask;
-import com.sism.workflow.domain.repository.WorkflowRepository;
+import com.sism.workflow.domain.AuditStatus;
+import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.model.WorkflowTask;
 import com.sism.workflow.domain.AuditStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,14 +16,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * JpaWorkflowRepository - 工作流仓储 JPA 实现
- * 继承自 JpaRepository 和 WorkflowRepository
- * 注意：跨实体操作（AuditFlowDef、WorkflowTask）由 JpaWorkflowRepositoryImpl 处理
+ * JpaWorkflowRepository - 工作流实例与查询 JPA 实现
  */
 @Repository
-public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long>, WorkflowRepository {
-
-    // ==================== Audit Flow Definition ====================
+public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long> {
 
     @Query("SELECT d FROM AuditFlowDef d")
     List<AuditFlowDef> findAllAuditFlowDefs();
@@ -37,17 +33,8 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT d FROM AuditFlowDef d WHERE d.entityType = :entityType")
     List<AuditFlowDef> findAuditFlowDefsByEntityType(@Param("entityType") String entityType);
 
-    // 注意：saveAuditFlowDef 由 WorkflowRepositoryFacade 实现
-    default AuditFlowDef saveAuditFlowDef(AuditFlowDef flowDef) {
-        throw new UnsupportedOperationException("Use WorkflowRepositoryFacade for this operation");
-    }
-
-    // ==================== Audit Instance ====================
-
-    @Override
     Optional<AuditInstance> findById(Long id);
 
-    @Override
     List<AuditInstance> findAll();
 
     @Query("SELECT a FROM AuditInstance a WHERE a.entityType = :businessType AND a.entityId = :businessId")
@@ -60,27 +47,14 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.status = :status")
     List<AuditInstance> findByStatus(@Param("status") AuditStatus status);
 
-    @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s " +
-            "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :approverId")
-    List<AuditInstance> findByCurrentApproverId(@Param("approverId") Long approverId);
-
     @Query("SELECT a FROM AuditInstance a WHERE a.requesterId = :initiatorId")
     List<AuditInstance> findByInitiatorId(@Param("initiatorId") Long initiatorId);
 
-    @Override
-    AuditInstance save(AuditInstance auditInstance);
-
-    @Override
-    void delete(AuditInstance auditInstance);
-
-    @Override
-    boolean existsById(Long id);
-
-    // ==================== Additional Query Methods ====================
-
-    @Override
     @Query("SELECT a FROM AuditInstance a WHERE a.id = :instanceId")
     Optional<AuditInstance> findAuditInstanceById(@Param("instanceId") Long instanceId);
+
+    @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s WHERE s.id = :stepInstanceId")
+    Optional<AuditInstance> findByStepInstanceId(@Param("stepInstanceId") Long stepInstanceId);
 
     @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s " +
             "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :userId")
@@ -96,11 +70,6 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.id = :instanceId")
     List<AuditInstance> findAuditInstanceHistory(@Param("instanceId") Long instanceId);
 
-    @Override
-    default AuditInstance saveAuditInstance(AuditInstance instance) {
-        return save(instance);
-    }
-
     @Query("SELECT COUNT(a) FROM AuditInstance a")
     long countAuditInstances();
 
@@ -113,8 +82,6 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT COUNT(a) FROM AuditInstance a WHERE a.status = 'REJECTED'")
     long countRejectedAuditInstances();
 
-    // ==================== Custom Methods ====================
-
     @Query("SELECT COUNT(a) > 0 FROM AuditInstance a WHERE " +
             "a.entityId = :businessEntityId AND " +
             "a.entityType = :entityType AND " +
@@ -124,8 +91,6 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
 
     @Query("SELECT a FROM AuditInstance a WHERE a.flowDefId = :flowDefId")
     Page<AuditInstance> findAuditInstancesByFlowDefId(@Param("flowDefId") Long flowDefId, Pageable pageable);
-
-    // ==================== Workflow Task ====================
 
     @Query("SELECT t FROM WorkflowTask t")
     List<WorkflowTask> findAllWorkflowTasks();
@@ -139,8 +104,4 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT t FROM WorkflowTask t WHERE t.assigneeId = :assigneeId")
     List<WorkflowTask> findWorkflowTasksByAssigneeId(@Param("assigneeId") Long assigneeId);
 
-    // WorkflowTask 保存方法 - 使用 WorkflowTaskJpaRepository
-    default WorkflowTask saveWorkflowTask(WorkflowTask task) {
-        throw new UnsupportedOperationException("WorkflowTask operations should be handled directly by WorkflowTaskJpaRepository");
-    }
 }

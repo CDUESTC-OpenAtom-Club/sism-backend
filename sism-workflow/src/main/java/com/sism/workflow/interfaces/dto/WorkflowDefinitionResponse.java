@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class WorkflowDefinitionResponse {
 
     private String definitionId;
+    private String definitionCode;
     private String definitionName;
     private String description;
     private String category;

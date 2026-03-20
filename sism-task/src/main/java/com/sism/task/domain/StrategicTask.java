@@ -13,6 +13,9 @@ import org.hibernate.annotations.NotFoundAction;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+/**
+ * Current strategic-task implementation within the broader task center.
+ */
 @Getter
 @Setter
 @Entity
@@ -75,13 +78,20 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="is_deleted", nullable=false)
     private Boolean isDeleted = false;
 
-    // 注意：status 字段不存储在数据库中，而是从关联的 Plan 获取
-    // 这是 transient 字段，不映射到数据库列
+    @Transient
+    private TaskCategory taskCategory = TaskCategory.STRATEGIC;
+
+    // 当前战略任务的 taskStatus 仍为任务域内部状态，不映射数据库列。
     @Transient
     private String status = STATUS_DRAFT;
 
     public static StrategicTask create(String taskName, TaskType taskType, Long planId, Long cycleId,
                                         SysOrg org, SysOrg createdByOrg) {
+        return create(TaskCategory.STRATEGIC, taskName, taskType, planId, cycleId, org, createdByOrg);
+    }
+
+    public static StrategicTask create(TaskCategory taskCategory, String taskName, TaskType taskType, Long planId, Long cycleId,
+                                       SysOrg org, SysOrg createdByOrg) {
         if (taskName == null || taskName.trim().isEmpty()) {
             throw new IllegalArgumentException("Task name cannot be null or empty");
         }
@@ -109,6 +119,7 @@ public class StrategicTask extends AggregateRoot<Long> {
         task.cycleId = cycleId;
         task.org = org;
         task.createdByOrg = createdByOrg;
+        task.taskCategory = taskCategory != null ? taskCategory : TaskCategory.STRATEGIC;
         task.sortOrder = 0;
         task.status = STATUS_DRAFT;
         task.createdAt = LocalDateTime.now();
@@ -191,11 +202,24 @@ public class StrategicTask extends AggregateRoot<Long> {
 
     @PrePersist
     protected void onCreate() {
+        if (taskCategory == null) {
+            taskCategory = TaskCategory.STRATEGIC;
+        }
         if (status == null) {
             status = STATUS_DRAFT;
         }
         if (isDeleted == null) {
             isDeleted = false;
+        }
+    }
+
+    @PostLoad
+    protected void onLoad() {
+        if (taskCategory == null) {
+            taskCategory = TaskCategory.STRATEGIC;
+        }
+        if (status == null) {
+            status = STATUS_DRAFT;
         }
     }
 }

@@ -190,6 +190,7 @@ java -jar target/sism-backend-1.0.1.jar --spring.profiles.active=dev
 - **健康检查**: http://localhost:8080/api/health
 - **Swagger UI**: http://localhost:8080/api/swagger-ui/index.html
 - **OpenAPI JSON**: http://localhost:8080/api/v3/api-docs
+- **本地 OpenAPI 快照**: `./openapi.json` 与 `./openapi-latest.json`
 
 ### 默认测试账号
 
@@ -283,6 +284,7 @@ curl -X POST http://localhost:8080/api/audit-flows \
 应用启动后，访问 Swagger UI 查看完整 API 文档:
 - **Swagger UI**: http://localhost:8080/api/swagger-ui/index.html
 - **OpenAPI JSON**: http://localhost:8080/api/v3/api-docs
+- **本地快照说明**: 见 `OPENAPI.md`
 
 > 注意: 生产环境默认禁用 Swagger。如需启用，在 `.env` 文件中设置 `SWAGGER_ENABLED=true`
 

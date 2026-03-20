@@ -35,8 +35,7 @@ BEGIN
             is_deleted, created_at, updated_at, remark,
             type1, type2, is_qualitative, unit, actual_value, target_value,
             responsible_person, status_audit, progress_approval_status,
-            pending_progress, pending_remark, pending_attachments,
-            distribution_status
+            pending_progress, pending_remark, pending_attachments
         )
         SELECT 
             task_id,
@@ -73,8 +72,7 @@ BEGIN
             'NONE' as progress_approval_status,
             NULL as pending_progress,
             NULL as pending_remark,
-            NULL as pending_attachments,
-            'DRAFT' as distribution_status
+            NULL as pending_attachments
         FROM indicator
         WHERE year = 2026 
           AND (is_deleted = false OR is_deleted IS NULL)
@@ -92,8 +90,7 @@ BEGIN
             type, progress, owner_dept, responsible_dept, can_withdraw,
             is_deleted, created_at, updated_at, remark,
             type1, type2, is_qualitative, unit, actual_value, target_value,
-            responsible_person, status_audit, progress_approval_status,
-            distribution_status
+            responsible_person, status_audit, progress_approval_status
         )
         SELECT 
             i2026.task_id,
@@ -127,8 +124,7 @@ BEGIN
             i2026.target_value,
             i2026.responsible_person,
             '[]'::JSONB as status_audit,
-            'NONE' as progress_approval_status,
-            'DRAFT' as distribution_status
+            'NONE' as progress_approval_status
         FROM indicator i2026
         JOIN indicator p2026 ON p2026.indicator_id = i2026.parent_indicator_id
         JOIN indicator i2025 ON 

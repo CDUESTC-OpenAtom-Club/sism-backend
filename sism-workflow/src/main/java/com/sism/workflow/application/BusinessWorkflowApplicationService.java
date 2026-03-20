@@ -1,20 +1,24 @@
 package com.sism.workflow.application;
 
-import com.sism.shared.domain.model.workflow.*;
-import com.sism.workflow.domain.repository.WorkflowRepository;
+import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
+import com.sism.workflow.application.definition.WorkflowPreviewQueryService;
+import com.sism.workflow.application.query.WorkflowReadModelMapper;
+import com.sism.workflow.application.query.WorkflowReadModelService;
+import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
+import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.model.AuditStepInstance;
+import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import com.sism.workflow.interfaces.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * BusinessWorkflowApplicationService - 业务工作流应用服务
@@ -25,8 +29,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BusinessWorkflowApplicationService {
 
-    private final WorkflowRepository workflowRepository;
+    private final WorkflowDefinitionQueryService workflowDefinitionQueryService;
+    private final AuditInstanceRepository auditInstanceRepository;
+    private final WorkflowQueryRepository workflowQueryRepository;
     private final WorkflowApplicationService workflowApplicationService;
+    private final WorkflowReadModelService workflowReadModelService;
+    private final WorkflowReadModelMapper workflowReadModelMapper;
+    private final WorkflowPreviewQueryService workflowPreviewQueryService;
 
     // ==================== 工作流启动 ====================
 
@@ -39,9 +48,10 @@ public class BusinessWorkflowApplicationService {
                 request.getWorkflowCode(), request.getBusinessEntityId(), userId);
 
         // 1. 检查工作流定义是否存在且已激活
-        AuditFlowDef flowDef = workflowRepository.findAuditFlowDefByCode(request.getWorkflowCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Workflow definition not found or not active: " + request.getWorkflowCode()));
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefByCode(request.getWorkflowCode());
+        if (flowDef == null) {
+            throw new IllegalArgumentException("Workflow definition not found or not active: " + request.getWorkflowCode());
+        }
 
         if (!flowDef.getIsActive()) {
             throw new IllegalStateException("Workflow definition is not active: " + request.getWorkflowCode());
@@ -52,7 +62,7 @@ public class BusinessWorkflowApplicationService {
                 ? request.getBusinessEntityType()
                 : flowDef.getEntityType();
 
-        boolean hasActive = workflowRepository.hasActiveInstance(
+        boolean hasActive = auditInstanceRepository.hasActiveInstance(
                 request.getBusinessEntityId(), entityType);
         if (hasActive) {
             throw new IllegalStateException(
@@ -64,13 +74,14 @@ public class BusinessWorkflowApplicationService {
         instance.setFlowDefId(flowDef.getId());
         instance.setEntityType(entityType);
         instance.setEntityId(request.getBusinessEntityId());
-        instance.setTitle(flowDef.getFlowName() + " - " + request.getBusinessEntityId());
 
         // 4. 启动实例
         AuditInstance started = workflowApplicationService.startAuditInstance(
-                instance, userId, orgId);
+                instance,
+                userId,
+                orgId);
 
-        return convertToInstanceResponse(started);
+        return workflowReadModelMapper.toInstanceResponse(started);
     }
 
     /**
@@ -83,9 +94,10 @@ public class BusinessWorkflowApplicationService {
         log.info("Starting workflow instance by definitionId: {}, entityId: {}, userId: {}",
                 definitionId, request.getBusinessEntityId(), userId);
 
-        AuditFlowDef flowDef = workflowRepository.findAuditFlowDefById(Long.parseLong(definitionId))
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Workflow definition not found: " + definitionId));
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(Long.parseLong(definitionId));
+        if (flowDef == null) {
+            throw new IllegalArgumentException("Workflow definition not found: " + definitionId);
+        }
 
         StartWorkflowRequest startRequest = new StartWorkflowRequest();
         startRequest.setWorkflowCode(flowDef.getFlowCode());
@@ -102,14 +114,7 @@ public class BusinessWorkflowApplicationService {
      * 查询工作流定义列表
      */
     public PageResult<WorkflowDefinitionResponse> listDefinitions(int pageNum, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
-        Page<AuditFlowDef> page = workflowRepository.findAllAuditFlowDefs(pageable);
-
-        List<WorkflowDefinitionResponse> items = page.getContent().stream()
-                .map(this::convertToDefinitionResponse)
-                .collect(Collectors.toList());
-
-        return PageResult.of(items, page.getTotalElements(), pageNum, pageSize);
+        return workflowReadModelService.listDefinitions(pageNum, pageSize);
     }
 
     /**
@@ -117,152 +122,35 @@ public class BusinessWorkflowApplicationService {
      */
     public PageResult<WorkflowInstanceResponse> listInstances(
             String definitionId, int pageNum, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
-        Page<AuditInstance> page = workflowRepository.findAuditInstancesByFlowDefId(
-                Long.parseLong(definitionId), pageable);
-
-        List<WorkflowInstanceResponse> items = page.getContent().stream()
-                .map(this::convertToInstanceResponse)
-                .collect(Collectors.toList());
-
-        return PageResult.of(items, page.getTotalElements(), pageNum, pageSize);
+        return workflowReadModelService.listInstances(definitionId, pageNum, pageSize);
     }
 
     /**
      * 获取工作流实例详情
      */
     public WorkflowInstanceDetailResponse getInstanceDetail(String instanceId) {
-        AuditInstance instance = workflowRepository.findAuditInstanceById(Long.parseLong(instanceId))
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Workflow instance not found: " + instanceId));
-
-        WorkflowInstanceDetailResponse response = new WorkflowInstanceDetailResponse();
-        response.setInstanceId(instance.getId().toString());
-        response.setDefinitionId(instance.getFlowDefId() != null ? instance.getFlowDefId().toString() : null);
-        response.setStatus(instance.getStatus());
-        response.setBusinessEntityId(instance.getEntityId());
-        response.setStarterId(instance.getRequesterId());
-        response.setStartTime(instance.getStartedAt());
-        response.setEndTime(instance.getCompletedAt());
-
-        // 获取任务列表（从 stepInstances 转换）
-        List<WorkflowTaskResponse> tasks = instance.getStepInstances().stream()
-                .map(step -> new WorkflowTaskResponse(
-                        step.getId().toString(),
-                        step.getStepName(),
-                        "step_" + step.getStepIndex(),
-                        convertStepStatus(step.getStatus()),
-                        step.getApproverId(),
-                        step.getApproverName(),
-                        step.getCreatedAt(),
-                        null,
-                        null,
-                        null
-                ))
-                .collect(Collectors.toList());
-        response.setTasks(tasks);
-
-        // 从 stepInstances 构建历史记录
-        response.setHistory(buildHistoryFromStepInstances(instance));
-
-        return response;
+        return workflowReadModelService.getInstanceDetail(instanceId);
     }
 
-    /**
-     * 从步骤实例构建工作流历史记录
-     */
-    private List<WorkflowHistoryResponse> buildHistoryFromStepInstances(AuditInstance instance) {
-        List<WorkflowHistoryResponse> history = new ArrayList<>();
-
-        // 添加工作流启动记录
-        if (instance.getStartedAt() != null) {
-            history.add(WorkflowHistoryResponse.builder()
-                    .historyId(instance.getId() + "_start")
-                    .taskId(instance.getId().toString())
-                    .taskName(instance.getTitle())
-                    .operatorId(instance.getRequesterId())
-                    .operatorName("Initiator")
-                    .action("START")
-                    .comment("Workflow started")
-                    .operateTime(instance.getStartedAt())
-                    .build());
+    public WorkflowInstanceDetailResponse getInstanceDetailByBusiness(String entityType, Long entityId) {
+        AuditInstance instance = auditInstanceRepository.findByBusinessTypeAndBusinessId(entityType, entityId).stream()
+                .max(java.util.Comparator.comparing(AuditInstance::getStartedAt, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .orElseThrow(() -> new IllegalArgumentException("Workflow instance not found for business entity"));
+        if (AuditInstance.STATUS_WITHDRAWN.equalsIgnoreCase(instance.getStatus())) {
+            throw new IllegalArgumentException("No active workflow instance found for business entity");
         }
+        return workflowReadModelService.getInstanceDetail(instance.getId().toString());
+    }
 
-        // 添加每个步骤的历史记录
-        for (AuditStepInstance step : instance.getStepInstances()) {
-            if ("APPROVED".equals(step.getStatus())) {
-                history.add(WorkflowHistoryResponse.builder()
-                        .historyId(instance.getId() + "_step_" + step.getId())
-                        .taskId(instance.getId().toString())
-                        .taskName(step.getStepName())
-                        .operatorId(step.getApproverId())
-                        .operatorName(step.getApproverName())
-                        .action("APPROVE")
-                        .comment(step.getComment())
-                        .operateTime(step.getApprovedAt() != null ? step.getApprovedAt() : step.getCreatedAt())
-                        .build());
-            } else if ("REJECTED".equals(step.getStatus())) {
-                history.add(WorkflowHistoryResponse.builder()
-                        .historyId(instance.getId() + "_step_" + step.getId())
-                        .taskId(instance.getId().toString())
-                        .taskName(step.getStepName())
-                        .operatorId(step.getApproverId())
-                        .operatorName(step.getApproverName())
-                        .action("REJECT")
-                        .comment(step.getComment())
-                        .operateTime(step.getApprovedAt() != null ? step.getApprovedAt() : step.getCreatedAt())
-                        .build());
-            }
-        }
-
-        // 添加工作流完成记录
-        if (instance.getCompletedAt() != null) {
-            String action = "APPROVED".equals(instance.getStatus()) ? "FINISH_APPROVE"
-                    : "REJECTED".equals(instance.getStatus()) ? "FINISH_REJECT"
-                    : "CANCEL";
-            history.add(WorkflowHistoryResponse.builder()
-                    .historyId(instance.getId() + "_finish")
-                    .taskId(instance.getId().toString())
-                    .taskName(instance.getTitle())
-                    .operatorId(instance.getRequesterId())
-                    .operatorName("System")
-                    .action(action)
-                    .comment(instance.getResult())
-                    .operateTime(instance.getCompletedAt())
-                    .build());
-        }
-
-        return history;
+    public WorkflowDefinitionPreviewResponse getDefinitionPreview(String flowCode, Long requesterOrgId) {
+        return workflowPreviewQueryService.getPreviewByCode(flowCode, requesterOrgId);
     }
 
     /**
      * 获取我的待办任务
      */
     public PageResult<WorkflowTaskResponse> getMyPendingTasks(Long userId, int pageNum) {
-        int pageSize = 10;
-
-        List<AuditInstance> pendingInstances = workflowRepository.findPendingAuditInstancesByUserId(userId);
-
-        // 简单转换，实际需要从 stepInstances 中提取任务
-        List<WorkflowTaskResponse> tasks = pendingInstances.stream()
-                .map(instance -> WorkflowTaskResponse.builder()
-                        .taskId(instance.getId().toString())
-                        .taskName(instance.getTitle())
-                        .taskKey("pending_approval")
-                        .status("PENDING")
-                        .assigneeId(userId)
-                        .createdTime(instance.getStartedAt())
-                        .build())
-                .collect(Collectors.toList());
-
-        // 简单分页
-        int start = (pageNum - 1) * pageSize;
-        int end = Math.min(start + pageSize, tasks.size());
-        List<WorkflowTaskResponse> pagedTasks = start < tasks.size()
-                ? tasks.subList(start, end)
-                : List.of();
-
-        return PageResult.of(pagedTasks, tasks.size(), pageNum, pageSize);
+        return workflowReadModelService.getMyPendingTasks(userId, pageNum);
     }
 
     // ==================== 工作流操作 ====================
@@ -276,15 +164,12 @@ public class BusinessWorkflowApplicationService {
 
         log.info("Approving task: {}, userId: {}", taskId, userId);
 
-        // 这里 taskId 实际是 instanceIdId，简化处理
-        AuditInstance instance = workflowRepository.findAuditInstanceById(Long.parseLong(taskId))
-                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+        AuditInstance instance = resolveAuditInstanceForTask(taskId);
 
         // 权限检查：检查当前用户是否是该任务的审批人
         // 检查当前步骤的审批人是否是当前用户
-        Optional<AuditStepInstance> currentStep = instance.getStepInstances().stream()
-                .filter(step -> "PENDING".equals(step.getStatus()) && userId.equals(step.getApproverId()))
-                .findFirst();
+        Optional<AuditStepInstance> currentStep = instance.resolveCurrentPendingStep()
+                .filter(step -> userId.equals(step.getApproverId()));
 
         if (currentStep.isEmpty()) {
             // 如果没有找到待审批的步骤，抛出权限异常
@@ -294,7 +179,21 @@ public class BusinessWorkflowApplicationService {
         AuditInstance approved = workflowApplicationService.approveAuditInstance(
                 instance, userId, request.getComment());
 
-        return convertToInstanceResponse(approved);
+        return workflowReadModelMapper.toInstanceResponse(approved);
+    }
+
+    @Transactional
+    public WorkflowInstanceResponse decideTask(
+            String taskId, WorkflowTaskDecisionRequest request, Long userId) {
+        if (Boolean.TRUE.equals(request.getApproved())) {
+            ApprovalRequest approvalRequest = new ApprovalRequest();
+            approvalRequest.setComment(request.getComment() != null ? request.getComment() : "APPROVED");
+            return approveTask(taskId, approvalRequest, userId);
+        }
+
+        RejectionRequest rejectionRequest = new RejectionRequest();
+        rejectionRequest.setReason(request.getComment() != null ? request.getComment() : "REJECTED");
+        return rejectTask(taskId, rejectionRequest, userId);
     }
 
     /**
@@ -306,13 +205,11 @@ public class BusinessWorkflowApplicationService {
 
         log.info("Rejecting task: {}, userId: {}", taskId, userId);
 
-        AuditInstance instance = workflowRepository.findAuditInstanceById(Long.parseLong(taskId))
-                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+        AuditInstance instance = resolveAuditInstanceForTask(taskId);
 
         // 权限检查：检查当前用户是否是该任务的审批人
-        Optional<AuditStepInstance> currentStep = instance.getStepInstances().stream()
-                .filter(step -> "PENDING".equals(step.getStatus()) && userId.equals(step.getApproverId()))
-                .findFirst();
+        Optional<AuditStepInstance> currentStep = instance.resolveCurrentPendingStep()
+                .filter(step -> userId.equals(step.getApproverId()));
 
         if (currentStep.isEmpty()) {
             throw new SecurityException("You are not authorized to reject this task");
@@ -321,7 +218,7 @@ public class BusinessWorkflowApplicationService {
         AuditInstance rejected = workflowApplicationService.rejectAuditInstance(
                 instance, userId, request.getReason());
 
-        return convertToInstanceResponse(rejected);
+        return workflowReadModelMapper.toInstanceResponse(rejected);
     }
 
     /**
@@ -334,10 +231,18 @@ public class BusinessWorkflowApplicationService {
         log.info("Reassigning task: {}, fromUserId: {}, toUserId: {}",
                 taskId, userId, request.getTargetUserId());
 
+        AuditInstance targetInstance = resolveAuditInstanceForTask(taskId);
         AuditInstance instance = workflowApplicationService.transferAuditInstance(
-                Long.parseLong(taskId), request.getTargetUserId());
+                targetInstance.getId(), request.getTargetUserId());
 
-        return convertToInstanceResponse(instance);
+        return workflowReadModelMapper.toInstanceResponse(instance);
+    }
+
+    private AuditInstance resolveAuditInstanceForTask(String taskId) {
+        Long numericTaskId = Long.parseLong(taskId);
+        return auditInstanceRepository.findById(numericTaskId)
+                .or(() -> auditInstanceRepository.findByStepInstanceId(numericTaskId))
+                .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
     }
 
     /**
@@ -347,7 +252,7 @@ public class BusinessWorkflowApplicationService {
     public void cancelInstance(String instanceId, Long userId) {
         log.info("Cancelling instance: {}, userId: {}", instanceId, userId);
 
-        AuditInstance instance = workflowRepository.findAuditInstanceById(Long.parseLong(instanceId))
+        AuditInstance instance = auditInstanceRepository.findById(Long.parseLong(instanceId))
                 .orElseThrow(() -> new IllegalArgumentException("Instance not found: " + instanceId));
 
         // 权限检查：只有发起人可以取消
@@ -358,40 +263,108 @@ public class BusinessWorkflowApplicationService {
         workflowApplicationService.cancelAuditInstance(instance);
     }
 
-    // ==================== 私有方法 ====================
+    // ==================== 流程定义管理 ====================
 
-    private WorkflowDefinitionResponse convertToDefinitionResponse(AuditFlowDef flowDef) {
-        return WorkflowDefinitionResponse.builder()
-                .definitionId(flowDef.getId().toString())
-                .definitionName(flowDef.getFlowName())
-                .description(flowDef.getDescription())
-                .category(flowDef.getEntityType())
-                .version(flowDef.getVersion() != null ? flowDef.getVersion().toString() : "1")
-                .isActive(flowDef.getIsActive() != null ? flowDef.getIsActive() : false)
-                .createTime(flowDef.getCreatedAt())
-                .build();
-    }
-
-    private WorkflowInstanceResponse convertToInstanceResponse(AuditInstance instance) {
-        return WorkflowInstanceResponse.builder()
-                .instanceId(instance.getId().toString())
-                .definitionId(instance.getFlowDefId() != null ? instance.getFlowDefId().toString() : null)
-                .status(instance.getStatus())
-                .businessEntityId(instance.getEntityId())
-                .starterId(instance.getRequesterId())
-                .startTime(instance.getStartedAt())
-                .endTime(instance.getCompletedAt())
-                .build();
-    }
-
-    private String convertStepStatus(String stepStatus) {
-        if (stepStatus == null) {
-            return "PENDING";
+    /**
+     * 根据ID获取工作流定义
+     */
+    public WorkflowDefinitionResponse getDefinitionById(String definitionId) {
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(Long.parseLong(definitionId));
+        if (flowDef == null) {
+            throw new IllegalArgumentException("Workflow definition not found: " + definitionId);
         }
-        return switch (stepStatus.toUpperCase()) {
-            case "APPROVED" -> "COMPLETED";
-            case "REJECTED" -> "REJECTED";
-            default -> "PENDING";
-        };
+        return workflowReadModelMapper.toDefinitionResponse(flowDef);
     }
+
+    /**
+     * 根据代码获取工作流定义
+     */
+    public WorkflowDefinitionResponse getDefinitionByCode(String flowCode) {
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefByCode(flowCode);
+        if (flowDef == null) {
+            throw new IllegalArgumentException("Workflow definition not found: " + flowCode);
+        }
+        return workflowReadModelMapper.toDefinitionResponse(flowDef);
+    }
+
+    /**
+     * 根据实体类型获取工作流定义列表
+     */
+    public List<WorkflowDefinitionResponse> getDefinitionsByEntityType(String entityType) {
+        return workflowDefinitionQueryService.getAuditFlowDefsByEntityType(entityType).stream()
+                .map(workflowReadModelMapper::toDefinitionResponse)
+                .toList();
+    }
+
+    /**
+     * 创建工作流定义
+     */
+    @Transactional
+    public WorkflowDefinitionResponse createDefinition(CreateWorkflowDefinitionRequest request) {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setFlowCode(request.getDefinitionCode());
+        flowDef.setFlowName(request.getDefinitionName());
+        flowDef.setEntityType(request.getCategory());
+        flowDef.setDescription(request.getDescription());
+        flowDef.setIsActive(request.isActive());
+        flowDef.setVersion(request.getVersion() != null ? request.getVersion() : 1);
+        if (request.getSteps() != null) {
+            request.getSteps().forEach(stepRequest -> {
+                AuditStepDef step = new AuditStepDef();
+                step.setStepName(stepRequest.getStepName());
+                step.setStepOrder(stepRequest.getStepOrder());
+                step.setStepType(stepRequest.getStepType());
+                step.setRoleId(stepRequest.getRoleId());
+                flowDef.addStep(step);
+            });
+        }
+
+        AuditFlowDef created = workflowDefinitionQueryService.createAuditFlowDef(flowDef);
+        return workflowReadModelMapper.toDefinitionResponse(created);
+    }
+
+    // ==================== 实例查询 ====================
+
+    /**
+     * 获取我已审批的实例列表
+     */
+    public PageResult<WorkflowInstanceResponse> getMyApprovedInstances(Long userId, int pageNum, int pageSize) {
+        List<AuditInstance> instances = workflowApplicationService.getApprovedAuditInstancesByUserId(userId);
+        List<WorkflowInstanceResponse> items = instances.stream()
+                .map(workflowReadModelMapper::toInstanceResponse)
+                .toList();
+
+        int start = (pageNum - 1) * pageSize;
+        int end = Math.min(start + pageSize, items.size());
+        List<WorkflowInstanceResponse> pagedItems = start < items.size() ? items.subList(start, end) : List.of();
+
+        return PageResult.of(pagedItems, items.size(), pageNum, pageSize);
+    }
+
+    /**
+     * 获取我发起的实例列表
+     */
+    public PageResult<WorkflowInstanceResponse> getMyAppliedInstances(Long userId, int pageNum, int pageSize) {
+        List<AuditInstance> instances = workflowApplicationService.getAppliedAuditInstancesByUserId(userId);
+        List<WorkflowInstanceResponse> items = instances.stream()
+                .map(workflowReadModelMapper::toInstanceResponse)
+                .toList();
+
+        int start = (pageNum - 1) * pageSize;
+        int end = Math.min(start + pageSize, items.size());
+        List<WorkflowInstanceResponse> pagedItems = start < items.size() ? items.subList(start, end) : List.of();
+
+        return PageResult.of(pagedItems, items.size(), pageNum, pageSize);
+    }
+
+    // ==================== 统计 ====================
+
+    /**
+     * 获取工作流统计信息
+     */
+    public Map<String, Object> getStatistics() {
+        return workflowApplicationService.getApprovalStatistics();
+    }
+
+    // ==================== 私有方法 ====================
 }

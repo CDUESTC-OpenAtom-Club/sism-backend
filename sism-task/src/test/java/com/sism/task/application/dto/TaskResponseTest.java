@@ -19,6 +19,8 @@ class TaskResponseTest {
         TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("发展性"));
 
         assertEquals(TaskType.DEVELOPMENT, response.getTaskType());
+        assertEquals("DISTRIBUTED", response.getPlanStatus());
+        assertEquals("DRAFT", response.getTaskStatus());
     }
 
     @Test
@@ -85,8 +87,13 @@ class TaskResponseTest {
         }
 
         @Override
-        public String getStatus() {
+        public String getPlanStatus() {
             return "DISTRIBUTED";
+        }
+
+        @Override
+        public String getTaskStatus() {
+            return "DRAFT";
         }
 
         @Override

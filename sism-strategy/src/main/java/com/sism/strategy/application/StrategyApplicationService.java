@@ -4,11 +4,12 @@ import com.sism.organization.domain.SysOrg;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
-import com.sism.enums.IndicatorStatus;
+import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
+import org.hibernate.Hibernate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -48,8 +49,7 @@ public class StrategyApplicationService {
             BigDecimal weightPercent,
             Integer sortOrder,
             String remark,
-            Integer progress,
-            IndicatorStatus distributionStatus) {
+            Integer progress) {
         Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg);
 
         if (taskId != null) {
@@ -71,16 +71,6 @@ public class StrategyApplicationService {
         }
         if (progress != null) {
             indicator.setProgress(progress);
-        }
-        if (distributionStatus != null) {
-            indicator.setDistributionStatus(distributionStatus);
-            if (distributionStatus == IndicatorStatus.DISTRIBUTED) {
-                indicator.setStatus(IndicatorStatus.DISTRIBUTED);
-            } else if (distributionStatus == IndicatorStatus.DRAFT) {
-                indicator.setStatus(IndicatorStatus.DRAFT);
-            } else if (distributionStatus == IndicatorStatus.PENDING) {
-                indicator.setStatus(IndicatorStatus.PENDING);
-            }
         }
 
         indicator.setLevel(indicator.calculateLevel());
@@ -180,6 +170,27 @@ public class StrategyApplicationService {
         return indicatorRepository.findByStatus(status, pageable);
     }
 
+    /**
+     * 根据年份获取指标
+     * 通过 Cycle -> Plan -> Task -> Indicator 关系链过滤
+     * 使用原生 SQL 直接 JOIN 获取正确的指标
+     *
+     * 性能优化：在返回前初始化懒加载的关联实体，避免 N+1 查询
+     *
+     * @param year 年份
+     * @param pageable 分页参数
+     * @return 分页指标列表
+     */
+    public Page<Indicator> getIndicatorsByYear(Integer year, Pageable pageable) {
+        Page<Indicator> result = indicatorRepository.findByYear(year, pageable);
+        // 初始化懒加载的关联实体，避免 N+1 查询
+        result.getContent().forEach(indicator -> {
+            Hibernate.initialize(indicator.getOwnerOrg());
+            Hibernate.initialize(indicator.getTargetOrg());
+        });
+        return result;
+    }
+
     public List<Indicator> searchIndicators(String keyword) {
         return indicatorRepository.findByKeyword(keyword);
     }
@@ -216,21 +227,30 @@ public class StrategyApplicationService {
             String remark,
             Long taskId,
             SysOrg ownerOrg,
-            SysOrg targetOrg,
-            IndicatorStatus distributionStatus) {
+            SysOrg targetOrg) {
         Indicator indicator = indicatorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
 
-        if (indicatorDesc != null && !indicatorDesc.trim().isEmpty()) {
-            indicator.setIndicatorDesc(indicatorDesc.trim());
+        if (indicatorDesc != null) {
+            String normalizedDesc = indicatorDesc.trim();
+            if (normalizedDesc.isEmpty()) {
+                throw new IllegalArgumentException("Indicator description is required");
+            }
+            indicator.setIndicatorDesc(normalizedDesc);
         }
         if (weightPercent != null) {
+            if (weightPercent.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Weight percent must be positive");
+            }
             indicator.setWeightPercent(weightPercent);
         }
         if (progress != null) {
             indicator.setProgress(progress);
         }
         if (sortOrder != null) {
+            if (sortOrder < 0) {
+                throw new IllegalArgumentException("Sort order must be non-negative");
+            }
             indicator.setSortOrder(sortOrder);
         }
         if (remark != null) {
@@ -245,13 +265,9 @@ public class StrategyApplicationService {
         if (targetOrg != null) {
             indicator.setTargetOrg(targetOrg);
         }
-        if (distributionStatus != null) {
-            indicator.setDistributionStatus(distributionStatus);
-        }
 
         indicator.setLevel(indicator.calculateLevel());
         indicator.setUpdatedAt(LocalDateTime.now());
-        indicator.validate();
         indicator = indicatorRepository.save(indicator);
         publishAndSaveEvents(indicator);
         return indicator;

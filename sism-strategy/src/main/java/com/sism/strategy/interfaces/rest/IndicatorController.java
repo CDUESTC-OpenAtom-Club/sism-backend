@@ -2,7 +2,7 @@ package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.enums.IndicatorStatus;
+import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.application.StrategyApplicationService;
@@ -48,11 +48,15 @@ public class IndicatorController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) Long cycleId) {
+            @RequestParam(required = false) Long cycleId,
+            @RequestParam(required = false) Integer year) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Indicator> indicatorPage;
 
-        if (status != null) {
+        if (year != null) {
+            // 按年份过滤：通过 cycle -> task -> indicator 关系链
+            indicatorPage = strategyApplicationService.getIndicatorsByYear(year, pageable);
+        } else if (status != null) {
             indicatorPage = strategyApplicationService.getIndicatorsByStatus(status, pageable);
         } else {
             indicatorPage = strategyApplicationService.getIndicators(pageable);
@@ -107,11 +111,6 @@ public class IndicatorController {
         SysOrg targetOrg = organizationRepository.findById(targetOrgId)
                 .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + targetOrgId));
 
-        IndicatorStatus distributionStatus = null;
-        if (request.getDistributionStatus() != null && !request.getDistributionStatus().isBlank()) {
-            distributionStatus = IndicatorStatus.valueOf(request.getDistributionStatus().trim().toUpperCase());
-        }
-
         Indicator created = strategyApplicationService.createIndicator(
                 description,
                 ownerOrg,
@@ -121,8 +120,7 @@ public class IndicatorController {
                 request.getWeightPercent(),
                 request.getSortOrder(),
                 request.getRemark(),
-                request.getProgress(),
-                distributionStatus
+                request.getProgress()
         );
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(created)));
     }
@@ -140,10 +138,6 @@ public class IndicatorController {
                 ? organizationRepository.findById(request.getTargetOrgId())
                     .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + request.getTargetOrgId()))
                 : null;
-        IndicatorStatus distributionStatus = request.getDistributionStatus() != null
-                ? IndicatorStatus.valueOf(request.getDistributionStatus())
-                : null;
-
         String indicatorDesc = request.getIndicatorDesc();
         if ((indicatorDesc == null || indicatorDesc.isBlank()) && request.getIndicatorName() != null) {
             indicatorDesc = request.getIndicatorName();
@@ -158,8 +152,7 @@ public class IndicatorController {
                 request.getRemark(),
                 request.getTaskId(),
                 ownerOrg,
-                targetOrg,
-                distributionStatus
+                targetOrg
         );
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(updated)));
     }
@@ -320,16 +313,6 @@ public class IndicatorController {
                 .map(this::toIndicatorResponse)
                 .toList();
         return ResponseEntity.ok(ApiResponse.success(responses));
-    }
-
-    @GetMapping("/{id}/distribution-status")
-    @Operation(summary = "Get indicator distribution status")
-    public ResponseEntity<ApiResponse<String>> getDistributionStatus(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
-            return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
-        }
-        return ResponseEntity.ok(ApiResponse.success(indicator.getDistributionStatus().toString()));
     }
 
     @GetMapping("/{id}/distribution-eligibility")
@@ -513,7 +496,6 @@ public class IndicatorController {
         private Integer sortOrder;
         private String remark;
         private Integer progress;
-        private String distributionStatus;
 
         private Long cycleId;
 
@@ -543,7 +525,6 @@ public class IndicatorController {
         private Integer progress;
         private Integer sortOrder;
         private String remark;
-        private String distributionStatus;
     }
 
     @Data

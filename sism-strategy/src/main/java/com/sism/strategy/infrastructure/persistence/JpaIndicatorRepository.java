@@ -1,8 +1,8 @@
 package com.sism.strategy.infrastructure.persistence;
 
-import com.sism.enums.IndicatorLevel;
 import com.sism.organization.domain.SysOrg;
 import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.enums.IndicatorLevel;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -121,5 +121,15 @@ public class JpaIndicatorRepository implements IndicatorRepository {
                     return desc != null && desc.toLowerCase().contains(lowerKeyword);
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<Indicator> findByTaskIds(List<Long> taskIds, Pageable pageable) {
+        return jpaRepository.findByTaskIds(taskIds, pageable);
+    }
+
+    @Override
+    public Page<Indicator> findByYear(Integer year, Pageable pageable) {
+        return jpaRepository.findByYear(year, pageable);
     }
 }
