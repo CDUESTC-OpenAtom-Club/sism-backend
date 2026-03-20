@@ -92,8 +92,8 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
     @Query(value = """
             SELECT
                 t.task_id AS id,
-                t.task_name AS taskName,
-                t.task_desc AS taskDesc,
+                t.name AS name,
+                t."desc" AS desc,
                 t.task_type AS taskType,
                 t.plan_id AS planId,
                 t.cycle_id AS cycleId,
@@ -116,8 +116,8 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
     @Query(value = """
             SELECT
                 t.task_id AS id,
-                t.task_name AS taskName,
-                t.task_desc AS taskDesc,
+                t.name AS name,
+                t."desc" AS desc,
                 t.task_type AS taskType,
                 t.plan_id AS planId,
                 t.cycle_id AS cycleId,
@@ -137,7 +137,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
               AND (:orgId IS NULL OR t.org_id = :orgId)
               AND (:createdByOrgId IS NULL OR t.created_by_org_id = :createdByOrgId)
               AND (CAST(:taskType AS TEXT) = '' OR t.task_type = CAST(:taskType AS TEXT))
-              AND (CAST(:taskName AS TEXT) = '' OR t.task_name ILIKE CONCAT('%', CAST(:taskName AS TEXT), '%'))
+              AND (CAST(:name AS TEXT) = '' OR t.name ILIKE CONCAT('%', CAST(:name AS TEXT), '%'))
             ORDER BY t.sort_order ASC, t.task_id ASC
             """, nativeQuery = true)
     List<TaskFlatView> findFlatViewsByCriteria(
@@ -146,13 +146,13 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
             @Param("orgId") Long orgId,
             @Param("createdByOrgId") Long createdByOrgId,
             @Param("taskType") String taskType,
-            @Param("taskName") String taskName);
+            @Param("name") String name);
 
     @Query(value = """
             SELECT
                 t.task_id AS id,
-                t.task_name AS taskName,
-                t.task_desc AS taskDesc,
+                t.name AS name,
+                t."desc" AS desc,
                 t.task_type AS taskType,
                 t.plan_id AS planId,
                 t.cycle_id AS cycleId,
@@ -174,7 +174,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
     @Query(value = """
             SELECT
                 t.task_id AS id,
-                t.task_name AS taskName
+                t.name AS name
             FROM sys_task t
             WHERE t.task_id IN (:taskIds)
               AND COALESCE(t.is_deleted, false) = false
@@ -213,7 +213,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
      * @param orgId 执行组织ID（可选）
      * @param createdByOrgId 创建组织ID（可选）
      * @param taskType 任务类型（可选）
-     * @param taskName 任务名称（支持模糊查询，可选）
+     * @param name 任务名称（支持模糊查询，可选）
      * @param pageable 分页参数
      * @return 分页任务结果
      */
@@ -223,7 +223,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
             "(:orgId IS NULL OR t.org.id = :orgId) AND " +
             "(:createdByOrgId IS NULL OR t.createdByOrg.id = :createdByOrgId) AND " +
             "(:taskType IS NULL OR t.taskType = :taskType) AND " +
-            "(:taskName IS NULL OR t.taskName LIKE %:taskName%) AND " +
+            "(:name IS NULL OR t.name LIKE %:name%) AND " +
             "t.isDeleted = false")
     Page<StrategicTask> findByCriteria(
             @Param("planId") Long planId,
@@ -231,6 +231,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
             @Param("orgId") Long orgId,
             @Param("createdByOrgId") Long createdByOrgId,
             @Param("taskType") TaskType taskType,
-            @Param("taskName") String taskName,
+            @Param("name") String name,
             Pageable pageable);
 }

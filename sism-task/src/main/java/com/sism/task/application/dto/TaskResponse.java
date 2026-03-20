@@ -16,8 +16,8 @@ import java.util.Locale;
 public class TaskResponse {
 
     private Long id;
-    private String taskName;
-    private String taskDesc;
+    private String name;
+    private String desc;
     private TaskCategory taskCategory;
     private TaskType taskType;
     private Long planId;
@@ -34,8 +34,8 @@ public class TaskResponse {
     public static TaskResponse fromEntity(StrategicTask task, String planStatus) {
         TaskResponse response = new TaskResponse();
         response.setId(task.getId());
-        response.setTaskName(task.getTaskName());
-        response.setTaskDesc(task.getTaskDesc());
+        response.setName(task.getName());
+        response.setDesc(task.getDesc());
         response.setTaskCategory(task.getTaskCategory());
         response.setTaskType(task.getTaskType());
         response.setPlanId(task.getPlanId());
@@ -54,8 +54,8 @@ public class TaskResponse {
     public static TaskResponse fromView(TaskFlatView task) {
         TaskResponse response = new TaskResponse();
         response.setId(task.getId());
-        response.setTaskName(task.getTaskName());
-        response.setTaskDesc(task.getTaskDesc());
+        response.setName(task.getName());
+        response.setDesc(task.getDesc());
         response.setTaskCategory(TaskCategory.STRATEGIC);
         response.setTaskType(parseTaskType(task.getTaskType()));
         response.setPlanId(task.getPlanId());
@@ -79,6 +79,7 @@ public class TaskResponse {
         String normalized = rawTaskType.trim().toUpperCase(Locale.ROOT);
 
         return switch (normalized) {
+            case "PLAN", "计划" -> TaskType.PLAN;
             case "BASIC", "基础", "基础性" -> TaskType.BASIC;
             case "REGULAR", "常规", "常规性" -> TaskType.REGULAR;
             case "KEY", "重点" -> TaskType.KEY;

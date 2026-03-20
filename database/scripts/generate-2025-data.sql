@@ -12,8 +12,8 @@
 INSERT INTO sys_task (
     plan_id,
     cycle_id,
-    task_name,
-    task_desc,
+    name,
+    "desc",
     task_type,
     org_id,
     created_by_org_id,
@@ -26,8 +26,8 @@ INSERT INTO sys_task (
 SELECT 
     plan_id,
     7 AS cycle_id,  -- 使用 2025 年的 cycle_id
-    REPLACE(task_name, '2026', '2025') AS task_name,
-    REPLACE(COALESCE(task_desc, ''), '2026', '2025') AS task_desc,
+    REPLACE(name, '2026', '2025') AS name,
+    REPLACE(COALESCE("desc", ''), '2026', '2025') AS "desc",
     task_type,
     org_id,
     created_by_org_id,
@@ -50,7 +50,7 @@ SELECT
     new_task.task_id AS new_task_id
 FROM sys_task old_task
 JOIN sys_task new_task ON 
-    REPLACE(old_task.task_name, '2026', '2025') = new_task.task_name
+    REPLACE(old_task.name, '2026', '2025') = new_task.name
     AND old_task.cycle_id = 1
     AND new_task.cycle_id = 7;
 

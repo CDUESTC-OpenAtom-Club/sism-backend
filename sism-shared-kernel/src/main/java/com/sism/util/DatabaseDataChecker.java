@@ -187,7 +187,7 @@ public class DatabaseDataChecker {
         // Sample tasks
         try {
             List<Map<String, Object>> tasks = jdbcTemplate.queryForList("""
-                SELECT task_id, task_name, task_type, cycle_id, org_id, created_by_org_id
+                SELECT task_id, name, task_type, cycle_id, org_id, created_by_org_id
                 FROM sys_task
                 ORDER BY task_id
                 LIMIT 5

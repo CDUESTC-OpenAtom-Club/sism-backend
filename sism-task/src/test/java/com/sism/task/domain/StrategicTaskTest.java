@@ -25,7 +25,7 @@ class StrategicTaskTest {
         StrategicTask task = StrategicTask.create("测试任务", TaskType.BASIC, 1L, 1L, org, createdByOrg);
 
         assertNotNull(task);
-        assertEquals("测试任务", task.getTaskName());
+        assertEquals("测试任务", task.getName());
         assertEquals(TaskType.BASIC, task.getTaskType());
         assertEquals(1L, task.getPlanId());
         assertEquals(1L, task.getCycleId());
@@ -93,9 +93,9 @@ class StrategicTaskTest {
     void shouldUpdateTaskNameSuccessfully() {
         StrategicTask task = StrategicTask.create("旧任务名称", TaskType.BASIC, 1L, 1L, org, createdByOrg);
 
-        task.updateTaskName("新任务名称");
+        task.updateName("新任务名称");
 
-        assertEquals("新任务名称", task.getTaskName());
+        assertEquals("新任务名称", task.getName());
         assertNotNull(task.getUpdatedAt());
     }
 

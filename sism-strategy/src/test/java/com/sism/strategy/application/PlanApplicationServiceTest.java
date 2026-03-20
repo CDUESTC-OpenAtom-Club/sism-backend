@@ -10,6 +10,7 @@ import com.sism.strategy.domain.Cycle;
 import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.interfaces.dto.PlanResponse;
+import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.same;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
@@ -120,6 +122,26 @@ class PlanApplicationServiceTest {
         assertEquals(1L, result.getContent().get(0).getId());
         verify(cycleRepository).findByYear(2026);
         verify(planRepository).findPage(eq(List.of(2026L)), eq(List.of("DISTRIBUTED", "APPROVED", "ACTIVE", "PUBLISHED")), any(PageRequest.class));
+    }
+
+    @Test
+    @DisplayName("Should persist plan as pending before publishing approval workflow event")
+    void shouldPersistPlanAsPendingBeforePublishingApprovalWorkflowEvent() {
+        Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
+        plan.setId(10L);
+
+        SubmitPlanApprovalRequest request = new SubmitPlanApprovalRequest();
+        request.setWorkflowCode("PLAN_DISPATCH_STRATEGY");
+
+        when(planRepository.findById(10L)).thenReturn(Optional.of(plan));
+        when(planRepository.save(same(plan))).thenReturn(plan);
+
+        PlanResponse response = service.submitPlanForApproval(10L, request, 188L, 35L);
+
+        assertEquals(PlanStatus.PENDING.value(), plan.getStatus());
+        assertEquals(PlanStatus.PENDING.value(), response.getStatus());
+        verify(planRepository).save(same(plan));
+        verify(eventPublisher).publish(any());
     }
 
     @Test

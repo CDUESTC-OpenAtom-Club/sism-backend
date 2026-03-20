@@ -11,5 +11,5 @@ import lombok.Data;
 public class UpdateTaskDescRequest {
 
     @NotBlank(message = "任务描述不能为空")
-    private String taskDesc;
+    private String desc;
 }

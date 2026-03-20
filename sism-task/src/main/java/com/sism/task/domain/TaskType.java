@@ -6,6 +6,11 @@ package com.sism.task.domain;
  */
 public enum TaskType {
     /**
+     * Plan container task
+     */
+    PLAN,
+
+    /**
      * Basic strategic task
      */
     BASIC,

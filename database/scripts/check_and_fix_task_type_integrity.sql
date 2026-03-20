@@ -4,7 +4,7 @@
 -- 目标：
 -- 1. 输出当前 task_type 分布与异常数量
 -- 2. 自动将历史遗留枚举归一到双类别口径
---    - KEY / REGULAR / QUANTITATIVE -> BASIC
+--    - PLAN / KEY / REGULAR / QUANTITATIVE -> BASIC
 --    - SPECIAL -> DEVELOPMENT
 -- 3. 若仍存在 NULL / 空白 / 未知值，则直接报错并回滚
 --
@@ -30,7 +30,7 @@ WHERE COALESCE(is_deleted, false) = false
     task_type IS NULL
     OR BTRIM(task_type) = ''
     OR UPPER(BTRIM(task_type)) NOT IN (
-      'BASIC', 'DEVELOPMENT', 'KEY', 'REGULAR', 'SPECIAL', 'QUANTITATIVE'
+      'BASIC', 'DEVELOPMENT', 'PLAN', 'KEY', 'REGULAR', 'SPECIAL', 'QUANTITATIVE'
     )
   );
 
@@ -52,13 +52,13 @@ FROM normalized;
 WITH remapped AS (
   UPDATE sys_task
   SET task_type = CASE
-                    WHEN task_type IN ('KEY', 'REGULAR', 'QUANTITATIVE') THEN 'BASIC'
+                    WHEN task_type IN ('PLAN', 'KEY', 'REGULAR', 'QUANTITATIVE') THEN 'BASIC'
                     WHEN task_type = 'SPECIAL' THEN 'DEVELOPMENT'
                     ELSE task_type
                   END,
       updated_at = NOW()
   WHERE COALESCE(is_deleted, false) = false
-    AND task_type IN ('KEY', 'REGULAR', 'QUANTITATIVE', 'SPECIAL')
+    AND task_type IN ('PLAN', 'KEY', 'REGULAR', 'QUANTITATIVE', 'SPECIAL')
   RETURNING task_id
 )
 SELECT 'remapped_legacy_task_types' AS action, COUNT(*) AS affected_rows
@@ -84,12 +84,12 @@ BEGIN
 
   IF invalid_count > 0 THEN
     SELECT STRING_AGG(
-             FORMAT('[%s] %s => %s', task_id, task_name, COALESCE(task_type, '<NULL>')),
+             FORMAT('[%s] %s => %s', task_id, name, COALESCE(task_type, '<NULL>')),
              E'\n'
            )
     INTO invalid_examples
     FROM (
-      SELECT task_id, task_name, task_type
+      SELECT task_id, name, task_type
       FROM sys_task
       WHERE COALESCE(is_deleted, false) = false
         AND (

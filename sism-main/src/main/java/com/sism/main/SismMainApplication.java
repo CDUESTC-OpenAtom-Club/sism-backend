@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
  * SISM Main Application
@@ -30,6 +31,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
                                    "com.sism.shared", "com.sism.config",
                                    "com.sism.exception", "com.sism.common",
                                    "com.sism.main"})
+@EnableAsync
 @EntityScan(basePackages = "com.sism.**.domain")
 @EnableJpaRepositories(basePackages = "com.sism.**.infrastructure.persistence")
 @ComponentScan(basePackages = {"com.sism.iam", "com.sism.organization",

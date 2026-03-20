@@ -16,9 +16,9 @@ public class UpdateTaskRequest {
     private TaskCategory taskCategory = TaskCategory.STRATEGIC;
 
     @NotBlank(message = "任务名称不能为空")
-    private String taskName;
+    private String name;
 
-    private String taskDesc;
+    private String desc;
 
     @NotNull(message = "任务类型不能为空")
     private TaskType taskType;

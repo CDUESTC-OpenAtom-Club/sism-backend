@@ -57,7 +57,7 @@ public class TaskController {
             @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
             @Parameter(description = "规划投影状态") @RequestParam(required = false) String planStatus,
             @Parameter(description = "任务自身状态") @RequestParam(required = false) String taskStatus,
-            @Parameter(description = "任务名称模糊搜索") @RequestParam(required = false) String taskName,
+            @Parameter(description = "任务名称模糊搜索") @RequestParam(required = false) String name,
             @Parameter(description = "页码") @RequestParam(required = false, defaultValue = "0") Integer page,
             @Parameter(description = "每页大小") @RequestParam(required = false, defaultValue = "10") Integer size) {
         TaskQueryRequest queryRequest = new TaskQueryRequest();
@@ -68,7 +68,7 @@ public class TaskController {
         queryRequest.setTaskType(taskType != null ? TaskType.valueOf(taskType) : null);
         queryRequest.setPlanStatus(planStatus);
         queryRequest.setTaskStatus(taskStatus);
-        queryRequest.setTaskName(taskName);
+        queryRequest.setName(name);
         queryRequest.setPage(page);
         queryRequest.setSize(size);
 
@@ -111,7 +111,7 @@ public class TaskController {
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskName(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskNameRequest request) {
-        TaskResponse updated = taskApplicationService.updateTaskName(id, request.getTaskName());
+        TaskResponse updated = taskApplicationService.updateTaskName(id, request.getName());
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 
@@ -129,7 +129,7 @@ public class TaskController {
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskDesc(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskDescRequest request) {
-        TaskResponse updated = taskApplicationService.updateTaskDesc(id, request.getTaskDesc());
+        TaskResponse updated = taskApplicationService.updateTaskDesc(id, request.getDesc());
         return ResponseEntity.ok(ApiResponse.success(updated));
     }
 

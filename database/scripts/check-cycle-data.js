@@ -35,7 +35,7 @@ async function checkCycle() {
     const taskCycle = await client.query(`
       SELECT 
         t.task_id,
-        t.task_name,
+        t.name,
         t.cycle_id,
         c.cycle_name,
         c.year as cycle_year,
@@ -43,12 +43,12 @@ async function checkCycle() {
       FROM sys_task t
       LEFT JOIN cycle c ON c.id = t.cycle_id
       LEFT JOIN indicator i ON i.task_id = t.task_id AND (i.is_deleted = false OR i.is_deleted IS NULL)
-      GROUP BY t.task_id, t.task_name, t.cycle_id, c.cycle_name, c.year
+      GROUP BY t.task_id, t.name, t.cycle_id, c.cycle_name, c.year
       ORDER BY t.task_id
     `);
     
     taskCycle.rows.forEach(row => {
-      console.log(`任务 [${row.task_id}] ${row.task_name}`);
+      console.log(`任务 [${row.task_id}] ${row.name}`);
       console.log(`  Cycle: [${row.cycle_id}] ${row.cycle_name} (${row.cycle_year}年)`);
       console.log(`  关联指标: ${row.indicator_count} 个`);
       console.log('');

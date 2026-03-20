@@ -100,6 +100,7 @@ public class PlanWorkflowSnapshotQueryService {
                         .workflowInstanceId(instance.getInstanceId())
                         .workflowStatus(instance.getStatus())
                         .starterId(instance.getRequesterId())
+                        .starterName(resolveUserName(instance.getRequesterId()))
                         .startedAt(instance.getStartedAt())
                         .completedAt(instance.getCompletedAt())
                         .build()
@@ -128,6 +129,7 @@ public class PlanWorkflowSnapshotQueryService {
                 .workflowInstanceId(instance.getInstanceId())
                 .workflowStatus(instance.getStatus())
                 .starterId(instance.getRequesterId())
+                .starterName(resolveUserName(instance.getRequesterId()))
                 .startedAt(instance.getStartedAt())
                 .completedAt(instance.getCompletedAt())
                 .build();
@@ -411,6 +413,7 @@ public class PlanWorkflowSnapshotQueryService {
         private Long workflowInstanceId;
         private String workflowStatus;
         private Long starterId;
+        private String starterName;
         private LocalDateTime startedAt;
         private LocalDateTime completedAt;
         private String currentStepName;

@@ -21,8 +21,8 @@ SET
     END,
     role_id = CASE
         WHEN step.step_name ILIKE '%提交%' THEN NULL
-        WHEN step.step_name ILIKE '%战略%' THEN COALESCE(step.role_id, 8)
-        WHEN step.step_name ILIKE '%校领导%' OR step.step_name ILIKE '%分管%' THEN COALESCE(step.role_id, 9)
+        WHEN step.step_name ILIKE '%战略%' THEN COALESCE(step.role_id, 7)
+        WHEN step.step_name ILIKE '%校领导%' OR step.step_name ILIKE '%分管%' THEN COALESCE(step.role_id, 7)
         ELSE step.role_id
     END,
     updated_at = NOW()
@@ -30,12 +30,12 @@ FROM target_flow
 WHERE step.flow_id = target_flow.id;
 
 INSERT INTO sys_user_role (user_id, role_id)
-SELECT 124, 9
+SELECT 124, 7
 WHERE EXISTS (SELECT 1 FROM sys_user WHERE id = 124)
-  AND EXISTS (SELECT 1 FROM sys_role WHERE id = 9)
+  AND EXISTS (SELECT 1 FROM sys_role WHERE id = 7)
   AND NOT EXISTS (
       SELECT 1
       FROM sys_user_role
       WHERE user_id = 124
-        AND role_id = 9
+        AND role_id = 7
   );

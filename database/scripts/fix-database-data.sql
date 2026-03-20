@@ -40,8 +40,8 @@ RAISE NOTICE '已删除 % 条测试组织记录', v_row_count;
 
 -- 1.3 清理测试任务
 DELETE FROM sys_task
-WHERE (task_name ILIKE '%test%' OR task_name ILIKE '%测试%')
-  AND id NOT IN (SELECT DISTINCT task_id FROM indicator WHERE task_id IS NOT NULL);
+WHERE (name ILIKE '%test%' OR name ILIKE '%测试%')
+  AND task_id NOT IN (SELECT DISTINCT task_id FROM indicator WHERE task_id IS NOT NULL);
 
 GET DIAGNOSTICS v_row_count = ROW_COUNT;
 RAISE NOTICE '已删除 % 条测试任务记录', v_row_count;

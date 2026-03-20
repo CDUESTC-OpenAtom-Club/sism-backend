@@ -45,7 +45,7 @@ async function analyzeTaskYear() {
     const tasks = await client.query(`
       SELECT 
         task_id,
-        task_name,
+        name,
         task_type,
         cycle_id,
         plan_id,
@@ -57,7 +57,7 @@ async function analyzeTaskYear() {
     
     console.log(`总任务数: ${tasks.rows.length}\n`);
     tasks.rows.forEach((task, index) => {
-      console.log(`${index + 1}. [ID: ${task.task_id}] ${task.task_name}`);
+      console.log(`${index + 1}. [ID: ${task.task_id}] ${task.name}`);
       console.log(`   类型: ${task.task_type} | cycle_id: ${task.cycle_id} | plan_id: ${task.plan_id}`);
       console.log(`   创建时间: ${task.created_at} | 备注: ${task.remark || '无'}`);
       console.log('');
@@ -119,19 +119,19 @@ async function analyzeTaskYear() {
     const taskIndicatorRelation = await client.query(`
       SELECT 
         t.task_id,
-        t.task_name,
+        t.name,
         COUNT(i.indicator_id) as indicator_count,
         COUNT(DISTINCT i.year) as year_count,
         STRING_AGG(DISTINCT i.year::text, ', ' ORDER BY i.year::text) as years
       FROM sys_task t
       LEFT JOIN indicator i ON i.task_id = t.task_id
       WHERE i.is_deleted = false OR i.is_deleted IS NULL
-      GROUP BY t.task_id, t.task_name
+      GROUP BY t.task_id, t.name
       ORDER BY t.task_id
     `);
     
     taskIndicatorRelation.rows.forEach(row => {
-      console.log(`任务 [${row.task_id}] ${row.task_name}`);
+      console.log(`任务 [${row.task_id}] ${row.name}`);
       console.log(`  关联指标: ${row.indicator_count} 个`);
       console.log(`  涉及年份: ${row.years || '无'} (${row.year_count} 个不同年份)`);
       console.log('');

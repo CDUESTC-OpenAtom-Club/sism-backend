@@ -42,7 +42,7 @@ public class TaskQueryRequest {
     /**
      * 任务名称模糊搜索（可选）
      */
-    private String taskName;
+    private String name;
 
     /**
      * 页码（可选，默认0）

@@ -224,7 +224,7 @@ BEGIN
 
     -- 检测测试任务
     SELECT COUNT(*) INTO v_test_tasks FROM sys_task
-    WHERE task_name ILIKE '%test%' OR task_name ILIKE '%测试%';
+    WHERE name ILIKE '%test%' OR name ILIKE '%测试%';
 
     -- 检测测试指标
     SELECT COUNT(*) INTO v_test_indicators FROM indicator
@@ -321,7 +321,7 @@ SELECT id, name, year, status FROM assessment_cycle ORDER BY id LIMIT 5;
 
 \echo ''
 \echo '--- sys_task 样例 ---'
-SELECT task_id, task_name, task_type, cycle_id, org_id FROM sys_task ORDER BY task_id LIMIT 5;
+SELECT task_id, name, task_type, cycle_id, org_id FROM sys_task ORDER BY task_id LIMIT 5;
 
 \echo ''
 \echo '--- indicator 样例 ---'

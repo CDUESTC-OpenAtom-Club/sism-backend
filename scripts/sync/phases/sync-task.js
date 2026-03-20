@@ -1,7 +1,12 @@
 /**
  * 战略任务同步阶段
- * 将前端定义的战略任务同步到数据库
- * 
+ *
+ * 注意：
+ * - 当前业务主模型已经迁移到 sys_task.name / desc。
+ * - 该历史同步脚本缺少 plan_id 等现代必填上下文，不能再安全地自动新增任务。
+ * - 现阶段仅保留“读取既有 sys_task 并建立映射”的兼容能力。
+ * - 如需重建干净任务数据，请使用 database/seeds 中的种子链路。
+ *
  * Requirements: 1.1, 1.4
  */
 
@@ -74,12 +79,16 @@ export async function syncTask(ctx) {
     console.log(`战略发展部 org_id: ${strategyOrgId}`);
     
     // 2. 查询现有任务
-    const existingTasks = await client.query('SELECT task_id, task_name, cycle_id FROM strategic_task');
-    const existingSet = new Set(existingTasks.rows.map(t => `${t.task_name}_${t.cycle_id}`));
+    const existingTasks = await client.query(`
+      SELECT task_id, name, cycle_id
+      FROM sys_task
+      WHERE COALESCE(is_deleted, false) = false
+    `);
+    const existingSet = new Set(existingTasks.rows.map(t => `${t.name}_${t.cycle_id}`));
     
     // 建立现有任务的 ID 映射
     existingTasks.rows.forEach(task => {
-      ctx.maps.task.set(`${task.task_name}_${task.cycle_id}`, task.task_id);
+      ctx.maps.task.set(`${task.name}_${task.cycle_id}`, task.task_id);
     });
     
     console.log(`数据库现有任务: ${existingTasks.rows.length} 个`);
@@ -101,15 +110,12 @@ export async function syncTask(ctx) {
       const key = `${task.title}_${cycleId}`;
       
       if (!existingSet.has(key)) {
-        const result = await client.query(
-          `INSERT INTO strategic_task (cycle_id, task_name, task_desc, task_type, org_id, created_by_org_id, sort_order) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           RETURNING task_id`,
-          [cycleId, task.title, task.desc, task.type, strategyOrgId, strategyOrgId, ctx.getPhaseStats('task').inserted + 10]
+        throw new Error(
+          [
+            'sync-task.js 已停用自动新增能力：当前 sys_task 需要 plan_id 等现代业务上下文。',
+            '请改用 database/seeds/sys_task-data.sql 或 database/seeds/reset-and-load-clean-seeds.sql 维护干净任务数据。'
+          ].join(' ')
         );
-        ctx.maps.task.set(key, result.rows[0].task_id);
-        ctx.recordInsert('task');
-        console.log(`✅ 新增: ${task.title} (${task.year})`);
       } else {
         ctx.recordSkip('task');
       }

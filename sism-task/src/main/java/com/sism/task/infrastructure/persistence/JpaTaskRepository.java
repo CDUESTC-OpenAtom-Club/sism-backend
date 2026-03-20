@@ -74,9 +74,9 @@ public class JpaTaskRepository implements TaskRepository {
     @Override
     public Page<StrategicTask> findByCriteria(
             Long planId, Long cycleId, Long orgId, Long createdByOrgId,
-            TaskType taskType, String taskName, Pageable pageable) {
+            TaskType taskType, String name, Pageable pageable) {
         return jpaRepository.findByCriteria(planId, cycleId, orgId, createdByOrgId,
-                taskType, taskName, pageable);
+                taskType, name, pageable);
     }
 
     @Override

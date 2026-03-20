@@ -40,7 +40,7 @@ public class TaskApplicationService {
 
         StrategicTask task = StrategicTask.create(
                 request.getTaskCategory() != null ? request.getTaskCategory() : TaskCategory.STRATEGIC,
-                request.getTaskName(),
+                request.getName(),
                 request.getTaskType(),
                 request.getPlanId(),
                 request.getCycleId(),
@@ -51,8 +51,8 @@ public class TaskApplicationService {
         if (request.getSortOrder() != null) {
             task.updateSortOrder(request.getSortOrder());
         }
-        if (request.getTaskDesc() != null) {
-            task.updateTaskDesc(request.getTaskDesc());
+        if (request.getDesc() != null) {
+            task.updateDesc(request.getDesc());
         }
         if (request.getRemark() != null) {
             task.setRemark(request.getRemark());
@@ -99,8 +99,8 @@ public class TaskApplicationService {
         StrategicTask task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
 
-        task.updateTaskName(request.getTaskName());
-        task.updateTaskDesc(request.getTaskDesc());
+        task.updateName(request.getName());
+        task.updateDesc(request.getDesc());
         task.setTaskType(request.getTaskType());
         task.setTaskCategory(request.getTaskCategory() != null ? request.getTaskCategory() : TaskCategory.STRATEGIC);
         task.setPlanId(request.getPlanId());
@@ -132,20 +132,20 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse updateTaskName(Long id, String taskName) {
+    public TaskResponse updateTaskName(Long id, String name) {
         StrategicTask task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
-        task.updateTaskName(taskName);
+        task.updateName(name);
         taskRepository.save(task);
         publishAndSaveEvents(task);
         return toCommandResponse(task);
     }
 
     @Transactional
-    public TaskResponse updateTaskDesc(Long id, String taskDesc) {
+    public TaskResponse updateTaskDesc(Long id, String desc) {
         StrategicTask task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
-        task.updateTaskDesc(taskDesc);
+        task.updateDesc(desc);
         taskRepository.save(task);
         publishAndSaveEvents(task);
         return toCommandResponse(task);
@@ -205,7 +205,7 @@ public class TaskApplicationService {
                 request.getOrgId(),
                 request.getCreatedByOrgId(),
                 request.getTaskType() != null ? request.getTaskType().name() : "",
-                request.getTaskName() != null ? request.getTaskName() : ""
+                request.getName() != null ? request.getName() : ""
         ).stream()
                 .map(TaskResponse::fromView)
                 .filter(response -> request.getPlanStatus() == null || request.getPlanStatus().isBlank()
@@ -298,7 +298,7 @@ public class TaskApplicationService {
 
         return switch (sortBy) {
             case "id" -> Comparator.comparing(TaskResponse::getId, Comparator.nullsLast(Long::compareTo));
-            case "taskName" -> Comparator.comparing(TaskResponse::getTaskName, Comparator.nullsLast(String::compareTo));
+            case "name" -> Comparator.comparing(TaskResponse::getName, Comparator.nullsLast(String::compareTo));
             case "taskType" -> Comparator.comparing(
                     response -> response.getTaskType() != null ? response.getTaskType().name() : null,
                     Comparator.nullsLast(String::compareTo)
