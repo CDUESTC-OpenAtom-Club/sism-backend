@@ -9,6 +9,7 @@ import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
+import org.hibernate.Hibernate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -174,12 +175,20 @@ public class StrategyApplicationService {
      * 通过 Cycle -> Plan -> Task -> Indicator 关系链过滤
      * 使用原生 SQL 直接 JOIN 获取正确的指标
      *
+     * 性能优化：在返回前初始化懒加载的关联实体，避免 N+1 查询
+     *
      * @param year 年份
      * @param pageable 分页参数
      * @return 分页指标列表
      */
     public Page<Indicator> getIndicatorsByYear(Integer year, Pageable pageable) {
-        return indicatorRepository.findByYear(year, pageable);
+        Page<Indicator> result = indicatorRepository.findByYear(year, pageable);
+        // 初始化懒加载的关联实体，避免 N+1 查询
+        result.getContent().forEach(indicator -> {
+            Hibernate.initialize(indicator.getOwnerOrg());
+            Hibernate.initialize(indicator.getTargetOrg());
+        });
+        return result;
     }
 
     public List<Indicator> searchIndicators(String keyword) {

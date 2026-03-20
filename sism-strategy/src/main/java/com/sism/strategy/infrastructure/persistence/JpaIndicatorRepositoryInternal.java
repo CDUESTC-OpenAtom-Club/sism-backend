@@ -58,6 +58,9 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
     /**
      * 根据年份获取指标（通过 Cycle -> Plan -> Task -> Indicator 关系链）
      * 使用原生 SQL，直接 JOIN 获取正确的指标
+     *
+     * 注意：此查询返回的 Indicator 对象中 ownerOrg 和 targetOrg 是懒加载的，
+     * 需要在调用方使用 Hibernate.initialize() 或批量查询初始化这些关联。
      */
     @Query(value = """
             SELECT i.* FROM indicator i
