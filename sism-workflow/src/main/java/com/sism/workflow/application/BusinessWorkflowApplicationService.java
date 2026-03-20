@@ -10,6 +10,7 @@ import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.model.AuditStepInstance;
 import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.runtime.repository.WorkflowTaskRepository;
 import com.sism.workflow.interfaces.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class BusinessWorkflowApplicationService {
     private final WorkflowReadModelService workflowReadModelService;
     private final WorkflowReadModelMapper workflowReadModelMapper;
     private final WorkflowPreviewQueryService workflowPreviewQueryService;
+    private final WorkflowTaskRepository workflowTaskRepository;
 
     // ==================== 工作流启动 ====================
 
@@ -242,6 +244,19 @@ public class BusinessWorkflowApplicationService {
         Long numericTaskId = Long.parseLong(taskId);
         return auditInstanceRepository.findById(numericTaskId)
                 .or(() -> auditInstanceRepository.findByStepInstanceId(numericTaskId))
+                .or(() -> workflowTaskRepository.findById(numericTaskId)
+                        .flatMap(workflowTask -> {
+                            String workflowId = workflowTask.getWorkflowId();
+                            if (workflowId == null || workflowId.isBlank()) {
+                                return Optional.empty();
+                            }
+                            try {
+                                return auditInstanceRepository.findById(Long.parseLong(workflowId));
+                            } catch (NumberFormatException ex) {
+                                log.warn("Workflow task {} has non-numeric workflowId {}", numericTaskId, workflowId);
+                                return Optional.empty();
+                            }
+                        }))
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
     }
 
