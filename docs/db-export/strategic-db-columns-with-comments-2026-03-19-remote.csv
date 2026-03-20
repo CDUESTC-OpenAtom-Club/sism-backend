@@ -1,0 +1,355 @@
+table_schema,table_name,table_comment,ordinal_position,column_name,data_type,column_comment,is_nullable,column_default
+public,adhoc_task,"",1,adhoc_task_id,bigint,"",NO,nextval('adhoc_task_adhoc_task_id_seq'::regclass)
+public,adhoc_task,"",2,created_at,timestamp(6) without time zone,"",NO,""
+public,adhoc_task,"",3,updated_at,timestamp(6) without time zone,"",NO,""
+public,adhoc_task,"",4,due_at,date,"",YES,""
+public,adhoc_task,"",5,include_in_alert,boolean,"",NO,""
+public,adhoc_task,"",6,open_at,date,"",YES,""
+public,adhoc_task,"",7,require_indicator_report,boolean,"",NO,""
+public,adhoc_task,"",8,scope_type,character varying(255),"",NO,""
+public,adhoc_task,"",9,status,character varying(255),"",NO,""
+public,adhoc_task,"",10,task_desc,text,"",YES,""
+public,adhoc_task,"",11,task_title,character varying(200),"",NO,""
+public,adhoc_task,"",12,creator_org_id,bigint,"",NO,""
+public,adhoc_task,"",13,cycle_id,bigint,"",NO,""
+public,adhoc_task,"",14,indicator_id,bigint,"",YES,""
+public,adhoc_task_indicator_map,"",1,adhoc_task_id,bigint,"",NO,""
+public,adhoc_task_indicator_map,"",2,indicator_id,bigint,"",NO,""
+public,adhoc_task_target,"",1,adhoc_task_id,bigint,"",NO,""
+public,adhoc_task_target,"",2,target_org_id,bigint,"",NO,""
+public,alert_event,"",1,event_id,bigint,"",NO,nextval('alert_event_event_id_seq'::regclass)
+public,alert_event,"",2,created_at,timestamp(6) without time zone,"",NO,""
+public,alert_event,"",3,updated_at,timestamp(6) without time zone,"",NO,""
+public,alert_event,"",4,actual_percent,"numeric(5,2)","",NO,""
+public,alert_event,"",5,detail_json,jsonb,"",YES,""
+public,alert_event,"",6,expected_percent,"numeric(5,2)","",NO,""
+public,alert_event,"",7,gap_percent,"numeric(5,2)","",NO,""
+public,alert_event,"",8,handled_note,text,"",YES,""
+public,alert_event,"",9,severity,character varying(255),"",NO,""
+public,alert_event,"",10,status,character varying(255),"",NO,""
+public,alert_event,"",11,handled_by,bigint,"",YES,""
+public,alert_event,"",12,indicator_id,bigint,"",NO,""
+public,alert_event,"",13,rule_id,bigint,"",NO,""
+public,alert_event,"",14,window_id,bigint,"",NO,""
+public,alert_rule,"",1,rule_id,bigint,"",NO,nextval('alert_rule_rule_id_seq'::regclass)
+public,alert_rule,"",2,created_at,timestamp(6) without time zone,"",NO,""
+public,alert_rule,"",3,updated_at,timestamp(6) without time zone,"",NO,""
+public,alert_rule,"",4,gap_threshold,"numeric(5,2)","",NO,""
+public,alert_rule,"",5,is_enabled,boolean,"",NO,""
+public,alert_rule,"",6,name,character varying(100),"",NO,""
+public,alert_rule,"",7,severity,character varying(255),"",NO,""
+public,alert_rule,"",8,cycle_id,bigint,"",NO,""
+public,alert_window,"",1,window_id,bigint,"",NO,nextval('alert_window_window_id_seq'::regclass)
+public,alert_window,"",2,created_at,timestamp(6) without time zone,"",NO,""
+public,alert_window,"",3,updated_at,timestamp(6) without time zone,"",NO,""
+public,alert_window,"",4,cutoff_date,date,"",NO,""
+public,alert_window,"",5,is_default,boolean,"",NO,""
+public,alert_window,"",6,name,character varying(100),"",NO,""
+public,alert_window,"",7,cycle_id,bigint,"",NO,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",1,id,bigint,"",NO,nextval('attachment_id_seq'::regclass)
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",2,storage_driver,character varying(16),FILE/S3/OSS/COS/MINIO,NO,'FILE'::character varying
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",3,bucket,character varying(128),对象存储桶；本地可为空,YES,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",4,object_key,text,核心：在存储层的唯一Key/相对路径,NO,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",5,public_url,text,可选：公开访问URL（如果是公有桶/静态服务器）,YES,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",6,original_name,text,文件名,NO,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",7,content_type,character varying(128),文件类型,YES,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",8,file_ext,character varying(16),后缀,YES,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",9,size_bytes,bigint,"",NO,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",10,sha256,character(64),校验用,YES,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",11,etag,text,验证用，暂时为空,YES,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",12,uploaded_by,bigint,"",NO,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",13,uploaded_at,timestamp with time zone,"",NO,now()
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",14,remark,text,"",YES,""
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",15,is_deleted,boolean,"",NO,false
+public,attachment,"INSERT INTO attachment(storage_driver, bucket, object_key, original_name, content_type, file_ext, size_bytes, sha256, uploaded_by)
+VALUES ('FILE', NULL, '2026/02/03/xxx.pdf', '验收材料.pdf', 'application/pdf', 'pdf', 123456, '...sha256...', 1001)",16,deleted_at,timestamp with time zone,"",YES,""
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,1,id,bigint,"",NO,nextval('audit_flow_def_id_seq'::regclass)
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,2,flow_code,character varying(64),"",NO,""
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,3,flow_name,character varying(128),"",NO,""
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,6,is_enabled,boolean,"",NO,true
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,8,created_at,timestamp with time zone,"",NO,now()
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,9,updated_at,timestamp with time zone,"",NO,now()
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,13,description,character varying(255),"",YES,""
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,14,version,integer,"",YES,""
+public,audit_flow_def,审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段,18,entity_type,character varying(64),"实体类型: INDICATOR, PLAN_REPORT 等",NO,'PLAN_REPORT'::character varying
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",1,id,bigint,"",NO,nextval('audit_instance_id_seq'::regclass)
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",6,status,character varying(32),"填写节点：DRAFT /APPROVED 
+审核节点：IN_REVIEW / APPROVED / REJECTED",NO,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",7,started_at,timestamp with time zone,启动时间,YES,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",10,created_at,timestamp with time zone,"",NO,now()
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",11,updated_at,timestamp with time zone,"",NO,now()
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",24,completed_at,timestamp(6) without time zone,"",YES,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",26,entity_id,bigint,"",NO,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",27,entity_type,character varying(255),"",YES,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",28,flow_def_id,bigint,"",YES,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",29,is_deleted,boolean,"",NO,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",30,requester_id,bigint,"",YES,""
+public,audit_instance,"Audit workflow instance. Approval context is resolved dynamically via ApprovalResolverService, not stored as snapshot columns.",31,requester_org_id,bigint,"",YES,""
+public,audit_log,"",1,log_id,bigint,"",NO,nextval('audit_log_log_id_seq'::regclass)
+public,audit_log,"",2,action,character varying(255),"",NO,""
+public,audit_log,"",3,after_json,jsonb,"",YES,""
+public,audit_log,"",4,before_json,jsonb,"",YES,""
+public,audit_log,"",5,changed_fields,jsonb,"",YES,""
+public,audit_log,"",6,created_at,timestamp(6) without time zone,"",NO,""
+public,audit_log,"",7,entity_id,bigint,"",NO,""
+public,audit_log,"",8,entity_type,character varying(255),"",NO,""
+public,audit_log,"",9,reason,text,"",YES,""
+public,audit_log,"",10,actor_org_id,bigint,"",YES,""
+public,audit_log,"",11,actor_user_id,bigint,"",YES,""
+public,audit_step_def,"",1,id,bigint,"",NO,nextval('audit_step_def_id_seq'::regclass)
+public,audit_step_def,"",2,flow_id,bigint,"",NO,""
+public,audit_step_def,"",5,step_name,character varying(128),审核节点名称,NO,""
+public,audit_step_def,"",16,step_type,character varying(255),"",YES,""
+public,audit_step_def,"",20,role_id,bigint,"",YES,""
+public,audit_step_def,"",21,is_terminal,boolean,"",YES,false
+public,audit_step_def,"",22,created_at,timestamp without time zone,"",YES,""
+public,audit_step_def,"",23,updated_at,timestamp without time zone,"",YES,""
+public,audit_step_def,"",24,step_no,integer,"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,1,id,bigint,主键,NO,nextval('audit_step_instance_id_seq'::regclass)
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,2,instance_id,bigint,所属流程实例ID，关联 audit_instance.id,YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,6,step_name,character varying(128),节点名称（冗余保存，便于展示）,NO,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,12,approved_at,timestamp(6) without time zone,"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,13,approver_id,bigint,"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,15,comment,character varying(255),"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,17,status,character varying(255),"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,18,step_index,integer,"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,19,step_def_id,bigint,"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,20,approver_org_id,bigint,"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,25,step_no,integer,"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,26,step_code,character varying(50),"",YES,""
+public,audit_step_instance,流程节点实例表：记录某个流程实例在某个节点上的实际处理情况,31,created_at,timestamp without time zone,"",YES,""
+public,cycle,考核周期表,1,id,bigint,"",NO,nextval('cycle_id_seq'::regclass)
+public,cycle,考核周期表,2,cycle_name,character varying(100),"",NO,""
+public,cycle,考核周期表,3,year,integer,"",NO,""
+public,cycle,考核周期表,4,start_date,date,"",NO,""
+public,cycle,考核周期表,5,end_date,date,"",NO,""
+public,cycle,考核周期表,6,description,text,"",YES,""
+public,cycle,考核周期表,7,created_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,cycle,考核周期表,8,updated_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,flyway_schema_history,"",1,installed_rank,integer,"",NO,""
+public,flyway_schema_history,"",2,version,character varying(50),"",YES,""
+public,flyway_schema_history,"",3,description,character varying(200),"",NO,""
+public,flyway_schema_history,"",4,type,character varying(20),"",NO,""
+public,flyway_schema_history,"",5,script,character varying(1000),"",NO,""
+public,flyway_schema_history,"",6,checksum,integer,"",YES,""
+public,flyway_schema_history,"",7,installed_by,character varying(100),"",NO,""
+public,flyway_schema_history,"",8,installed_on,timestamp without time zone,"",NO,now()
+public,flyway_schema_history,"",9,execution_time,integer,"",NO,""
+public,flyway_schema_history,"",10,success,boolean,"",NO,""
+public,idempotency_records,"",1,id,bigint,"",NO,nextval('idempotency_records_id_seq'::regclass)
+public,idempotency_records,"",2,created_at,timestamp(6) without time zone,"",NO,""
+public,idempotency_records,"",3,expires_at,timestamp(6) without time zone,"",NO,""
+public,idempotency_records,"",4,http_method,character varying(10),"",YES,""
+public,idempotency_records,"",5,idempotency_key,character varying(64),"",NO,""
+public,idempotency_records,"",6,request_path,character varying(255),"",YES,""
+public,idempotency_records,"",7,response_body,text,"",YES,""
+public,idempotency_records,"",8,status,character varying(20),"",YES,""
+public,idempotency_records,"",9,status_code,integer,"",YES,""
+public,indicator,指标表 - 支持自引用分层,1,id,bigint,"",NO,nextval('indicator_id_seq'::regclass)
+public,indicator,指标表 - 支持自引用分层,2,task_id,bigint,为空的话，即是level2的指标,YES,""
+public,indicator,指标表 - 支持自引用分层,3,parent_indicator_id,bigint,只有level2有这个数据,YES,""
+public,indicator,指标表 - 支持自引用分层,7,indicator_desc,text,指标描述，具体的指标值也在描述里,NO,""
+public,indicator,指标表 - 支持自引用分层,8,weight_percent,"numeric(38,2)",权重,NO,0
+public,indicator,指标表 - 支持自引用分层,9,sort_order,integer,"",NO,0
+public,indicator,指标表 - 支持自引用分层,12,remark,text,"",YES,""
+public,indicator,指标表 - 支持自引用分层,13,created_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,indicator,指标表 - 支持自引用分层,14,updated_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,indicator,指标表 - 支持自引用分层,16,type,character varying(20),指标类型: 定量/定性,NO,'定量'::character varying
+public,indicator,指标表 - 支持自引用分层,23,progress,integer,最新进度,YES,0
+public,indicator,指标表 - 支持自引用分层,30,is_deleted,boolean,"",NO,false
+public,indicator,指标表 - 支持自引用分层,48,owner_org_id,bigint,Owner organization (functional department),YES,""
+public,indicator,指标表 - 支持自引用分层,49,target_org_id,bigint,Target organization (functional department or college),YES,""
+public,indicator,指标表 - 支持自引用分层,51,status,character varying(20),"指标状态: DRAFT=草稿, PENDING=待审批, DISTRIBUTED=已下发（其他状态在审批流程中管理）",YES,""
+public,indicator,指标表 - 支持自引用分层,56,responsible_user_id,bigint,"",YES,""
+public,indicator,指标表 - 支持自引用分层,57,is_enabled,boolean,"",YES,true
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,1,id,bigint,"",NO,nextval('indicator_milestone_id_seq'::regclass)
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,2,indicator_id,bigint,"",NO,""
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,3,milestone_name,character varying(200),"",NO,""
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,4,milestone_desc,text,"",YES,""
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,5,due_date,date,"",NO,""
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,7,status,character varying,"",NO,'NOT_STARTED'::milestone_status
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,8,sort_order,integer,"",NO,0
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,10,created_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,11,updated_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,12,target_progress,integer,"",YES,0
+public,indicator_milestone,指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能,13,is_paired,boolean,"",YES,false
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",1,id,bigint,"",NO,nextval('plan_id_seq'::regclass)
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",2,cycle_id,bigint,周期,NO,""
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",5,created_at,timestamp without time zone,"",NO,""
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",6,updated_at,timestamp without time zone,"",NO,""
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",7,is_deleted,boolean,"",NO,false
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",8,target_org_id,bigint,接受计划组织,NO,""
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",9,created_by_org_id,bigint,创建组织,NO,""
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",10,plan_level,plan_level,"指标层级: STRAT_TO_FUNC-战略到职能, FUNC_TO_COLLEGE-职能到学院",NO,""
+public,plan,"用于统一管理一批同时下发的指标。
+战略发展部给职能部门发布的任务集合对应一个plan。
+职能部门给二级学院发布的指标集合对应一个plan。",11,status,character varying,与下发流程状态一致,NO,'DRAFT'::character varying
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,1,id,bigint,"",NO,nextval('plan_report_id_seq'::regclass)
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,2,plan_id,bigint,"",NO,""
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,3,report_month,character varying(255),"",NO,""
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,5,report_org_type,character varying(16),"",NO,""
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,6,report_org_id,bigint,"",NO,""
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,7,status,character varying(16),应该是流程中的最新状态,NO,'DRAFT'::character varying
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,8,submitted_at,timestamp with time zone,"",YES,""
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,9,remark,text,"",YES,""
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,10,created_at,timestamp with time zone,"",NO,CURRENT_TIMESTAMP
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,11,updated_at,timestamp with time zone,"",NO,CURRENT_TIMESTAMP
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,12,is_deleted,boolean,"",NO,false
+public,plan_report,plan提交记录。提交时如果目标月份已有记录，则在其基础上修改，否则新增目标月份的记录。,24,created_by,bigint,"",YES,""
+public,plan_report_indicator,填报记录表（包括历史）,1,id,bigint,"",NO,nextval('plan_report_indicator_id_seq'::regclass)
+public,plan_report_indicator,填报记录表（包括历史）,2,report_id,bigint,"",NO,""
+public,plan_report_indicator,填报记录表（包括历史）,3,indicator_id,bigint,"",NO,""
+public,plan_report_indicator,填报记录表（包括历史）,6,progress,integer,"",NO,0
+public,plan_report_indicator,填报记录表（包括历史）,7,milestone_note,text,用于记录对应里程碑的情况，可以为空,YES,""
+public,plan_report_indicator,填报记录表（包括历史）,8,comment,text,"",YES,""
+public,plan_report_indicator,填报记录表（包括历史）,9,created_at,timestamp with time zone,"",NO,CURRENT_TIMESTAMP
+public,plan_report_indicator_attachment,"",1,id,bigint,"",NO,nextval('plan_report_indicator_attachment_id_seq'::regclass)
+public,plan_report_indicator_attachment,"",2,plan_report_indicator_id,bigint,"",NO,""
+public,plan_report_indicator_attachment,"",3,attachment_id,bigint,"",NO,""
+public,plan_report_indicator_attachment,"",5,sort_order,integer,"",NO,0
+public,plan_report_indicator_attachment,"",6,created_by,bigint,"",NO,""
+public,plan_report_indicator_attachment,"",7,created_at,timestamp with time zone,"",NO,now()
+public,progress_report,"",1,report_id,bigint,"",NO,nextval('progress_report_report_id_seq'::regclass)
+public,progress_report,"",2,created_at,timestamp(6) without time zone,"",NO,""
+public,progress_report,"",3,updated_at,timestamp(6) without time zone,"",NO,""
+public,progress_report,"",4,achieved_milestone,boolean,"",NO,""
+public,progress_report,"",5,is_final,boolean,"",NO,""
+public,progress_report,"",6,narrative,text,"",YES,""
+public,progress_report,"",7,percent_complete,"numeric(5,2)","",NO,""
+public,progress_report,"",8,reported_at,timestamp(6) without time zone,"",YES,""
+public,progress_report,"",9,status,character varying(255),"",NO,""
+public,progress_report,"",10,version_no,integer,"",NO,""
+public,progress_report,"",11,adhoc_task_id,bigint,"",YES,""
+public,progress_report,"",12,indicator_id,bigint,"",NO,""
+public,progress_report,"",13,milestone_id,bigint,"",YES,""
+public,progress_report,"",14,reporter_id,bigint,"",NO,""
+public,refresh_tokens,"",1,id,bigint,"",NO,nextval('refresh_tokens_id_seq'::regclass)
+public,refresh_tokens,"",2,created_at,timestamp(6) without time zone,"",NO,""
+public,refresh_tokens,"",3,device_info,character varying(255),"",YES,""
+public,refresh_tokens,"",4,expires_at,timestamp(6) without time zone,"",NO,""
+public,refresh_tokens,"",5,ip_address,character varying(45),"",YES,""
+public,refresh_tokens,"",6,revoked_at,timestamp(6) without time zone,"",YES,""
+public,refresh_tokens,"",7,token_hash,character varying(64),"",NO,""
+public,refresh_tokens,"",8,user_id,bigint,"",NO,""
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,1,id,bigint,"",NO,nextval('org_id_seq'::regclass)
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,2,name,character varying(100),"",NO,""
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,3,type,org_type,"组织类型: admin(系统管理层), functional(职能部门), academic(二级学院)",NO,""
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,5,is_active,boolean,"",NO,true
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,6,sort_order,integer,"",NO,0
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,7,created_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,8,updated_at,timestamp(6) without time zone,"",NO,CURRENT_TIMESTAMP
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,9,parent_org_id,bigint,父组织ID，用于构建组织层级关系,YES,""
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,10,level,integer,组织层级，1=顶级组织，2=二级组织，以此类推,YES,""
+public,sys_org,组织表 - 战略发展部/职能部门/二级学院/系部,12,is_deleted,boolean,"",NO,false
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,1,id,bigint,主键,NO,nextval('sys_permission_id_seq'::regclass)
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,2,perm_code,character varying(128),权限编码（唯一，建议前端/后端统一使用）,NO,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,3,perm_name,character varying(128),权限名称（中文展示）,NO,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,4,perm_type,character varying(16),权限类型：PAGE=页面，BUTTON=按钮,NO,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,5,parent_id,bigint,父权限ID：按钮指向其所属页面；页面为空,YES,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,6,route_path,character varying(256),页面路由路径（仅PAGE使用）,YES,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,7,page_key,character varying(128),页面标识（可用于前端定位、埋点、菜单渲染）,YES,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,8,action_key,character varying(128),按钮动作标识（仅BUTTON使用，如 submit/approve/export）,YES,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,9,sort_order,integer,排序号,NO,0
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,10,is_enabled,boolean,是否启用,NO,true
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,11,remark,text,备注说明,YES,""
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,12,created_at,timestamp with time zone,创建时间,NO,CURRENT_TIMESTAMP
+public,sys_permission,权限资源表：统一定义页面（PAGE）与按钮（BUTTON），按钮通过parent_id归属到页面,13,updated_at,timestamp with time zone,更新时间,NO,CURRENT_TIMESTAMP
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,1,id,bigint,主键,NO,nextval('sys_role_id_seq'::regclass)
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,2,role_code,character varying(64),角色编码（唯一）,NO,""
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,3,role_name,character varying(128),角色名称,NO,""
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,4,data_access_mode,character varying(16),数据访问模式：ALL=全量可见（如战略发展部），OWN_ORG=仅本组织数据（一期可不启用）,NO,'OWN_ORG'::character varying
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,5,is_enabled,boolean,是否启用,NO,true
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,6,remark,text,备注说明,YES,""
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,7,created_at,timestamp with time zone,创建时间,NO,CURRENT_TIMESTAMP
+public,sys_role,角色表：RBAC角色定义（决定页面/按钮权限）；data_access_mode用于区分战略部全量访问与普通组织仅本组织,8,updated_at,timestamp with time zone,更新时间,NO,CURRENT_TIMESTAMP
+public,sys_role_permission,角色权限关联表：给角色授予页面/按钮权限,1,id,bigint,主键,NO,nextval('sys_role_permission_id_seq'::regclass)
+public,sys_role_permission,角色权限关联表：给角色授予页面/按钮权限,2,role_id,bigint,角色ID,NO,""
+public,sys_role_permission,角色权限关联表：给角色授予页面/按钮权限,3,perm_id,bigint,权限资源ID（页面或按钮）,NO,""
+public,sys_role_permission,角色权限关联表：给角色授予页面/按钮权限,4,created_at,timestamp with time zone,创建时间,NO,CURRENT_TIMESTAMP
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),1,task_id,bigint,"",NO,nextval('strategic_task_task_id_seq'::regclass)
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),2,created_at,timestamp(6) without time zone,"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),3,updated_at,timestamp(6) without time zone,"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),4,remark,text,"",YES,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),5,sort_order,integer,"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),6,task_desc,text,"",YES,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),7,task_name,character varying(200),"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),8,task_type,character varying(255),"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),9,created_by_org_id,bigint,"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),10,cycle_id,bigint,考核周期,NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),11,org_id,bigint,"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),12,is_deleted,boolean,"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),13,plan_id,bigint,"",NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),14,name,character varying(255),冗余？,NO,""
+public,sys_task,Strategic task table (migrated from task on 2026-02-10),16,desc,character varying(255),"",YES,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),1,id,bigint,"",NO,nextval('sys_user_user_id_seq'::regclass)
+public,sys_user,System user table (renamed from app_user on 2026-02-10),2,created_at,timestamp(6) without time zone,"",NO,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),3,updated_at,timestamp(6) without time zone,"",NO,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),4,is_active,boolean,"",NO,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),5,password_hash,character varying(255),"",NO,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),6,real_name,character varying(50),"",NO,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),7,sso_id,character varying(100),"",YES,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),8,username,character varying(50),"",NO,""
+public,sys_user,System user table (renamed from app_user on 2026-02-10),9,org_id,bigint,"",NO,""
+public,sys_user_role,用户角色关联表：用户可拥有多个角色，角色也可分配给多个用户,1,id,bigint,主键,NO,nextval('sys_user_role_id_seq'::regclass)
+public,sys_user_role,用户角色关联表：用户可拥有多个角色，角色也可分配给多个用户,2,user_id,bigint,用户ID,NO,""
+public,sys_user_role,用户角色关联表：用户可拥有多个角色，角色也可分配给多个用户,3,role_id,bigint,角色ID,NO,""
+public,sys_user_role,用户角色关联表：用户可拥有多个角色，角色也可分配给多个用户,4,created_at,timestamp with time zone,创建时间,NO,CURRENT_TIMESTAMP
+public,sys_user_supervisor,"",1,user_id,bigint,"",NO,""
+public,sys_user_supervisor,"",2,supervisor_id,bigint,"",NO,""
+public,sys_user_supervisor,"",3,level,integer,"",NO,""
+public,sys_user_supervisor,"",4,created_at,timestamp without time zone,"",YES,CURRENT_TIMESTAMP
+public,warn_level,预警等级字典表：定义系统统一使用的预警等级（如正常/预警/严重/危急），用于实时预警与历史预警事件,1,id,bigint,主键,NO,nextval('warn_level_id_seq'::regclass)
+public,warn_level,预警等级字典表：定义系统统一使用的预警等级（如正常/预警/严重/危急），用于实时预警与历史预警事件,2,level_code,character varying(32),预警等级编码（OK / INFO / WARN / MAJOR / CRITICAL）,NO,""
+public,warn_level,预警等级字典表：定义系统统一使用的预警等级（如正常/预警/严重/危急），用于实时预警与历史预警事件,3,level_name,character varying(64),预警等级名称（中文展示用）,NO,""
+public,warn_level,预警等级字典表：定义系统统一使用的预警等级（如正常/预警/严重/危急），用于实时预警与历史预警事件,4,severity,integer,严重程度数值，数值越大表示越严重，用于排序和统计,NO,""
+public,warn_level,预警等级字典表：定义系统统一使用的预警等级（如正常/预警/严重/危急），用于实时预警与历史预警事件,5,remark,text,备注说明,YES,""
+public,workflow_task,"",1,task_id,bigint,"",NO,nextval('workflow_task_task_id_seq'::regclass)
+public,workflow_task,"",2,assignee_id,bigint,"",YES,""
+public,workflow_task,"",3,assignee_org_id,bigint,"",YES,""
+public,workflow_task,"",4,completed_at,timestamp(6) without time zone,"",YES,""
+public,workflow_task,"",5,current_step,character varying(255),"",YES,""
+public,workflow_task,"",6,due_date,timestamp(6) without time zone,"",YES,""
+public,workflow_task,"",7,error_message,text,"",YES,""
+public,workflow_task,"",8,initiator_id,bigint,"",YES,""
+public,workflow_task,"",9,initiator_org_id,bigint,"",YES,""
+public,workflow_task,"",10,next_step,character varying(255),"",YES,""
+public,workflow_task,"",11,result,text,"",YES,""
+public,workflow_task,"",12,started_at,timestamp(6) without time zone,"",YES,""
+public,workflow_task,"",13,status,character varying(255),"",NO,""
+public,workflow_task,"",14,task_name,character varying(255),"",NO,""
+public,workflow_task,"",15,task_type,character varying(255),"",YES,""
+public,workflow_task,"",16,workflow_id,character varying(255),"",NO,""
+public,workflow_task,"",17,workflow_type,character varying(255),"",NO,""
+public,workflow_task_history,"",1,task_id,bigint,"",NO,""
+public,workflow_task_history,"",2,history,character varying(255),"",YES,""

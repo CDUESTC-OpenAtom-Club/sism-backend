@@ -120,8 +120,12 @@ public class ExportService {
             Files.createDirectories(Paths.get(EXPORT_BASE_PATH));
 
             // 创建CSV文件
+            CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+                    .setHeader(headers.toArray(new String[0]))
+                    .build();
+
             try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(filePath));
-                 CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(headers.toArray(new String[0])))) {
+                 CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat)) {
 
                 for (Map<String, Object> rowData : data) {
                     List<String> values = headers.stream()

@@ -53,6 +53,9 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.id = :instanceId")
     Optional<AuditInstance> findAuditInstanceById(@Param("instanceId") Long instanceId);
 
+    @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s WHERE s.id = :stepInstanceId")
+    Optional<AuditInstance> findByStepInstanceId(@Param("stepInstanceId") Long stepInstanceId);
+
     @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s " +
             "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :userId")
     List<AuditInstance> findPendingAuditInstancesByUserId(@Param("userId") Long userId);

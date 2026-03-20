@@ -20,6 +20,7 @@ public class WorkflowReadModelMapper {
     public WorkflowDefinitionResponse toDefinitionResponse(AuditFlowDef flowDef) {
         return WorkflowDefinitionResponse.builder()
                 .definitionId(flowDef.getId().toString())
+                .definitionCode(flowDef.getFlowCode())
                 .definitionName(flowDef.getFlowName())
                 .description(flowDef.getDescription())
                 .category(flowDef.getEntityType())
@@ -30,14 +31,20 @@ public class WorkflowReadModelMapper {
     }
 
     public WorkflowInstanceResponse toInstanceResponse(AuditInstance instance) {
+        AuditStepInstance currentStep = instance.resolveCurrentPendingStep().orElse(null);
         return WorkflowInstanceResponse.builder()
                 .instanceId(instance.getId() != null ? instance.getId().toString() : null)
                 .definitionId(instance.getFlowDefId() != null ? instance.getFlowDefId().toString() : null)
-                .status(instance.getStatus())
+                .status(toExternalInstanceStatus(instance.getStatus()))
                 .businessEntityId(instance.getEntityId())
                 .starterId(instance.getRequesterId())
                 .startTime(instance.getStartedAt())
                 .endTime(instance.getCompletedAt())
+                .currentTaskId(currentStep != null && currentStep.getId() != null ? currentStep.getId().toString() : null)
+                .currentStepName(currentStep != null ? currentStep.getStepName() : null)
+                .currentApproverId(currentStep != null ? currentStep.getApproverId() : null)
+                .currentApproverName(currentStep != null ? resolveApproverNameSafely(currentStep.getApproverId()) : null)
+                .canWithdraw(instance.canRequesterWithdraw())
                 .build();
     }
 
@@ -94,5 +101,16 @@ public class WorkflowReadModelMapper {
             case "REJECTED" -> "REJECTED";
             default -> "PENDING";
         };
+    }
+
+    private String toExternalInstanceStatus(String status) {
+        if (AuditInstance.STATUS_WITHDRAWN.equalsIgnoreCase(status)) {
+            return AuditInstance.STATUS_REJECTED;
+        }
+        return status;
+    }
+
+    private String resolveApproverNameSafely(Long userId) {
+        return approverResolver.resolveApproverName(userId);
     }
 }

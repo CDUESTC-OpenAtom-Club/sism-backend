@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -19,7 +20,11 @@ public class StepInstanceFactory {
     private final ApproverResolver approverResolver;
     private final SubmissionStepAutoCompletePolicy submissionStepAutoCompletePolicy;
 
-    public void initialize(AuditInstance instance, AuditFlowDef flowDef, Long requesterId, Long requesterOrgId) {
+    public void initialize(AuditInstance instance,
+                           AuditFlowDef flowDef,
+                           Long requesterId,
+                           Long requesterOrgId,
+                           Map<Long, Long> selectedApprovers) {
         if (instance.getStepInstances() != null && !instance.getStepInstances().isEmpty()) {
             return;
         }
@@ -50,9 +55,15 @@ public class StepInstanceFactory {
             step.setStepIndex(index);
             step.setStepDefId(stepDef.getId());
             step.setStepName(stepDef.getStepName() != null ? stepDef.getStepName() : "审批步骤" + index);
-            Long resolvedApproverId = stepDef.isSubmitStep()
-                    ? requesterId
-                    : approverResolver.resolveApproverId(stepDef, requesterId, requesterOrgId);
+            Long resolvedApproverId;
+            if (stepDef.isSubmitStep()) {
+                resolvedApproverId = requesterId;
+            } else if (selectedApprovers != null && stepDef.getId() != null && selectedApprovers.containsKey(stepDef.getId())) {
+                resolvedApproverId = selectedApprovers.get(stepDef.getId());
+                approverResolver.validateSelectedApprover(stepDef, resolvedApproverId);
+            } else {
+                resolvedApproverId = approverResolver.resolveApproverId(stepDef, requesterId, requesterOrgId);
+            }
             step.setApproverId(resolvedApproverId);
             step.setStatus(order == 1 ? AuditInstance.STEP_STATUS_PENDING : AuditInstance.STEP_STATUS_WAITING);
             instance.addStepInstance(step);
@@ -68,8 +79,7 @@ public class StepInstanceFactory {
                     stepDef.getStepName(), stepDef.resolveEffectiveStepType());
         }
         if (stepDef.isApprovalStep() && (stepDef.getRoleId() == null || stepDef.getRoleId() <= 0)) {
-            log.warn("Workflow approval step is missing role_id, falling back to requester as approver: stepName={}",
-                    stepDef.getStepName());
+            throw new IllegalStateException("Workflow approval step is missing role assignment: " + stepDef.getStepName());
         }
     }
 }

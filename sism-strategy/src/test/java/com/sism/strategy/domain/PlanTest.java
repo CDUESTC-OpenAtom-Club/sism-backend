@@ -1,7 +1,7 @@
 package com.sism.strategy.domain;
 
-import com.sism.execution.domain.model.plan.Plan;
-import com.sism.execution.domain.model.plan.PlanLevel;
+import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.plan.PlanLevel;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -46,27 +46,46 @@ class PlanTest {
     }
 
     @Test
-    @DisplayName("Should submit and approve Plan through three-state flow")
-    void shouldSubmitAndApprovePlanThroughThreeStateFlow() {
+    @DisplayName("Should allow plan approval submission only in draft or returned state")
+    void shouldAllowPlanApprovalSubmissionOnlyInDraftOrReturnedState() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
-        plan.submitForApproval();
-        assertEquals("PENDING", plan.getStatus());
+        assertDoesNotThrow(plan::ensureCanSubmitForApproval);
 
+        plan.returnForRevision();
+        assertDoesNotThrow(plan::ensureCanSubmitForApproval);
+    }
+
+    @Test
+    @DisplayName("Should approve Plan to distributed state")
+    void shouldApprovePlanToDistributedState() {
+        Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
         plan.approve();
+
         assertEquals("DISTRIBUTED", plan.getStatus());
         assertNotNull(plan.getUpdatedAt());
     }
 
     @Test
-    @DisplayName("Should reject Plan back to draft")
-    void shouldRejectPlanBackToDraft() {
+    @DisplayName("Should move Plan to returned when rejected")
+    void shouldMovePlanToReturnedWhenRejected() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
-        plan.submitForApproval();
+        plan.returnForRevision();
 
-        plan.reject();
+        assertEquals("RETURNED", plan.getStatus());
+        assertTrue(plan.isReturned());
+        assertTrue(plan.isEditable());
+        assertNotNull(plan.getUpdatedAt());
+    }
+
+    @Test
+    @DisplayName("Should withdraw Plan back to draft")
+    void shouldWithdrawPlanBackToDraft() {
+        Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
+        plan.activate();
+
+        plan.withdraw();
 
         assertEquals("DRAFT", plan.getStatus());
-        assertNotNull(plan.getUpdatedAt());
     }
 
     @Test

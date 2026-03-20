@@ -2,7 +2,7 @@
 
 - 导出时间: 2026-03-19
 - 表数量: 34
-- 字段数量: 342
+- 字段数量: 341
 - 备注来源: PostgreSQL `pg_description`（表备注 + 字段备注）
 
 ## public.adhoc_task
@@ -107,7 +107,7 @@
 
 ## public.audit_flow_def
 
-表备注: 审批流程定义表 - V25: 删除了 entity_type 和 biz_type 字段
+表备注: 审批流程定义表。当前导出结果中 `entity_type` 仍存在，`biz_type` 已删除。
 
 | 序号 | 字段名 | 数据类型 | 可空 | 默认值 | 字段备注 |
 | --- | --- | --- | --- | --- | --- |
@@ -119,7 +119,6 @@
 | 9 | updated_at | timestamp with time zone | NO | now() |  |
 | 13 | description | character varying(255) | YES |  |  |
 | 14 | version | integer | YES |  |  |
-| 16 | remark | text | YES |  |  |
 | 17 | flow_def_id | bigint | YES |  |  |
 | 18 | entity_type | character varying(64) | NO | 'PLAN_REPORT'::character varying | 实体类型: INDICATOR, PLAN_REPORT 等 |
 
@@ -190,6 +189,58 @@
 | 20 | approver_org_id | bigint | YES |  |  |
 | 31 | created_at | timestamp without time zone | YES |  |  |
 
+### 审核流程最小关系
+
+为了先把流程接口跑通，可以把这 5 张表理解成一条固定模板驱动的线性链路：
+
+1. `audit_flow_def`
+   - 流程模板头
+   - 一条记录代表一类审批流程，例如 `PLAN_DISPATCH_STRATEGY`
+2. `audit_step_def`
+   - 流程模板步骤
+   - 通过 `flow_id -> audit_flow_def.id` 归属于某个模板
+   - 用 `step_no` 表示模板内顺序
+3. `audit_instance`
+   - 某个业务对象的一次实际审批实例
+   - 通过 `flow_def_id -> audit_flow_def.id` 说明“这次实例使用了哪条模板”
+   - 通过 `entity_type + entity_id` 说明“这次审批针对哪个业务对象”
+4. `audit_step_instance`
+   - 某个实例下的运行时节点
+   - 通过 `instance_id -> audit_instance.id` 归属于一次实例
+   - 通过 `step_def_id -> audit_step_def.id` 对应模板中的原始节点
+5. `audit_log`
+   - 审计留痕表
+   - 通过 `entity_type + entity_id` 记录业务动作，不承担主链路推进职责
+
+### 表关系图
+
+```text
+audit_flow_def (1)
+  ├─< audit_step_def.flow_id
+  └─< audit_instance.flow_def_id
+          └─< audit_step_instance.instance_id
+                    └─ audit_step_instance.step_def_id >─ audit_step_def.id
+
+audit_log
+  └─ 按 entity_type + entity_id 记录动作日志
+```
+
+### 最小跑通建议
+
+如果这轮目标只是“流程接口成功跑通”，建议先固定为下面这套最小规则：
+
+- `audit_flow_def` 只维护一个启用中的模板
+- `audit_step_def` 固定 3 步：
+  - `step_no = 1`，`step_type = SUBMIT`
+  - `step_no = 2`，`step_type = APPROVAL`
+  - `step_no = 3`，`step_type = APPROVAL`
+- 启动流程时创建一条 `audit_instance`
+- 同时按模板生成多条 `audit_step_instance`
+- 第 1 步 `SUBMIT` 自动完成
+- 当前待审批节点只保留一条 `audit_step_instance.status = PENDING`
+- 审批通过时推进到下一条节点实例
+- 最后一个节点通过后把 `audit_instance.status` 更新为 `APPROVED`
+
 ## public.cycle
 
 表备注: 考核周期表
@@ -255,7 +306,6 @@
 | 48 | owner_org_id | bigint | YES |  | Owner organization (functional department) |
 | 49 | target_org_id | bigint | YES |  | Target organization (functional department or college) |
 | 51 | status | character varying(20) | YES |  | 指标状态: DRAFT=草稿, PENDING=待审批, DISTRIBUTED=已下发（其他状态在审批流程中管理） |
-| 54 | distribution_status | character varying(20) | YES |  |  |
 | 56 | responsible_user_id | bigint | YES |  |  |
 | 57 | is_enabled | boolean | YES | true |  |
 

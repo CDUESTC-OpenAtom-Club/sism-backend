@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @ExtendWith(MockitoExtension.class)
 class StepInstanceFactoryTest {
@@ -38,13 +39,13 @@ class StepInstanceFactoryTest {
         instance.setEntityType("PlanReport");
         instance.setEntityId(1L);
 
-        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L));
+        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L, java.util.Map.of()));
         assertEquals(1, instance.getStepInstances().size());
         assertEquals(AuditInstance.STEP_STATUS_APPROVED, instance.getStepInstances().get(0).getStatus());
     }
 
     @Test
-    void initialize_shouldFallbackApprovalStepToRequesterWhenRoleIdMissing() {
+    void initialize_shouldRejectApprovalStepWhenRoleIdMissing() {
         AuditFlowDef flowDef = new AuditFlowDef();
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setId(1L);
@@ -62,8 +63,7 @@ class StepInstanceFactoryTest {
         instance.setEntityType("PlanReport");
         instance.setEntityId(1L);
 
-        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L));
-        assertEquals(1L, instance.getStepInstances().get(0).getApproverId());
+        assertThrows(IllegalStateException.class, () -> factory.initialize(instance, flowDef, 1L, 1L, java.util.Map.of()));
     }
 
     @Test
@@ -85,6 +85,6 @@ class StepInstanceFactoryTest {
         instance.setEntityType("PlanReport");
         instance.setEntityId(1L);
 
-        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L));
+        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L, java.util.Map.of()));
     }
 }

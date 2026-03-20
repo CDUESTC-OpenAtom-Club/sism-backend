@@ -1,8 +1,10 @@
 package com.sism.workflow.interfaces.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -15,4 +17,7 @@ public class StartInstanceRequest {
     private Long businessEntityId;
 
     private Map<String, Object> variables;
+
+    @Valid
+    private List<SelectedApproverRequest> selectedApprovers;
 }

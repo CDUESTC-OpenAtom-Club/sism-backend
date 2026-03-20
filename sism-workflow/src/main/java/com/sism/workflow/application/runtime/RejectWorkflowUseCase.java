@@ -1,6 +1,7 @@
 package com.sism.workflow.application.runtime;
 
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
+import com.sism.workflow.application.PlanWorkflowSyncService;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,11 +14,13 @@ public class RejectWorkflowUseCase {
 
     private final AuditInstanceRepository auditInstanceRepository;
     private final WorkflowEventDispatcher workflowEventDispatcher;
+    private final PlanWorkflowSyncService planWorkflowSyncService;
 
     @Transactional
     public AuditInstance reject(AuditInstance instance, Long userId, String comment) {
         instance.reject(userId, comment);
         AuditInstance saved = auditInstanceRepository.save(instance);
+        planWorkflowSyncService.syncAfterWorkflowChanged(saved);
         workflowEventDispatcher.publish(saved);
         return saved;
     }

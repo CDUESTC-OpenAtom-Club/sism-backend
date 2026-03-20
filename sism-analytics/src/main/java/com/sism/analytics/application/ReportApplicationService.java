@@ -1,8 +1,6 @@
 package com.sism.analytics.application;
 
 import com.sism.analytics.domain.Report;
-import com.sism.analytics.domain.ReportType;
-import com.sism.analytics.domain.ExportFormat;
 import com.sism.analytics.infrastructure.repository.ReportRepository;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;

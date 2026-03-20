@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * WorkflowApplicationService - 工作流兼容门面
@@ -75,8 +76,11 @@ public class WorkflowApplicationService {
         return workflowInstanceQueryService.getAuditInstanceHistory(instanceId);
     }
 
-    public AuditInstance startAuditInstance(AuditInstance instance, Long requesterId, Long requesterOrgId) {
-        return startWorkflowUseCase.startAuditInstance(instance, requesterId, requesterOrgId);
+    public AuditInstance startAuditInstance(AuditInstance instance,
+                                            Long requesterId,
+                                            Long requesterOrgId,
+                                            Map<Long, Long> selectedApprovers) {
+        return startWorkflowUseCase.startAuditInstance(instance, requesterId, requesterOrgId, selectedApprovers);
     }
 
     public AuditInstance approveAuditInstance(AuditInstance instance, Long userId, String comment) {

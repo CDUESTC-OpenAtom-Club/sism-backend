@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -21,4 +23,7 @@ public class StartWorkflowRequest {
     private String businessEntityType; // 业务实体类型
 
     private Map<String, Object> variables; // 工作流变量
+
+    @Valid
+    private List<SelectedApproverRequest> selectedApprovers;
 }

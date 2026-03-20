@@ -29,11 +29,11 @@
         </dependency>
         <dependency>
             <groupId>com.sism</groupId>
-            <artifactId>sism-execution</artifactId>
+            <artifactId>sism-task</artifactId>
         </dependency>
         <dependency>
             <groupId>com.sism</groupId>
-            <artifactId>sism-task</artifactId>
+            <artifactId>sism-iam</artifactId>
         </dependency>
 
         <!-- Spring Boot Starters -->

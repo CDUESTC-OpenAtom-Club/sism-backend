@@ -13,13 +13,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * MilestoneController - 里程碑管理控制器
- * 提供里程碑的REST API接口
+ * Primary planning entrypoint for milestone operations.
  */
 @RestController
 @RequestMapping("/api/v1/milestones")
 @RequiredArgsConstructor
-@Tag(name = "Milestones", description = "Milestone management endpoints")
+@Tag(name = "Milestones", description = "Primary strategy-side milestone endpoints. This is the authoritative planning entrypoint.")
 public class MilestoneController {
 
     private final MilestoneApplicationService milestoneApplicationService;
@@ -49,7 +48,7 @@ public class MilestoneController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new milestone")
+    @Operation(summary = "Create a new milestone", description = "Primary strategy-side entrypoint for milestone management.")
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(
             @Valid @RequestBody com.sism.strategy.interfaces.dto.CreateMilestoneRequest request) {
         MilestoneResponse response = milestoneApplicationService.createMilestone(request);

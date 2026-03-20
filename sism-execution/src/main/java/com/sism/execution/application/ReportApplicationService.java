@@ -6,7 +6,6 @@ import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
-import com.sism.shared.infrastructure.event.EventStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -29,7 +28,6 @@ public class ReportApplicationService {
 
     private final PlanReportRepository planReportRepository;
     private final DomainEventPublisher eventPublisher;
-    private final EventStore eventStore;
 
     /**
      * 创建报告（草稿）

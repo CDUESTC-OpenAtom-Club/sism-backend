@@ -156,7 +156,6 @@ public	indicator	指标表 - 支持自引用分层	30	is_deleted	boolean		NO	fal
 public	indicator	指标表 - 支持自引用分层	48	owner_org_id	bigint	Owner organization (functional department)	YES	
 public	indicator	指标表 - 支持自引用分层	49	target_org_id	bigint	Target organization (functional department or college)	YES	
 public	indicator	指标表 - 支持自引用分层	51	status	character varying(20)	指标状态: DRAFT=草稿, PENDING=待审批, DISTRIBUTED=已下发（其他状态在审批流程中管理）	YES	
-public	indicator	指标表 - 支持自引用分层	54	distribution_status	character varying(20)		YES	
 public	indicator	指标表 - 支持自引用分层	56	responsible_user_id	bigint		YES	
 public	indicator	指标表 - 支持自引用分层	57	is_enabled	boolean		YES	true
 public	indicator_milestone	指标里程碑关联表 - V26: 删除了 inherited_from 字段，通过 indicator_id 关联实现相同功能	1	id	bigint		NO	nextval('indicator_milestone_id_seq'::regclass)

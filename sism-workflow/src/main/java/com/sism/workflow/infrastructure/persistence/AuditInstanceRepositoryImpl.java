@@ -23,6 +23,11 @@ public class AuditInstanceRepositoryImpl implements AuditInstanceRepository {
     }
 
     @Override
+    public Optional<AuditInstance> findByStepInstanceId(Long stepInstanceId) {
+        return jpaWorkflowRepository.findByStepInstanceId(stepInstanceId);
+    }
+
+    @Override
     public List<AuditInstance> findAll() {
         return jpaWorkflowRepository.findAll();
     }

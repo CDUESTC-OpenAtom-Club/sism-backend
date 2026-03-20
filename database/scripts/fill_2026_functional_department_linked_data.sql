@@ -196,7 +196,7 @@ INSERT INTO indicator (
   owner_org_id,
   target_org_id,
   status,
-  distribution_status,
+  responsible_user_id,
   is_enabled
 )
 SELECT
@@ -214,7 +214,7 @@ SELECT
   35,
   mi.target_org_id,
   'DRAFT',
-  'DRAFT',
+  NULL,
   true
 FROM missing_indicators mi;
 

@@ -34,7 +34,12 @@ public class PlanReportDomainService {
 
         report.submit(userId);
         PlanReport saved = planReportRepository.save(report);
-        eventPublisher.publishEvent(new PlanReportSubmittedEvent(saved.getId(), saved.getReportMonth(), saved.getReportOrgId()));
+        eventPublisher.publishEvent(new PlanReportSubmittedEvent(
+                saved.getId(),
+                saved.getReportMonth(),
+                saved.getReportOrgId(),
+                userId
+        ));
         return saved;
     }
 
@@ -48,7 +53,12 @@ public class PlanReportDomainService {
 
         report.approve(approverId);
         PlanReport saved = planReportRepository.save(report);
-        eventPublisher.publishEvent(new PlanReportApprovedEvent(saved.getId(), saved.getReportMonth(), saved.getReportOrgId()));
+        eventPublisher.publishEvent(new PlanReportApprovedEvent(
+                saved.getId(),
+                saved.getReportMonth(),
+                saved.getReportOrgId(),
+                approverId
+        ));
         return saved;
     }
 
@@ -62,7 +72,13 @@ public class PlanReportDomainService {
 
         report.reject(approverId, reason);
         PlanReport saved = planReportRepository.save(report);
-        eventPublisher.publishEvent(new PlanReportRejectedEvent(saved.getId(), saved.getReportMonth(), saved.getReportOrgId(), reason));
+        eventPublisher.publishEvent(new PlanReportRejectedEvent(
+                saved.getId(),
+                saved.getReportMonth(),
+                saved.getReportOrgId(),
+                approverId,
+                reason
+        ));
         return saved;
     }
 

@@ -18,13 +18,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/tasks")
 @RequiredArgsConstructor
-@Tag(name = "Tasks", description = "Task management endpoints")
+@Tag(name = "Tasks", description = "Task center endpoints. Strategic tasks are one current task type.")
 public class TaskController {
 
     private final TaskApplicationService taskApplicationService;
 
     @PostMapping
-    @Operation(summary = "Create a new strategic task")
+    @Operation(summary = "Create a new task-center task", description = "Creates a strategic task today and keeps task-category semantics explicit for future task types.")
     public ResponseEntity<ApiResponse<TaskResponse>> createTask(@Valid @RequestBody CreateTaskRequest request) {
         TaskResponse created = taskApplicationService.createTask(request);
         return ResponseEntity.ok(ApiResponse.success(created));
@@ -48,13 +48,15 @@ public class TaskController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search tasks with filters and pagination")
+    @Operation(summary = "Search tasks with filters and pagination", description = "The search response distinguishes planStatus from taskStatus.")
     public ResponseEntity<ApiResponse<PageResult<TaskResponse>>> searchTasks(
             @Parameter(description = "计划ID") @RequestParam(required = false) Long planId,
             @Parameter(description = "考核周期ID") @RequestParam(required = false) Long cycleId,
             @Parameter(description = "组织ID") @RequestParam(required = false) Long orgId,
             @Parameter(description = "创建组织ID") @RequestParam(required = false) Long createdByOrgId,
             @Parameter(description = "任务类型") @RequestParam(required = false) String taskType,
+            @Parameter(description = "规划投影状态") @RequestParam(required = false) String planStatus,
+            @Parameter(description = "任务自身状态") @RequestParam(required = false) String taskStatus,
             @Parameter(description = "任务名称模糊搜索") @RequestParam(required = false) String taskName,
             @Parameter(description = "页码") @RequestParam(required = false, defaultValue = "0") Integer page,
             @Parameter(description = "每页大小") @RequestParam(required = false, defaultValue = "10") Integer size) {
@@ -64,6 +66,8 @@ public class TaskController {
         queryRequest.setOrgId(orgId);
         queryRequest.setCreatedByOrgId(createdByOrgId);
         queryRequest.setTaskType(taskType != null ? TaskType.valueOf(taskType) : null);
+        queryRequest.setPlanStatus(planStatus);
+        queryRequest.setTaskStatus(taskStatus);
         queryRequest.setTaskName(taskName);
         queryRequest.setPage(page);
         queryRequest.setSize(size);
@@ -73,21 +77,21 @@ public class TaskController {
     }
 
     @PostMapping("/{id}/activate")
-    @Operation(summary = "Activate a task")
+    @Operation(summary = "Activate a task", description = "Updates taskStatus only. This endpoint does not represent plan approval or distribution state.")
     public ResponseEntity<ApiResponse<TaskResponse>> activateTask(@PathVariable Long id) {
         TaskResponse activated = taskApplicationService.activateTask(id);
         return ResponseEntity.ok(ApiResponse.success(activated));
     }
 
     @PostMapping("/{id}/complete")
-    @Operation(summary = "Complete a task")
+    @Operation(summary = "Complete a task", description = "Updates taskStatus only. This endpoint does not represent plan approval or distribution state.")
     public ResponseEntity<ApiResponse<TaskResponse>> completeTask(@PathVariable Long id) {
         TaskResponse completed = taskApplicationService.completeTask(id);
         return ResponseEntity.ok(ApiResponse.success(completed));
     }
 
     @PostMapping("/{id}/cancel")
-    @Operation(summary = "Cancel a task")
+    @Operation(summary = "Cancel a task", description = "Updates taskStatus only. This endpoint does not represent plan approval or distribution state.")
     public ResponseEntity<ApiResponse<TaskResponse>> cancelTask(@PathVariable Long id) {
         TaskResponse cancelled = taskApplicationService.cancelTask(id);
         return ResponseEntity.ok(ApiResponse.success(cancelled));

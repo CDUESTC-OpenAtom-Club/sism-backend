@@ -163,6 +163,7 @@ class WorkflowReadModelServiceTest {
 
         assertEquals(1, detail.getTasks().size());
         assertEquals(3, detail.getHistory().size());
+        assertEquals(null, detail.getCurrentTaskId());
         assertEquals("审批人", detail.getTasks().get(0).getAssigneeName());
         assertEquals("PlanReport#100", detail.getHistory().get(0).getTaskName());
         assertEquals("FINISH_APPROVE", detail.getHistory().get(2).getComment());

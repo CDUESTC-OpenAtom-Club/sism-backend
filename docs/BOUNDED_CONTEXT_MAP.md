@@ -6,7 +6,13 @@
 
 ## 1. 业务领域识别
 
-基于战略指标管理系统（SISM）的核心业务需求，我们识别出以下 6 个 Bounded Context：
+基于战略指标管理系统（SISM）的当前模块边界，我们识别出以下 7 个 Bounded Context：
+
+### 1.0 当前评审护栏
+
+- 不允许向 `sism-task` 新增指标、里程碑、计划下发逻辑。
+- 不允许向 `sism-execution` 新增新的 `Plan` 主链职责。
+- 新增规划主链能力时，默认先落在 `sism-strategy`，再判断是否需要跨上下文读取。
 
 ### 1.1 Organization Context（组织管理上下文）
 **职责**：管理组织结构、用户、角色和权限
@@ -15,35 +21,44 @@
 - 角色和权限分配
 - 用户-组织关系维护
 
-### 1.2 Strategy Context（战略管理上下文）
-**职责**：管理战略任务和指标的定义与分配
-- 战略任务创建和管理
-- 指标定义和层级管理
-- 指标下发和分配
-- 指标目标值设定
+### 1.2 Strategy Context（战略规划上下文）
+**职责**：管理规划主链路骨架对象和规划编排
+- 周期管理（Cycle）
+- 计划批次管理（Plan）
+- 指标树定义和层级管理（Indicator Tree）
+- 指标节点里程碑管理（Milestone）
+- 计划下发、审批前置校验和指标联动
 
-### 1.3 Execution Context（执行管理上下文）
-**职责**：管理计划制定、进度跟踪和报告
-- 绩效计划管理
-- 里程碑管理
-- 进度报告
-- 实际值填报
+### 1.3 Task Context（任务中心上下文）
+**职责**：管理统一任务模型及其扩展能力
+- 任务中心统一模型
+- 当前战略任务（StrategicTask）
+- 未来临时任务/专项任务扩展点
+- 任务分类、来源和生命周期语义
+- 纯任务列表与统一检索
 
-### 1.4 Workflow Context（工作流引擎上下文）
+### 1.4 Execution Context（执行管理上下文）
+**职责**：管理执行期填报、快照和分析支撑
+- 计划报告填报
+- 进度跟踪
+- 执行期快照/汇总
+- 执行分析输入模型
+
+### 1.5 Workflow Context（工作流引擎上下文）
 **职责**：提供通用的审批流程引擎
 - 审批流定义
 - 审批实例管理
 - 审批步骤执行
 - 审批历史记录
 
-### 1.5 Analytics Context（数据分析上下文）
+### 1.6 Analytics Context（数据分析上下文）
 **职责**：提供数据统计、分析和可视化
 - 仪表板数据聚合
 - 指标完成率统计
 - 组织绩效分析
 - 趋势分析
 
-### 1.6 Auth Context（用户认证上下文）
+### 1.7 Auth Context（用户认证上下文）
 **职责**：处理用户认证和会话管理
 - 用户登录/登出
 - JWT Token 生成和验证
@@ -78,35 +93,61 @@
 ### 2.2 Strategy Context
 
 **核心聚合根**：
-- StrategicTask（战略任务）
-- StrategicIndicator（战略指标）
+- Cycle（周期）
+- Plan（计划）
+- Indicator（指标）
+- Milestone（里程碑）
 
 **对外接口**：
-- 指标查询（按任务、组织、层级）
-- 指标下发
-- 指标状态更新
+- 计划主入口
+- 指标树查询与分解
+- 里程碑管理
+- 规划聚合查询（Plan -> Task -> Indicator -> Milestone）
 
 **依赖关系**：
 - 依赖 Organization Context（获取组织和用户信息）
+- 依赖 Task Context（读取任务中心中的 StrategicTask）
 - 依赖 Workflow Context（提交审批）
-- 被 Execution Context 依赖（计划关联指标）
+- 被 Execution Context 依赖（执行期读取规划对象）
 - 被 Analytics Context 依赖（统计分析）
 
 **边界规则**：
-- 负责指标的定义和分配，不负责实际值填报
-- 指标下发后的执行由 Execution Context 负责
+- 拥有 Cycle / Plan / Indicator / Milestone 的主业务所有权
+- 负责计划是否可下发、指标如何联动、里程碑如何挂靠
+- 可以读取 Task，但不拥有 Task
+- 不负责执行期填报
 
 ---
 
-### 2.3 Execution Context
+### 2.3 Task Context
 
 **核心聚合根**：
-- Plan（绩效计划）
-- Milestone（里程碑）
+- Task（任务中心）
+- StrategicTask（当前任务实现）
+
+**对外接口**：
+- 任务创建与维护
+- 任务列表和检索
+- 按 planId / cycleId / orgId / taskType 查询任务
+
+**依赖关系**：
+- 依赖 Organization Context（获取组织和用户信息）
+- 被 Strategy Context 依赖（规划链路装配任务）
+- 被 Analytics Context 依赖（读取任务中心数据）
+
+**边界规则**：
+- 拥有 `sys_task` 及任务模型演进
+- 不拥有 Indicator / Milestone / Plan 下发规则
+- 可以拥有任务自身生命周期，但不复制 Plan 审批状态
+
+---
+
+### 2.4 Execution Context
+
+**核心聚合根**：
 - ProgressReport（进度报告）
 
 **对外接口**：
-- 计划管理
 - 进度更新
 - 报告提交
 
@@ -117,12 +158,12 @@
 - 被 Analytics Context 依赖（统计分析）
 
 **边界规则**：
-- 负责计划的制定和执行跟踪
-- 不负责指标的定义，只关联和使用指标
+- 负责执行期填报和报告，不再长期拥有 Plan
+- 可以消费 Plan / Milestone，但不作为其主业务归属上下文
 
 ---
 
-### 2.4 Workflow Context
+### 2.5 Workflow Context
 
 **核心聚合根**：
 - ApprovalFlow（审批流定义）
@@ -144,7 +185,7 @@
 
 ---
 
-### 2.5 Analytics Context
+### 2.6 Analytics Context
 
 **核心聚合根**：
 - Dashboard（仪表板）
@@ -167,7 +208,7 @@
 
 ---
 
-### 2.6 Auth Context
+### 2.7 Auth Context
 
 **核心聚合根**：
 - AuthSession（认证会话）

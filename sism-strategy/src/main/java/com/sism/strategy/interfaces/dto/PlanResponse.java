@@ -72,4 +72,37 @@ public class PlanResponse {
 
     @Schema(description = "计划层级", example = "STRATEGIC")
     private String planLevel;
+
+    @Schema(description = "关联的工作流实例ID")
+    private Long workflowInstanceId;
+
+    @Schema(description = "提交人ID")
+    private Long submittedBy;
+
+    @Schema(description = "提交时间")
+    private LocalDateTime submittedAt;
+
+    @Schema(description = "最近一次驳回原因")
+    private String lastRejectReason;
+
+    @Schema(description = "是否可编辑")
+    private Boolean canEdit;
+
+    @Schema(description = "是否可重新提交审批")
+    private Boolean canResubmit;
+
+    @Schema(description = "工作流状态")
+    private String workflowStatus;
+
+    @Schema(description = "当前审批节点名称")
+    private String currentStepName;
+
+    @Schema(description = "当前审批人ID")
+    private Long currentApproverId;
+
+    @Schema(description = "当前审批人名称")
+    private String currentApproverName;
+
+    @Schema(description = "是否可撤回")
+    private Boolean canWithdraw;
 }

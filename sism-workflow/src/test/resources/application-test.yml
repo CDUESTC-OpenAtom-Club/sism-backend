@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:sism_workflow_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;INIT=CREATE TYPE IF NOT EXISTS plan_level AS ENUM ('STRATEGIC','OPERATIONAL','COMPREHENSIVE','STRAT_TO_FUNC','FUNC_TO_COLLEGE')
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: false
+
+  event-store:
+    persistence: in-memory
+
+logging:
+  level:
+    com.sism: INFO
+    org.hibernate.SQL: WARN

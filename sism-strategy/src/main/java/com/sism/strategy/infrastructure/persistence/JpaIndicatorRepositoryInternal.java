@@ -54,4 +54,28 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
               AND i.isDeleted = false
             """)
     long countByTaskIds(@Param("taskIds") List<Long> taskIds);
+
+    /**
+     * 根据年份获取指标（通过 Cycle -> Plan -> Task -> Indicator 关系链）
+     * 使用原生 SQL，直接 JOIN 获取正确的指标
+     */
+    @Query(value = """
+            SELECT i.* FROM indicator i
+            INNER JOIN sys_task t ON i.task_id = t.task_id
+            INNER JOIN plan p ON t.plan_id = p.id
+            INNER JOIN cycle c ON p.cycle_id = c.id
+            WHERE c.year = :year
+              AND COALESCE(i.is_deleted, false) = false
+            ORDER BY i.id DESC
+            """,
+           countQuery = """
+            SELECT COUNT(*) FROM indicator i
+            INNER JOIN sys_task t ON i.task_id = t.task_id
+            INNER JOIN plan p ON t.plan_id = p.id
+            INNER JOIN cycle c ON p.cycle_id = c.id
+            WHERE c.year = :year
+              AND COALESCE(i.is_deleted, false) = false
+            """,
+           nativeQuery = true)
+    Page<Indicator> findByYear(@Param("year") Integer year, Pageable pageable);
 }

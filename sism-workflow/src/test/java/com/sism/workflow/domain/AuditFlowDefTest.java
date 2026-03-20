@@ -2,67 +2,80 @@ package com.sism.workflow.domain;
 
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@DisplayName("AuditFlowDef Aggregate Root Tests")
 class AuditFlowDefTest {
 
     @Test
-    @DisplayName("Should create AuditFlowDef with valid parameters")
-    void shouldCreateAuditFlowDefWithValidParameters() {
-        AuditFlowDef flowDef = buildFlowDef();
+    void validate_shouldPassForSubmitThenApprovalSteps() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setFlowCode("PLAN_DISPATCH");
+        flowDef.setFlowName("计划下发");
+        flowDef.setEntityType("PLAN");
 
-        assertNotNull(flowDef);
-        assertEquals("FLOW_001", flowDef.getFlowCode());
-        assertEquals("测试流程", flowDef.getFlowName());
-        assertEquals("INDICATOR", flowDef.getEntityType());
-        assertTrue(flowDef.getIsActive());
+        flowDef.addStep(step(1, "提交", AuditStepDef.STEP_TYPE_SUBMIT, null));
+        flowDef.addStep(step(2, "一级审批", AuditStepDef.STEP_TYPE_APPROVAL, 8L));
+        flowDef.addStep(step(3, "二级审批", AuditStepDef.STEP_TYPE_APPROVAL, 9L));
+
+        assertDoesNotThrow(flowDef::validate);
     }
 
     @Test
-    @DisplayName("Should throw exception when creating AuditFlowDef with null flow code")
-    void shouldThrowExceptionWhenCreatingAuditFlowDefWithNullFlowCode() {
-        AuditFlowDef flowDef = buildFlowDef();
-        flowDef.setFlowCode(null);
+    void validate_shouldFailWhenFirstStepIsNotSubmit() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setFlowCode("PLAN_DISPATCH");
+        flowDef.setFlowName("计划下发");
+        flowDef.setEntityType("PLAN");
+        flowDef.addStep(step(1, "一级审批", AuditStepDef.STEP_TYPE_APPROVAL, 8L));
 
         assertThrows(IllegalArgumentException.class, flowDef::validate);
     }
 
     @Test
-    @DisplayName("Should add step to AuditFlowDef successfully")
-    void shouldAddStepToAuditFlowDefSuccessfully() {
-        AuditFlowDef flowDef = buildFlowDef();
-        AuditStepDef step = new AuditStepDef();
-        step.setStepName("审核步骤");
-        step.setStepOrder(1);
-        step.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
-        step.setRoleId(1L);
+    void validate_shouldFailWhenApprovalStepMissingRole() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setFlowCode("PLAN_DISPATCH");
+        flowDef.setFlowName("计划下发");
+        flowDef.setEntityType("PLAN");
+        flowDef.addStep(step(1, "提交", AuditStepDef.STEP_TYPE_SUBMIT, null));
+        flowDef.addStep(step(2, "一级审批", AuditStepDef.STEP_TYPE_APPROVAL, null));
 
-        flowDef.addStep(step);
-
-        assertEquals(1, flowDef.getStepCount());
-        assertTrue(flowDef.getSteps().contains(step));
+        assertThrows(IllegalArgumentException.class, flowDef::validate);
     }
 
     @Test
-    @DisplayName("Should validate AuditFlowDef with valid parameters")
-    void shouldValidateAuditFlowDefWithValidParameters() {
-        AuditFlowDef flowDef = buildFlowDef();
-        flowDef.setFlowName("有效流程");
+    void validate_shouldFailWhenStepOrderIsNotContinuous() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setFlowCode("PLAN_DISPATCH");
+        flowDef.setFlowName("计划下发");
+        flowDef.setEntityType("PLAN");
+        flowDef.addStep(step(1, "提交", AuditStepDef.STEP_TYPE_SUBMIT, null));
+        flowDef.addStep(step(3, "一级审批", AuditStepDef.STEP_TYPE_APPROVAL, 8L));
 
-        assertDoesNotThrow(flowDef::validate);
+        assertThrows(IllegalArgumentException.class, flowDef::validate);
     }
 
-    private AuditFlowDef buildFlowDef() {
+    @Test
+    void validate_shouldFailWhenSecondStepIsSubmit() {
         AuditFlowDef flowDef = new AuditFlowDef();
-        flowDef.setFlowCode("FLOW_001");
-        flowDef.setFlowName("测试流程");
-        flowDef.setEntityType("INDICATOR");
-        flowDef.setIsActive(true);
-        flowDef.setVersion(1);
-        return flowDef;
+        flowDef.setFlowCode("PLAN_DISPATCH");
+        flowDef.setFlowName("计划下发");
+        flowDef.setEntityType("PLAN");
+        flowDef.addStep(step(1, "提交", AuditStepDef.STEP_TYPE_SUBMIT, null));
+        flowDef.addStep(step(2, "再次提交", AuditStepDef.STEP_TYPE_SUBMIT, null));
+
+        assertThrows(IllegalArgumentException.class, flowDef::validate);
+    }
+
+    private AuditStepDef step(int order, String name, String type, Long roleId) {
+        AuditStepDef step = new AuditStepDef();
+        step.setStepOrder(order);
+        step.setStepName(name);
+        step.setStepType(type);
+        step.setRoleId(roleId);
+        return step;
     }
 }

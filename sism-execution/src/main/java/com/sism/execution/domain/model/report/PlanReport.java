@@ -9,7 +9,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 /**
  * PlanReport - 月度进展报告聚合根
@@ -123,10 +122,10 @@ public class PlanReport extends AggregateRoot<Long> {
             throw new IllegalStateException("Cannot submit report: not in DRAFT status");
         }
         this.status = STATUS_SUBMITTED;
-        // submittedBy is transient - not storing in DB
+        this.submittedBy = userId;
         this.submittedAt = LocalDateTime.now();
         setUpdatedAt(LocalDateTime.now());
-        addEvent(new PlanReportSubmittedEvent(this.id, this.reportMonth, this.reportOrgId));
+        addEvent(new PlanReportSubmittedEvent(this.id, this.reportMonth, this.reportOrgId, userId));
     }
 
     /**
@@ -137,9 +136,10 @@ public class PlanReport extends AggregateRoot<Long> {
             throw new IllegalStateException("Cannot approve report: not in SUBMITTED status");
         }
         this.status = STATUS_APPROVED;
-        // approvedBy and approvedAt are transient - not storing in DB
+        this.approvedBy = userId;
+        this.approvedAt = LocalDateTime.now();
         setUpdatedAt(LocalDateTime.now());
-        addEvent(new PlanReportApprovedEvent(this.id, this.reportMonth, this.reportOrgId));
+        addEvent(new PlanReportApprovedEvent(this.id, this.reportMonth, this.reportOrgId, userId));
     }
 
     /**
@@ -153,9 +153,11 @@ public class PlanReport extends AggregateRoot<Long> {
             throw new IllegalArgumentException("Rejection reason cannot be null or empty");
         }
         this.status = STATUS_REJECTED;
-        // rejectionReason is transient - not storing in DB
+        this.approvedBy = userId;
+        this.approvedAt = LocalDateTime.now();
+        this.rejectionReason = reason;
         setUpdatedAt(LocalDateTime.now());
-        addEvent(new PlanReportRejectedEvent(this.id, this.reportMonth, this.reportOrgId, reason));
+        addEvent(new PlanReportRejectedEvent(this.id, this.reportMonth, this.reportOrgId, userId, reason));
     }
 
     /**

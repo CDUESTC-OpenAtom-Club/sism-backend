@@ -12,11 +12,13 @@ public class PlanReportSubmittedEvent implements DomainEvent {
     private final Long reportId;
     private final String reportMonth;
     private final Long reportOrgId;
+    private final Long submitterId;
 
-    public PlanReportSubmittedEvent(Long reportId, String reportMonth, Long reportOrgId) {
+    public PlanReportSubmittedEvent(Long reportId, String reportMonth, Long reportOrgId, Long submitterId) {
         this.reportId = reportId;
         this.reportMonth = reportMonth;
         this.reportOrgId = reportOrgId;
+        this.submitterId = submitterId;
     }
 
     @Override

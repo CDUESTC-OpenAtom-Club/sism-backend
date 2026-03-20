@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,12 +22,13 @@ class ApproverResolverTest {
     private UserRepository userRepository;
 
     @Test
-    void resolveApproverId_shouldReturnRequesterWhenRoleMissing() {
+    void resolveApproverId_shouldRejectWhenRoleMissing() {
         AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setStepName("战略发展部负责人审批");
 
         ApproverResolver resolver = new ApproverResolver(userRepository);
 
-        assertEquals(1L, resolver.resolveApproverId(stepDef, 1L, 2L));
+        assertThrows(IllegalStateException.class, () -> resolver.resolveApproverId(stepDef, 1L, 2L));
     }
 
     @Test
@@ -47,12 +49,16 @@ class ApproverResolverTest {
     }
 
     @Test
-    void resolveApproverId_shouldFallbackToRequesterForLegacyNullType() {
+    void resolveApproverId_shouldRejectWhenRoleHasNoCandidates() {
         AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setRoleId(9L);
+        stepDef.setStepName("校领导审批");
 
         ApproverResolver resolver = new ApproverResolver(userRepository);
 
-        assertEquals(88L, resolver.resolveApproverId(stepDef, 88L, 30L));
+        when(userRepository.findByRoleId(9L)).thenReturn(List.of());
+
+        assertThrows(IllegalStateException.class, () -> resolver.resolveApproverId(stepDef, 88L, 30L));
     }
 
     @Test

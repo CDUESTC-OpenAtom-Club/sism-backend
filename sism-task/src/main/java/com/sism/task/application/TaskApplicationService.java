@@ -8,9 +8,11 @@ import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.task.application.dto.*;
 import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.TaskCategory;
 import com.sism.task.domain.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
+import com.sism.task.infrastructure.persistence.TaskFlatView;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,13 +33,13 @@ public class TaskApplicationService {
 
     @Transactional
     public TaskResponse createTask(CreateTaskRequest request) {
-        // 查询组织信息
         SysOrg org = organizationRepository.findById(request.getOrgId())
                 .orElseThrow(() -> new IllegalArgumentException("组织不存在: " + request.getOrgId()));
         SysOrg createdByOrg = organizationRepository.findById(request.getCreatedByOrgId())
                 .orElseThrow(() -> new IllegalArgumentException("创建组织不存在: " + request.getCreatedByOrgId()));
 
         StrategicTask task = StrategicTask.create(
+                request.getTaskCategory() != null ? request.getTaskCategory() : TaskCategory.STRATEGIC,
                 request.getTaskName(),
                 request.getTaskType(),
                 request.getPlanId(),
@@ -59,7 +61,7 @@ public class TaskApplicationService {
         task.validate();
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -69,7 +71,7 @@ public class TaskApplicationService {
         task.activate();
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -79,7 +81,7 @@ public class TaskApplicationService {
         task.complete();
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -89,7 +91,7 @@ public class TaskApplicationService {
         task.cancel();
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -97,13 +99,12 @@ public class TaskApplicationService {
         StrategicTask task = taskRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
 
-        // 更新基本属性
         task.updateTaskName(request.getTaskName());
         task.updateTaskDesc(request.getTaskDesc());
         task.setTaskType(request.getTaskType());
+        task.setTaskCategory(request.getTaskCategory() != null ? request.getTaskCategory() : TaskCategory.STRATEGIC);
         task.setPlanId(request.getPlanId());
         task.setCycleId(request.getCycleId());
-        // 注意：Task 的状态从关联的 Plan 获取，不能直接设置
 
         if (request.getSortOrder() != null) {
             task.updateSortOrder(request.getSortOrder());
@@ -112,7 +113,6 @@ public class TaskApplicationService {
             task.setRemark(request.getRemark());
         }
 
-        // 更新组织信息
         if (request.getOrgId() != null) {
             SysOrg org = organizationRepository.findById(request.getOrgId())
                     .orElseThrow(() -> new IllegalArgumentException("组织不存在: " + request.getOrgId()));
@@ -128,7 +128,7 @@ public class TaskApplicationService {
         task.validate();
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -138,7 +138,7 @@ public class TaskApplicationService {
         task.updateTaskName(taskName);
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -148,7 +148,7 @@ public class TaskApplicationService {
         task.updateTaskDesc(taskDesc);
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -158,7 +158,7 @@ public class TaskApplicationService {
         task.setRemark(remark);
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -168,7 +168,7 @@ public class TaskApplicationService {
         task.updateSortOrder(sortOrder);
         taskRepository.save(task);
         publishAndSaveEvents(task);
-        return TaskResponse.fromEntity(task);
+        return toCommandResponse(task);
     }
 
     @Transactional
@@ -182,15 +182,15 @@ public class TaskApplicationService {
 
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(Long id) {
-        StrategicTask task = taskRepository.findById(id)
+        return jpaTaskRepository.findFlatViewById(id)
+                .map(TaskResponse::fromView)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
-        return TaskResponse.fromEntity(task);
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getAllTasks() {
-        return taskRepository.findAll().stream()
-                .map(TaskResponse::fromEntity)
+        return jpaTaskRepository.findFlatViewsByCriteria(null, null, null, null, "", "").stream()
+                .map(TaskResponse::fromView)
                 .toList();
     }
 
@@ -208,6 +208,10 @@ public class TaskApplicationService {
                 request.getTaskName() != null ? request.getTaskName() : ""
         ).stream()
                 .map(TaskResponse::fromView)
+                .filter(response -> request.getPlanStatus() == null || request.getPlanStatus().isBlank()
+                        || request.getPlanStatus().equalsIgnoreCase(response.getPlanStatus()))
+                .filter(response -> request.getTaskStatus() == null || request.getTaskStatus().isBlank()
+                        || request.getTaskStatus().equalsIgnoreCase(response.getTaskStatus()))
                 .toList();
 
         Comparator<TaskResponse> comparator = buildSearchComparator(request.getSortBy());
@@ -232,14 +236,16 @@ public class TaskApplicationService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByOrgId(Long orgId) {
-        List<StrategicTask> tasks = taskRepository.findByOrgId(orgId);
-        return tasks.stream().map(TaskResponse::fromEntity).toList();
+        return jpaTaskRepository.findFlatViewsByCriteria(null, null, orgId, null, "", "").stream()
+                .map(TaskResponse::fromView)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByPlanId(Long planId) {
-        List<StrategicTask> tasks = taskRepository.findByPlanId(planId);
-        return tasks.stream().map(TaskResponse::fromEntity).toList();
+        return jpaTaskRepository.findFlatViewsByCriteria(planId, null, null, null, "", "").stream()
+                .map(TaskResponse::fromView)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -251,14 +257,26 @@ public class TaskApplicationService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByType(TaskType taskType) {
-        List<StrategicTask> tasks = taskRepository.findByTaskType(taskType);
-        return tasks.stream().map(TaskResponse::fromEntity).toList();
+        return jpaTaskRepository.findFlatViewsByCriteria(null, null, null, null, taskType.name(), "").stream()
+                .map(TaskResponse::fromView)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByPlanIdAndCycleId(Long planId, Long cycleId) {
-        List<StrategicTask> tasks = taskRepository.findByPlanIdAndCycleId(planId, cycleId);
-        return tasks.stream().map(TaskResponse::fromEntity).toList();
+        return jpaTaskRepository.findFlatViewsByCriteria(planId, cycleId, null, null, "", "").stream()
+                .map(TaskResponse::fromView)
+                .toList();
+    }
+
+    private TaskResponse toCommandResponse(StrategicTask task) {
+        return TaskResponse.fromEntity(task, loadPlanStatus(task.getId()));
+    }
+
+    private String loadPlanStatus(Long taskId) {
+        return jpaTaskRepository.findFlatViewById(taskId)
+                .map(TaskFlatView::getPlanStatus)
+                .orElse(StrategicTask.STATUS_DRAFT);
     }
 
     private void publishAndSaveEvents(com.sism.shared.domain.model.base.AggregateRoot<?> aggregate) {
@@ -290,7 +308,8 @@ public class TaskApplicationService {
             case "orgId" -> Comparator.comparing(TaskResponse::getOrgId, Comparator.nullsLast(Long::compareTo));
             case "createdByOrgId" -> Comparator.comparing(TaskResponse::getCreatedByOrgId, Comparator.nullsLast(Long::compareTo));
             case "sortOrder" -> Comparator.comparing(TaskResponse::getSortOrder, Comparator.nullsLast(Integer::compareTo));
-            case "status" -> Comparator.comparing(TaskResponse::getStatus, Comparator.nullsLast(String::compareTo));
+            case "planStatus" -> Comparator.comparing(TaskResponse::getPlanStatus, Comparator.nullsLast(String::compareTo));
+            case "taskStatus" -> Comparator.comparing(TaskResponse::getTaskStatus, Comparator.nullsLast(String::compareTo));
             case "createdAt" -> Comparator.comparing(TaskResponse::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo));
             case "updatedAt" -> Comparator.comparing(TaskResponse::getUpdatedAt, Comparator.nullsLast(LocalDateTime::compareTo));
             default -> null;

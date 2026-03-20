@@ -18,9 +18,14 @@ public class WorkflowInstanceResponse {
 
     private String instanceId;
     private String definitionId;
-    private String status; // RUNNING, COMPLETED, REJECTED, CANCELLED
+    private String status; // External states: IN_REVIEW, APPROVED, REJECTED
     private Long businessEntityId;
     private Long starterId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private String currentTaskId;
+    private String currentStepName;
+    private Long currentApproverId;
+    private String currentApproverName;
+    private Boolean canWithdraw;
 }

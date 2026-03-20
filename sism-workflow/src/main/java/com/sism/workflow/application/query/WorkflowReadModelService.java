@@ -57,6 +57,11 @@ public class WorkflowReadModelService {
         response.setStarterId(base.getStarterId());
         response.setStartTime(base.getStartTime());
         response.setEndTime(base.getEndTime());
+        response.setCurrentTaskId(base.getCurrentTaskId());
+        response.setCurrentStepName(base.getCurrentStepName());
+        response.setCurrentApproverId(base.getCurrentApproverId());
+        response.setCurrentApproverName(base.getCurrentApproverName());
+        response.setCanWithdraw(base.getCanWithdraw());
 
         List<WorkflowTaskResponse> tasks = instance.getStepInstances().stream()
                 .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))

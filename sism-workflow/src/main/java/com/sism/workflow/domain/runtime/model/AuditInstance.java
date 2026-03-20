@@ -147,23 +147,88 @@ public class AuditInstance extends AggregateRoot<Long> {
         if (!STATUS_PENDING.equals(status)) {
             throw new IllegalStateException("Cannot reject: workflow is not in review");
         }
-        if (stepInstances != null && !stepInstances.isEmpty()) {
-            AuditStepInstance current = resolveCurrentPendingStep()
-                    .orElseThrow(() -> new IllegalStateException("No pending step available for rejection"));
-            if (current.getApproverId() != null && !Objects.equals(current.getApproverId(), userId)) {
-                throw new IllegalStateException("Cannot reject: current step is assigned to another approver");
-            }
-            current.setStatus(STEP_STATUS_REJECTED);
-            current.setComment(comment);
-            current.setApprovedAt(LocalDateTime.now());
+        if (stepInstances == null || stepInstances.isEmpty()) {
+            this.status = STATUS_REJECTED;
+            this.completedAt = LocalDateTime.now();
+            return;
         }
-        this.status = STATUS_REJECTED;
+
+        AuditStepInstance current = resolveCurrentPendingStep()
+                .orElseThrow(() -> new IllegalStateException("No pending step available for rejection"));
+        if (current.getApproverId() != null && !Objects.equals(current.getApproverId(), userId)) {
+            throw new IllegalStateException("Cannot reject: current step is assigned to another approver");
+        }
+
+        current.setStatus(STEP_STATUS_REJECTED);
+        current.setComment(comment);
+        current.setApprovedAt(LocalDateTime.now());
+
+        List<AuditStepInstance> ordered = stepInstances.stream()
+                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .toList();
+
+        int currentIndex = ordered.indexOf(current);
+        AuditStepInstance previousApproved = null;
+        for (int i = currentIndex - 1; i >= 0; i--) {
+            AuditStepInstance candidate = ordered.get(i);
+            if (STEP_STATUS_APPROVED.equals(candidate.getStatus())) {
+                previousApproved = candidate;
+                break;
+            }
+        }
+
+        if (previousApproved == null) {
+            this.status = STATUS_REJECTED;
+            this.completedAt = LocalDateTime.now();
+            return;
+        }
+
+        previousApproved.setStatus(STEP_STATUS_PENDING);
+        previousApproved.setComment(null);
+        previousApproved.setApprovedAt(null);
+
+        for (int i = currentIndex + 1; i < ordered.size(); i++) {
+            AuditStepInstance step = ordered.get(i);
+            if (!STEP_STATUS_APPROVED.equals(step.getStatus())) {
+                step.setStatus(STEP_STATUS_WAITING);
+                step.setComment(null);
+                step.setApprovedAt(null);
+            }
+        }
+
+        this.completedAt = null;
+    }
+
+    public void completeExternally(String terminalStatus, Long operatorId, String comment) {
+        if (terminalStatus == null || terminalStatus.trim().isEmpty()) {
+            throw new IllegalArgumentException("Terminal status is required");
+        }
+        if (!STATUS_PENDING.equals(this.status)) {
+            return;
+        }
+
+        Optional<AuditStepInstance> currentStep = resolveCurrentPendingStep();
+        if (currentStep.isPresent()) {
+            AuditStepInstance step = currentStep.get();
+            step.setApproverId(operatorId != null ? operatorId : step.getApproverId());
+            step.setComment(comment);
+            step.setApprovedAt(LocalDateTime.now());
+            if (STATUS_APPROVED.equals(terminalStatus)) {
+                step.setStatus(STEP_STATUS_APPROVED);
+            } else if (STATUS_REJECTED.equals(terminalStatus)) {
+                step.setStatus(STEP_STATUS_REJECTED);
+            } else {
+                throw new IllegalArgumentException("Unsupported terminal status: " + terminalStatus);
+            }
+        }
+
+        this.status = terminalStatus;
         this.completedAt = LocalDateTime.now();
     }
 
     public void cancel() {
-        if (!STATUS_PENDING.equals(status)) {
-            throw new IllegalStateException("Cannot cancel: workflow is not in review");
+        if (!canRequesterWithdraw()) {
+            throw new IllegalStateException("Cannot cancel: first approval step has already been handled");
         }
         this.status = STATUS_WITHDRAWN;
         this.completedAt = LocalDateTime.now();
@@ -177,11 +242,11 @@ public class AuditInstance extends AggregateRoot<Long> {
     }
 
     public void transfer(Long targetUserId) {
-        // Placeholder - retained for behavior compatibility in phase one.
+        throw new UnsupportedOperationException("Workflow task reassignment is not supported for fixed approval templates");
     }
 
     public void addApprover(Long approverId) {
-        // Placeholder - retained for behavior compatibility in phase one.
+        throw new UnsupportedOperationException("Dynamic approver insertion is not supported for fixed approval templates");
     }
 
     public void addStepInstance(AuditStepInstance stepInstance) {
@@ -197,6 +262,25 @@ public class AuditInstance extends AggregateRoot<Long> {
                 .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()))
                 .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
                 .findFirst();
+    }
+
+    public boolean hasAnyHandledStep() {
+        return stepInstances.stream().anyMatch(step ->
+                STEP_STATUS_APPROVED.equals(step.getStatus()) || STEP_STATUS_REJECTED.equals(step.getStatus()));
+    }
+
+    public boolean canRequesterWithdraw() {
+        if (!STATUS_PENDING.equals(status)) {
+            return false;
+        }
+
+        long approvedCount = stepInstances.stream()
+                .filter(step -> STEP_STATUS_APPROVED.equals(step.getStatus()))
+                .count();
+        boolean hasRejectedStep = stepInstances.stream()
+                .anyMatch(step -> STEP_STATUS_REJECTED.equals(step.getStatus()));
+
+        return !hasRejectedStep && approvedCount <= 1;
     }
 
     @PrePersist

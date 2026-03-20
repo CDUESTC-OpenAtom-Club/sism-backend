@@ -23,7 +23,8 @@ public class WorkflowInstanceDetailResponse extends WorkflowInstanceResponse {
             String instanceId, String definitionId, String status, Long businessEntityId,
             Long starterId, java.time.LocalDateTime startTime, java.time.LocalDateTime endTime,
             List<WorkflowTaskResponse> tasks, List<WorkflowHistoryResponse> history) {
-        super(instanceId, definitionId, status, businessEntityId, starterId, startTime, endTime);
+        super(instanceId, definitionId, status, businessEntityId, starterId, startTime, endTime,
+                null, null, null, null, null);
         this.tasks = tasks;
         this.history = history;
     }

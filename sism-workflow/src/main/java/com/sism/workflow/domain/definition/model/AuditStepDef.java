@@ -45,6 +45,38 @@ public class AuditStepDef {
     @Column(name = "is_terminal")
     private Boolean isTerminal = false;
 
+    public void validateForTemplate(int index, boolean firstStep) {
+        if (stepName == null || stepName.isBlank()) {
+            throw new IllegalArgumentException("Workflow step name is required");
+        }
+        if (stepOrder == null || stepOrder <= 0) {
+            throw new IllegalArgumentException("Workflow step order must be positive");
+        }
+        if (stepType == null || stepType.isBlank()) {
+            throw new IllegalArgumentException("Workflow step type is required: " + stepName);
+        }
+
+        String effectiveType = stepType.trim().toUpperCase();
+        if (!STEP_TYPE_SUBMIT.equals(effectiveType) && !STEP_TYPE_APPROVAL.equals(effectiveType)) {
+            throw new IllegalArgumentException("Unsupported workflow step type: " + stepType);
+        }
+
+        if (firstStep) {
+            if (!STEP_TYPE_SUBMIT.equals(effectiveType)) {
+                throw new IllegalArgumentException("The first workflow step must be SUBMIT");
+            }
+        } else if (!STEP_TYPE_APPROVAL.equals(effectiveType)) {
+            throw new IllegalArgumentException("Workflow steps after the first must be APPROVAL");
+        }
+
+        if (STEP_TYPE_SUBMIT.equals(effectiveType) && roleId != null) {
+            throw new IllegalArgumentException("SUBMIT step must not define role assignment: " + stepName);
+        }
+        if (STEP_TYPE_APPROVAL.equals(effectiveType) && (roleId == null || roleId <= 0)) {
+            throw new IllegalArgumentException("APPROVAL step must define role assignment: " + stepName);
+        }
+    }
+
     public String resolveEffectiveStepType() {
         if (stepType != null && !stepType.isBlank()) {
             return stepType.trim().toUpperCase();

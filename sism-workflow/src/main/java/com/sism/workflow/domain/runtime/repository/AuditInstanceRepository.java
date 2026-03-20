@@ -12,6 +12,8 @@ public interface AuditInstanceRepository {
 
     Optional<AuditInstance> findById(Long id);
 
+    Optional<AuditInstance> findByStepInstanceId(Long stepInstanceId);
+
     List<AuditInstance> findAll();
 
     List<AuditInstance> findByBusinessTypeAndBusinessId(String businessType, Long businessId);

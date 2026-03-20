@@ -95,7 +95,7 @@ class ReportWorkflowIntegrationTest {
             inMemoryEventStore.clear();
         }
 
-        ensureReportApprovalFlow();
+        ensureReportApprovalFlows();
         
         // 创建一个报告用于测试
         PlanReport report = PlanReport.createDraft(
@@ -207,7 +207,8 @@ class ReportWorkflowIntegrationTest {
         PlanReportSubmittedEvent event = new PlanReportSubmittedEvent(
                 testReportId,
                 testReportMonth,
-                testOrgId
+                testOrgId,
+                1L
         );
 
         // 通过 domainEventPublisher 发布
@@ -366,7 +367,6 @@ class ReportWorkflowIntegrationTest {
     @EnableAutoConfiguration
     @Import({ExecutionModuleConfig.class, WorkflowModuleConfig.class})
     @ComponentScan(basePackages = {
-            "com.sism.execution.application",
             "com.sism.execution.infrastructure.persistence",
             "com.sism.workflow.application",
             "com.sism.workflow.infrastructure.persistence",
@@ -451,16 +451,21 @@ class ReportWorkflowIntegrationTest {
         }
     }
 
-    private void ensureReportApprovalFlow() {
-        if (flowDefinitionRepository.findByCode("REPORT_APPROVAL").isPresent()) {
+    private void ensureReportApprovalFlows() {
+        ensureFlowDefinition("PLAN_REPORT_FUNC", "职能部门报告审批");
+        ensureFlowDefinition("PLAN_REPORT_COLLEGE", "学院报告审批");
+    }
+
+    private void ensureFlowDefinition(String flowCode, String flowName) {
+        if (flowDefinitionRepository.findByCode(flowCode).isPresent()) {
             return;
         }
 
         AuditFlowDef flowDef = new AuditFlowDef();
-        flowDef.setFlowCode("REPORT_APPROVAL");
-        flowDef.setFlowName("报告审批");
+        flowDef.setFlowCode(flowCode);
+        flowDef.setFlowName(flowName);
         flowDef.setEntityType("PlanReport");
-        flowDef.setDescription("测试用报告审批流");
+        flowDef.setDescription("测试用报告审批流: " + flowCode);
         flowDef.setIsActive(true);
         flowDef.setVersion(1);
         flowDefinitionRepository.save(flowDef);

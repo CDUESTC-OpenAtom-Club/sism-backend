@@ -117,63 +117,63 @@ INSERT INTO sys_task (
 -- - 与当前真实库保持一致，使用 indicator.id 主键
 -- - type 使用现网已有值“定量”
 -- - status 使用 DRAFT / DISTRIBUTED
--- - distribution_status 使用 DRAFT 或 NULL
+-- - 指标状态统一使用 status 字段
 -- -----------------------------------------------------------------------------
 INSERT INTO indicator (
     id, task_id, parent_indicator_id, indicator_desc, weight_percent, sort_order,
     remark, created_at, updated_at, type, progress, is_deleted,
-    owner_org_id, target_org_id, status, distribution_status,
+    owner_org_id, target_org_id, status,
     responsible_user_id, is_enabled
 ) VALUES
 (
     20418, 92092, NULL, '完成校级一流课程建设项目不少于12项', 35.00, 1,
     '战略发展部统筹，教务处牵头推进', NOW(), NOW(), '定量', 0, FALSE,
-    35, 44, 'DISTRIBUTED', 'DRAFT', 223, TRUE
+    35, 44, 'DISTRIBUTED', 223, TRUE
 ),
 (
     20419, 92092, NULL, '计算机学院新增省级教学成果培育项目不少于3项', 30.00, 2,
     '由教务处协同学院推进成果培育', NOW(), NOW(), '定量', 0, FALSE,
-    44, 57, 'DRAFT', NULL, 273, TRUE
+    44, 57, 'DRAFT', 273, TRUE
 ),
 (
     20420, 92092, NULL, '商学院核心课程过程性考核覆盖率达到95%', 35.00, 3,
     '聚焦课堂评价和过程考核质量提升', NOW(), NOW(), '定量', 0, FALSE,
-    44, 58, 'DRAFT', NULL, 276, TRUE
+    44, 58, 'DRAFT', 276, TRUE
 ),
 (
     20421, 92093, NULL, '年度新增省部级及以上科研项目不少于18项', 40.00, 1,
     '科技处统筹项目申报组织', NOW(), NOW(), '定量', 0, FALSE,
-    35, 45, 'DISTRIBUTED', 'DRAFT', 227, TRUE
+    35, 45, 'DISTRIBUTED', 227, TRUE
 ),
 (
     20422, 92093, NULL, '计算机学院高水平论文与横向项目协同转化金额达到120万元', 30.00, 2,
     '突出科研成果转化与产学协同', NOW(), NOW(), '定量', 0, FALSE,
-    45, 57, 'DRAFT', NULL, 273, TRUE
+    45, 57, 'DRAFT', 273, TRUE
 ),
 (
     20423, 92093, NULL, '商学院智库咨询报告被校外单位采纳不少于6篇', 30.00, 3,
     '突出应用研究和社会服务导向', NOW(), NOW(), '定量', 0, FALSE,
-    45, 58, 'DRAFT', NULL, 276, TRUE
+    45, 58, 'DRAFT', 276, TRUE
 ),
 (
     20424, 92094, NULL, '完成3个核心业务系统的数据标准统一与主数据贯通', 45.00, 1,
     '数字校园办统筹数据治理专项', NOW(), NOW(), '定量', 0, FALSE,
-    35, 50, 'DISTRIBUTED', 'DRAFT', 247, TRUE
+    35, 50, 'DISTRIBUTED', 247, TRUE
 ),
 (
     20425, 92094, NULL, '财务线上审批事项平均流转时长压缩至2个工作日以内', 25.00, 2,
     '以服务提效为目标推进流程优化', NOW(), NOW(), '定量', 0, FALSE,
-    50, 46, 'DRAFT', NULL, 231, TRUE
+    50, 46, 'DRAFT', 231, TRUE
 ),
 (
     20426, 92095, NULL, '新增稳定运行的校企联合实践基地不少于8个', 50.00, 1,
     '强化实践基地建设与资源协同', NOW(), NOW(), '定量', 0, FALSE,
-    35, 44, 'DISTRIBUTED', 'DRAFT', 223, TRUE
+    35, 44, 'DISTRIBUTED', 223, TRUE
 ),
 (
     20427, 92095, NULL, '依托校企项目形成可复用实践课程模块不少于10个', 50.00, 2,
     '同步支撑教学改革和就业能力提升', NOW(), NOW(), '定量', 0, FALSE,
-    44, 57, 'DRAFT', NULL, 273, TRUE
+    44, 57, 'DRAFT', 273, TRUE
 );
 
 -- -----------------------------------------------------------------------------
