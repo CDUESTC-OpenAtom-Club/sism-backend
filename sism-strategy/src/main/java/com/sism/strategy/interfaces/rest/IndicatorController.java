@@ -5,10 +5,12 @@ import com.sism.common.PageResult;
 import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.strategy.application.MilestoneApplicationService;
 import com.sism.strategy.application.StrategyApplicationService;
 import com.sism.strategy.domain.Indicator;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
+import com.sism.strategy.interfaces.dto.MilestoneResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -38,6 +40,7 @@ import java.util.Objects;
 public class IndicatorController {
 
     private final StrategyApplicationService strategyApplicationService;
+    private final MilestoneApplicationService milestoneApplicationService;
     private final OrganizationRepository organizationRepository;
     private final TaskRepository taskRepository;
     private final JpaTaskRepositoryInternal jpaTaskRepository;
@@ -63,9 +66,10 @@ public class IndicatorController {
         }
 
         Map<Long, String> taskNameMap = buildTaskNameMap(indicatorPage.getContent());
+        Map<Long, List<MilestoneResponse>> milestoneMap = buildMilestoneMap(indicatorPage.getContent());
         PageResult<IndicatorResponse> result = PageResult.of(
                 indicatorPage.getContent().stream()
-                        .map(indicator -> toIndicatorResponse(indicator, taskNameMap))
+                        .map(indicator -> toIndicatorResponse(indicator, taskNameMap, milestoneMap))
                         .toList(),
                 (int) indicatorPage.getTotalElements(),
                 page,
@@ -374,10 +378,16 @@ public class IndicatorController {
     // ==================== Helper Methods ====================
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator) {
-        return toIndicatorResponse(indicator, Map.of());
+        return toIndicatorResponse(indicator, Map.of(), buildMilestoneMap(List.of(indicator)));
     }
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator, Map<Long, String> taskNameMap) {
+        return toIndicatorResponse(indicator, taskNameMap, buildMilestoneMap(List.of(indicator)));
+    }
+
+    private IndicatorResponse toIndicatorResponse(Indicator indicator,
+                                                 Map<Long, String> taskNameMap,
+                                                 Map<Long, List<MilestoneResponse>> milestoneMap) {
         IndicatorResponse response = new IndicatorResponse();
         response.setId(indicator.getId());
         response.setTaskId(indicator.getTaskId());
@@ -385,7 +395,7 @@ public class IndicatorController {
             String taskName = taskNameMap.get(indicator.getTaskId());
             if (taskName == null) {
                 taskName = taskRepository.findById(indicator.getTaskId())
-                        .map(com.sism.task.domain.StrategicTask::getTaskName)
+                        .map(com.sism.task.domain.StrategicTask::getName)
                         .orElse("计划-" + indicator.getTaskId());
             }
             response.setTaskName(taskName);
@@ -410,6 +420,7 @@ public class IndicatorController {
             response.setTargetOrgId(indicator.getTargetOrg().getId());
             response.setTargetOrgName(indicator.getTargetOrg().getName());
         }
+        response.setMilestones(milestoneMap.getOrDefault(indicator.getId(), List.of()));
         return response;
     }
 
@@ -431,8 +442,33 @@ public class IndicatorController {
 
         Map<Long, String> taskNameMap = new HashMap<>();
         jpaTaskRepository.findTaskNamesByIds(taskIds)
-                .forEach(task -> taskNameMap.put(task.getId(), task.getTaskName()));
+                .forEach(task -> taskNameMap.put(task.getId(), task.getName()));
         return taskNameMap;
+    }
+
+    private Map<Long, List<MilestoneResponse>> buildMilestoneMap(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> indicatorIds = indicators.stream()
+                .map(Indicator::getId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new))
+                .stream()
+                .toList();
+
+        if (indicatorIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return milestoneApplicationService.getAllMilestones().stream()
+                .filter(milestone -> milestone.getIndicatorId() != null && indicatorIds.contains(milestone.getIndicatorId()))
+                .collect(java.util.stream.Collectors.groupingBy(
+                        MilestoneResponse::getIndicatorId,
+                        java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()
+                ));
     }
 
     private String firstNonBlank(String... values) {
@@ -478,6 +514,7 @@ public class IndicatorController {
         private String indicatorType;
         private java.time.LocalDateTime createdAt;
         private java.time.LocalDateTime updatedAt;
+        private List<MilestoneResponse> milestones;
     }
 
     @Data

@@ -158,6 +158,8 @@
 
 ## public.audit_step_def
 
+说明: 序号按 PostgreSQL 当前实际列序导出；中间跳号表示该表历史上存在删列痕迹，属于正常现象。
+
 | 序号 | 字段名 | 数据类型 | 可空 | 默认值 | 字段备注 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | id | bigint | NO | nextval('audit_step_def_id_seq'::regclass) |  |

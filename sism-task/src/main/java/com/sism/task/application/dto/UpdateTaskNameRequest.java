@@ -10,5 +10,5 @@ import lombok.Data;
 public class UpdateTaskNameRequest {
 
     @NotBlank(message = "任务名称不能为空")
-    private String taskName;
+    private String name;
 }

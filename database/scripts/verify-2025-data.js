@@ -17,7 +17,7 @@ async function verify() {
     const taskResult = await client.query(`
       SELECT 
         t.task_id,
-        t.task_name,
+        t.name,
         t.cycle_id,
         c.year,
         c.cycle_name,
@@ -26,14 +26,14 @@ async function verify() {
       LEFT JOIN cycle c ON t.cycle_id = c.id
       LEFT JOIN indicator i ON i.task_id = t.task_id AND i.year = 2025
       WHERE t.cycle_id = 7
-      GROUP BY t.task_id, t.task_name, t.cycle_id, c.year, c.cycle_name
+      GROUP BY t.task_id, t.name, t.cycle_id, c.year, c.cycle_name
       ORDER BY t.task_id
     `);
 
     console.log('📋 2025 年任务列表:');
     console.log('='.repeat(80));
     taskResult.rows.forEach(row => {
-      console.log(`任务 [${row.task_id}] ${row.task_name}`);
+      console.log(`任务 [${row.task_id}] ${row.name}`);
       console.log(`  Cycle: [${row.cycle_id}] ${row.cycle_name} (${row.year}年)`);
       console.log(`  关联指标: ${row.indicator_count} 个\n`);
     });

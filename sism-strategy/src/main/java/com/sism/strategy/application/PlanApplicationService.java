@@ -143,14 +143,15 @@ public class PlanApplicationService {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
-        plan.ensureCanSubmitForApproval();
+        plan.submitForApproval();
+        Plan saved = planRepository.save(plan);
         eventPublisher.publish(new PlanSubmittedForApprovalEvent(
-                plan.getId(),
+                saved.getId(),
                 request.getWorkflowCode(),
                 currentUserId,
                 currentOrgId
         ));
-        return enrichWorkflowFields(convertToResponse(plan, null), plan);
+        return enrichWorkflowFields(convertToResponse(saved, null), saved);
     }
 
     /**
@@ -489,6 +490,7 @@ public class PlanApplicationService {
 
         response.setWorkflowInstanceId(workflowSnapshot.getWorkflowInstanceId());
         response.setSubmittedBy(workflowSnapshot.getStarterId());
+        response.setSubmittedByName(workflowSnapshot.getStarterName());
         response.setSubmittedAt(workflowSnapshot.getStartedAt());
         response.setLastRejectReason(workflowSnapshot.getLastRejectReason());
         response.setWorkflowStatus(workflowSnapshot.getWorkflowStatus());

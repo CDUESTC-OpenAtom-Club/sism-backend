@@ -14,8 +14,19 @@ public class FlowResolver {
 
     private final FlowDefinitionRepository flowDefinitionRepository;
 
+    /**
+     * 自动解析并挂载审批流程定义到实例。
+     * PlanReport 类型不参与自动解析——职能部门月报和学院月报使用不同流程，
+     * 必须由调用方（ReportWorkflowEventListener）通过 workflowCode 显式指定。
+     */
     public void resolveAndAttachFlow(com.sism.workflow.domain.runtime.model.AuditInstance instance) {
         if (instance.getFlowDefId() != null) {
+            return;
+        }
+
+        if (isPlanReportEntityType(instance.getEntityType())) {
+            // PlanReport 存在 FUNC / COLLEGE 两条流程，resolver 无法区分，
+            // 必须由业务入口显式设置 flowDefId，此处不做猜测。
             return;
         }
 
@@ -35,9 +46,7 @@ public class FlowResolver {
 
     public Optional<AuditFlowDef> findFlowByPreferredCode(String entityType) {
         String normalized = normalizeEntityTypeForFlow(entityType);
-        List<String> preferredCodes = "TASK".equalsIgnoreCase(entityType)
-                ? List.of("PLAN_DISPATCH_STRATEGY", "PLAN_DISPATCH_FUNCDEPT", "INDICATOR_DEFAULT_APPROVAL")
-                : List.of("INDICATOR_DEFAULT_APPROVAL", "PLAN_DISPATCH_STRATEGY", "PLAN_DISPATCH_FUNCDEPT");
+        List<String> preferredCodes = resolvePreferredCodes(entityType);
 
         for (String code : preferredCodes) {
             Optional<AuditFlowDef> found = flowDefinitionRepository.findByCode(code)
@@ -50,6 +59,13 @@ public class FlowResolver {
         return Optional.empty();
     }
 
+    private List<String> resolvePreferredCodes(String entityType) {
+        if ("TASK".equalsIgnoreCase(entityType)) {
+            return List.of("PLAN_DISPATCH_STRATEGY", "PLAN_DISPATCH_FUNCDEPT", "INDICATOR_DEFAULT_APPROVAL");
+        }
+        return List.of("INDICATOR_DEFAULT_APPROVAL", "PLAN_DISPATCH_STRATEGY", "PLAN_DISPATCH_FUNCDEPT");
+    }
+
     public String normalizeEntityTypeForFlow(String entityType) {
         if (entityType == null) {
             return "INDICATOR";
@@ -57,6 +73,13 @@ public class FlowResolver {
         if ("TASK".equalsIgnoreCase(entityType)) {
             return "INDICATOR";
         }
+        if (isPlanReportEntityType(entityType)) {
+            return "PlanReport";
+        }
         return entityType;
+    }
+
+    private boolean isPlanReportEntityType(String entityType) {
+        return "PlanReport".equalsIgnoreCase(entityType) || "PLAN_REPORT".equalsIgnoreCase(entityType);
     }
 }

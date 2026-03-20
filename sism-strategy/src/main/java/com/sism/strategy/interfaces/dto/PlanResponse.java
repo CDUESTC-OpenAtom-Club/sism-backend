@@ -79,6 +79,9 @@ public class PlanResponse {
     @Schema(description = "提交人ID")
     private Long submittedBy;
 
+    @Schema(description = "提交人姓名")
+    private String submittedByName;
+
     @Schema(description = "提交时间")
     private LocalDateTime submittedAt;
 

@@ -21,16 +21,16 @@ import java.util.Optional;
 @Repository
 public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long> {
 
-    @Query("SELECT d FROM AuditFlowDef d")
+    @Query("SELECT DISTINCT d FROM AuditFlowDef d LEFT JOIN FETCH d.steps")
     List<AuditFlowDef> findAllAuditFlowDefs();
 
-    @Query("SELECT d FROM AuditFlowDef d WHERE d.id = :id")
+    @Query("SELECT DISTINCT d FROM AuditFlowDef d LEFT JOIN FETCH d.steps WHERE d.id = :id")
     Optional<AuditFlowDef> findAuditFlowDefById(@Param("id") Long id);
 
-    @Query("SELECT d FROM AuditFlowDef d WHERE d.flowCode = :flowCode")
+    @Query("SELECT DISTINCT d FROM AuditFlowDef d LEFT JOIN FETCH d.steps WHERE d.flowCode = :flowCode")
     Optional<AuditFlowDef> findAuditFlowDefByCode(@Param("flowCode") String flowCode);
 
-    @Query("SELECT d FROM AuditFlowDef d WHERE d.entityType = :entityType")
+    @Query("SELECT DISTINCT d FROM AuditFlowDef d LEFT JOIN FETCH d.steps WHERE d.entityType = :entityType")
     List<AuditFlowDef> findAuditFlowDefsByEntityType(@Param("entityType") String entityType);
 
     Optional<AuditInstance> findById(Long id);

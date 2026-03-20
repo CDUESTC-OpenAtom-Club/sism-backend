@@ -95,13 +95,13 @@ public interface TaskRepository {
      * @param orgId 执行组织ID（可选）
      * @param createdByOrgId 创建组织ID（可选）
      * @param taskType 任务类型（可选）
-     * @param taskName 任务名称（支持模糊查询，可选）
+     * @param name 任务名称（支持模糊查询，可选）
      * @param pageable 分页参数
      * @return 分页任务结果
      */
     Page<StrategicTask> findByCriteria(
             Long planId, Long cycleId, Long orgId, Long createdByOrgId,
-            TaskType taskType, String taskName, Pageable pageable);
+            TaskType taskType, String name, Pageable pageable);
 
     /**
      * 保存任务（新增或更新）

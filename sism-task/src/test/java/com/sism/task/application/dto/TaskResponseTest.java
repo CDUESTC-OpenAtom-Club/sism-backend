@@ -47,12 +47,12 @@ class TaskResponseTest {
         }
 
         @Override
-        public String getTaskName() {
+        public String getName() {
             return "示例任务";
         }
 
         @Override
-        public String getTaskDesc() {
+        public String getDesc() {
             return "示例描述";
         }
 

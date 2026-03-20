@@ -40,14 +40,11 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="cycle_id", nullable=false)
     private Long cycleId;
 
-    @Column(name="task_name", nullable=false)
-    private String taskName;
+    @Column(name="name", nullable=false)
+    private String name;
 
-    @Column(name = "name", nullable = false)
-    private String legacyName;
-
-    @Column(name="task_desc")
-    private String taskDesc;
+    @Column(name="desc")
+    private String desc;
 
     @Enumerated(EnumType.STRING)
     @Column(name="task_type", nullable=false)
@@ -85,14 +82,14 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Transient
     private String status = STATUS_DRAFT;
 
-    public static StrategicTask create(String taskName, TaskType taskType, Long planId, Long cycleId,
+    public static StrategicTask create(String name, TaskType taskType, Long planId, Long cycleId,
                                         SysOrg org, SysOrg createdByOrg) {
-        return create(TaskCategory.STRATEGIC, taskName, taskType, planId, cycleId, org, createdByOrg);
+        return create(TaskCategory.STRATEGIC, name, taskType, planId, cycleId, org, createdByOrg);
     }
 
-    public static StrategicTask create(TaskCategory taskCategory, String taskName, TaskType taskType, Long planId, Long cycleId,
+    public static StrategicTask create(TaskCategory taskCategory, String name, TaskType taskType, Long planId, Long cycleId,
                                        SysOrg org, SysOrg createdByOrg) {
-        if (taskName == null || taskName.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Task name cannot be null or empty");
         }
         if (taskType == null) {
@@ -112,8 +109,7 @@ public class StrategicTask extends AggregateRoot<Long> {
         }
 
         StrategicTask task = new StrategicTask();
-        task.taskName = taskName;
-        task.legacyName = taskName;
+        task.name = name;
         task.taskType = taskType;
         task.planId = planId;
         task.cycleId = cycleId;
@@ -125,7 +121,7 @@ public class StrategicTask extends AggregateRoot<Long> {
         task.createdAt = LocalDateTime.now();
         task.updatedAt = LocalDateTime.now();
         task.isDeleted = false;
-        task.addEvent(new TaskCreatedEvent(task.id, taskName, org.getId()));
+        task.addEvent(new TaskCreatedEvent(task.id, name, org.getId()));
         return task;
     }
 
@@ -159,17 +155,16 @@ public class StrategicTask extends AggregateRoot<Long> {
         this.addEvent(new TaskStatusChangedEvent(this.id, oldStatus, STATUS_CANCELLED));
     }
 
-    public void updateTaskName(String taskName) {
-        if (Objects.isNull(taskName) || taskName.trim().isEmpty()) {
+    public void updateName(String name) {
+        if (Objects.isNull(name) || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Task name cannot be empty");
         }
-        this.taskName = taskName;
-        this.legacyName = taskName;
+        this.name = name;
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void updateTaskDesc(String taskDesc) {
-        this.taskDesc = taskDesc;
+    public void updateDesc(String desc) {
+        this.desc = desc;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -183,7 +178,7 @@ public class StrategicTask extends AggregateRoot<Long> {
 
     @Override
     public void validate() {
-        if (taskName == null || taskName.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Task name is required");
         }
         if (taskType == null) {
@@ -221,5 +216,9 @@ public class StrategicTask extends AggregateRoot<Long> {
         if (status == null) {
             status = STATUS_DRAFT;
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
     }
 }

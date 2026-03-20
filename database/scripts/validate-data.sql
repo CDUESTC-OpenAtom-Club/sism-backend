@@ -2,12 +2,18 @@
 -- SISM 数据校验脚本
 -- 用途: 验证数据同步后的数据完整性
 -- 版本: V1.0
+-- 说明:
+-- - 本脚本仍面向历史旧结构（org / app_user / assessment_cycle / strategic_task / milestone）。
+-- - 不应用于当前 sys_org / sys_user / cycle / sys_task / indicator_milestone 的干净种子校验。
+-- - 当前审批/填报主链路请优先使用 database/seeds 下的干净种子与对应校验脚本。
 -- ============================================
 
 -- 设置输出格式
 \echo '============================================'
 \echo 'SISM 数据完整性校验'
 \echo '============================================'
+\echo ''
+\echo 'WARNING: 当前 validate-data.sql 仍是旧结构校验脚本，不适用于 sys_task 干净种子校验。'
 \echo ''
 
 -- ============================================

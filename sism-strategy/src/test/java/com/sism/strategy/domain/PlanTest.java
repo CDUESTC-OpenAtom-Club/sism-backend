@@ -56,6 +56,18 @@ class PlanTest {
     }
 
     @Test
+    @DisplayName("Should move plan to pending when submitted for approval")
+    void shouldMovePlanToPendingWhenSubmittedForApproval() {
+        Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
+
+        plan.submitForApproval();
+
+        assertEquals("PENDING", plan.getStatus());
+        assertNotNull(plan.getUpdatedAt());
+        assertFalse(plan.isEditable());
+    }
+
+    @Test
     @DisplayName("Should approve Plan to distributed state")
     void shouldApprovePlanToDistributedState() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);

@@ -7,7 +7,9 @@ import com.sism.workflow.application.query.WorkflowReadModelService;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.model.WorkflowTask;
 import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.runtime.repository.WorkflowTaskRepository;
 import com.sism.workflow.interfaces.dto.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,6 +50,9 @@ class BusinessWorkflowApplicationServiceTest {
 
     @Mock
     private WorkflowPreviewQueryService workflowPreviewQueryService;
+
+    @Mock
+    private WorkflowTaskRepository workflowTaskRepository;
 
     @InjectMocks
     private BusinessWorkflowApplicationService businessWorkflowApplicationService;
@@ -170,6 +175,43 @@ class BusinessWorkflowApplicationServiceTest {
         WorkflowInstanceResponse response = businessWorkflowApplicationService.approveTask("256", request, 9L);
 
         assertEquals("128", response.getInstanceId());
+        verify(workflowApplicationService).approveAuditInstance(instance, 9L, "同意");
+    }
+
+    @Test
+    void approveTask_shouldResolveOwningInstanceWhenTaskIdIsWorkflowTaskId() {
+        AuditInstance instance = new AuditInstance();
+        instance.setId(133L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        currentStep.setId(356L);
+        currentStep.setStepIndex(2);
+        currentStep.setStepName("战略发展部负责人审批");
+        currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        currentStep.setApproverId(9L);
+        instance.addStepInstance(currentStep);
+
+        WorkflowTask workflowTask = new WorkflowTask();
+        workflowTask.setId(392L);
+        workflowTask.setWorkflowId("133");
+
+        ApprovalRequest request = new ApprovalRequest();
+        request.setComment("同意");
+
+        when(auditInstanceRepository.findById(392L)).thenReturn(Optional.empty());
+        when(auditInstanceRepository.findByStepInstanceId(392L)).thenReturn(Optional.empty());
+        when(workflowTaskRepository.findById(392L)).thenReturn(Optional.of(workflowTask));
+        when(auditInstanceRepository.findById(133L)).thenReturn(Optional.of(instance));
+        when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
+        when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
+                WorkflowInstanceResponse.builder().instanceId("133").status("IN_REVIEW").build()
+        );
+
+        WorkflowInstanceResponse response = businessWorkflowApplicationService.approveTask("392", request, 9L);
+
+        assertEquals("133", response.getInstanceId());
         verify(workflowApplicationService).approveAuditInstance(instance, 9L, "同意");
     }
 

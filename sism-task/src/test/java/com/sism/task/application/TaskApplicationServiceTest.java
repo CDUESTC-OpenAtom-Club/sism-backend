@@ -74,7 +74,7 @@ class TaskApplicationServiceTest {
         verifyNoInteractions(taskRepository);
     }
 
-    private record StubTaskFlatView(Long id, String taskName, Integer sortOrder) implements TaskFlatView {
+    private record StubTaskFlatView(Long id, String name, Integer sortOrder) implements TaskFlatView {
 
         @Override
         public Long getId() {
@@ -82,12 +82,12 @@ class TaskApplicationServiceTest {
         }
 
         @Override
-        public String getTaskName() {
-            return taskName;
+        public String getName() {
+            return name;
         }
 
         @Override
-        public String getTaskDesc() {
+        public String getDesc() {
             return "描述-" + id;
         }
 

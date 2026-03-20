@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -29,21 +30,15 @@ public class ApproverResolver {
     private Long resolveByRoleId(Long roleId, Long requesterId, Long requesterOrgId, String stepName) {
         List<User> candidates = userRepository.findByRoleId(roleId).stream()
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .sorted(candidateComparator(stepName, requesterOrgId))
                 .toList();
         if (candidates.isEmpty()) {
             throw new IllegalStateException("No available approver candidates for step: " + stepName);
         }
 
-        Optional<User> sameOrgCandidate = candidates.stream()
-                .filter(user -> requesterOrgId != null && requesterOrgId.equals(user.getOrgId()))
-                .min(Comparator.comparing(User::getId));
-        if (sameOrgCandidate.isPresent()) {
-            return sameOrgCandidate.get().getId();
-        }
-
         return candidates.stream()
-                .min(Comparator.comparing(User::getId))
                 .map(User::getId)
+                .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No available approver candidates for step: " + stepName));
     }
 
@@ -69,9 +64,7 @@ public class ApproverResolver {
 
         List<ApproverCandidateResponse> candidates = userRepository.findByRoleId(roleId).stream()
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .sorted(Comparator
-                        .comparing((User user) -> requesterOrgId == null || !requesterOrgId.equals(user.getOrgId()))
-                        .thenComparing(User::getId))
+                .sorted(candidateComparator(stepDef.getStepName(), requesterOrgId))
                 .map(user -> ApproverCandidateResponse.builder()
                         .userId(user.getId())
                         .username(user.getUsername())
@@ -107,5 +100,50 @@ public class ApproverResolver {
         if (!valid) {
             throw new IllegalArgumentException("Selected approver does not match step role: " + stepDef.getStepName());
         }
+    }
+
+    private Comparator<User> candidateComparator(String stepName, Long requesterOrgId) {
+        return Comparator
+                .comparingInt((User user) -> candidatePriority(user, stepName, requesterOrgId))
+                .thenComparing(User::getId);
+    }
+
+    private int candidatePriority(User user, String stepName, Long requesterOrgId) {
+        Long userOrgId = user.getOrgId();
+
+        if (isVicePresidentStep(stepName)) {
+            return isStrategyOrg(userOrgId) ? 0 : 10;
+        }
+        if (isStrategyDepartmentStep(stepName)) {
+            return isStrategyOrg(userOrgId) ? 0 : 10;
+        }
+        if (isSameOrgStep(stepName)) {
+            return requesterOrgId != null && requesterOrgId.equals(userOrgId) ? 0 : 10;
+        }
+
+        return requesterOrgId != null && requesterOrgId.equals(userOrgId) ? 0 : 10;
+    }
+
+    private boolean isVicePresidentStep(String stepName) {
+        return containsAny(stepName, "分管校领导", "校领导");
+    }
+
+    private boolean isStrategyDepartmentStep(String stepName) {
+        return containsAny(stepName, "战略发展部负责人", "战略发展部终审");
+    }
+
+    private boolean isSameOrgStep(String stepName) {
+        return containsAny(stepName, "职能部门审批人", "二级学院审批人", "学院院长", "职能部门终审人");
+    }
+
+    private boolean isStrategyOrg(Long orgId) {
+        return orgId != null && orgId.equals(35L);
+    }
+
+    private boolean containsAny(String value, String... keywords) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        return Stream.of(keywords).anyMatch(value::contains);
     }
 }

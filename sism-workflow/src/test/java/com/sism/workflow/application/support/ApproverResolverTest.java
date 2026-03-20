@@ -34,14 +34,15 @@ class ApproverResolverTest {
     @Test
     void resolveApproverId_shouldPreferSameOrgRoleCandidate() {
         AuditStepDef stepDef = new AuditStepDef();
-        stepDef.setRoleId(9L);
+        stepDef.setRoleId(6L);
+        stepDef.setStepName("职能部门审批人审批");
 
         User user = new User();
         user.setId(202L);
         user.setOrgId(30L);
         user.setIsActive(true);
 
-        when(userRepository.findByRoleId(9L)).thenReturn(List.of(user));
+        when(userRepository.findByRoleId(6L)).thenReturn(List.of(user));
 
         ApproverResolver resolver = new ApproverResolver(userRepository);
 
@@ -51,14 +52,37 @@ class ApproverResolverTest {
     @Test
     void resolveApproverId_shouldRejectWhenRoleHasNoCandidates() {
         AuditStepDef stepDef = new AuditStepDef();
-        stepDef.setRoleId(9L);
-        stepDef.setStepName("校领导审批");
+        stepDef.setRoleId(7L);
+        stepDef.setStepName("分管校领导审批");
 
         ApproverResolver resolver = new ApproverResolver(userRepository);
 
-        when(userRepository.findByRoleId(9L)).thenReturn(List.of());
+        when(userRepository.findByRoleId(7L)).thenReturn(List.of());
 
         assertThrows(IllegalStateException.class, () -> resolver.resolveApproverId(stepDef, 88L, 30L));
+    }
+
+    @Test
+    void resolveApproverId_shouldPreferStrategyOrgForVicePresidentStep() {
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setRoleId(7L);
+        stepDef.setStepName("分管校领导审批");
+
+        User sameOrgLeader = new User();
+        sameOrgLeader.setId(300L);
+        sameOrgLeader.setOrgId(44L);
+        sameOrgLeader.setIsActive(true);
+
+        User strategyLeader = new User();
+        strategyLeader.setId(124L);
+        strategyLeader.setOrgId(35L);
+        strategyLeader.setIsActive(true);
+
+        when(userRepository.findByRoleId(7L)).thenReturn(List.of(sameOrgLeader, strategyLeader));
+
+        ApproverResolver resolver = new ApproverResolver(userRepository);
+
+        assertEquals(124L, resolver.resolveApproverId(stepDef, 223L, 44L));
     }
 
     @Test

@@ -50,18 +50,18 @@ async function regenerate() {
     const taskCheck = await client.query(`
       SELECT 
         t.task_id,
-        t.task_name,
+        t.name,
         COUNT(i.id) as indicator_count
       FROM sys_task t
       LEFT JOIN indicator i ON i.task_id = t.task_id AND i.year = 2025
       WHERE t.cycle_id = 7
-      GROUP BY t.task_id, t.task_name
+      GROUP BY t.task_id, t.name
       ORDER BY t.task_id
     `);
 
     console.log('任务与指标关联:');
     taskCheck.rows.forEach(row => {
-      console.log(`  [${row.task_id}] ${row.task_name}: ${row.indicator_count} 个指标`);
+      console.log(`  [${row.task_id}] ${row.name}: ${row.indicator_count} 个指标`);
     });
     console.log('');
 

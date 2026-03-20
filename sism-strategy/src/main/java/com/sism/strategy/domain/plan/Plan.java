@@ -97,6 +97,12 @@ public class Plan extends AggregateRoot<Long> {
         }
     }
 
+    public void submitForApproval() {
+        ensureCanSubmitForApproval();
+        this.status = PlanStatus.PENDING.value();
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void approve() {
         if (PlanStatus.DISTRIBUTED.value().equals(this.status)) {
             throw new IllegalStateException("Plan is already distributed");

@@ -1,5 +1,6 @@
 package com.sism.workflow.application;
 
+import com.sism.execution.application.ReportApplicationService;
 import com.sism.strategy.application.PlanApplicationService;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.model.AuditStepInstance;
@@ -21,13 +22,19 @@ class PlanWorkflowSyncServiceTest {
     private ObjectProvider<PlanApplicationService> planApplicationServiceProvider;
 
     @Mock
+    private ObjectProvider<ReportApplicationService> reportApplicationServiceProvider;
+
+    @Mock
     private PlanApplicationService planApplicationService;
+
+    @Mock
+    private ReportApplicationService reportApplicationService;
 
     @Test
     void shouldSkipSyncWhenPlanApplicationServiceIsNotAvailable() {
         when(planApplicationServiceProvider.getIfAvailable()).thenReturn(null);
 
-        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider);
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
         AuditInstance instance = new AuditInstance();
         instance.setEntityId(1L);
         instance.setEntityType("PLAN");
@@ -43,7 +50,7 @@ class PlanWorkflowSyncServiceTest {
     void shouldSyncRejectedPlanUsingLastRejectedStepComment() {
         when(planApplicationServiceProvider.getIfAvailable()).thenReturn(planApplicationService);
 
-        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider);
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
         AuditInstance instance = new AuditInstance();
         instance.setEntityId(99L);
         instance.setEntityType("PLAN");
@@ -70,7 +77,7 @@ class PlanWorkflowSyncServiceTest {
     void shouldSyncWithdrawnPlanBackToDraft() {
         when(planApplicationServiceProvider.getIfAvailable()).thenReturn(planApplicationService);
 
-        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider);
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
         AuditInstance instance = new AuditInstance();
         instance.setEntityId(100L);
         instance.setEntityType("PLAN");

@@ -9,9 +9,9 @@ public interface TaskFlatView {
 
     Long getId();
 
-    String getTaskName();
+    String getName();
 
-    String getTaskDesc();
+    String getDesc();
 
     String getTaskType();
 

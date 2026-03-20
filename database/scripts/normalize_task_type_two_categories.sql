@@ -3,7 +3,7 @@
 -- 业务口径：仅允许 BASIC（基础性） / DEVELOPMENT（发展性）
 --
 -- 规则：
--- - KEY / REGULAR / QUANTITATIVE -> BASIC
+-- - PLAN / KEY / REGULAR / QUANTITATIVE -> BASIC
 -- - SPECIAL -> DEVELOPMENT
 -- - BASIC / DEVELOPMENT 保持不变
 -- ============================================================
@@ -20,13 +20,13 @@ ORDER BY task_type;
 WITH updated AS (
   UPDATE sys_task
   SET task_type = CASE
-                    WHEN task_type IN ('KEY', 'REGULAR', 'QUANTITATIVE') THEN 'BASIC'
+                    WHEN task_type IN ('PLAN', 'KEY', 'REGULAR', 'QUANTITATIVE') THEN 'BASIC'
                     WHEN task_type = 'SPECIAL' THEN 'DEVELOPMENT'
                     ELSE task_type
                   END,
       updated_at = NOW()
   WHERE COALESCE(is_deleted, false) = false
-    AND task_type IN ('KEY', 'REGULAR', 'QUANTITATIVE', 'SPECIAL')
+    AND task_type IN ('PLAN', 'KEY', 'REGULAR', 'QUANTITATIVE', 'SPECIAL')
   RETURNING task_id
 )
 SELECT COUNT(*) AS affected_rows

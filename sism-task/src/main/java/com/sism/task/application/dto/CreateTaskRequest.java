@@ -15,7 +15,7 @@ public class CreateTaskRequest {
     private TaskCategory taskCategory = TaskCategory.STRATEGIC;
 
     @NotBlank(message = "任务名称不能为空")
-    private String taskName;
+    private String name;
 
     @NotNull(message = "任务类型不能为空")
     private TaskType taskType;
@@ -33,6 +33,6 @@ public class CreateTaskRequest {
     private Long createdByOrgId;
 
     private Integer sortOrder = 0;
-    private String taskDesc;
+    private String desc;
     private String remark;
 }

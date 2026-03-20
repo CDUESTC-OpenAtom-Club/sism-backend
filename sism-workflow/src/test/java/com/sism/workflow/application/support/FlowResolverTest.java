@@ -7,7 +7,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,25 +36,30 @@ class FlowResolverTest {
     }
 
     @Test
-    void resolveAndAttachFlow_shouldFallbackToEntityTypeWhenPreferredCodeMissing() {
-        AuditFlowDef flowDef = new AuditFlowDef();
-        flowDef.setId(2L);
-        flowDef.setEntityType("PLAN_REPORT");
-        flowDef.setIsActive(true);
-
-        when(flowDefinitionRepository.findByCode("INDICATOR_DEFAULT_APPROVAL")).thenReturn(Optional.empty());
-        when(flowDefinitionRepository.findByCode("PLAN_DISPATCH_STRATEGY")).thenReturn(Optional.empty());
-        when(flowDefinitionRepository.findByCode("PLAN_DISPATCH_FUNCDEPT")).thenReturn(Optional.empty());
-        when(flowDefinitionRepository.findByEntityType("PLAN_REPORT")).thenReturn(List.of(flowDef));
-
+    void resolveAndAttachFlow_shouldNotAutoResolveForPlanReport() {
+        // PlanReport 存在 FUNC / COLLEGE 两条流程，resolver 无法区分，
+        // 必须由业务入口显式设置 flowDefId。
         FlowResolver resolver = new FlowResolver(flowDefinitionRepository);
         var instance = new com.sism.workflow.domain.runtime.model.AuditInstance();
-        instance.setEntityType("PLAN_REPORT");
+        instance.setEntityType("PlanReport");
         instance.setEntityId(10L);
 
         resolver.resolveAndAttachFlow(instance);
 
-        assertEquals(2L, instance.getFlowDefId());
+        assertNull(instance.getFlowDefId());
+    }
+
+    @Test
+    void resolveAndAttachFlow_shouldPreserveExplicitFlowDefIdForPlanReport() {
+        FlowResolver resolver = new FlowResolver(flowDefinitionRepository);
+        var instance = new com.sism.workflow.domain.runtime.model.AuditInstance();
+        instance.setEntityType("PlanReport");
+        instance.setEntityId(10L);
+        instance.setFlowDefId(5L); // 由 ReportWorkflowEventListener 显式设置
+
+        resolver.resolveAndAttachFlow(instance);
+
+        assertEquals(5L, instance.getFlowDefId());
     }
 
     @Test

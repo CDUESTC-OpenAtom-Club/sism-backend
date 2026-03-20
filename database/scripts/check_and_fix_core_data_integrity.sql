@@ -3,7 +3,7 @@
 -- 范围：sys_task / plan / indicator
 --
 -- 修复策略（可重复执行）：
--- 1) 修复 task.cycle_id 无效（按 task_name 中年份映射到 cycle.year）
+-- 1) 修复 task.cycle_id 无效（按 name 中年份映射到 cycle.year）
 -- 2) 规范“一个计划一个周期”：将 cycle=7 的任务迁移到 plan_id=7
 -- 3) 自动补齐缺失的 plan（按已存在 task 引用生成占位 plan）
 -- 4) 修复 active 子指标引用 deleted 父指标（解除挂载，parent_indicator_id=NULL）
@@ -37,7 +37,7 @@ WHERE COALESCE(c.is_deleted, false) = false
 -- ------------------------------------------------------------
 WITH task_year AS (
   SELECT t.task_id,
-         NULLIF(SUBSTRING(t.task_name FROM '(20[0-9]{2})'), '')::INT AS year_from_name
+         NULLIF(SUBSTRING(t.name FROM '(20[0-9]{2})'), '')::INT AS year_from_name
   FROM sys_task t
   LEFT JOIN cycle c ON c.id = t.cycle_id
   WHERE COALESCE(t.is_deleted, false) = false
