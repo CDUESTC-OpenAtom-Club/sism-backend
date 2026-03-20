@@ -11,8 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
-
 @Service
 @RequiredArgsConstructor
 public class StartWorkflowUseCase {
@@ -26,8 +24,7 @@ public class StartWorkflowUseCase {
     @Transactional
     public AuditInstance startAuditInstance(AuditInstance instance,
                                             Long requesterId,
-                                            Long requesterOrgId,
-                                            Map<Long, Long> selectedApprovers) {
+                                            Long requesterOrgId) {
         instance.validate();
         flowResolver.resolveAndAttachFlow(instance);
         instance.start(requesterId, requesterOrgId);
@@ -35,7 +32,7 @@ public class StartWorkflowUseCase {
         AuditFlowDef flowDef = instance.getFlowDefId() == null
                 ? null
                 : flowDefinitionRepository.findById(instance.getFlowDefId()).orElse(null);
-        stepInstanceFactory.initialize(instance, flowDef, requesterId, requesterOrgId, selectedApprovers);
+        stepInstanceFactory.initialize(instance, flowDef, requesterId, requesterOrgId);
 
         AuditInstance saved = auditInstanceRepository.save(instance);
         workflowEventDispatcher.publish(saved);

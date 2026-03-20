@@ -148,12 +148,7 @@ public class PlanApplicationService {
                 plan.getId(),
                 request.getWorkflowCode(),
                 currentUserId,
-                currentOrgId,
-                request.getSelectedApprovers().stream()
-                        .map(item -> new PlanSubmittedForApprovalEvent.SelectedApprover(
-                                item.getStepDefId(),
-                                item.getApproverId()))
-                        .toList()
+                currentOrgId
         ));
         return enrichWorkflowFields(convertToResponse(plan, null), plan);
     }
@@ -268,8 +263,15 @@ public class PlanApplicationService {
      */
     public List<PlanResponse> getAllPlans() {
         Map<Long, String> orgNamesById = loadOrgNamesById();
-        return planRepository.findAll().stream()
-                .map(plan -> enrichWorkflowFields(convertToResponse(plan, null, orgNamesById), plan))
+        List<Plan> plans = planRepository.findAll();
+        Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
+                        plans.stream().map(Plan::getId).toList()
+                );
+        return plans.stream()
+                .map(plan -> enrichWorkflowFields(
+                        convertToResponse(plan, null, orgNamesById),
+                        workflowSnapshotsByPlanId.get(plan.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -303,8 +305,14 @@ public class PlanApplicationService {
 
         Page<Plan> planPage = planRepository.findPage(cycleIds, queryStatuses, pageable);
         Map<Long, String> orgNamesById = loadOrgNamesById();
+        Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
+                        planPage.getContent().stream().map(Plan::getId).toList()
+                );
         Page<PlanResponse> responsePage = planPage.map(
-                plan -> enrichWorkflowFields(convertToResponse(plan, null, orgNamesById), plan));
+                plan -> enrichWorkflowFields(
+                        convertToResponse(plan, null, orgNamesById),
+                        workflowSnapshotsByPlanId.get(plan.getId())));
 
         log.info(
                 "Loaded plans page={}, size={}, year={}, status={}, results={}, total={}, durationMs={}",
@@ -327,9 +335,15 @@ public class PlanApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
 
         Map<Long, String> orgNamesById = loadOrgNamesById();
-        return planRepository.findByCycleId(cycleId).stream()
+        List<Plan> plans = planRepository.findByCycleId(cycleId);
+        Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
+                        plans.stream().map(Plan::getId).toList()
+                );
+        return plans.stream()
                 .map(plan -> enrichWorkflowFields(
-                        convertToResponse(plan, cycle.getYear().toString(), orgNamesById), plan))
+                        convertToResponse(plan, cycle.getYear().toString(), orgNamesById),
+                        workflowSnapshotsByPlanId.get(plan.getId())))
                 .collect(Collectors.toList());
     }
 
@@ -461,6 +475,14 @@ public class PlanApplicationService {
 
         PlanWorkflowSnapshotQueryService.WorkflowSnapshot workflowSnapshot =
                 planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(plan.getId());
+        return enrichWorkflowFields(response, workflowSnapshot);
+    }
+
+    private PlanResponse enrichWorkflowFields(PlanResponse response,
+                                              PlanWorkflowSnapshotQueryService.WorkflowSnapshot workflowSnapshot) {
+        if (response == null) {
+            return response;
+        }
         if (workflowSnapshot == null) {
             return response;
         }

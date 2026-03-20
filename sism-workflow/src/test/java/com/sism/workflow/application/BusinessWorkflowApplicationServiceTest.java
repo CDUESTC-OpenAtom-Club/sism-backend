@@ -18,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -75,7 +74,7 @@ class BusinessWorkflowApplicationServiceTest {
 
         when(workflowDefinitionQueryService.getAuditFlowDefByCode("REPORT_APPROVAL")).thenReturn(flowDef);
         when(auditInstanceRepository.hasActiveInstance(18L, "PlanReport")).thenReturn(false);
-        when(workflowApplicationService.startAuditInstance(any(AuditInstance.class), any(), any(), any())).thenReturn(started);
+        when(workflowApplicationService.startAuditInstance(any(AuditInstance.class), any(), any())).thenReturn(started);
         when(workflowReadModelMapper.toInstanceResponse(started)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("9").status("IN_REVIEW").build()
         );
@@ -83,7 +82,7 @@ class BusinessWorkflowApplicationServiceTest {
         WorkflowInstanceResponse response = businessWorkflowApplicationService.startWorkflow(request, 1L, 2L);
 
         ArgumentCaptor<AuditInstance> captor = ArgumentCaptor.forClass(AuditInstance.class);
-        verify(workflowApplicationService).startAuditInstance(captor.capture(), any(), any(), any());
+        verify(workflowApplicationService).startAuditInstance(captor.capture(), any(), any());
 
         assertEquals("9", response.getInstanceId());
         assertEquals("IN_REVIEW", response.getStatus());
@@ -93,7 +92,7 @@ class BusinessWorkflowApplicationServiceTest {
     }
 
     @Test
-    void startWorkflowInstance_shouldForwardSelectedApproversToUnifiedStartFlow() {
+    void startWorkflowInstance_shouldForwardDefinitionAndEntityToUnifiedStartFlow() {
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(3L);
         flowDef.setFlowCode("PLAN_DISPATCH");
@@ -109,16 +108,11 @@ class BusinessWorkflowApplicationServiceTest {
 
         StartInstanceRequest request = new StartInstanceRequest();
         request.setBusinessEntityId(88L);
-        request.setVariables(Map.of("source", "ui"));
-        SelectedApproverRequest approver = new SelectedApproverRequest();
-        approver.setStepDefId(101L);
-        approver.setApproverId(2001L);
-        request.setSelectedApprovers(List.of(approver));
 
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
         when(workflowDefinitionQueryService.getAuditFlowDefByCode("PLAN_DISPATCH")).thenReturn(flowDef);
         when(auditInstanceRepository.hasActiveInstance(88L, "PLAN")).thenReturn(false);
-        when(workflowApplicationService.startAuditInstance(any(AuditInstance.class), any(), any(), any()))
+        when(workflowApplicationService.startAuditInstance(any(AuditInstance.class), any(), any()))
                 .thenReturn(started);
         when(workflowReadModelMapper.toInstanceResponse(started)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("30").status("IN_REVIEW").build()
@@ -129,10 +123,11 @@ class BusinessWorkflowApplicationServiceTest {
 
         assertEquals("30", response.getInstanceId());
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<Long, Long>> approverCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(workflowApplicationService).startAuditInstance(any(AuditInstance.class), any(), any(), approverCaptor.capture());
-        assertEquals(Map.of(101L, 2001L), approverCaptor.getValue());
+        ArgumentCaptor<AuditInstance> captor = ArgumentCaptor.forClass(AuditInstance.class);
+        verify(workflowApplicationService).startAuditInstance(captor.capture(), any(), any());
+        assertEquals(3L, captor.getValue().getFlowDefId());
+        assertEquals(88L, captor.getValue().getEntityId());
+        assertEquals("PLAN", captor.getValue().getEntityType());
     }
 
     @Test

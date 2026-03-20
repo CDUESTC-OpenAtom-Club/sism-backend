@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * BusinessWorkflowApplicationService - 业务工作流应用服务
@@ -81,13 +79,7 @@ public class BusinessWorkflowApplicationService {
         AuditInstance started = workflowApplicationService.startAuditInstance(
                 instance,
                 userId,
-                orgId,
-                request.getSelectedApprovers() == null ? Map.of() : request.getSelectedApprovers().stream()
-                        .collect(Collectors.toMap(
-                                SelectedApproverRequest::getStepDefId,
-                                SelectedApproverRequest::getApproverId,
-                                (existing, replacement) -> replacement
-                        )));
+                orgId);
 
         return workflowReadModelMapper.toInstanceResponse(started);
     }
@@ -112,7 +104,6 @@ public class BusinessWorkflowApplicationService {
         startRequest.setBusinessEntityId(request.getBusinessEntityId());
         startRequest.setBusinessEntityType(flowDef.getEntityType());
         startRequest.setVariables(request.getVariables());
-        startRequest.setSelectedApprovers(request.getSelectedApprovers());
 
         return startWorkflow(startRequest, userId, orgId);
     }

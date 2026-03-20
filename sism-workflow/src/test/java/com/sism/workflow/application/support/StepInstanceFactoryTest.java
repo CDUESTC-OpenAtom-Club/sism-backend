@@ -39,7 +39,7 @@ class StepInstanceFactoryTest {
         instance.setEntityType("PlanReport");
         instance.setEntityId(1L);
 
-        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L, java.util.Map.of()));
+        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L));
         assertEquals(1, instance.getStepInstances().size());
         assertEquals(AuditInstance.STEP_STATUS_APPROVED, instance.getStepInstances().get(0).getStatus());
     }
@@ -63,7 +63,7 @@ class StepInstanceFactoryTest {
         instance.setEntityType("PlanReport");
         instance.setEntityId(1L);
 
-        assertThrows(IllegalStateException.class, () -> factory.initialize(instance, flowDef, 1L, 1L, java.util.Map.of()));
+        assertThrows(IllegalStateException.class, () -> factory.initialize(instance, flowDef, 1L, 1L));
     }
 
     @Test
@@ -85,6 +85,6 @@ class StepInstanceFactoryTest {
         instance.setEntityType("PlanReport");
         instance.setEntityId(1L);
 
-        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L, java.util.Map.of()));
+        assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L));
     }
 }

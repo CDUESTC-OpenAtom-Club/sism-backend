@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 @Component
 @Slf4j
@@ -23,8 +22,7 @@ public class StepInstanceFactory {
     public void initialize(AuditInstance instance,
                            AuditFlowDef flowDef,
                            Long requesterId,
-                           Long requesterOrgId,
-                           Map<Long, Long> selectedApprovers) {
+                           Long requesterOrgId) {
         if (instance.getStepInstances() != null && !instance.getStepInstances().isEmpty()) {
             return;
         }
@@ -58,9 +56,6 @@ public class StepInstanceFactory {
             Long resolvedApproverId;
             if (stepDef.isSubmitStep()) {
                 resolvedApproverId = requesterId;
-            } else if (selectedApprovers != null && stepDef.getId() != null && selectedApprovers.containsKey(stepDef.getId())) {
-                resolvedApproverId = selectedApprovers.get(stepDef.getId());
-                approverResolver.validateSelectedApprover(stepDef, resolvedApproverId);
             } else {
                 resolvedApproverId = approverResolver.resolveApproverId(stepDef, requesterId, requesterOrgId);
             }

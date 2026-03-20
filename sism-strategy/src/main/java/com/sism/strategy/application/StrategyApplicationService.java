@@ -231,16 +231,26 @@ public class StrategyApplicationService {
         Indicator indicator = indicatorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
 
-        if (indicatorDesc != null && !indicatorDesc.trim().isEmpty()) {
-            indicator.setIndicatorDesc(indicatorDesc.trim());
+        if (indicatorDesc != null) {
+            String normalizedDesc = indicatorDesc.trim();
+            if (normalizedDesc.isEmpty()) {
+                throw new IllegalArgumentException("Indicator description is required");
+            }
+            indicator.setIndicatorDesc(normalizedDesc);
         }
         if (weightPercent != null) {
+            if (weightPercent.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("Weight percent must be positive");
+            }
             indicator.setWeightPercent(weightPercent);
         }
         if (progress != null) {
             indicator.setProgress(progress);
         }
         if (sortOrder != null) {
+            if (sortOrder < 0) {
+                throw new IllegalArgumentException("Sort order must be non-negative");
+            }
             indicator.setSortOrder(sortOrder);
         }
         if (remark != null) {
@@ -258,7 +268,6 @@ public class StrategyApplicationService {
 
         indicator.setLevel(indicator.calculateLevel());
         indicator.setUpdatedAt(LocalDateTime.now());
-        indicator.validate();
         indicator = indicatorRepository.save(indicator);
         publishAndSaveEvents(indicator);
         return indicator;

@@ -97,7 +97,7 @@ class StartWorkflowUseCaseTest {
         instance.setFlowDefId(1L);
         instance.setEntityType("TASK");
         instance.setEntityId(30058L);
-        AuditInstance result = useCase.startAuditInstance(instance, 188L, 35L, java.util.Map.of());
+        AuditInstance result = useCase.startAuditInstance(instance, 188L, 35L);
 
         assertEquals(AuditInstance.STATUS_PENDING, result.getStatus());
         assertEquals(2, result.getStepInstances().size());

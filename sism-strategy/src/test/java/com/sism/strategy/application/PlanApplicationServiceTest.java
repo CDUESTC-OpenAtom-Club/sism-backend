@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.springframework.data.domain.PageImpl;
@@ -118,6 +120,37 @@ class PlanApplicationServiceTest {
         assertEquals(1L, result.getContent().get(0).getId());
         verify(cycleRepository).findByYear(2026);
         verify(planRepository).findPage(eq(List.of(2026L)), eq(List.of("DISTRIBUTED", "APPROVED", "ACTIVE", "PUBLISHED")), any(PageRequest.class));
+    }
+
+    @Test
+    @DisplayName("Should batch workflow snapshot lookup when loading paged plans")
+    void shouldBatchWorkflowSnapshotLookupWhenLoadingPagedPlans() {
+        Plan first = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
+        first.setId(1L);
+        Plan second = Plan.create(2026L, 36L, 35L, PlanLevel.STRATEGIC);
+        second.setId(2L);
+
+        when(planRepository.findPage(eq(List.of()), eq(List.of()), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(first, second), PageRequest.of(0, 20), 2));
+        when(organizationRepository.findAll()).thenReturn(List.of());
+        when(planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(List.of(1L, 2L)))
+                .thenReturn(Map.of(
+                        1L,
+                        PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                                .workflowInstanceId(101L)
+                                .workflowStatus("IN_REVIEW")
+                                .build()
+                ));
+
+        var result = service.getPlans(0, 20, null, null);
+
+        assertEquals(2, result.getTotalElements());
+        assertEquals(101L, result.getContent().get(0).getWorkflowInstanceId());
+        assertEquals("IN_REVIEW", result.getContent().get(0).getWorkflowStatus());
+        assertEquals(null, result.getContent().get(1).getWorkflowInstanceId());
+        verify(planWorkflowSnapshotQueryService).getWorkflowSnapshotsByPlanIds(List.of(1L, 2L));
+        verify(planWorkflowSnapshotQueryService, never()).getWorkflowSnapshotByPlanId(any());
+        verify(planRepository, times(1)).findPage(eq(List.of()), eq(List.of()), any(PageRequest.class));
     }
 
     @Test

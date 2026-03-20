@@ -78,9 +78,8 @@ public class WorkflowApplicationService {
 
     public AuditInstance startAuditInstance(AuditInstance instance,
                                             Long requesterId,
-                                            Long requesterOrgId,
-                                            Map<Long, Long> selectedApprovers) {
-        return startWorkflowUseCase.startAuditInstance(instance, requesterId, requesterOrgId, selectedApprovers);
+                                            Long requesterOrgId) {
+        return startWorkflowUseCase.startAuditInstance(instance, requesterId, requesterOrgId);
     }
 
     public AuditInstance approveAuditInstance(AuditInstance instance, Long userId, String comment) {
