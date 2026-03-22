@@ -19,8 +19,19 @@ public class WorkflowInstanceResponse {
     private String instanceId;
     private String definitionId;
     private String status; // External states: IN_REVIEW, APPROVED, REJECTED
+    private String entityType;
+    private Long entityId;
     private Long businessEntityId;
+    private String flowCode;
+    private String flowName;
     private Long starterId;
+    private String starterName;
+    private Long planId;
+    private String planName;
+    private Long sourceOrgId;
+    private String sourceOrgName;
+    private Long targetOrgId;
+    private String targetOrgName;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String currentTaskId;

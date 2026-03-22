@@ -64,6 +64,25 @@ class AuditInstanceTest {
     }
 
     @Test
+    @DisplayName("Should resolve latest pending step when multiple pending instances exist in history")
+    void shouldResolveLatestPendingStepWhenMultiplePendingInstancesExistInHistory() {
+        AuditInstance instance = new AuditInstance();
+
+        AuditStepInstance earlierPendingStep = new AuditStepInstance();
+        earlierPendingStep.setStepNo(2);
+        earlierPendingStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+
+        AuditStepInstance latestPendingStep = new AuditStepInstance();
+        latestPendingStep.setStepNo(4);
+        latestPendingStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+
+        instance.addStepInstance(earlierPendingStep);
+        instance.addStepInstance(latestPendingStep);
+
+        assertEquals(4, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
+    }
+
+    @Test
     @DisplayName("Should allow requester withdraw after submit step auto-completed but before first approval handled")
     void shouldAllowRequesterWithdrawBeforeFirstApprovalHandled() {
         AuditInstance instance = new AuditInstance();
@@ -109,6 +128,38 @@ class AuditInstanceTest {
 
         assertFalse(instance.canRequesterWithdraw());
         assertThrows(IllegalStateException.class, instance::cancel);
+    }
+
+    @Test
+    @DisplayName("Should keep rejected step history instead of reopening previous step in place")
+    void shouldKeepRejectedStepHistoryInsteadOfReopeningPreviousStepInPlace() {
+        AuditInstance instance = new AuditInstance();
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance submitStep = new AuditStepInstance();
+        submitStep.setStepNo(1);
+        submitStep.setStepDefId(11L);
+        submitStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+
+        AuditStepInstance departmentStep = new AuditStepInstance();
+        departmentStep.setStepNo(2);
+        departmentStep.setStepDefId(12L);
+        departmentStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+
+        AuditStepInstance leaderStep = new AuditStepInstance();
+        leaderStep.setStepNo(3);
+        leaderStep.setStepDefId(13L);
+        leaderStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+
+        instance.addStepInstance(submitStep);
+        instance.addStepInstance(departmentStep);
+        instance.addStepInstance(leaderStep);
+
+        instance.reject(9L, "打回");
+
+        assertEquals(AuditInstance.STEP_STATUS_APPROVED, departmentStep.getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_REJECTED, leaderStep.getStatus());
+        assertEquals(3, instance.getStepInstances().size());
     }
 
     private AuditFlowDef buildFlowDef() {

@@ -70,12 +70,12 @@ else
     exit 1
 fi
 
-# 步骤 3: 检查 Maven
-print_step "检查 Maven"
-if command -v mvn &> /dev/null; then
-    print_success "Maven 版本: $(mvn -version | head -n 1)"
+# 步骤 3: 检查 Maven Wrapper
+print_step "检查 Maven Wrapper"
+if [ -x "./mvnw" ]; then
+    print_success "Maven Wrapper 版本: $(./mvnw -version | head -n 1)"
 else
-    print_error "未找到 Maven"
+    print_error "未找到可执行的 ./mvnw"
     exit 1
 fi
 
@@ -90,8 +90,8 @@ fi
 
 # 步骤 5: Maven 构建（跳过测试）
 print_step "Maven 构建（跳过测试）"
-echo "执行: mvn clean package -DskipTests"
-if mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true; then
+echo "执行: ./mvnw clean package -DskipTests"
+if ./mvnw clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true; then
     print_success "构建成功"
 else
     print_error "构建失败"

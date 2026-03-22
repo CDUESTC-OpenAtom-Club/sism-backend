@@ -129,13 +129,13 @@ node database/scripts/db-setup.js
 
 ```bash
 # 查看迁移状态
-mvn flyway:info
+./mvnw flyway:info
 
 # 应用所有迁移
-mvn flyway:migrate
+./mvnw flyway:migrate
 
 # 验证迁移
-mvn flyway:validate
+./mvnw flyway:validate
 ```
 
 #### 5. 加载种子数据 (可选)
@@ -152,10 +152,10 @@ psql -U your_username -d sism_dev -f database/seeds/seed_data_v3_review.sql
 
 ```bash
 # 清理并构建
-mvn clean install
+./mvnw clean install
 
 # 跳过测试快速构建
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 ```
 
 #### 7. 启动应用
@@ -172,19 +172,19 @@ start-prod.bat
 **手动运行:**
 ```bash
 # 开发模式
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 
 # 生产模式
-mvn spring-boot:run -Dspring-boot.run.profiles=prod
+./mvnw spring-boot:run -Dspring-boot.run.profiles=prod
 
 # 指定端口
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
+./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
 ```
 
 **使用 JAR 文件运行:**
 ```bash
 # 构建 JAR
-mvn clean package -DskipTests
+./mvnw clean package -DskipTests
 
 # 运行 JAR
 java -jar target/sism-backend-1.0.1.jar --spring.profiles.active=dev
@@ -330,13 +330,13 @@ Error: Flyway migration failed
 **解决方案**:
 ```bash
 # 查看迁移状态
-mvn flyway:info
+./mvnw flyway:info
 
 # 修复失败的迁移
-mvn flyway:repair
+./mvnw flyway:repair
 
 # 重新应用迁移
-mvn flyway:migrate
+./mvnw flyway:migrate
 ```
 
 #### 问题 4: 端口被占用
@@ -348,7 +348,7 @@ Error: Port 8080 is already in use
 **解决方案**:
 ```bash
 # 使用不同端口启动
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
+./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
 
 # 或在 application.yml 中修改端口
 server:
@@ -415,13 +415,13 @@ node scripts/maintenance/verify-data-consistency.cjs
 
 ```bash
 # 运行所有测试
-mvn test
+./mvnw test
 
 # 运行指定测试类
-mvn test -Dtest=IndicatorServiceTest
+./mvnw test -Dtest=IndicatorServiceTest
 
 # 运行测试并生成覆盖率报告
-mvn test jacoco:report
+./mvnw test jacoco:report
 
 # 查看覆盖率报告
 open target/site/jacoco/index.html
@@ -451,7 +451,7 @@ open target/site/jacoco/index.html
 
 ```bash
 # 运行性能测试
-mvn test -Dtest=PerformanceBenchmarkTest
+./mvnw test -Dtest=PerformanceBenchmarkTest
 
 # 查看性能报告
 cat docs/performance/performance-benchmarks.md
@@ -470,7 +470,7 @@ cat docs/performance/performance-benchmarks.md
 
 ```bash
 # 运行安全扫描
-mvn dependency-check:check
+./mvnw dependency-check:check
 
 # 查看报告
 open target/dependency-check-report.html
@@ -1039,7 +1039,7 @@ EOF
 
 ```bash
 # 清理并构建
-mvn clean package -DskipTests -Pprod
+./mvnw clean package -DskipTests -Pprod
 
 # 验证 JAR 文件
 ls -lh target/sism-backend-1.0.1.jar
@@ -1049,12 +1049,12 @@ ls -lh target/sism-backend-1.0.1.jar
 
 ```bash
 # 在生产环境应用迁移
-mvn flyway:migrate -Dflyway.url=jdbc:postgresql://prod-db:5432/sism_prod \
+./mvnw flyway:migrate -Dflyway.url=jdbc:postgresql://prod-db:5432/sism_prod \
   -Dflyway.user=sism_prod_user \
   -Dflyway.password=your_password
 
 # 验证迁移状态
-mvn flyway:info -Dflyway.url=jdbc:postgresql://prod-db:5432/sism_prod \
+./mvnw flyway:info -Dflyway.url=jdbc:postgresql://prod-db:5432/sism_prod \
   -Dflyway.user=sism_prod_user \
   -Dflyway.password=your_password
 ```
@@ -1408,7 +1408,7 @@ sudo systemctl stop sism-backend
 cp /backup/sism-backend-1.0.0.jar /opt/sism/sism-backend-1.0.1.jar
 
 # 回滚数据库迁移 (如果需要)
-mvn flyway:undo -Dflyway.url=jdbc:postgresql://prod-db:5432/sism_prod
+./mvnw flyway:undo -Dflyway.url=jdbc:postgresql://prod-db:5432/sism_prod
 
 # 启动服务
 sudo systemctl start sism-backend
@@ -1480,13 +1480,13 @@ server:
 **快速命令**:
 ```bash
 # 查看迁移状态
-mvn flyway:info
+./mvnw flyway:info
 
 # 验证迁移脚本
-mvn flyway:validate
+./mvnw flyway:validate
 
 # 应用迁移
-mvn flyway:migrate
+./mvnw flyway:migrate
 ```
 
 **迁移文件位置**: `src/main/resources/db/migration/`

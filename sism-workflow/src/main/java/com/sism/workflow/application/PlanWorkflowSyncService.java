@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service;
 public class PlanWorkflowSyncService {
 
     private static final String PLAN_ENTITY_TYPE = "PLAN";
-    private static final String PLAN_REPORT_ENTITY_TYPE = "PlanReport";
+    private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
+    private static final String LEGACY_PLAN_REPORT_ENTITY_TYPE = "PlanReport";
 
     private final ObjectProvider<PlanApplicationService> planApplicationServiceProvider;
     private final ObjectProvider<ReportApplicationService> reportApplicationServiceProvider;
@@ -31,7 +32,7 @@ public class PlanWorkflowSyncService {
 
         if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
             syncPlan(instance);
-        } else if (PLAN_REPORT_ENTITY_TYPE.equals(instance.getEntityType())) {
+        } else if (isPlanReportEntityType(instance.getEntityType())) {
             syncPlanReport(instance);
         }
     }
@@ -61,7 +62,7 @@ public class PlanWorkflowSyncService {
         withReportService(reportService -> {
             if (AuditInstance.STATUS_APPROVED.equals(instance.getStatus())) {
                 log.info("Workflow APPROVED for PlanReport#{}, syncing report status", instance.getEntityId());
-                reportService.approveReport(instance.getEntityId(), instance.getRequesterId());
+                reportService.markWorkflowApproved(instance.getEntityId(), instance.getRequesterId());
             } else if (AuditInstance.STATUS_REJECTED.equals(instance.getStatus())) {
                 String reason = instance.getStepInstances().stream()
                         .filter(step -> AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus()))
@@ -69,9 +70,17 @@ public class PlanWorkflowSyncService {
                         .map(step -> step.getComment() == null || step.getComment().isBlank() ? "审批驳回" : step.getComment())
                         .orElse("审批驳回");
                 log.info("Workflow REJECTED for PlanReport#{}, reason: {}", instance.getEntityId(), reason);
-                reportService.rejectReport(instance.getEntityId(), instance.getRequesterId(), reason);
+                reportService.markWorkflowRejected(instance.getEntityId(), instance.getRequesterId(), reason);
+            } else if (AuditInstance.STATUS_WITHDRAWN.equals(instance.getStatus())) {
+                log.info("Workflow WITHDRAWN for PlanReport#{}, syncing report status", instance.getEntityId());
+                reportService.markWorkflowWithdrawn(instance.getEntityId());
             }
         });
+    }
+
+    private boolean isPlanReportEntityType(String entityType) {
+        return PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(entityType)
+                || LEGACY_PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(entityType);
     }
 
     private void withPlanService(java.util.function.Consumer<PlanApplicationService> action) {

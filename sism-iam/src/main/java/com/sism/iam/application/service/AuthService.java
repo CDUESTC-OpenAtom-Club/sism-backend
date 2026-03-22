@@ -107,4 +107,15 @@ public class AuthService {
     public Map<String, Object> refreshToken(String refreshToken) {
         return jwtTokenService.refreshToken(refreshToken);
     }
+
+    /**
+     * 获取当前用户权限编码列表
+     */
+    @Transactional(readOnly = true)
+    public List<String> getPermissionCodes(Long userId) {
+        if (userId == null || userId <= 0) {
+            return List.of();
+        }
+        return userRepository.findPermissionCodesByUserId(userId);
+    }
 }

@@ -177,7 +177,7 @@ sudo ./setup-server.sh github-deploy
 
 ```bash
 # 1. 构建 JAR
-mvn clean package -DskipTests
+./mvnw clean package -DskipTests
 
 # 2. 上传到服务器
 scp target/sism-backend-1.0.0.jar user@server:/opt/sism/backend/
@@ -317,7 +317,7 @@ sudo journalctl -u sism-backend -f
 
 ### 部署前
 
-1. ✅ 在本地运行测试: `mvn test`
+1. ✅ 在本地运行测试: `./mvnw test`
 2. ✅ 备份生产数据库: `./backup-database.sh`
 3. ✅ 检查服务状态: `./health-check.sh`
 

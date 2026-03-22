@@ -7,9 +7,13 @@ import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.infrastructure.ExecutionModuleConfig;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.organization.domain.SysOrg;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.shared.infrastructure.event.EventStoreInMemory;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
+import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.repository.FlowDefinitionRepository;
 import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
@@ -119,11 +123,11 @@ class ReportWorkflowIntegrationTest {
         for (Long reportId : createdReportIds) {
             entityManager.createNativeQuery(
                             "DELETE FROM audit_step_instance WHERE instance_id IN (" +
-                                    "SELECT id FROM audit_instance WHERE entity_type = 'PlanReport' AND entity_id = :reportId)")
+                                    "SELECT id FROM audit_instance WHERE entity_type IN ('PlanReport', 'PLAN_REPORT') AND entity_id = :reportId)")
                     .setParameter("reportId", reportId)
                     .executeUpdate();
             entityManager.createNativeQuery(
-                            "DELETE FROM audit_instance WHERE entity_type = 'PlanReport' AND entity_id = :reportId")
+                            "DELETE FROM audit_instance WHERE entity_type IN ('PlanReport', 'PLAN_REPORT') AND entity_id = :reportId")
                     .setParameter("reportId", reportId)
                     .executeUpdate();
             entityManager.createNativeQuery("DELETE FROM plan_report WHERE id = :reportId")
@@ -173,7 +177,7 @@ class ReportWorkflowIntegrationTest {
         // 检查是否为这个报告创建了活跃的工作流实例
         boolean hasActiveWorkflow = auditInstanceRepository.hasActiveInstance(
                 testReportId,
-                "PlanReport"
+                "PLAN_REPORT"
         );
 
         assertThat(hasActiveWorkflow)
@@ -224,7 +228,7 @@ class ReportWorkflowIntegrationTest {
 
         boolean hasActiveWorkflow = auditInstanceRepository.hasActiveInstance(
                 testReportId,
-                "PlanReport"
+                "PLAN_REPORT"
         );
 
         assertThat(hasActiveWorkflow)
@@ -312,11 +316,11 @@ class ReportWorkflowIntegrationTest {
 
         boolean hasWorkflow1 = auditInstanceRepository.hasActiveInstance(
                 testReportId,
-                "PlanReport"
+                "PLAN_REPORT"
         );
         boolean hasWorkflow2 = auditInstanceRepository.hasActiveInstance(
                 report2.getId(),
-                "PlanReport"
+                "PLAN_REPORT"
         );
 
         assertThat(hasWorkflow1)
@@ -352,7 +356,7 @@ class ReportWorkflowIntegrationTest {
         // ============ 验证：第一个工作流应该存在 ============
         boolean hasFirstWorkflow = auditInstanceRepository.hasActiveInstance(
                 testReportId,
-                "PlanReport"
+                "PLAN_REPORT"
         );
         assertThat(hasFirstWorkflow).isTrue();
 
@@ -457,6 +461,102 @@ class ReportWorkflowIntegrationTest {
                 public List<Long> findRoleIdsByUserId(Long userId) {
                     return List.of();
                 }
+            };
+        }
+
+        @Bean
+        OrganizationRepository organizationRepository() {
+            return new OrganizationRepository() {
+                @Override
+                public Optional<SysOrg> findById(Long id) {
+                    if (id == null) {
+                        return Optional.empty();
+                    }
+                    SysOrg org = new SysOrg();
+                    org.setId(id);
+                    org.setName("Org-" + id);
+                    org.setIsActive(true);
+                    return Optional.of(org);
+                }
+
+                @Override
+                public List<SysOrg> findAll() { return List.of(); }
+
+                @Override
+                public List<SysOrg> findByParentOrgId(Long parentOrgId) { return List.of(); }
+
+                @Override
+                public List<SysOrg> findByType(com.sism.enums.OrgType type) { return List.of(); }
+
+                @Override
+                public List<SysOrg> findByIsActive(Boolean isActive) { return List.of(); }
+
+                @Override
+                public List<SysOrg> findByLevel(Integer level) { return List.of(); }
+
+                @Override
+                public List<SysOrg> findByNameContaining(String name) { return List.of(); }
+
+                @Override
+                public SysOrg save(SysOrg org) { return org; }
+
+                @Override
+                public void delete(SysOrg org) {}
+
+                @Override
+                public boolean existsById(Long id) { return true; }
+
+                @Override
+                public List<SysOrg> findTopLevelOrgs() { return List.of(); }
+            };
+        }
+
+        @Bean
+        PlanRepository planRepository() {
+            return new PlanRepository() {
+                @Override
+                public Optional<Plan> findById(Long id) {
+                    if (id == null) {
+                        return Optional.empty();
+                    }
+                    Plan plan = new Plan();
+                    plan.setId(id);
+                    plan.setCreatedByOrgId(1L);
+                    plan.setTargetOrgId(1L);
+                    return Optional.of(plan);
+                }
+
+                @Override
+                public List<Plan> findAll() { return List.of(); }
+
+                @Override
+                public org.springframework.data.domain.Page<Plan> findPage(List<Long> cycleIds, List<String> statuses, org.springframework.data.domain.Pageable pageable) {
+                    return org.springframework.data.domain.Page.empty(pageable);
+                }
+
+                @Override
+                public List<Plan> findByTargetOrgId(Long targetOrgId) { return List.of(); }
+
+                @Override
+                public List<Plan> findByCreatedByOrgId(Long createdByOrgId) { return List.of(); }
+
+                @Override
+                public List<Plan> findByCycleId(Long cycleId) { return List.of(); }
+
+                @Override
+                public List<Plan> findByPlanLevel(com.sism.strategy.domain.plan.PlanLevel planLevel) { return List.of(); }
+
+                @Override
+                public List<Plan> findByStatuses(List<String> statuses) { return List.of(); }
+
+                @Override
+                public Plan save(Plan plan) { return plan; }
+
+                @Override
+                public void delete(Plan plan) {}
+
+                @Override
+                public boolean existsById(Long id) { return true; }
             };
         }
     }

@@ -7,102 +7,112 @@
 **测试环境**: http://localhost:8080
 **默认密码**: 所有测试账号密码均为 `admin123`
 
+**说明**:
+- 本文档以 [`audit_step_def-data.sql`](/Users/blackevil/Documents/前端架构测试/sism-backend/database/seeds/audit_step_def-data.sql) 的 14 个 canonical 步骤为准。
+- 部分旧文档里的 `jwc_*`、`jsjxy_*`、`zlb_leader` 等旧账号命名已不再适用于当前 clean seed。
+- 当前可直接复用的关键全局账号是 `admin`（分管校领导）、`zlb_admin`（战略发展部填报人）、`zlb_final1` / `zlb_final2`（`ROLE_STRATEGY_DEPT_HEAD`，可处理战略发展部负责人/终审节点）。
+
 ---
 
 ## 流程 1: PLAN_DISPATCH_STRATEGY - Plan下发审批（战略发展部）
 
 ### 流程说明
-战略发展部发起的 Plan 下发审批流程，需要经过战略发展部终审。
+战略发展部发起的 Plan 下发审批流程，需要经过战略发展部负责人审批和分管校领导审批。
 
 ### 审批步骤
 1. **提交步骤** (SUBMIT) - 提交人自动完成
-2. **战略发展部终审** (APPROVAL) - 战略发展部终审角色审批
+2. **战略发展部负责人审批** (APPROVAL) - 战略发展部负责人角色审批
+3. **分管校领导审批** (APPROVAL) - 分管校领导角色审批
 
 ### 测试账号
 
 | 角色 | 用户名 | 姓名 | 组织 | 说明 |
 |------|--------|------|------|------|
 | 发起人 | `zlb_admin` | 战略管理员 | 战略发展部 | 提交 Plan 下发申请 |
-| 终审人 | `zlb_final1` | 战略终审1 | 战略发展部 | 战略发展部终审角色 |
-| 终审人 | `zlb_final2` | 战略终审2 | 战略发展部 | 战略发展部终审角色（备用） |
+| 第二步审批人 | `zlb_final1` / `zlb_final2` | 战略发展部终审人1 / 战略发展部终审人2 | 战略发展部 | 当前 clean seed 中持有 `ROLE_STRATEGY_DEPT_HEAD`，可处理“战略发展部负责人审批”节点 |
+| 第三步审批人 | `admin` | 系统管理员 | 战略发展部 | 分管校领导角色 |
 
 ### 测试场景
 
 #### 场景 1.1: 正常审批通过
 1. 使用 `zlb_admin` 登录
 2. 创建 Plan 并提交下发申请
-3. 系统自动完成提交步骤，创建终审步骤
-4. 使用 `zlb_final1` 登录
-5. 在"我的待办"中找到该审批任务
-6. 点击"通过"，填写审批意见
-7. 验证 Plan 状态变为"已下发"
+3. 系统自动完成提交步骤，创建战略发展部负责人审批步骤
+4. 切换为 `zlb_final1` 或 `zlb_final2` 处理第二步审批
+5. 在"我的待办"中找到该审批任务，点击"通过"
+6. 系统创建分管校领导审批步骤
+7. 使用 `admin` 登录并通过审批
+8. 验证 Plan 状态变为"已下发"
 
 **预期结果**:
-- 提交后自动创建 2 个步骤实例（提交步骤已完成 + 终审步骤待审批）
-- 终审通过后，workflow 状态变为 `APPROVED`
+- 提交后自动创建 2 个步骤实例（提交步骤已完成 + 战略发展部负责人步骤待审批）
+- 第二步通过后自动创建第 3 个步骤实例（分管校领导待审批）
+- 分管校领导通过后，workflow 状态变为 `APPROVED`
 - Plan 状态同步更新
 
-#### 场景 1.2: 终审驳回
+#### 场景 1.2: 分管校领导驳回
 1. 使用 `zlb_admin` 登录提交 Plan 下发
-2. 使用 `zlb_final2` 登录
-3. 在"我的待办"中找到该审批任务
-4. 点击"驳回"，填写驳回原因
-5. 验证 workflow 状态变为 `REJECTED`
+2. 使用 `zlb_final1` 或 `zlb_final2` 通过第二步审批
+3. 使用 `admin` 登录
+4. 在"我的待办"中找到该审批任务并点击"驳回"
+5. 验证第二步恢复为 `PENDING`
 
 **预期结果**:
-- 终审驳回后，workflow 状态变为 `REJECTED`
-- 提交步骤恢复为 `PENDING` 状态
-- Plan 状态同步更新为驳回状态
+- 分管校领导驳回后，workflow 状态仍为 `IN_REVIEW`
+- 战略发展部负责人步骤恢复为 `PENDING` 状态
+- `zlb_final1` / `zlb_final2` 可以重新审批
 
 ---
 
 ## 流程 2: PLAN_DISPATCH_FUNCDEPT - Plan下发审批（职能部门）
 
 ### 流程说明
-职能部门发起的 Plan 下发审批流程，需要经过职能部门负责人审批和战略发展部终审。
+职能部门发起的 Plan 下发审批流程，需要经过职能部门审批人审批和分管校领导审批。
 
 ### 审批步骤
 1. **提交步骤** (SUBMIT) - 提交人自动完成
-2. **职能部门负责人审批** (APPROVAL) - 职能部门负责人角色审批
-3. **战略发展部终审** (APPROVAL) - 战略发展部终审角色审批
+2. **职能部门审批人审批** (APPROVAL) - 职能部门审批角色审批
+3. **分管校领导审批** (APPROVAL) - 分管校领导角色审批
 
 ### 测试账号（以教务处为例）
 
 | 角色 | 用户名 | 姓名 | 组织 | 说明 |
 |------|--------|------|------|------|
-| 发起人 | `jwc_reporter` | 教务处填报员 | 教务处 | 提交 Plan 下发申请 |
-| 部门审批 | `jwc_leader` | 教务处负责人 | 教务处 | 职能部门负责人角色 |
-| 终审人 | `zlb_final1` | 战略终审1 | 战略发展部 | 战略发展部终审角色 |
+| 发起人 | `jiaowu_report` | 教务处填报员 | 教务处 | 提交 Plan 下发申请 |
+| 第二步审批人 | `jiaowu_audit1` | 教务处审批人 | 教务处 | 职能部门审批角色 |
+| 第三步审批人 | `admin` | 系统管理员 | 战略发展部 | 分管校领导角色 |
 
 ### 其他职能部门账号
 
-**人事处**: `rsc_reporter`, `rsc_audit1`, `rsc_leader`
-**财务处**: `cwc_reporter`, `cwc_audit1`, `cwc_leader`
-**科研处**: `kyc_reporter`, `kyc_audit1`, `kyc_leader`
-**学工处**: `xgc_reporter`, `xgc_audit1`, `xgc_leader`
-**后勤处**: `hqc_reporter`, `hqc_audit1`, `hqc_leader`
+**党委办公室**: `dangban_report`, `dangban_audit1`
+**教务处**: `jiaowu_report`, `jiaowu_audit1`
+**科技处**: `keji_report`, `keji_audit1`
+**财务部**: `caiwu_report`, `caiwu_audit1`
+**后勤资产处**: `houqin_report`, `houqin_audit1`
+
+说明: 当前 clean seed 中，多数职能部门的 `_leader` / `_audit2` 为预留账号，默认无审批角色，不能替代第二步审批人。
 
 ### 测试场景
 
 #### 场景 2.1: 正常审批通过（两级审批）
-1. 使用 `jwc_reporter` 登录
+1. 使用 `jiaowu_report` 登录
 2. 创建 Plan 并提交下发申请
 3. 系统自动完成提交步骤，创建部门审批步骤
-4. 使用 `jwc_leader` 登录
+4. 使用 `jiaowu_audit1` 登录
 5. 在"我的待办"中找到该审批任务，点击"通过"
-6. 系统动态创建战略终审步骤
-7. 使用 `zlb_final1` 登录
+6. 系统动态创建分管校领导审批步骤
+7. 使用 `admin` 登录
 8. 在"我的待办"中找到该审批任务，点击"通过"
 9. 验证 Plan 状态变为"已下发"
 
 **预期结果**:
 - 提交后创建 2 个步骤实例（提交已完成 + 部门审批待审批）
-- 部门审批通过后，动态创建第 3 个步骤实例（战略终审待审批）
-- 战略终审通过后，workflow 状态变为 `APPROVED`
+- 部门审批通过后，动态创建第 3 个步骤实例（分管校领导待审批）
+- 分管校领导通过后，workflow 状态变为 `APPROVED`
 
 #### 场景 2.2: 部门负责人驳回
-1. 使用 `rsc_reporter` 登录提交 Plan 下发
-2. 使用 `rsc_leader` 登录
+1. 使用 `dangban_report` 登录提交 Plan 下发
+2. 使用 `dangban_audit1` 登录
 3. 在"我的待办"中点击"驳回"
 4. 验证 workflow 状态变为 `REJECTED`
 
@@ -110,169 +120,171 @@
 - 部门审批驳回后，workflow 状态变为 `REJECTED`
 - 提交步骤恢复为 `PENDING` 状态
 
-#### 场景 2.3: 战略终审驳回
-1. 使用 `cwc_reporter` 登录提交 Plan 下发
-2. 使用 `cwc_leader` 登录通过部门审批
-3. 使用 `zlb_final2` 登录
+#### 场景 2.3: 分管校领导驳回
+1. 使用 `caiwu_report` 登录提交 Plan 下发
+2. 使用 `caiwu_audit1` 登录通过部门审批
+3. 使用 `admin` 登录
 4. 在"我的待办"中点击"驳回"
 5. 验证部门审批步骤恢复为 `PENDING`
 
 **预期结果**:
-- 战略终审驳回后，workflow 状态仍为 `IN_REVIEW`
+- 分管校领导驳回后，workflow 状态仍为 `IN_REVIEW`
 - 部门审批步骤恢复为 `PENDING` 状态
-- `cwc_leader` 可以重新审批
+- `caiwu_audit1` 可以重新审批
 
 ---
 
 ## 流程 3: PLAN_APPROVAL_FUNCDEPT - Plan审批流程（职能部门）
 
 ### 流程说明
-职能部门的 Plan 审批流程，需要经过部门初审、部门负责人审批和战略发展部终审。
+职能部门的 Plan 审批流程，需要经过职能部门审批人审批、分管校领导审批和战略发展部终审。
 
 ### 审批步骤
 1. **提交步骤** (SUBMIT) - 提交人自动完成
-2. **职能部门初审** (APPROVAL) - 职能部门初审角色审批
-3. **职能部门负责人审批** (APPROVAL) - 职能部门负责人角色审批
-4. **战略发展部终审** (APPROVAL) - 战略发展部终审角色审批
+2. **职能部门审批人审批** (APPROVAL) - 职能部门审批角色审批
+3. **分管校领导审批** (APPROVAL) - 分管校领导角色审批
+4. **战略发展部终审人审批** (APPROVAL) - 战略发展部终审角色审批
 
 ### 测试账号（以教务处为例）
 
 | 角色 | 用户名 | 姓名 | 组织 | 说明 |
 |------|--------|------|------|------|
-| 发起人 | `jwc_reporter` | 教务处填报员 | 教务处 | 提交 Plan 审批申请 |
-| 初审人 | `jwc_audit1` | 教务处初审员 | 教务处 | 职能部门初审角色 |
-| 部门审批 | `jwc_leader` | 教务处负责人 | 教务处 | 职能部门负责人角色 |
-| 终审人 | `zlb_final1` | 战略终审1 | 战略发展部 | 战略发展部终审角色 |
+| 发起人 | `jiaowu_report` | 教务处填报员 | 教务处 | 提交 Plan 审批申请 |
+| 第二步审批人 | `jiaowu_audit1` | 教务处审批人 | 教务处 | 职能部门审批角色 |
+| 第三步审批人 | `admin` | 系统管理员 | 战略发展部 | 分管校领导角色 |
+| 第四步审批人 | `zlb_final1` | 战略终审1 | 战略发展部 | 战略发展部终审角色 |
 
 ### 测试场景
 
 #### 场景 3.1: 正常审批通过（三级审批）
-1. 使用 `kyc_reporter` 登录创建并提交 Plan
-2. 系统自动完成提交步骤，创建初审步骤
-3. 使用 `kyc_audit1` 登录，在"我的待办"中通过初审
-4. 系统动态创建部门审批步骤
-5. 使用 `kyc_leader` 登录，在"我的待办"中通过部门审批
+1. 使用 `keji_report` 登录创建并提交 Plan
+2. 系统自动完成提交步骤，创建第二步审批步骤
+3. 使用 `keji_audit1` 登录，在"我的待办"中通过第二步审批
+4. 系统动态创建分管校领导审批步骤
+5. 使用 `admin` 登录，在"我的待办"中通过第三步审批
 6. 系统动态创建战略终审步骤
 7. 使用 `zlb_final1` 登录，在"我的待办"中通过终审
 8. 验证 Plan 状态变为"已审批"
 
 **预期结果**:
-- 提交后创建 2 个步骤实例（提交已完成 + 初审待审批）
-- 初审通过后，动态创建第 3 个步骤实例（部门审批待审批）
-- 部门审批通过后，动态创建第 4 个步骤实例（战略终审待审批）
+- 提交后创建 2 个步骤实例（提交已完成 + 第二步审批待审批）
+- 第二步审批通过后，动态创建第 3 个步骤实例（分管校领导待审批）
+- 分管校领导通过后，动态创建第 4 个步骤实例（战略终审待审批）
 - 战略终审通过后，workflow 状态变为 `APPROVED`
 
-#### 场景 3.2: 初审驳回
-1. 使用 `xgc_reporter` 登录提交 Plan
-2. 使用 `xgc_audit1` 登录驳回初审
+#### 场景 3.2: 第二步审批驳回
+1. 使用 `xuegong_report` 登录提交 Plan
+2. 使用 `xuegong_audit1` 登录驳回第二步审批
 3. 验证 workflow 状态变为 `REJECTED`
 
 **预期结果**:
-- 初审驳回后，workflow 状态变为 `REJECTED`
+- 第二步审批驳回后，workflow 状态变为 `REJECTED`
 - 提交步骤恢复为 `PENDING` 状态
 
-#### 场景 3.3: 部门负责人驳回
-1. 使用 `hqc_reporter` 登录提交 Plan
-2. 使用 `hqc_audit1` 登录通过初审
-3. 使用 `hqc_leader` 登录驳回部门审批
-4. 验证初审步骤恢复为 `PENDING`
+#### 场景 3.3: 分管校领导驳回
+1. 使用 `houqin_report` 登录提交 Plan
+2. 使用 `houqin_audit1` 登录通过第二步审批
+3. 使用 `admin` 登录驳回第三步审批
+4. 验证第二步恢复为 `PENDING`
 
 **预期结果**:
-- 部门审批驳回后，workflow 状态仍为 `IN_REVIEW`
-- 初审步骤恢复为 `PENDING` 状态
-- `hqc_audit1` 可以重新审批
+- 分管校领导驳回后，workflow 状态仍为 `IN_REVIEW`
+- 第二步审批步骤恢复为 `PENDING` 状态
+- `houqin_audit1` 可以重新审批
 
 #### 场景 3.4: 战略终审驳回
-1. 使用 `jwc_reporter` 登录提交 Plan
-2. 使用 `jwc_audit1` 登录通过初审
-3. 使用 `jwc_leader` 登录通过部门审批
+1. 使用 `jiaowu_report` 登录提交 Plan
+2. 使用 `jiaowu_audit1` 登录通过第二步审批
+3. 使用 `admin` 登录通过第三步审批
 4. 使用 `zlb_final2` 登录驳回战略终审
-5. 验证部门审批步骤恢复为 `PENDING`
+5. 验证第三步审批步骤恢复为 `PENDING`
 
 **预期结果**:
 - 战略终审驳回后，workflow 状态仍为 `IN_REVIEW`
-- 部门审批步骤恢复为 `PENDING` 状态
-- `jwc_leader` 可以重新审批
+- 分管校领导审批步骤恢复为 `PENDING` 状态
+- `admin` 可以重新审批
 
 ---
 
 ## 流程 4: PLAN_APPROVAL_COLLEGE - Plan审批流程（二级学院）
 
 ### 流程说明
-二级学院的 Plan 审批流程，需要经过学院初审、学院负责人审批和战略发展部终审。
+二级学院的 Plan 审批流程，需要经过学院审批人审批、学院院长审批和职能部门终审。
 
 ### 审批步骤
 1. **提交步骤** (SUBMIT) - 提交人自动完成
-2. **二级学院初审** (APPROVAL) - 二级学院初审角色审批
-3. **二级学院负责人审批** (APPROVAL) - 二级学院负责人角色审批
-4. **战略发展部终审** (APPROVAL) - 战略发展部终审角色审批
+2. **二级学院审批人审批** (APPROVAL) - 二级学院审批角色审批
+3. **学院院长审批人审批** (APPROVAL) - 学院院长角色审批
+4. **职能部门终审人审批** (APPROVAL) - 对应上级职能部门审批角色审批
 
 ### 测试账号（以计算机学院为例）
 
 | 角色 | 用户名 | 姓名 | 组织 | 说明 |
 |------|--------|------|------|------|
-| 发起人 | `jsjxy_reporter` | 计算机学院填报员 | 计算机学院 | 提交 Plan 审批申请 |
-| 初审人 | `jsjxy_audit1` | 计算机学院初审员 | 计算机学院 | 二级学院初审角色 |
-| 学院审批 | `jsjxy_leader` | 计算机学院负责人 | 计算机学院 | 二级学院负责人角色 |
-| 终审人 | `zlb_final1` | 战略终审1 | 战略发展部 | 战略发展部终审角色 |
+| 发起人 | `jisuanji_report` | 计算机学院填报员 | 计算机学院 | 提交 Plan 审批申请 |
+| 第二步审批人 | `jisuanji_audit1` | 计算机学院审批人 | 计算机学院 | 二级学院审批角色 |
+| 第三步审批人 | `jisuanji_leader` | 计算机学院院长 | 计算机学院 | 学院院长角色 |
+| 第四步审批人 | `jiaowu_audit1` | 教务处审批人 | 教务处 | 当前默认上级职能部门终审账号 |
 
 ### 其他学院账号
 
-**经管学院**: `jgxy_reporter`, `jgxy_audit1`, `jgxy_leader`
-**外语学院**: `wyxy_reporter`, `wyxy_audit1`, `wyxy_leader`
-**艺术学院**: `ysxy_reporter`, `ysxy_audit1`, `ysxy_leader`
-**体育学院**: `tyxy_reporter`, `tyxy_audit1`, `tyxy_leader`
-**医学院**: `yxy_reporter`, `yxy_audit1`, `yxy_leader`
+**马克思主义学院**: `makesi_report`, `makesi_audit1`, `makesi_audit2`
+**工学院**: `gongxue_report`, `gongxue_audit1`, `gongxue_leader`
+**商学院**: `shangxue_report`, `shangxue_audit1`, `shangxue_leader`
+**文理学院**: `wenli_report`, `wenli_audit1`, `wenli_leader`
+**艺术与科技学院**: `yishukeji_report`, `yishukeji_audit1`, `yishukeji_leader`
+
+说明: 当前 clean seed 的学院流程最后一步不是战略发展部终审，而是对应上级职能部门的终审；默认测试可使用教务处 `jiaowu_audit1`。
 
 ### 测试场景
 
 #### 场景 4.1: 正常审批通过（三级审批）
-1. 使用 `jsjxy_reporter` 登录创建并提交 Plan
-2. 系统自动完成提交步骤，创建初审步骤
-3. 使用 `jsjxy_audit1` 登录，在"我的待办"中通过初审
-4. 系统动态创建学院审批步骤
-5. 使用 `jsjxy_leader` 登录，在"我的待办"中通过学院审批
-6. 系统动态创建战略终审步骤
-7. 使用 `zlb_final1` 登录，在"我的待办"中通过终审
+1. 使用 `jisuanji_report` 登录创建并提交 Plan
+2. 系统自动完成提交步骤，创建第二步审批步骤
+3. 使用 `jisuanji_audit1` 登录，在"我的待办"中通过第二步审批
+4. 系统动态创建学院院长审批步骤
+5. 使用 `jisuanji_leader` 登录，在"我的待办"中通过第三步审批
+6. 系统动态创建职能部门终审步骤
+7. 使用 `jiaowu_audit1` 登录，在"我的待办"中通过终审
 8. 验证 Plan 状态变为"已审批"
 
 **预期结果**:
-- 提交后创建 2 个步骤实例（提交已完成 + 初审待审批）
-- 初审通过后，动态创建第 3 个步骤实例（学院审批待审批）
-- 学院审批通过后，动态创建第 4 个步骤实例（战略终审待审批）
-- 战略终审通过后，workflow 状态变为 `APPROVED`
+- 提交后创建 2 个步骤实例（提交已完成 + 第二步审批待审批）
+- 第二步审批通过后，动态创建第 3 个步骤实例（学院院长审批待审批）
+- 第三步审批通过后，动态创建第 4 个步骤实例（职能部门终审待审批）
+- 职能部门终审通过后，workflow 状态变为 `APPROVED`
 
-#### 场景 4.2: 初审驳回
-1. 使用 `jgxy_reporter` 登录提交 Plan
-2. 使用 `jgxy_audit1` 登录驳回初审
+#### 场景 4.2: 第二步审批驳回
+1. 使用 `shangxue_report` 登录提交 Plan
+2. 使用 `shangxue_audit1` 登录驳回第二步审批
 3. 验证 workflow 状态变为 `REJECTED`
 
 **预期结果**:
-- 初审驳回后，workflow 状态变为 `REJECTED`
+- 第二步审批驳回后，workflow 状态变为 `REJECTED`
 - 提交步骤恢复为 `PENDING` 状态
 
-#### 场景 4.3: 学院负责人驳回
-1. 使用 `wyxy_reporter` 登录提交 Plan
-2. 使用 `wyxy_audit1` 登录通过初审
-3. 使用 `wyxy_leader` 登录驳回学院审批
-4. 验证初审步骤恢复为 `PENDING`
+#### 场景 4.3: 学院院长驳回
+1. 使用 `wenli_report` 登录提交 Plan
+2. 使用 `wenli_audit1` 登录通过第二步审批
+3. 使用 `wenli_leader` 登录驳回第三步审批
+4. 验证第二步审批步骤恢复为 `PENDING`
 
 **预期结果**:
-- 学院审批驳回后，workflow 状态仍为 `IN_REVIEW`
-- 初审步骤恢复为 `PENDING` 状态
-- `wyxy_audit1` 可以重新审批
+- 学院院长驳回后，workflow 状态仍为 `IN_REVIEW`
+- 第二步审批步骤恢复为 `PENDING` 状态
+- `wenli_audit1` 可以重新审批
 
-#### 场景 4.4: 战略终审驳回
-1. 使用 `ysxy_reporter` 登录提交 Plan
-2. 使用 `ysxy_audit1` 登录通过初审
-3. 使用 `ysxy_leader` 登录通过学院审批
-4. 使用 `zlb_final2` 登录驳回战略终审
-5. 验证学院审批步骤恢复为 `PENDING`
+#### 场景 4.4: 职能部门终审驳回
+1. 使用 `yishukeji_report` 登录提交 Plan
+2. 使用 `yishukeji_audit1` 登录通过第二步审批
+3. 使用 `yishukeji_leader` 登录通过第三步审批
+4. 使用 `jiaowu_audit1` 登录驳回第四步终审
+5. 验证第三步审批步骤恢复为 `PENDING`
 
 **预期结果**:
-- 战略终审驳回后，workflow 状态仍为 `IN_REVIEW`
-- 学院审批步骤恢复为 `PENDING` 状态
-- `ysxy_leader` 可以重新审批
+- 职能部门终审驳回后，workflow 状态仍为 `IN_REVIEW`
+- 学院院长审批步骤恢复为 `PENDING` 状态
+- `yishukeji_leader` 可以重新审批
 
 ---
 

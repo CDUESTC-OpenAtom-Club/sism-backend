@@ -35,6 +35,17 @@ public interface JpaUserRepositoryInternal extends JpaRepository<User, Long> {
             """, nativeQuery = true)
     List<String> findRoleCodesByUserId(Long userId);
 
+    @Query(value = """
+            SELECT DISTINCT p.perm_code
+            FROM sys_user_role ur
+            JOIN sys_role_permission rp ON rp.role_id = ur.role_id
+            JOIN sys_permission p ON p.id = rp.perm_id
+            WHERE ur.user_id = :userId
+              AND COALESCE(p.is_enabled, true) = true
+            ORDER BY p.perm_code
+            """, nativeQuery = true)
+    List<String> findPermissionCodesByUserId(Long userId);
+
     List<User> findByIsActive(Boolean isActive);
     boolean existsByUsername(String username);
 }

@@ -43,7 +43,7 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="name", nullable=false)
     private String name;
 
-    @Column(name="desc")
+    @Column(name="\"desc\"")
     private String desc;
 
     @Enumerated(EnumType.STRING)

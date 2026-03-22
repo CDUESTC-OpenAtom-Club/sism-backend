@@ -58,10 +58,10 @@
 ```bash
 # 1. 准备工作区
 cd sism-backend
-mvn clean install -DskipTests
+./mvnw clean install -DskipTests
 
 # 2. 验证系统状态
-mvn compile
+./mvnw compile
 
 # 3. 创建开发分支
 git checkout -b fix/api-implementation
@@ -76,7 +76,7 @@ git checkout -b fix/api-implementation
 □ 创建 RoleManagementController
 □ 创建 UserProfileController
 □ 创建相应的 DTO 类
-□ 运行 mvn test
+□ 运行 ./mvnw test
 ```
 
 ---
@@ -285,9 +285,9 @@ public ResponseEntity<ErrorResponse> handleNotFound(
 ### 每日检查
 
 ```
-□ 编译通过 (mvn clean compile)
+□ 编译通过 (./mvnw clean compile)
 □ 没有 IDE 红色波浪线
-□ 单元测试通过 (mvn test)
+□ 单元测试通过 (./mvnw test)
 □ 代码覆盖率 > 70%
 ```
 
@@ -365,7 +365,7 @@ public ResponseEntity<ErrorResponse> handleNotFound(
 □ 在 IDE 创建 RoleManagementController
 □ 复制对应的 DTO 代码
 □ 创建对应的测试
-□ 运行并验证 mvn test
+□ 运行并验证 ./mvnw test
 □ 提交 PR 让人审查
 ```
 

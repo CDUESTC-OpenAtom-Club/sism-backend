@@ -47,6 +47,13 @@ public interface UserRepository {
     List<String> findRoleCodesByUserId(Long userId);
 
     /**
+     * 根据用户ID查询权限编码列表
+     */
+    default List<String> findPermissionCodesByUserId(Long userId) {
+        return List.of();
+    }
+
+    /**
      * 根据激活状态查询用户
      */
     List<User> findByIsActive(Boolean isActive);

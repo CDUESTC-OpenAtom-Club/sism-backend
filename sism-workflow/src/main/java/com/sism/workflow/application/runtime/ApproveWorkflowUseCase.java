@@ -56,14 +56,22 @@ public class ApproveWorkflowUseCase {
                 .sorted(Comparator.comparing(step -> step.getStepOrder() == null ? Integer.MAX_VALUE : step.getStepOrder()))
                 .toList();
 
-        int currentStepCount = instance.getStepInstances().size();
-        if (currentStepCount >= orderedSteps.size()) {
+        AuditStepInstance latestHandledStep = instance.getStepInstances().stream()
+                .filter(step -> AuditInstance.STEP_STATUS_APPROVED.equals(step.getStatus()))
+                .max(Comparator.comparing(step -> step.getStepNo() == null ? 0 : step.getStepNo()))
+                .orElse(null);
+        if (latestHandledStep == null) {
             return false;
         }
 
-        AuditStepDef nextStepDef = orderedSteps.get(currentStepCount);
+        int currentStepIndex = findStepIndexByDefinitionId(orderedSteps, latestHandledStep.getStepDefId());
+        if (currentStepIndex < 0 || currentStepIndex + 1 >= orderedSteps.size()) {
+            return false;
+        }
+
+        AuditStepDef nextStepDef = orderedSteps.get(currentStepIndex + 1);
         AuditStepInstance nextStep = new AuditStepInstance();
-        nextStep.setStepNo(currentStepCount + 1);
+        nextStep.setStepNo(instance.nextStepInstanceNo());
         nextStep.setStepDefId(nextStepDef.getId());
         nextStep.setStepName(nextStepDef.getStepName());
 
@@ -88,5 +96,18 @@ public class ApproveWorkflowUseCase {
                 .max(Comparator.comparing(step -> step.getStepNo() == null ? 0 : step.getStepNo()))
                 .map(step -> step.getApproverOrgId())
                 .orElse(instance.getRequesterOrgId());
+    }
+
+    private int findStepIndexByDefinitionId(List<AuditStepDef> orderedSteps, Long stepDefId) {
+        if (stepDefId == null) {
+            return -1;
+        }
+        for (int i = 0; i < orderedSteps.size(); i++) {
+            AuditStepDef step = orderedSteps.get(i);
+            if (step.getId() != null && step.getId().equals(stepDefId)) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

@@ -24,6 +24,7 @@ public class PlanReportResponse {
     private Long reportOrgId;
     private ReportOrgType reportOrgType;
     private Long planId;
+    private Long auditInstanceId;
     private String title;
     private String content;
     private String summary;
@@ -49,6 +50,7 @@ public class PlanReportResponse {
                 .reportOrgId(report.getReportOrgId())
                 .reportOrgType(report.getReportOrgType())
                 .planId(report.getPlanId())
+                .auditInstanceId(report.getAuditInstanceId())
                 .title(report.getTitle())
                 .content(report.getContent())
                 .summary(report.getSummary())

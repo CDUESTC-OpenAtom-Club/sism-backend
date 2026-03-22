@@ -10,12 +10,8 @@
 BEGIN;
 
 INSERT INTO public.sys_user_role (user_id, role_id, created_at) VALUES
-    (124, 1, NOW()),
-    (124, 2, NOW()),
-    (124, 3, NOW()),
     (124, 4, NOW()),
     (188, 1, NOW()),
-    (188, 3, NOW()),
     (189, 3, NOW()),
     (190, 3, NOW()),
     (191, 1, NOW()),

@@ -71,6 +71,19 @@ public class AuthController {
     }
 
     /**
+     * 获取当前用户权限编码列表
+     */
+    @GetMapping("/permissions")
+    @Operation(summary = "获取当前用户权限编码列表")
+    public ResponseEntity<ApiResponse<List<String>>> getCurrentUserPermissions(
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(authService.getPermissionCodes(currentUser.getId())));
+    }
+
+    /**
      * 验证Token
      */
     @GetMapping("/validate")

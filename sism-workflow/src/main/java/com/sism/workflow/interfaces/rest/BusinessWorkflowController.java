@@ -96,6 +96,16 @@ public class BusinessWorkflowController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @GetMapping("/instances/entity/{entityType}/{entityId}/list")
+    @Operation(summary = "List completed workflow history cards by business entity")
+    public ResponseEntity<ApiResponse<List<WorkflowHistoryCardResponse>>> listInstanceHistoryByBusiness(
+            @PathVariable String entityType,
+            @PathVariable Long entityId
+    ) {
+        List<WorkflowHistoryCardResponse> response = workflowService.listInstanceHistoryByBusiness(entityType, entityId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @GetMapping("/my-tasks")
     @Operation(summary = "Get my pending workflow tasks")
     public ResponseEntity<ApiResponse<PageResult<WorkflowTaskResponse>>> getMyPendingTasks(

@@ -228,7 +228,7 @@
     - `status=DISTRIBUTED, distribution_status=NULL` 为 `2` 条
     - `status=DRAFT, distribution_status=NULL` 为 `2` 条
   - 远程库核查 `information_schema.columns` 结果为 `0`，说明字段已删除
-  - `mvn -pl sism-strategy -am -DskipTests compile` 通过
+  - `./mvnw -pl sism-strategy -am -DskipTests compile` 通过
 
 ## 2026-03-19 第三轮实施记录
 

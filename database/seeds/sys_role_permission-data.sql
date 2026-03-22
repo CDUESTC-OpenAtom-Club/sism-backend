@@ -9,8 +9,10 @@ BEGIN;
 
 INSERT INTO public.sys_role_permission (role_id, perm_id, created_at) VALUES
     (1, 1, NOW()),
+    (1, 2, NOW()),
     (1, 3, NOW()),
     (1, 4, NOW()),
+    (1, 5, NOW()),
     (1, 8, NOW()),
     (1, 10, NOW()),
 

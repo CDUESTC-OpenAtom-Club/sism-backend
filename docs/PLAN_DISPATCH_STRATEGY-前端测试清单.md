@@ -1,0 +1,92 @@
+# PLAN_DISPATCH_STRATEGY 前端测试清单
+
+适用流程: `Plan下发审批（战略发展部）`
+
+流程定义来源:
+- [audit_step_def-data.sql](/Users/blackevil/Documents/前端架构测试/sism-backend/database/seeds/audit_step_def-data.sql#L31)
+
+测试账号来源:
+- [sys_user-data.sql](/Users/blackevil/Documents/前端架构测试/sism-backend/database/seeds/sys_user-data.sql)
+- [sys_user_role-data.sql](/Users/blackevil/Documents/前端架构测试/sism-backend/database/seeds/sys_user_role-data.sql#L17)
+
+默认密码: `admin123`
+
+## 一、流程说明
+
+步骤如下:
+1. 填报人提交
+2. 战略发展部负责人审批
+3. 分管校领导审批
+
+推荐测试账号:
+- 发起人: `zlb_admin`（仅保留 `ROLE_REPORTER`）
+- 第二步审批人: `zlb_final1`（仅保留 `ROLE_STRATEGY_DEPT_HEAD`）
+- 第三步审批人: `admin`（仅保留 `ROLE_VICE_PRESIDENT`）
+
+说明:
+- 这 3 个账号已按测试链路收敛为 3 个单一业务身份，避免一个账号同时命中多个审批节点。
+- 为保证第 1 步发起不受影响，`ROLE_REPORTER` 额外保留了 `PAGE_STRATEGY_TASK` 和 `BTN_STRATEGY_TASK_DISPATCH_SUBMIT` 权限。
+
+## 二、发起操作
+
+1. 打开前端登录页。
+2. 使用 `zlb_admin / admin123` 登录。
+3. 进入左侧 `计划管理`。
+4. 找到一条战略发展部发往职能部门的 `2026` 草稿 Plan。
+5. 点击行内 `下发`、`提交审批` 或 `发起审批` 按钮。
+6. 如果弹出流程确认框，直接点 `确认`。
+7. 记录这条 Plan 名称，便于后续账号在待办里查找。
+
+预期结果:
+- 页面提示提交成功。
+- Plan 状态进入待审批。
+- 系统生成第 2 步审批待办。
+
+## 三、第二步审批
+
+1. 退出当前账号。
+2. 使用 `zlb_final1 / admin123` 登录。
+3. 进入 `审批中心` 或 `我的待办`。
+4. 找到刚才那条 Plan。
+5. 点击 `通过`。
+6. 在意见框输入 `流程1第二步通过`。
+7. 点击确认。
+
+预期结果:
+- 页面提示审批成功。
+- 第 2 步变为已通过。
+- 系统生成第 3 步待办。
+
+## 四、第三步审批
+
+1. 退出当前账号。
+2. 使用 `admin / admin123` 登录。
+3. 进入 `审批中心` 或 `我的待办`。
+4. 找到同一条 Plan。
+5. 点击 `通过`。
+6. 在意见框输入 `流程1最终通过`。
+7. 点击确认。
+
+预期结果:
+- 页面提示审批成功。
+- 整个流程结束。
+- Plan 状态变为已通过或已下发。
+
+## 五、驳回测试
+
+你也可以把第三部分或第四部分改成驳回:
+
+1. 在待办里点 `驳回`。
+2. 输入 `流程1驳回测试`。
+3. 点击确认。
+
+预期结果:
+- 流程状态变为驳回。
+- 发起人重新登录后，应能看到该 Plan 需要重新处理。
+
+## 六、前端检查点
+
+- 待办列表里只能看到当前账号能处理的那一步。
+- 点通过后，当前待办应立即消失或状态刷新。
+- 历史轨迹中应能看到 3 个步骤。
+- 不需要前端手动选择审批人。

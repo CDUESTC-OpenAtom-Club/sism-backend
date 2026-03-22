@@ -23,6 +23,7 @@ public class PlanReportSimpleResponse {
     private String reportMonth;
     private Long reportOrgId;
     private ReportOrgType reportOrgType;
+    private Long auditInstanceId;
     private String title;
     private Integer progress;
     private String status;
@@ -38,6 +39,7 @@ public class PlanReportSimpleResponse {
                 .reportMonth(report.getReportMonth())
                 .reportOrgId(report.getReportOrgId())
                 .reportOrgType(report.getReportOrgType())
+                .auditInstanceId(report.getAuditInstanceId())
                 .title(report.getTitle())
                 .progress(report.getProgress())
                 .status(report.getStatus())

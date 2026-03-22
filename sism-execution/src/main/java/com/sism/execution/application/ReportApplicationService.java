@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -98,6 +99,15 @@ public class ReportApplicationService {
         return report;
     }
 
+    @Transactional
+    public PlanReport attachAuditInstance(Long reportId, Long auditInstanceId) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+        report.setAuditInstanceId(auditInstanceId);
+        report.setUpdatedAt(LocalDateTime.now());
+        return planReportRepository.save(report);
+    }
+
     /**
      * 审批通过报告
      */
@@ -124,6 +134,45 @@ public class ReportApplicationService {
         report = planReportRepository.save(report);
         publishAndSaveEvents(report);
         return report;
+    }
+
+    @Transactional
+    public PlanReport markWorkflowApproved(Long reportId, Long approverId) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+        if (PlanReport.STATUS_APPROVED.equals(report.getStatus())) {
+            return report;
+        }
+        report.setStatus(PlanReport.STATUS_APPROVED);
+        report.setApprovedBy(approverId);
+        report.setApprovedAt(LocalDateTime.now());
+        report.setUpdatedAt(LocalDateTime.now());
+        return planReportRepository.save(report);
+    }
+
+    @Transactional
+    public PlanReport markWorkflowRejected(Long reportId, Long approverId, String reason) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+        if (PlanReport.STATUS_REJECTED.equals(report.getStatus())
+                && Objects.equals(reason, report.getRejectionReason())) {
+            return report;
+        }
+        report.setStatus(PlanReport.STATUS_REJECTED);
+        report.setApprovedBy(approverId);
+        report.setApprovedAt(LocalDateTime.now());
+        report.setRejectionReason(reason);
+        report.setUpdatedAt(LocalDateTime.now());
+        return planReportRepository.save(report);
+    }
+
+    @Transactional
+    public PlanReport markWorkflowWithdrawn(Long reportId) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+        report.setStatus(PlanReport.STATUS_DRAFT);
+        report.setUpdatedAt(LocalDateTime.now());
+        return planReportRepository.save(report);
     }
 
     /**

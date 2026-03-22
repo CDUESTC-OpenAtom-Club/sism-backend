@@ -18,12 +18,31 @@ import java.util.Map;
 public class WorkflowTaskResponse {
 
     private String taskId;
+    private String instanceId;
     private String taskName;
     private String taskKey;
     private String status; // PENDING, COMPLETED, REJECTED
+    private String entityType;
+    private Long entityId;
+    private Long planId;
+    private String planName;
+    private String flowCode;
+    private String flowName;
+    private Long sourceOrgId;
+    private String sourceOrgName;
+    private Long targetOrgId;
+    private String targetOrgName;
+    private String currentStepName;
     private Long assigneeId;
     private String assigneeName;
+    private Long approverOrgId;
+    private String approverOrgName;
+    private Integer stepNo;
+    private String stepType;
+    private String comment;
+    private LocalDateTime approvedAt;
     private LocalDateTime createdTime;
+    private LocalDateTime startedAt;
     private LocalDateTime dueDate;
     private String claimUrl; // 前端可以直接打开的链接
     private Map<String, Object> variables;

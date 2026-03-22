@@ -40,4 +40,4 @@ echo "✓ 当前数据库: ${DB_URL:-<missing DB_URL>}"
 cleanup_backend_processes
 
 # Start Spring Boot application (skip tests)
-mvn spring-boot:run -Dmaven.test.skip=true
+./mvnw spring-boot:run -Dmaven.test.skip=true

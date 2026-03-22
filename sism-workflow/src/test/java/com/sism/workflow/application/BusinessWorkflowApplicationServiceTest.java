@@ -1,5 +1,6 @@
 package com.sism.workflow.application;
 
+import com.sism.iam.domain.repository.UserRepository;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.definition.WorkflowPreviewQueryService;
 import com.sism.workflow.application.query.WorkflowReadModelMapper;
@@ -59,6 +60,9 @@ class BusinessWorkflowApplicationServiceTest {
     @Mock
     private ApproverResolver approverResolver;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private BusinessWorkflowApplicationService businessWorkflowApplicationService;
 
@@ -68,7 +72,7 @@ class BusinessWorkflowApplicationServiceTest {
         flowDef.setId(1L);
         flowDef.setFlowCode("REPORT_APPROVAL");
         flowDef.setFlowName("报告审批");
-        flowDef.setEntityType("PlanReport");
+        flowDef.setEntityType("PLAN");
         flowDef.setIsActive(true);
 
         AuditInstance started = new AuditInstance();
@@ -80,9 +84,10 @@ class BusinessWorkflowApplicationServiceTest {
         StartWorkflowRequest request = new StartWorkflowRequest();
         request.setWorkflowCode("REPORT_APPROVAL");
         request.setBusinessEntityId(18L);
-        request.setBusinessEntityType("PlanReport");
+        request.setBusinessEntityType("PLAN_REPORT");
 
         when(workflowDefinitionQueryService.getAuditFlowDefByCode("REPORT_APPROVAL")).thenReturn(flowDef);
+        when(auditInstanceRepository.hasActiveInstance(18L, "PLAN_REPORT")).thenReturn(false);
         when(auditInstanceRepository.hasActiveInstance(18L, "PlanReport")).thenReturn(false);
         when(workflowApplicationService.startAuditInstance(any(AuditInstance.class), any(), any())).thenReturn(started);
         when(workflowReadModelMapper.toInstanceResponse(started)).thenReturn(
@@ -97,7 +102,7 @@ class BusinessWorkflowApplicationServiceTest {
         assertEquals("9", response.getInstanceId());
         assertEquals("IN_REVIEW", response.getStatus());
         assertEquals(1L, captor.getValue().getFlowDefId());
-        assertEquals("PlanReport", captor.getValue().getEntityType());
+        assertEquals("PLAN_REPORT", captor.getValue().getEntityType());
         assertEquals(18L, captor.getValue().getEntityId());
     }
 
@@ -178,10 +183,11 @@ class BusinessWorkflowApplicationServiceTest {
         ApprovalRequest request = new ApprovalRequest();
         request.setComment("同意");
 
-        when(auditInstanceRepository.findById(256L)).thenReturn(Optional.empty());
         when(auditInstanceRepository.findByStepInstanceId(256L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 9L, 35L)).thenReturn(true);
+        when(userRepository.findPermissionCodesByUserId(9L))
+                .thenReturn(List.of("BTN_STRATEGY_TASK_DISPATCH_APPROVE"));
         when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("128").status("IN_REVIEW").build()
@@ -229,6 +235,8 @@ class BusinessWorkflowApplicationServiceTest {
         when(auditInstanceRepository.findById(133L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 9L, 35L)).thenReturn(true);
+        when(userRepository.findPermissionCodesByUserId(9L))
+                .thenReturn(List.of("BTN_STRATEGY_TASK_DISPATCH_APPROVE"));
         when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("133").status("IN_REVIEW").build()
@@ -238,6 +246,76 @@ class BusinessWorkflowApplicationServiceTest {
 
         assertEquals("133", response.getInstanceId());
         verify(workflowApplicationService).approveAuditInstance(instance, 9L, "同意");
+    }
+
+    @Test
+    void approveTask_shouldRejectUserWithoutRequiredPermissionCode() {
+        AuditInstance instance = new AuditInstance();
+        instance.setId(140L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setFlowDefId(4L);
+        instance.setRequesterOrgId(22L);
+        instance.setEntityType("PLAN");
+
+        com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        currentStep.setId(400L);
+        currentStep.setStepDefId(12L);
+        currentStep.setStepNo(1);
+        currentStep.setStepName("战略发展部审批");
+        currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        instance.addStepInstance(currentStep);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(12L);
+        stepDef.setRoleId(3L);
+        flowDef.setSteps(List.of(stepDef));
+
+        ApprovalRequest request = new ApprovalRequest();
+        request.setComment("同意");
+
+        when(auditInstanceRepository.findByStepInstanceId(400L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
+        when(approverResolver.canUserApprove(stepDef, 9L, 22L)).thenReturn(true);
+        when(userRepository.findPermissionCodesByUserId(9L)).thenReturn(List.of());
+
+        assertThrows(
+                SecurityException.class,
+                () -> businessWorkflowApplicationService.approveTask("400", request, 9L)
+        );
+    }
+
+    @Test
+    void getMyApprovedInstances_shouldDelegateToReadModelService() {
+        PageResult<WorkflowInstanceResponse> expected = PageResult.of(
+                List.of(WorkflowInstanceResponse.builder().instanceId("11").flowCode("PLAN_DISPATCH_STRATEGY").build()),
+                1,
+                1,
+                20
+        );
+        when(workflowReadModelService.getMyApprovedInstances(124L, 1, 20)).thenReturn(expected);
+
+        PageResult<WorkflowInstanceResponse> actual =
+                businessWorkflowApplicationService.getMyApprovedInstances(124L, 1, 20);
+
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void getMyAppliedInstances_shouldDelegateToReadModelService() {
+        PageResult<WorkflowInstanceResponse> expected = PageResult.of(
+                List.of(WorkflowInstanceResponse.builder().instanceId("13").flowCode("PLAN_APPROVAL_FUNCDEPT").build()),
+                1,
+                1,
+                20
+        );
+        when(workflowReadModelService.getMyAppliedInstances(223L, 1, 20)).thenReturn(expected);
+
+        PageResult<WorkflowInstanceResponse> actual =
+                businessWorkflowApplicationService.getMyAppliedInstances(223L, 1, 20);
+
+        assertEquals(expected, actual);
     }
 
     @Test
@@ -265,7 +343,6 @@ class BusinessWorkflowApplicationServiceTest {
         stepDef.setRoleId(4L);
         flowDef.setSteps(List.of(stepDef));
 
-        when(auditInstanceRepository.findById(501L)).thenReturn(Optional.empty());
         when(auditInstanceRepository.findByStepInstanceId(501L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 11L, 56L)).thenReturn(true);
@@ -305,7 +382,6 @@ class BusinessWorkflowApplicationServiceTest {
         stepDef.setRoleId(4L);
         flowDef.setSteps(List.of(stepDef));
 
-        when(auditInstanceRepository.findById(601L)).thenReturn(Optional.empty());
         when(auditInstanceRepository.findByStepInstanceId(601L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 12L, 44L)).thenReturn(true);
@@ -389,26 +465,12 @@ class BusinessWorkflowApplicationServiceTest {
 
     @Test
     void getInstanceDetailByBusiness_shouldIgnoreLatestWithdrawnInstance() {
-        AuditInstance withdrawn = new AuditInstance();
-        withdrawn.setId(301L);
-        withdrawn.setEntityType("PLAN");
-        withdrawn.setEntityId(77L);
-        withdrawn.setStatus(AuditInstance.STATUS_WITHDRAWN);
-        withdrawn.setStartedAt(java.time.LocalDateTime.of(2026, 3, 20, 10, 0));
+        WorkflowInstanceDetailResponse expected = new WorkflowInstanceDetailResponse();
+        expected.setInstanceId("300");
+        when(workflowReadModelService.getInstanceDetailByBusiness("PLAN", 77L)).thenReturn(expected);
 
-        AuditInstance approved = new AuditInstance();
-        approved.setId(300L);
-        approved.setEntityType("PLAN");
-        approved.setEntityId(77L);
-        approved.setStatus(AuditInstance.STATUS_APPROVED);
-        approved.setStartedAt(java.time.LocalDateTime.of(2026, 3, 19, 10, 0));
+        WorkflowInstanceDetailResponse actual = businessWorkflowApplicationService.getInstanceDetailByBusiness("PLAN", 77L);
 
-        when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN", 77L))
-                .thenReturn(List.of(approved, withdrawn));
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> businessWorkflowApplicationService.getInstanceDetailByBusiness("PLAN", 77L)
-        );
+        assertEquals("300", actual.getInstanceId());
     }
 }

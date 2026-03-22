@@ -34,7 +34,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class ReportWorkflowEventListener {
 
-    private static final String PLAN_REPORT_ENTITY_TYPE = "PlanReport";
+    private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
 
     private final BusinessWorkflowApplicationService businessWorkflowService;
     private final PlanReportRepository planReportRepository;
@@ -79,6 +79,10 @@ public class ReportWorkflowEventListener {
 
             log.info("✅ 工作流启动成功 - 工作流实例ID: {}, 报告ID: {}",
                     response.getInstanceId(), event.getReportId());
+            if (response.getInstanceId() != null) {
+                report.setAuditInstanceId(Long.parseLong(response.getInstanceId()));
+                planReportRepository.save(report);
+            }
 
         } catch (IllegalStateException e) {
             // 可能是因为已经存在活跃的工作流实例
@@ -202,6 +206,14 @@ public class ReportWorkflowEventListener {
     private int syncWorkflowTerminalStatus(Long reportId, String terminalStatus, Long operatorId, String comment) {
         int syncedCount = 0;
         for (var instance : auditInstanceRepository.findByBusinessTypeAndBusinessId(PLAN_REPORT_ENTITY_TYPE, reportId)) {
+            if (!AuditInstance.STATUS_PENDING.equals(instance.getStatus())) {
+                continue;
+            }
+            instance.completeExternally(terminalStatus, operatorId, comment);
+            auditInstanceRepository.save(instance);
+            syncedCount++;
+        }
+        for (var instance : auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", reportId)) {
             if (!AuditInstance.STATUS_PENDING.equals(instance.getStatus())) {
                 continue;
             }

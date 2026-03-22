@@ -70,4 +70,34 @@ class ReportApplicationServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("当前月份已存在报告，请勿重复创建");
     }
+
+    @Test
+    void attachAuditInstance_shouldPersistRuntimeLink() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(8L);
+
+        when(planReportRepository.findById(8L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.attachAuditInstance(8L, 901L);
+
+        assertThat(updated.getAuditInstanceId()).isEqualTo(901L);
+        verify(planReportRepository).save(report);
+    }
+
+    @Test
+    void markWorkflowRejected_shouldUpdateStatusWithoutPublishingEvents() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(9L);
+        report.setStatus(PlanReport.STATUS_SUBMITTED);
+
+        when(planReportRepository.findById(9L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.markWorkflowRejected(9L, 33L, "退回修改");
+
+        assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_REJECTED);
+        assertThat(updated.getRejectionReason()).isEqualTo("退回修改");
+        verify(planReportRepository).save(report);
+    }
 }

@@ -57,8 +57,10 @@ class ReportWorkflowEventListenerTest {
         verify(businessWorkflowApplicationService).startWorkflow(requestCaptor.capture(), org.mockito.ArgumentMatchers.eq(66L), org.mockito.ArgumentMatchers.eq(200L));
         assertEquals("PLAN_APPROVAL_FUNCDEPT", requestCaptor.getValue().getWorkflowCode());
         assertEquals(100L, requestCaptor.getValue().getBusinessEntityId());
-        assertEquals("PlanReport", requestCaptor.getValue().getBusinessEntityType());
+        assertEquals("PLAN_REPORT", requestCaptor.getValue().getBusinessEntityType());
         assertEquals(66L, requestCaptor.getValue().getVariables().get("submitterId"));
+        assertEquals(88L, report.getAuditInstanceId());
+        verify(planReportRepository).save(report);
     }
 
     @Test
@@ -74,6 +76,8 @@ class ReportWorkflowEventListenerTest {
         instance.addStepInstance(step);
 
         when(planReportRepository.findById(100L)).thenReturn(Optional.of(report));
+        when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN_REPORT", 100L))
+                .thenReturn(List.of());
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", 100L))
                 .thenReturn(List.of(instance));
 
@@ -98,6 +102,8 @@ class ReportWorkflowEventListenerTest {
         instance.addStepInstance(step);
 
         when(planReportRepository.findById(100L)).thenReturn(Optional.of(report));
+        when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN_REPORT", 100L))
+                .thenReturn(List.of());
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", 100L))
                 .thenReturn(List.of(instance));
 

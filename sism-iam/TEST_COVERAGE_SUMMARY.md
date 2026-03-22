@@ -126,7 +126,7 @@
 
 ### Test Execution Command
 ```bash
-mvn test
+./mvnw test
 ```
 
 ### Results

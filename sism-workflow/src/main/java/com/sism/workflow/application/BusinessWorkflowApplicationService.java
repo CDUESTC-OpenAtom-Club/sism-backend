@@ -1,5 +1,6 @@
 package com.sism.workflow.application;
 
+import com.sism.iam.domain.repository.UserRepository;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.definition.WorkflowPreviewQueryService;
 import com.sism.workflow.application.query.WorkflowReadModelMapper;
@@ -31,6 +32,12 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class BusinessWorkflowApplicationService {
 
+    private static final String PLAN_ENTITY_TYPE = "PLAN";
+    private static final String PLAN_APPROVE_PERMISSION = "BTN_STRATEGY_TASK_DISPATCH_APPROVE";
+    private static final String PLAN_REPORT_APPROVE_PERMISSION = "BTN_STRATEGY_TASK_REPORT_APPROVE";
+    private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
+    private static final String LEGACY_PLAN_REPORT_ENTITY_TYPE = "PlanReport";
+
     private final WorkflowDefinitionQueryService workflowDefinitionQueryService;
     private final AuditInstanceRepository auditInstanceRepository;
     private final WorkflowQueryRepository workflowQueryRepository;
@@ -40,6 +47,7 @@ public class BusinessWorkflowApplicationService {
     private final WorkflowPreviewQueryService workflowPreviewQueryService;
     private final WorkflowTaskRepository workflowTaskRepository;
     private final ApproverResolver approverResolver;
+    private final UserRepository userRepository;
 
     // ==================== 工作流启动 ====================
 
@@ -66,8 +74,7 @@ public class BusinessWorkflowApplicationService {
                 ? request.getBusinessEntityType()
                 : flowDef.getEntityType();
 
-        boolean hasActive = auditInstanceRepository.hasActiveInstance(
-                request.getBusinessEntityId(), entityType);
+        boolean hasActive = hasActiveInstance(request.getBusinessEntityId(), entityType);
         if (hasActive) {
             throw new IllegalStateException(
                     "An active workflow already exists for this entity: " + request.getBusinessEntityId());
@@ -137,13 +144,11 @@ public class BusinessWorkflowApplicationService {
     }
 
     public WorkflowInstanceDetailResponse getInstanceDetailByBusiness(String entityType, Long entityId) {
-        AuditInstance instance = auditInstanceRepository.findByBusinessTypeAndBusinessId(entityType, entityId).stream()
-                .max(java.util.Comparator.comparing(AuditInstance::getStartedAt, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
-                .orElseThrow(() -> new IllegalArgumentException("Workflow instance not found for business entity"));
-        if (AuditInstance.STATUS_WITHDRAWN.equalsIgnoreCase(instance.getStatus())) {
-            throw new IllegalArgumentException("No active workflow instance found for business entity");
-        }
-        return workflowReadModelService.getInstanceDetail(instance.getId().toString());
+        return workflowReadModelService.getInstanceDetailByBusiness(entityType, entityId);
+    }
+
+    public List<WorkflowHistoryCardResponse> listInstanceHistoryByBusiness(String entityType, Long entityId) {
+        return workflowReadModelService.listInstanceHistoryByBusiness(entityType, entityId);
     }
 
     public WorkflowDefinitionPreviewResponse getDefinitionPreview(String flowCode, Long requesterOrgId) {
@@ -155,6 +160,19 @@ public class BusinessWorkflowApplicationService {
      */
     public PageResult<WorkflowTaskResponse> getMyPendingTasks(Long userId, int pageNum) {
         return workflowReadModelService.getMyPendingTasks(userId, pageNum);
+    }
+
+    private boolean hasActiveInstance(Long entityId, String entityType) {
+        if (isPlanReportEntityType(entityType)) {
+            return auditInstanceRepository.hasActiveInstance(entityId, PLAN_REPORT_ENTITY_TYPE)
+                    || auditInstanceRepository.hasActiveInstance(entityId, LEGACY_PLAN_REPORT_ENTITY_TYPE);
+        }
+        return auditInstanceRepository.hasActiveInstance(entityId, entityType);
+    }
+
+    private boolean isPlanReportEntityType(String entityType) {
+        return PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(entityType)
+                || LEGACY_PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(entityType);
     }
 
     // ==================== 工作流操作 ====================
@@ -177,6 +195,7 @@ public class BusinessWorkflowApplicationService {
         if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId())) {
             throw new SecurityException("You are not authorized to approve this task");
         }
+        ensureUserHasApprovalPermission(instance, userId);
 
         AuditInstance approved = workflowApplicationService.approveAuditInstance(
                 instance, userId, request.getComment());
@@ -216,6 +235,7 @@ public class BusinessWorkflowApplicationService {
         if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId())) {
             throw new SecurityException("You are not authorized to reject this task");
         }
+        ensureUserHasApprovalPermission(instance, userId);
 
         AuditInstance rejected = workflowApplicationService.rejectAuditInstance(
                 instance, userId, request.getReason());
@@ -242,8 +262,8 @@ public class BusinessWorkflowApplicationService {
 
     private AuditInstance resolveAuditInstanceForTask(String taskId) {
         Long numericTaskId = Long.parseLong(taskId);
-        return auditInstanceRepository.findById(numericTaskId)
-                .or(() -> auditInstanceRepository.findByStepInstanceId(numericTaskId))
+        return auditInstanceRepository.findByStepInstanceId(numericTaskId)
+                .or(() -> auditInstanceRepository.findById(numericTaskId))
                 .or(() -> workflowTaskRepository.findById(numericTaskId)
                         .flatMap(workflowTask -> {
                             String workflowId = workflowTask.getWorkflowId();
@@ -270,6 +290,32 @@ public class BusinessWorkflowApplicationService {
                 .filter(step -> step.getId() != null && step.getId().equals(currentStep.getStepDefId()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Workflow step definition not found for step: " + currentStep.getStepDefId()));
+    }
+
+    private void ensureUserHasApprovalPermission(AuditInstance instance, Long userId) {
+        String requiredPermission = resolveApprovalPermissionCode(instance);
+        if (requiredPermission == null || requiredPermission.isBlank()) {
+            return;
+        }
+
+        List<String> permissionCodes = userRepository.findPermissionCodesByUserId(userId);
+        if (!permissionCodes.contains(requiredPermission)) {
+            throw new SecurityException("You are not authorized to operate this approval task");
+        }
+    }
+
+    private String resolveApprovalPermissionCode(AuditInstance instance) {
+        if (instance == null || instance.getEntityType() == null) {
+            return null;
+        }
+
+        if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+            return PLAN_APPROVE_PERMISSION;
+        }
+        if (isPlanReportEntityType(instance.getEntityType())) {
+            return PLAN_REPORT_APPROVE_PERMISSION;
+        }
+        return null;
     }
 
     /**
@@ -356,32 +402,14 @@ public class BusinessWorkflowApplicationService {
      * 获取我已审批的实例列表
      */
     public PageResult<WorkflowInstanceResponse> getMyApprovedInstances(Long userId, int pageNum, int pageSize) {
-        List<AuditInstance> instances = workflowApplicationService.getApprovedAuditInstancesByUserId(userId);
-        List<WorkflowInstanceResponse> items = instances.stream()
-                .map(workflowReadModelMapper::toInstanceResponse)
-                .toList();
-
-        int start = (pageNum - 1) * pageSize;
-        int end = Math.min(start + pageSize, items.size());
-        List<WorkflowInstanceResponse> pagedItems = start < items.size() ? items.subList(start, end) : List.of();
-
-        return PageResult.of(pagedItems, items.size(), pageNum, pageSize);
+        return workflowReadModelService.getMyApprovedInstances(userId, pageNum, pageSize);
     }
 
     /**
      * 获取我发起的实例列表
      */
     public PageResult<WorkflowInstanceResponse> getMyAppliedInstances(Long userId, int pageNum, int pageSize) {
-        List<AuditInstance> instances = workflowApplicationService.getAppliedAuditInstancesByUserId(userId);
-        List<WorkflowInstanceResponse> items = instances.stream()
-                .map(workflowReadModelMapper::toInstanceResponse)
-                .toList();
-
-        int start = (pageNum - 1) * pageSize;
-        int end = Math.min(start + pageSize, items.size());
-        List<WorkflowInstanceResponse> pagedItems = start < items.size() ? items.subList(start, end) : List.of();
-
-        return PageResult.of(pagedItems, items.size(), pageNum, pageSize);
+        return workflowReadModelService.getMyAppliedInstances(userId, pageNum, pageSize);
     }
 
     // ==================== 统计 ====================

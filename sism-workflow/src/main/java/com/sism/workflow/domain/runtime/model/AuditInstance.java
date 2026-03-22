@@ -145,31 +145,6 @@ public class AuditInstance extends AggregateRoot<Long> {
         current.setStatus(STEP_STATUS_REJECTED);
         current.setComment(comment);
         current.setApprovedAt(LocalDateTime.now());
-
-        List<AuditStepInstance> ordered = stepInstances.stream()
-                .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
-                .toList();
-
-        int currentIndex = ordered.indexOf(current);
-        AuditStepInstance previousApproved = null;
-        for (int i = currentIndex - 1; i >= 0; i--) {
-            AuditStepInstance candidate = ordered.get(i);
-            if (STEP_STATUS_APPROVED.equals(candidate.getStatus())) {
-                previousApproved = candidate;
-                break;
-            }
-        }
-
-        if (previousApproved == null) {
-            this.status = STATUS_REJECTED;
-            this.completedAt = LocalDateTime.now();
-            return;
-        }
-
-        previousApproved.setStatus(STEP_STATUS_PENDING);
-        previousApproved.setComment(null);
-        previousApproved.setApprovedAt(null);
-
         this.completedAt = null;
     }
 
@@ -234,8 +209,30 @@ public class AuditInstance extends AggregateRoot<Long> {
     public Optional<AuditStepInstance> resolveCurrentPendingStep() {
         return stepInstances.stream()
                 .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()))
-                .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
+                .sorted(Comparator
+                        .comparing((AuditStepInstance step) -> step.getStepNo() == null ? Integer.MIN_VALUE : step.getStepNo())
+                        .reversed()
+                        .thenComparing(step -> step.getCreatedAt() == null ? LocalDateTime.MIN : step.getCreatedAt(),
+                                Comparator.reverseOrder()))
                 .findFirst();
+    }
+
+    public Optional<AuditStepInstance> resolveLatestStepInstance() {
+        return stepInstances.stream()
+                .sorted(Comparator
+                        .comparing((AuditStepInstance step) -> step.getStepNo() == null ? Integer.MIN_VALUE : step.getStepNo())
+                        .reversed()
+                        .thenComparing(step -> step.getCreatedAt() == null ? LocalDateTime.MIN : step.getCreatedAt(),
+                                Comparator.reverseOrder()))
+                .findFirst();
+    }
+
+    public int nextStepInstanceNo() {
+        return stepInstances.stream()
+                .map(AuditStepInstance::getStepNo)
+                .filter(stepNo -> stepNo != null && stepNo > 0)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
     }
 
     public boolean hasAnyHandledStep() {

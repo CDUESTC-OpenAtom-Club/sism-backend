@@ -139,7 +139,7 @@ public class PlanWorkflowSnapshotQueryService {
                 FROM audit_step_instance asi
                 WHERE asi.instance_id = :instanceId
                   AND asi.status = 'PENDING'
-                ORDER BY asi.step_no ASC
+                ORDER BY asi.step_no DESC, asi.id DESC
                 LIMIT 1
                 """)
                 .setParameter("instanceId", instance.getInstanceId())
@@ -183,7 +183,7 @@ public class PlanWorkflowSnapshotQueryService {
                 FROM audit_step_instance asi
                 WHERE asi.instance_id IN :instanceIds
                   AND asi.status = 'PENDING'
-                ORDER BY asi.instance_id, asi.step_no ASC, asi.id ASC
+                ORDER BY asi.instance_id, asi.step_no DESC, asi.id DESC
                 """)
                 .setParameter("instanceIds", instanceIds)
                 .getResultList();

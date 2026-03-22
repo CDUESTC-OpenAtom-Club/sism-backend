@@ -50,6 +50,11 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public List<String> findPermissionCodesByUserId(Long userId) {
+        return jpaRepository.findPermissionCodesByUserId(userId);
+    }
+
+    @Override
     public List<User> findByIsActive(Boolean isActive) {
         return jpaRepository.findByIsActive(isActive);
     }

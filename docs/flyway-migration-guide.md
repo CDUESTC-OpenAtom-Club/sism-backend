@@ -89,7 +89,7 @@ DB_PASSWORD=your_password
 ### 2. 检查迁移状态
 
 ```bash
-mvn flyway:info
+./mvnw flyway:info
 ```
 
 **输出示例**:
@@ -106,13 +106,13 @@ mvn flyway:info
 ### 3. 验证迁移脚本
 
 ```bash
-mvn flyway:validate
+./mvnw flyway:validate
 ```
 
 ### 4. 应用迁移
 
 ```bash
-mvn flyway:migrate
+./mvnw flyway:migrate
 ```
 
 ---
@@ -158,12 +158,12 @@ V{版本号}__{描述}.sql
 
 | 命令 | 说明 |
 |------|------|
-| `mvn flyway:info` | 查看迁移状态 |
-| `mvn flyway:validate` | 验证迁移脚本 |
-| `mvn flyway:migrate` | 应用迁移 |
-| `mvn flyway:clean` | 清空数据库（⚠️ 危险操作） |
-| `mvn flyway:baseline` | 设置基线版本 |
-| `mvn flyway:repair` | 修复迁移历史表 |
+| `./mvnw flyway:info` | 查看迁移状态 |
+| `./mvnw flyway:validate` | 验证迁移脚本 |
+| `./mvnw flyway:migrate` | 应用迁移 |
+| `./mvnw flyway:clean` | 清空数据库（⚠️ 危险操作） |
+| `./mvnw flyway:baseline` | 设置基线版本 |
+| `./mvnw flyway:repair` | 修复迁移历史表 |
 
 ### 环境变量传递
 
@@ -172,10 +172,10 @@ V{版本号}__{描述}.sql
 export DB_URL=jdbc:postgresql://localhost:5432/strategic
 export DB_USERNAME=postgres
 export DB_PASSWORD=your_password
-mvn flyway:migrate
+./mvnw flyway:migrate
 
 # 或者直接传递参数
-mvn flyway:migrate \
+./mvnw flyway:migrate \
   -Dflyway.url=jdbc:postgresql://localhost:5432/strategic \
   -Dflyway.user=postgres \
   -Dflyway.password=your_password
@@ -302,16 +302,16 @@ V5__add_user_email.sql           # 增强
 
 ```bash
 # 1. 在开发环境测试
-mvn flyway:migrate
+./mvnw flyway:migrate
 
 # 2. 验证迁移
-mvn flyway:validate
+./mvnw flyway:validate
 
 # 3. 检查应用启动
-mvn spring-boot:run
+./mvnw spring-boot:run
 
 # 4. 运行测试
-mvn test
+./mvnw test
 
 # 5. 提交代码
 git add src/main/resources/db/migration/V*.sql
@@ -357,7 +357,7 @@ Message    : ERROR: relation "users" does not exist
 **解决方案**:
 1. 检查表名是否正确
 2. 确认依赖的表已创建
-3. 使用 `mvn flyway:repair` 修复历史表
+3. 使用 `./mvnw flyway:repair` 修复历史表
 4. 修正脚本后重新执行
 
 ### 问题 2: Checksum 不匹配
@@ -372,7 +372,7 @@ Migration checksum mismatch for migration version 2
 **解决方案**:
 ```bash
 # 方案 1: 修复历史表（如果确定修改是正确的）
-mvn flyway:repair
+./mvnw flyway:repair
 
 # 方案 2: 恢复原始文件
 git checkout V2__add_audit_flow_entities.sql
@@ -420,14 +420,14 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;
 
 ```yaml
 - name: Validate Flyway migrations
-  run: mvn flyway:validate -B
+  run: ./mvnw flyway:validate -B
   env:
     DB_URL: jdbc:postgresql://localhost:5432/sism_test
     DB_USERNAME: postgres
     DB_PASSWORD: postgres
 
 - name: Apply migrations to test database
-  run: mvn flyway:migrate -B
+  run: ./mvnw flyway:migrate -B
   env:
     DB_URL: jdbc:postgresql://localhost:5432/sism_test
     DB_USERNAME: postgres

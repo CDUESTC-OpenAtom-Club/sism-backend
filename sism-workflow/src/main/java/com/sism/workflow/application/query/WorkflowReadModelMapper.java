@@ -36,6 +36,8 @@ public class WorkflowReadModelMapper {
                 .instanceId(instance.getId() != null ? instance.getId().toString() : null)
                 .definitionId(instance.getFlowDefId() != null ? instance.getFlowDefId().toString() : null)
                 .status(toExternalInstanceStatus(instance.getStatus()))
+                .entityType(instance.getEntityType())
+                .entityId(instance.getEntityId())
                 .businessEntityId(instance.getEntityId())
                 .starterId(instance.getRequesterId())
                 .startTime(instance.getStartedAt())
@@ -56,6 +58,10 @@ public class WorkflowReadModelMapper {
                 .status(convertStepStatus(step.getStatus()))
                 .assigneeId(step.getApproverId())
                 .assigneeName(approverResolver.resolveApproverName(step.getApproverId()))
+                .approverOrgId(step.getApproverOrgId())
+                .stepNo(step.getStepNo())
+                .comment(step.getComment())
+                .approvedAt(step.getApprovedAt())
                 .createdTime(step.getCreatedAt())
                 .build();
     }
@@ -63,12 +69,18 @@ public class WorkflowReadModelMapper {
     public WorkflowTaskResponse toPendingTaskResponse(AuditInstance instance, AuditStepInstance step) {
         return WorkflowTaskResponse.builder()
                 .taskId(step.getId() != null ? step.getId().toString() : instance.getId().toString())
+                .instanceId(instance.getId() != null ? instance.getId().toString() : null)
                 .taskName(step.getStepName() != null ? step.getStepName() : buildInstanceLabel(instance))
                 .taskKey(step.getStepDefId() != null ? "step_" + step.getStepDefId() : "step_" + step.getStepNo())
                 .status("PENDING")
+                .entityType(instance.getEntityType())
+                .entityId(instance.getEntityId())
                 .assigneeId(step.getApproverId())
                 .assigneeName(approverResolver.resolveApproverName(step.getApproverId()))
+                .approverOrgId(step.getApproverOrgId())
+                .stepNo(step.getStepNo())
                 .createdTime(step.getCreatedAt() != null ? step.getCreatedAt() : instance.getStartedAt())
+                .startedAt(instance.getStartedAt())
                 .build();
     }
 

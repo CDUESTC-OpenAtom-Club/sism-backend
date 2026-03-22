@@ -20,11 +20,15 @@ public class WorkflowInstanceDetailResponse extends WorkflowInstanceResponse {
     }
 
     public WorkflowInstanceDetailResponse(
-            String instanceId, String definitionId, String status, Long businessEntityId,
-            Long starterId, java.time.LocalDateTime startTime, java.time.LocalDateTime endTime,
+            String instanceId, String definitionId, String status, String entityType, Long entityId,
+            Long businessEntityId, String flowCode, String flowName, Long starterId, String starterName,
+            Long planId, String planName, Long sourceOrgId, String sourceOrgName,
+            Long targetOrgId, String targetOrgName, java.time.LocalDateTime startTime,
+            java.time.LocalDateTime endTime,
             List<WorkflowTaskResponse> tasks, List<WorkflowHistoryResponse> history) {
-        super(instanceId, definitionId, status, businessEntityId, starterId, startTime, endTime,
-                null, null, null, null, null);
+        super(instanceId, definitionId, status, entityType, entityId, businessEntityId, flowCode, flowName,
+                starterId, starterName, planId, planName, sourceOrgId, sourceOrgName, targetOrgId,
+                targetOrgName, startTime, endTime, null, null, null, null, null);
         this.tasks = tasks;
         this.history = history;
     }

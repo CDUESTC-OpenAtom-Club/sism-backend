@@ -43,7 +43,7 @@ cp .env.example .env
 node database/scripts/db-setup.js
 
 # 6. 运行项目
-mvn spring-boot:run
+./mvnw spring-boot:run
 
 # 7. 验证安装
 curl http://localhost:8080/api/health
@@ -373,8 +373,8 @@ try {
 
 ### 创建 PR 前的检查清单
 
-- [ ] 代码已通过本地测试：`mvn test`
-- [ ] 代码已通过编译：`mvn clean compile`
+- [ ] 代码已通过本地测试：`./mvnw test`
+- [ ] 代码已通过编译：`./mvnw clean compile`
 - [ ] 已添加必要的单元测试
 - [ ] 已更新相关文档
 - [ ] 提交消息遵循规范
@@ -423,7 +423,7 @@ Closes #123
 
 ```bash
 # 运行单元测试
-mvn test
+./mvnw test
 
 # 手动测试步骤
 curl -X POST http://localhost:8080/api/auth/login \
@@ -482,16 +482,16 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 ```bash
 # 运行所有测试
-mvn test
+./mvnw test
 
 # 运行特定测试类
-mvn test -Dtest=IndicatorServiceTest
+./mvnw test -Dtest=IndicatorServiceTest
 
 # 运行特定测试方法
-mvn test -Dtest=IndicatorServiceTest#testGetIndicator
+./mvnw test -Dtest=IndicatorServiceTest#testGetIndicator
 
 # 生成测试覆盖率报告
-mvn test jacoco:report
+./mvnw test jacoco:report
 # 查看报告: target/site/jacoco/index.html
 ```
 

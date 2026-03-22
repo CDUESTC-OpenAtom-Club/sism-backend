@@ -87,4 +87,20 @@ class PlanWorkflowSyncServiceTest {
 
         verify(planApplicationService).markWorkflowWithdrawn(100L);
     }
+
+    @Test
+    void shouldSyncApprovedPlanReportToExecutionContext() {
+        when(reportApplicationServiceProvider.getIfAvailable()).thenReturn(reportApplicationService);
+
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
+        AuditInstance instance = new AuditInstance();
+        instance.setEntityId(200L);
+        instance.setEntityType("PLAN_REPORT");
+        instance.setRequesterId(66L);
+        instance.setStatus(AuditInstance.STATUS_APPROVED);
+
+        service.syncAfterWorkflowChanged(instance);
+
+        verify(reportApplicationService).markWorkflowApproved(200L, 66L);
+    }
 }
