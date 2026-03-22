@@ -172,7 +172,7 @@ class BusinessWorkflowApplicationServiceTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setId(9L);
-        stepDef.setRoleId(9L);
+        stepDef.setRoleId(4L);
         flowDef.setSteps(List.of(stepDef));
 
         ApprovalRequest request = new ApprovalRequest();
@@ -213,7 +213,7 @@ class BusinessWorkflowApplicationServiceTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setId(2L);
-        stepDef.setRoleId(8L);
+        stepDef.setRoleId(3L);
         flowDef.setSteps(List.of(stepDef));
 
         WorkflowTask workflowTask = new WorkflowTask();
@@ -262,7 +262,7 @@ class BusinessWorkflowApplicationServiceTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setId(13L);
-        stepDef.setRoleId(9L);
+        stepDef.setRoleId(4L);
         flowDef.setSteps(List.of(stepDef));
 
         when(auditInstanceRepository.findById(501L)).thenReturn(Optional.empty());
@@ -302,7 +302,7 @@ class BusinessWorkflowApplicationServiceTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setId(6L);
-        stepDef.setRoleId(9L);
+        stepDef.setRoleId(4L);
         flowDef.setSteps(List.of(stepDef));
 
         when(auditInstanceRepository.findById(601L)).thenReturn(Optional.empty());
@@ -354,7 +354,7 @@ class BusinessWorkflowApplicationServiceTest {
         approvalStep.setStepName("一级审批");
         approvalStep.setStepOrder(2);
         approvalStep.setStepType("APPROVAL");
-        approvalStep.setRoleId(8L);
+        approvalStep.setRoleId(3L);
 
         request.setSteps(List.of(submitStep, approvalStep));
 

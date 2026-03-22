@@ -106,7 +106,7 @@ class StepInstanceFactoryTest {
         approvalStep.setStepName("战略发展部负责人审批");
         approvalStep.setStepOrder(2);
         approvalStep.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
-        approvalStep.setRoleId(8L);
+        approvalStep.setRoleId(3L);
         flowDef.setSteps(List.of(submitStep, approvalStep));
 
         User approver = new User();
@@ -114,7 +114,7 @@ class StepInstanceFactoryTest {
         approver.setOrgId(35L);
         approver.setIsActive(true);
 
-        when(userRepository.findByRoleId(8L)).thenReturn(List.of(approver));
+        when(userRepository.findByRoleId(3L)).thenReturn(List.of(approver));
         when(userRepository.findById(9L)).thenReturn(Optional.of(approver));
 
         StepInstanceFactory factory = new StepInstanceFactory(

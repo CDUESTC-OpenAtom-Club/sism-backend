@@ -8,11 +8,11 @@
 -- - Keep only four business role ids.
 -- - Seat names are resolved from workflow step + organization scope.
 -- - For example:
---   - "战略发展部负责人审批" => role 8 + org 35
---   - "分管校领导审批" => role 9 + org 35
---   - "学院院长审批人审批" => role 9 + current college org
---   - "战略发展部终审人审批" => role 8 + org 35
---   - "职能部门终审人审批" => role 6 + current functional org
+--   - "战略发展部负责人审批" => role 3 + org 35
+--   - "分管校领导审批" => role 4 + org 35
+--   - "学院院长审批人审批" => role 4 + current college org
+--   - "战略发展部终审人审批" => role 3 + org 35
+--   - "职能部门终审人审批" => role 2 + current functional org
 
 BEGIN;
 
@@ -28,23 +28,23 @@ INSERT INTO public.audit_step_def (
     step_no
 )
 VALUES
-    (1, 1, '填报人提交', 'SUBMIT', 5, false, NOW(), NOW(), 1),
-    (2, 1, '战略发展部负责人审批', 'APPROVAL', 8, false, NOW(), NOW(), 2),
-    (3, 1, '分管校领导审批', 'APPROVAL', 9, true, NOW(), NOW(), 3),
+    (1, 1, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (2, 1, '战略发展部负责人审批', 'APPROVAL', 3, false, NOW(), NOW(), 2),
+    (3, 1, '分管校领导审批', 'APPROVAL', 4, true, NOW(), NOW(), 3),
 
-    (4, 2, '填报人提交', 'SUBMIT', 5, false, NOW(), NOW(), 1),
-    (5, 2, '职能部门审批人审批', 'APPROVAL', 6, false, NOW(), NOW(), 2),
-    (6, 2, '分管校领导审批', 'APPROVAL', 9, true, NOW(), NOW(), 3),
+    (4, 2, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (5, 2, '职能部门审批人审批', 'APPROVAL', 2, false, NOW(), NOW(), 2),
+    (6, 2, '分管校领导审批', 'APPROVAL', 4, true, NOW(), NOW(), 3),
 
-    (7, 3, '填报人提交', 'SUBMIT', 5, false, NOW(), NOW(), 1),
-    (8, 3, '职能部门审批人审批', 'APPROVAL', 6, false, NOW(), NOW(), 2),
-    (9, 3, '分管校领导审批', 'APPROVAL', 9, false, NOW(), NOW(), 3),
-    (10, 3, '战略发展部终审人审批', 'APPROVAL', 8, true, NOW(), NOW(), 4),
+    (7, 3, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (8, 3, '职能部门审批人审批', 'APPROVAL', 2, false, NOW(), NOW(), 2),
+    (9, 3, '分管校领导审批', 'APPROVAL', 4, false, NOW(), NOW(), 3),
+    (10, 3, '战略发展部终审人审批', 'APPROVAL', 3, true, NOW(), NOW(), 4),
 
-    (11, 4, '填报人提交', 'SUBMIT', 5, false, NOW(), NOW(), 1),
-    (12, 4, '二级学院审批人审批', 'APPROVAL', 6, false, NOW(), NOW(), 2),
-    (13, 4, '学院院长审批人审批', 'APPROVAL', 9, false, NOW(), NOW(), 3),
-    (14, 4, '职能部门终审人审批', 'APPROVAL', 6, true, NOW(), NOW(), 4)
+    (11, 4, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (12, 4, '二级学院审批人审批', 'APPROVAL', 2, false, NOW(), NOW(), 2),
+    (13, 4, '学院院长审批人审批', 'APPROVAL', 4, false, NOW(), NOW(), 3),
+    (14, 4, '职能部门终审人审批', 'APPROVAL', 2, true, NOW(), NOW(), 4)
 ON CONFLICT (id) DO UPDATE
 SET
     flow_id = EXCLUDED.flow_id,

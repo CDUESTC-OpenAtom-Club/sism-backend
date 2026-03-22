@@ -93,7 +93,7 @@ class WorkflowReadModelServiceTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setId(5L);
-        stepDef.setRoleId(6L);
+        stepDef.setRoleId(2L);
         flowDef.setSteps(List.of(stepDef));
 
         User approver = new User();
@@ -102,10 +102,10 @@ class WorkflowReadModelServiceTest {
         approver.setIsActive(true);
         approver.setOrgId(44L);
         Role role = new Role();
-        role.setId(6L);
+        role.setId(2L);
         approver.setRoles(java.util.Set.of(role));
         when(userRepository.findById(101L)).thenReturn(Optional.of(approver));
-        when(userRepository.findRoleIdsByUserId(101L)).thenReturn(List.of(6L));
+        when(userRepository.findRoleIdsByUserId(101L)).thenReturn(List.of(2L));
         when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
 
@@ -138,7 +138,7 @@ class WorkflowReadModelServiceTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setId(2L);
-        stepDef.setRoleId(8L);
+        stepDef.setRoleId(3L);
         flowDef.setSteps(List.of(stepDef));
 
         User approver = new User();
@@ -147,10 +147,10 @@ class WorkflowReadModelServiceTest {
         approver.setIsActive(true);
         approver.setOrgId(35L);
         Role role = new Role();
-        role.setId(8L);
+        role.setId(3L);
         approver.setRoles(java.util.Set.of(role));
         when(userRepository.findById(201L)).thenReturn(Optional.of(approver));
-        when(userRepository.findRoleIdsByUserId(201L)).thenReturn(List.of(8L));
+        when(userRepository.findRoleIdsByUserId(201L)).thenReturn(List.of(3L));
         when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
 

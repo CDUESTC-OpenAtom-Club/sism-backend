@@ -50,7 +50,7 @@ VALUES
         NOW()
     ),
     (
-        3,
+        4,
         'ROLE_VICE_PRESIDENT',
         '分管校领导',
         'ALL',
@@ -69,6 +69,6 @@ SET
     updated_at = EXCLUDED.updated_at;
 
 DELETE FROM public.sys_role
-WHERE id NOT IN (5, 6, 8, 9);
+WHERE id NOT IN (1, 2, 3, 4);
 
 COMMIT;

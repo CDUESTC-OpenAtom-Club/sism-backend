@@ -14,9 +14,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ApproverResolver {
 
-    private static final Long ROLE_APPROVER = 6L;
-    private static final Long ROLE_STRATEGY_DEPT_HEAD = 8L;
-    private static final Long ROLE_VICE_PRESIDENT = 9L;
+    private static final Long ROLE_APPROVER = 2L;
+    private static final Long ROLE_STRATEGY_DEPT_HEAD = 3L;
+    private static final Long ROLE_VICE_PRESIDENT = 4L;
     private static final Long STRATEGY_ORG_ID = 35L;
 
     private final UserRepository userRepository;

@@ -66,11 +66,27 @@ public class ApproveWorkflowUseCase {
         nextStep.setStepNo(currentStepCount + 1);
         nextStep.setStepDefId(nextStepDef.getId());
         nextStep.setStepName(nextStepDef.getStepName());
-        Long approverId = approverResolver.resolveApproverId(nextStepDef, instance.getRequesterId(), instance.getRequesterOrgId());
+
+        // 使用当前审批人的组织ID来解析下一步审批人
+        Long contextOrgId = getCurrentApproverOrgId(instance);
+        Long approverId = approverResolver.resolveApproverId(nextStepDef, instance.getRequesterId(), contextOrgId);
         nextStep.setApproverId(approverId);
         nextStep.setApproverOrgId(approverResolver.resolveApproverOrgId(approverId));
         nextStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(nextStep);
         return true;
+    }
+
+    private Long getCurrentApproverOrgId(AuditInstance instance) {
+        if (instance.getStepInstances() == null || instance.getStepInstances().isEmpty()) {
+            return instance.getRequesterOrgId();
+        }
+
+        // 获取最后一个已审批步骤的审批人组织
+        return instance.getStepInstances().stream()
+                .filter(step -> AuditInstance.STEP_STATUS_APPROVED.equals(step.getStatus()))
+                .max(Comparator.comparing(step -> step.getStepNo() == null ? 0 : step.getStepNo()))
+                .map(step -> step.getApproverOrgId())
+                .orElse(instance.getRequesterOrgId());
     }
 }

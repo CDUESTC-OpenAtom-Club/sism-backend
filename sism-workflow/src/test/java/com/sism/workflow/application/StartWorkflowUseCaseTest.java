@@ -60,7 +60,7 @@ class StartWorkflowUseCaseTest {
         approvalStep.setStepOrder(2);
         approvalStep.setStepName("战略发展部负责人审批");
         approvalStep.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
-        approvalStep.setRoleId(8L);
+        approvalStep.setRoleId(3L);
 
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(1L);
@@ -75,7 +75,7 @@ class StartWorkflowUseCaseTest {
         approver.setIsActive(true);
 
         when(flowDefinitionRepository.findById(1L)).thenReturn(Optional.of(flowDef));
-        when(userRepository.findByRoleId(8L)).thenReturn(List.of(approver));
+        when(userRepository.findByRoleId(3L)).thenReturn(List.of(approver));
         when(userRepository.findById(189L)).thenReturn(Optional.of(approver));
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(flowDefinitionRepository.findByCode(any())).thenReturn(Optional.empty());
