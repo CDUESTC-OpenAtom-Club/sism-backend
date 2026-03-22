@@ -11,7 +11,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -70,7 +69,7 @@ public class AuditInstance extends AggregateRoot<Long> {
     private Boolean isDeleted = false;
 
     @OneToMany(mappedBy = "instance", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("stepIndex ASC")
+    @OrderBy("stepNo ASC")
     private List<AuditStepInstance> stepInstances = new ArrayList<>();
 
     public static AuditInstance create(Long entityId, String entityType, AuditFlowDef flowDef) {
@@ -121,26 +120,13 @@ public class AuditInstance extends AggregateRoot<Long> {
         AuditStepInstance current = resolveCurrentPendingStep()
                 .orElseThrow(() -> new IllegalStateException("No pending step available for approval"));
 
-        if (current.getApproverId() != null && !Objects.equals(current.getApproverId(), userId)) {
-            throw new IllegalStateException("Cannot approve: current step is assigned to another approver");
-        }
-
+        current.setApproverId(userId);
         current.setStatus(STEP_STATUS_APPROVED);
         current.setComment(comment);
         current.setApprovedAt(LocalDateTime.now());
 
-        Optional<AuditStepInstance> next = stepInstances.stream()
-                .filter(step -> STEP_STATUS_WAITING.equals(step.getStatus()))
-                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
-                .findFirst();
-
-        if (next.isPresent()) {
-            AuditStepInstance nextStep = next.get();
-            nextStep.setStatus(STEP_STATUS_PENDING);
-        } else {
-            this.status = STATUS_APPROVED;
-            this.completedAt = LocalDateTime.now();
-        }
+        // 不再查找WAITING步骤，由ApproveWorkflowUseCase动态创建下一步
+        // 如果没有更多步骤会被创建，则标记为已完成
     }
 
     public void reject(Long userId, String comment) {
@@ -155,16 +141,13 @@ public class AuditInstance extends AggregateRoot<Long> {
 
         AuditStepInstance current = resolveCurrentPendingStep()
                 .orElseThrow(() -> new IllegalStateException("No pending step available for rejection"));
-        if (current.getApproverId() != null && !Objects.equals(current.getApproverId(), userId)) {
-            throw new IllegalStateException("Cannot reject: current step is assigned to another approver");
-        }
-
+        current.setApproverId(userId);
         current.setStatus(STEP_STATUS_REJECTED);
         current.setComment(comment);
         current.setApprovedAt(LocalDateTime.now());
 
         List<AuditStepInstance> ordered = stepInstances.stream()
-                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
                 .toList();
 
         int currentIndex = ordered.indexOf(current);
@@ -186,15 +169,6 @@ public class AuditInstance extends AggregateRoot<Long> {
         previousApproved.setStatus(STEP_STATUS_PENDING);
         previousApproved.setComment(null);
         previousApproved.setApprovedAt(null);
-
-        for (int i = currentIndex + 1; i < ordered.size(); i++) {
-            AuditStepInstance step = ordered.get(i);
-            if (!STEP_STATUS_APPROVED.equals(step.getStatus())) {
-                step.setStatus(STEP_STATUS_WAITING);
-                step.setComment(null);
-                step.setApprovedAt(null);
-            }
-        }
 
         this.completedAt = null;
     }
@@ -260,7 +234,7 @@ public class AuditInstance extends AggregateRoot<Long> {
     public Optional<AuditStepInstance> resolveCurrentPendingStep() {
         return stepInstances.stream()
                 .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()))
-                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
                 .findFirst();
     }
 

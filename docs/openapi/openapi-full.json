@@ -9939,7 +9939,7 @@
           "instance": {
             "$ref": "#/components/schemas/AuditInstance"
           },
-          "stepIndex": {
+          "stepNo": {
             "type": "integer",
             "format": "int32"
           },

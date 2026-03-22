@@ -50,17 +50,17 @@ class AuditInstanceTest {
         AuditInstance instance = new AuditInstance();
 
         AuditStepInstance waitingStep = new AuditStepInstance();
-        waitingStep.setStepIndex(1);
+        waitingStep.setStepNo(1);
         waitingStep.setStatus(AuditInstance.STEP_STATUS_WAITING);
 
         AuditStepInstance pendingStep = new AuditStepInstance();
-        pendingStep.setStepIndex(2);
+        pendingStep.setStepNo(2);
         pendingStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
 
         instance.addStepInstance(waitingStep);
         instance.addStepInstance(pendingStep);
 
-        assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepIndex());
+        assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 
     @Test
@@ -70,11 +70,11 @@ class AuditInstanceTest {
         instance.setStatus(AuditInstance.STATUS_PENDING);
 
         AuditStepInstance submitStep = new AuditStepInstance();
-        submitStep.setStepIndex(1);
+        submitStep.setStepNo(1);
         submitStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
 
         AuditStepInstance firstApproval = new AuditStepInstance();
-        firstApproval.setStepIndex(2);
+        firstApproval.setStepNo(2);
         firstApproval.setStatus(AuditInstance.STEP_STATUS_PENDING);
 
         instance.addStepInstance(submitStep);
@@ -92,15 +92,15 @@ class AuditInstanceTest {
         instance.setStatus(AuditInstance.STATUS_PENDING);
 
         AuditStepInstance submitStep = new AuditStepInstance();
-        submitStep.setStepIndex(1);
+        submitStep.setStepNo(1);
         submitStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
 
         AuditStepInstance firstApproval = new AuditStepInstance();
-        firstApproval.setStepIndex(2);
+        firstApproval.setStepNo(2);
         firstApproval.setStatus(AuditInstance.STEP_STATUS_APPROVED);
 
         AuditStepInstance secondApproval = new AuditStepInstance();
-        secondApproval.setStepIndex(3);
+        secondApproval.setStepNo(3);
         secondApproval.setStatus(AuditInstance.STEP_STATUS_PENDING);
 
         instance.addStepInstance(submitStep);

@@ -9,12 +9,15 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
 public class ApproverResolver {
+
+    private static final Long ROLE_APPROVER = 6L;
+    private static final Long ROLE_STRATEGY_DEPT_HEAD = 8L;
+    private static final Long ROLE_VICE_PRESIDENT = 9L;
+    private static final Long STRATEGY_ORG_ID = 35L;
 
     private final UserRepository userRepository;
 
@@ -30,7 +33,8 @@ public class ApproverResolver {
     private Long resolveByRoleId(Long roleId, Long requesterId, Long requesterOrgId, String stepName) {
         List<User> candidates = userRepository.findByRoleId(roleId).stream()
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .sorted(candidateComparator(stepName, requesterOrgId))
+                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepName))
+                .sorted(Comparator.comparing(User::getId))
                 .toList();
         if (candidates.isEmpty()) {
             throw new IllegalStateException("No available approver candidates for step: " + stepName);
@@ -56,6 +60,15 @@ public class ApproverResolver {
                 .orElse("User-" + userId);
     }
 
+    public Long resolveApproverOrgId(Long userId) {
+        if (userId == null || userId <= 0) {
+            return null;
+        }
+        return userRepository.findById(userId)
+                .map(User::getOrgId)
+                .orElse(null);
+    }
+
     public List<ApproverCandidateResponse> resolveCandidates(AuditStepDef stepDef, Long requesterOrgId) {
         Long roleId = stepDef.getRoleId();
         if (roleId == null || roleId <= 0) {
@@ -64,7 +77,8 @@ public class ApproverResolver {
 
         List<ApproverCandidateResponse> candidates = userRepository.findByRoleId(roleId).stream()
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .sorted(candidateComparator(stepDef.getStepName(), requesterOrgId))
+                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
+                .sorted(Comparator.comparing(User::getId))
                 .map(user -> ApproverCandidateResponse.builder()
                         .userId(user.getId())
                         .username(user.getUsername())
@@ -78,7 +92,28 @@ public class ApproverResolver {
         return candidates;
     }
 
+    public boolean canUserApprove(AuditStepDef stepDef, Long userId, Long requesterOrgId) {
+        if (stepDef == null || stepDef.isSubmitStep() || userId == null || userId <= 0) {
+            return false;
+        }
+
+        Long roleId = stepDef.getRoleId();
+        if (roleId == null || roleId <= 0) {
+            return false;
+        }
+
+        return userRepository.findById(userId)
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .filter(user -> userRepository.findRoleIdsByUserId(userId).contains(roleId))
+                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
+                .isPresent();
+    }
+
     public void validateSelectedApprover(AuditStepDef stepDef, Long approverId) {
+        validateSelectedApprover(stepDef, approverId, null);
+    }
+
+    public void validateSelectedApprover(AuditStepDef stepDef, Long approverId, Long requesterOrgId) {
         if (stepDef == null || stepDef.isSubmitStep()) {
             return;
         }
@@ -96,54 +131,33 @@ public class ApproverResolver {
 
         boolean valid = userRepository.findByRoleId(roleId).stream()
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
                 .anyMatch(user -> approverId.equals(user.getId()));
         if (!valid) {
             throw new IllegalArgumentException("Selected approver does not match step role: " + stepDef.getStepName());
         }
     }
 
-    private Comparator<User> candidateComparator(String stepName, Long requesterOrgId) {
-        return Comparator
-                .comparingInt((User user) -> candidatePriority(user, stepName, requesterOrgId))
-                .thenComparing(User::getId);
-    }
-
-    private int candidatePriority(User user, String stepName, Long requesterOrgId) {
+    private boolean matchesRoleScope(User user, Long roleId, Long requesterOrgId, String stepName) {
         Long userOrgId = user.getOrgId();
 
-        if (isVicePresidentStep(stepName)) {
-            return isStrategyOrg(userOrgId) ? 0 : 10;
+        if (ROLE_APPROVER.equals(roleId)) {
+            return requesterOrgId != null && requesterOrgId.equals(userOrgId);
         }
-        if (isStrategyDepartmentStep(stepName)) {
-            return isStrategyOrg(userOrgId) ? 0 : 10;
+        if (ROLE_STRATEGY_DEPT_HEAD.equals(roleId)) {
+            return isStrategyOrg(userOrgId);
         }
-        if (isSameOrgStep(stepName)) {
-            return requesterOrgId != null && requesterOrgId.equals(userOrgId) ? 0 : 10;
+        if (ROLE_VICE_PRESIDENT.equals(roleId)) {
+            if (stepName != null && stepName.contains("学院院长")) {
+                return requesterOrgId != null && requesterOrgId.equals(userOrgId);
+            }
+            return isStrategyOrg(userOrgId);
         }
 
-        return requesterOrgId != null && requesterOrgId.equals(userOrgId) ? 0 : 10;
-    }
-
-    private boolean isVicePresidentStep(String stepName) {
-        return containsAny(stepName, "分管校领导", "校领导");
-    }
-
-    private boolean isStrategyDepartmentStep(String stepName) {
-        return containsAny(stepName, "战略发展部负责人", "战略发展部终审");
-    }
-
-    private boolean isSameOrgStep(String stepName) {
-        return containsAny(stepName, "职能部门审批人", "二级学院审批人", "学院院长", "职能部门终审人");
+        return true;
     }
 
     private boolean isStrategyOrg(Long orgId) {
-        return orgId != null && orgId.equals(35L);
-    }
-
-    private boolean containsAny(String value, String... keywords) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        return Stream.of(keywords).anyMatch(value::contains);
+        return orgId != null && orgId.equals(STRATEGY_ORG_ID);
     }
 }

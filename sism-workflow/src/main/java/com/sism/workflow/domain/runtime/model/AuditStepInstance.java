@@ -26,8 +26,8 @@ public class AuditStepInstance {
     @JsonIgnore
     private AuditInstance instance;
 
-    @Column(name = "step_index", nullable = false)
-    private Integer stepIndex;
+    @Column(name = "step_no", nullable = false)
+    private Integer stepNo;
 
     @Column(name = "step_name", nullable = false)
     private String stepName;
@@ -40,6 +40,9 @@ public class AuditStepInstance {
 
     @Column(name = "approver_id")
     private Long approverId;
+
+    @Column(name = "approver_org_id")
+    private Long approverOrgId;
 
     @Column(name = "comment")
     private String comment;

@@ -61,7 +61,7 @@ class AuthServiceTest {
                 .thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "encodedPassword"))
                 .thenReturn(true);
-        when(jwtTokenService.generateToken(user))
+        when(jwtTokenService.generateToken(eq(user), anyList()))
                 .thenReturn("jwt.token.here");
 
         LoginResponse response = authService.login(request);
@@ -73,7 +73,7 @@ class AuthServiceTest {
         assertEquals("Test User", response.getRealName());
         verify(userRepository).findByUsername("testuser");
         verify(passwordEncoder).matches("password123", "encodedPassword");
-        verify(jwtTokenService).generateToken(user);
+        verify(jwtTokenService).generateToken(eq(user), anyList());
     }
 
     @Test

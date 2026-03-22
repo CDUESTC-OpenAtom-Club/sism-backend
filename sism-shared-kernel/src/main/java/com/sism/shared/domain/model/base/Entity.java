@@ -64,16 +64,16 @@ public abstract class Entity<ID> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Entity<?> entity = (Entity<?>) o;
-        return Objects.equals(id, entity.id);
+        return Objects.equals(getId(), entity.getId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(getId());
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "{id=" + id + "}";
+        return getClass().getSimpleName() + "{id=" + getId() + "}";
     }
 }

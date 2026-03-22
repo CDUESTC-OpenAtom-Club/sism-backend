@@ -60,7 +60,7 @@ class StartWorkflowUseCaseTest {
         approvalStep.setStepOrder(2);
         approvalStep.setStepName("战略发展部负责人审批");
         approvalStep.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
-        approvalStep.setRoleId(7L);
+        approvalStep.setRoleId(8L);
 
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(1L);
@@ -75,7 +75,8 @@ class StartWorkflowUseCaseTest {
         approver.setIsActive(true);
 
         when(flowDefinitionRepository.findById(1L)).thenReturn(Optional.of(flowDef));
-        when(userRepository.findByRoleId(7L)).thenReturn(List.of(approver));
+        when(userRepository.findByRoleId(8L)).thenReturn(List.of(approver));
+        when(userRepository.findById(189L)).thenReturn(Optional.of(approver));
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(flowDefinitionRepository.findByCode(any())).thenReturn(Optional.empty());
         lenient().when(flowDefinitionRepository.findByEntityType(any())).thenReturn(List.of());
@@ -105,11 +106,13 @@ class StartWorkflowUseCaseTest {
         var firstStep = result.getStepInstances().get(0);
         assertEquals(AuditInstance.STEP_STATUS_APPROVED, firstStep.getStatus());
         assertEquals(188L, firstStep.getApproverId());
+        assertEquals(35L, firstStep.getApproverOrgId());
         assertNotNull(firstStep.getApprovedAt());
 
         var secondStep = result.getStepInstances().get(1);
         assertEquals(AuditInstance.STEP_STATUS_PENDING, secondStep.getStatus());
         assertEquals(189L, secondStep.getApproverId());
-        assertEquals(2, result.resolveCurrentPendingStep().orElseThrow().getStepIndex());
+        assertEquals(35L, secondStep.getApproverOrgId());
+        assertEquals(2, result.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 }

@@ -1485,7 +1485,6 @@ async validateToken() {
     "steps": [
       {
         "stepOrder": 1,
-        "stepCode": "DEPT_REVIEW",
         "stepName": "部门审核",
         "approverType": "ROLE",
         "approvers": ["ROLE_DEPT_ADMIN"],
@@ -1494,7 +1493,6 @@ async validateToken() {
       },
       {
         "stepOrder": 2,
-        "stepCode": "SCHOOL_REVIEW",
         "stepName": "校级审批",
         "approverType": "ROLE",
         "approvers": ["ROLE_SCHOOL_ADMIN"],
@@ -1554,7 +1552,6 @@ async validateToken() {
   "steps": [
     {
       "stepOrder": 1,
-      "stepCode": "DEPT_REVIEW",
       "stepName": "部门审核",
       "approverType": "ROLE",
       "approvers": ["ROLE_DEPT_ADMIN"],
@@ -1563,7 +1560,6 @@ async validateToken() {
     },
     {
       "stepOrder": 2,
-      "stepCode": "SCHOOL_REVIEW",
       "stepName": "校级审批",
       "approverType": "ROLE",
       "approvers": ["ROLE_SCHOOL_ADMIN"],
@@ -1590,7 +1586,6 @@ async validateToken() {
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | stepOrder | Integer | 是 | 步骤顺序 |
-| stepCode | String | 是 | 步骤编码 |
 | stepName | String | 是 | 步骤名称 |
 | approverType | String | 是 | 审批人类型：ROLE/USER/DEPT_LEADER/DYNAMIC |
 | approvers | List<String> | 是 | 审批人列表（角色代码/用户ID/部门ID） |
@@ -1712,8 +1707,7 @@ async validateToken() {
     "instanceNo": "APR-20240121-0001",
     "currentStep": {
       "stepOrder": 1,
-      "stepName": "部门审核",
-      "stepCode": "DEPT_REVIEW"
+      "stepName": "部门审核"
     },
     "status": "PENDING",
     "createdAt": "2024-01-21T10:00:00"
@@ -1796,7 +1790,6 @@ async validateToken() {
     "status": "PENDING",
     "currentStep": {
       "stepOrder": 1,
-      "stepCode": "DEPT_REVIEW",
       "stepName": "部门审核"
     },
     "applicant": {
@@ -1812,7 +1805,6 @@ async validateToken() {
     "steps": [
       {
         "stepOrder": 1,
-        "stepCode": "DEPT_REVIEW",
         "stepName": "部门审核",
         "status": "PENDING",
         "approvers": [
@@ -1825,7 +1817,6 @@ async validateToken() {
       },
       {
         "stepOrder": 2,
-        "stepCode": "SCHOOL_REVIEW",
         "stepName": "校级审批",
         "status": "PENDING"
       }
@@ -2231,13 +2222,11 @@ async validateToken() {
     ],
     "byStep": [
       {
-        "stepCode": "DEPT_REVIEW",
         "stepName": "部门审核",
         "avgDuration": "1.2天",
         "timeoutRate": "5%"
       },
       {
-        "stepCode": "SCHOOL_REVIEW",
         "stepName": "校级审批",
         "avgDuration": "1.3天",
         "timeoutRate": "3%"

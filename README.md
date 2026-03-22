@@ -32,13 +32,20 @@ sism-backend/
 ├── sism-analytics/           # 数据分析与洞察
 ├── sism-alert/               # 预警与通知
 ├── database/                 # 数据库相关
-│   ├── migrations/           # Flyway 数据库迁移脚本
+│   ├── migrations/           # 迁移归档与说明（不再作为活跃 Flyway 目录）
 │   └── scripts/              # 辅助数据库脚本
 ├── docs/                     # 项目文档
 └── scripts/                  # 应用层维护和测试脚本
 ```
 
 ## 快速开始
+
+## 数据库原则
+
+- 当前数据库结构已经冻结为新的 Flyway `V1` 基线
+- 活跃 Flyway 目录是 `sism-main/src/main/resources/db/migration/`
+- 尽量不要改数据库结构，除非客户需求明确要求
+- 如必须改表结构，只能新增新的 `V2__*.sql`、`V3__*.sql` 迁移，不要改 `V1__baseline_current_schema.sql`
 
 ### 环境要求
 

@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,15 +24,26 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
+        List<SimpleGrantedAuthority> authorities = userRepository.findRoleCodesByUserId(user.getId()).stream()
+                .map(this::toAuthority)
+                .collect(Collectors.toList());
+
         return new CurrentUser(
                 user.getId(),
                 user.getUsername(),
                 user.getRealName(),
                 null, // email 字段在新版本中已移除，使用 null
                 user.getOrgId(),
-                user.getRoles().stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getRoleCode()))
-                        .collect(Collectors.toList())
+                authorities
         );
+    }
+
+    private SimpleGrantedAuthority toAuthority(String roleCode) {
+        if (roleCode == null || roleCode.isBlank()) {
+            return new SimpleGrantedAuthority("ROLE_UNKNOWN");
+        }
+        return roleCode.startsWith("ROLE_")
+                ? new SimpleGrantedAuthority(roleCode)
+                : new SimpleGrantedAuthority("ROLE_" + roleCode);
     }
 }

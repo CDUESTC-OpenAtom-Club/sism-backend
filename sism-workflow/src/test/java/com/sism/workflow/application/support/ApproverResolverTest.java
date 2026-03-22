@@ -50,22 +50,45 @@ class ApproverResolverTest {
     }
 
     @Test
+    void resolveApproverId_shouldPreferSameOrgCollegeLeaderByRoleScope() {
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setRoleId(9L);
+        stepDef.setStepName("学院院长审批人审批");
+
+        User otherCollegeLeader = new User();
+        otherCollegeLeader.setId(372L);
+        otherCollegeLeader.setOrgId(57L);
+        otherCollegeLeader.setIsActive(true);
+
+        User sameCollegeLeader = new User();
+        sameCollegeLeader.setId(369L);
+        sameCollegeLeader.setOrgId(56L);
+        sameCollegeLeader.setIsActive(true);
+
+        when(userRepository.findByRoleId(9L)).thenReturn(List.of(otherCollegeLeader, sameCollegeLeader));
+
+        ApproverResolver resolver = new ApproverResolver(userRepository);
+
+        assertEquals(369L, resolver.resolveApproverId(stepDef, 188L, 56L));
+    }
+
+    @Test
     void resolveApproverId_shouldRejectWhenRoleHasNoCandidates() {
         AuditStepDef stepDef = new AuditStepDef();
-        stepDef.setRoleId(7L);
+        stepDef.setRoleId(9L);
         stepDef.setStepName("分管校领导审批");
 
         ApproverResolver resolver = new ApproverResolver(userRepository);
 
-        when(userRepository.findByRoleId(7L)).thenReturn(List.of());
+        when(userRepository.findByRoleId(9L)).thenReturn(List.of());
 
         assertThrows(IllegalStateException.class, () -> resolver.resolveApproverId(stepDef, 88L, 30L));
     }
 
     @Test
-    void resolveApproverId_shouldPreferStrategyOrgForVicePresidentStep() {
+    void resolveApproverId_shouldResolveVicePresidentByDedicatedRole() {
         AuditStepDef stepDef = new AuditStepDef();
-        stepDef.setRoleId(7L);
+        stepDef.setRoleId(9L);
         stepDef.setStepName("分管校领导审批");
 
         User sameOrgLeader = new User();
@@ -78,7 +101,7 @@ class ApproverResolverTest {
         strategyLeader.setOrgId(35L);
         strategyLeader.setIsActive(true);
 
-        when(userRepository.findByRoleId(7L)).thenReturn(List.of(sameOrgLeader, strategyLeader));
+        when(userRepository.findByRoleId(9L)).thenReturn(List.of(sameOrgLeader, strategyLeader));
 
         ApproverResolver resolver = new ApproverResolver(userRepository);
 

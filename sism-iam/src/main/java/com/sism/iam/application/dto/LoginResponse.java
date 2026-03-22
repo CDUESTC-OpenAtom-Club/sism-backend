@@ -26,6 +26,22 @@ public class LoginResponse {
     private UserInfo user;
 
     public static LoginResponse fromUser(User user, String accessToken, String refreshToken, long expiresIn) {
+        return fromUser(
+                user,
+                user.getRoles().stream().map(role -> role.getRoleCode()).toList(),
+                accessToken,
+                refreshToken,
+                expiresIn
+        );
+    }
+
+    public static LoginResponse fromUser(
+            User user,
+            List<String> roleCodes,
+            String accessToken,
+            String refreshToken,
+            long expiresIn
+    ) {
         LoginResponse response = new LoginResponse();
         response.setToken(accessToken);
         response.setAccessToken(accessToken);
@@ -41,7 +57,7 @@ public class LoginResponse {
                 user.getUsername(),
                 user.getRealName(),
                 user.getOrgId(),
-                user.getRoles().stream().map(role -> role.getRoleCode()).toList()
+                roleCodes
         ));
         return response;
     }

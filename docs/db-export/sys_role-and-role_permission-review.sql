@@ -166,7 +166,7 @@ COMMIT;
 --    FROM sys_user u
 --    JOIN sys_user_role ur ON ur.user_id = u.id
 --    JOIN sys_role r ON r.id = ur.role_id
---    WHERE u.username IN ('zlb_admin', 'zlb_audit1', 'zlb_audit2');
+--    WHERE u.username IN ('zlb_admin', 'zlb_final1', 'zlb_final2');
 --
 -- 2. If zlb_admin must edit/submit dispatch content, bind ROLE_REPORTER:
 --    INSERT INTO public.sys_user_role (user_id, role_id)

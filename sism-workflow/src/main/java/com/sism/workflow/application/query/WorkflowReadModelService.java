@@ -1,7 +1,9 @@
 package com.sism.workflow.application.query;
 
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
+import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.model.AuditStepInstance;
@@ -25,6 +27,7 @@ public class WorkflowReadModelService {
     private final AuditInstanceRepository auditInstanceRepository;
     private final WorkflowQueryRepository workflowQueryRepository;
     private final WorkflowReadModelMapper workflowReadModelMapper;
+    private final ApproverResolver approverResolver;
 
     public PageResult<WorkflowDefinitionResponse> listDefinitions(int pageNum, int pageSize) {
         Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
@@ -64,7 +67,7 @@ public class WorkflowReadModelService {
         response.setCanWithdraw(base.getCanWithdraw());
 
         List<WorkflowTaskResponse> tasks = instance.getStepInstances().stream()
-                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
                 .map(workflowReadModelMapper::toTaskResponse)
                 .toList();
         response.setTasks(tasks);
@@ -74,12 +77,12 @@ public class WorkflowReadModelService {
 
     public PageResult<WorkflowTaskResponse> getMyPendingTasks(Long userId, int pageNum) {
         int pageSize = 10;
-        List<AuditInstance> pendingInstances = workflowQueryRepository.findPendingAuditInstancesByUserId(userId);
+        List<AuditInstance> pendingInstances = auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING);
 
         List<WorkflowTaskResponse> tasks = pendingInstances.stream()
                 .flatMap(instance -> instance.getStepInstances().stream()
                         .filter(step -> AuditInstance.STEP_STATUS_PENDING.equals(step.getStatus()))
-                        .filter(step -> userId.equals(step.getApproverId()))
+                        .filter(step -> canUserHandleStep(instance, step, userId))
                         .map(step -> workflowReadModelMapper.toPendingTaskResponse(instance, step)))
                 .sorted(Comparator.comparing(WorkflowTaskResponse::getCreatedTime,
                         Comparator.nullsLast(Comparator.reverseOrder())))
@@ -132,5 +135,18 @@ public class WorkflowReadModelService {
         }
 
         return history;
+    }
+
+    private boolean canUserHandleStep(AuditInstance instance, AuditStepInstance step, Long userId) {
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(instance.getFlowDefId());
+        if (flowDef == null || flowDef.getSteps() == null) {
+            return false;
+        }
+
+        AuditStepDef stepDef = flowDef.getSteps().stream()
+                .filter(candidate -> candidate.getId() != null && candidate.getId().equals(step.getStepDefId()))
+                .findFirst()
+                .orElse(null);
+        return approverResolver.canUserApprove(stepDef, userId, instance.getRequesterOrgId());
     }
 }

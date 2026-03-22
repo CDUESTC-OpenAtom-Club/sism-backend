@@ -2,9 +2,11 @@ package com.sism.workflow.application.query;
 
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.support.ApproverResolver;
+import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.model.AuditStepInstance;
@@ -46,7 +48,8 @@ class WorkflowReadModelServiceTest {
                 workflowDefinitionQueryService,
                 auditInstanceRepository,
                 workflowQueryRepository,
-                mapper
+                mapper,
+                new ApproverResolver(userRepository)
         );
     }
 
@@ -70,14 +73,16 @@ class WorkflowReadModelServiceTest {
     void getMyPendingTasks_shouldReturnStepLevelTaskView() {
         AuditInstance instance = new AuditInstance();
         instance.setId(8L);
+        instance.setFlowDefId(2L);
         instance.setEntityType("PlanReport");
         instance.setEntityId(88L);
+        instance.setRequesterOrgId(44L);
         instance.setStartedAt(LocalDateTime.now().minusHours(1));
 
         AuditStepInstance pending = new AuditStepInstance();
         pending.setId(88L);
         pending.setStepDefId(5L);
-        pending.setStepIndex(2);
+        pending.setStepNo(2);
         pending.setStepName("部门负责人审批");
         pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
         pending.setApproverId(101L);
@@ -85,12 +90,24 @@ class WorkflowReadModelServiceTest {
 
         instance.addStepInstance(pending);
 
+        AuditFlowDef flowDef = new AuditFlowDef();
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(5L);
+        stepDef.setRoleId(6L);
+        flowDef.setSteps(List.of(stepDef));
+
         User approver = new User();
         approver.setId(101L);
         approver.setRealName("审批人A");
+        approver.setIsActive(true);
+        approver.setOrgId(44L);
+        Role role = new Role();
+        role.setId(6L);
+        approver.setRoles(java.util.Set.of(role));
         when(userRepository.findById(101L)).thenReturn(Optional.of(approver));
-
-        when(workflowQueryRepository.findPendingAuditInstancesByUserId(101L)).thenReturn(List.of(instance));
+        when(userRepository.findRoleIdsByUserId(101L)).thenReturn(List.of(6L));
+        when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
 
         PageResult<WorkflowTaskResponse> result = newService().getMyPendingTasks(101L, 1);
 
@@ -104,29 +121,44 @@ class WorkflowReadModelServiceTest {
     void getMyPendingTasks_shouldFallbackTaskNameToEntityLabelWhenStepNameMissing() {
         AuditInstance instance = new AuditInstance();
         instance.setId(18L);
+        instance.setFlowDefId(1L);
         instance.setEntityType("PlanReport");
         instance.setEntityId(123L);
+        instance.setRequesterOrgId(35L);
         instance.setStartedAt(LocalDateTime.now().minusHours(2));
 
         AuditStepInstance pending = new AuditStepInstance();
         pending.setId(180L);
-        pending.setStepIndex(1);
+        pending.setStepDefId(2L);
+        pending.setStepNo(1);
         pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
-        pending.setApproverId(201L);
         pending.setCreatedAt(LocalDateTime.now().minusMinutes(10));
         instance.addStepInstance(pending);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(2L);
+        stepDef.setRoleId(8L);
+        flowDef.setSteps(List.of(stepDef));
 
         User approver = new User();
         approver.setId(201L);
         approver.setUsername("approver201");
+        approver.setIsActive(true);
+        approver.setOrgId(35L);
+        Role role = new Role();
+        role.setId(8L);
+        approver.setRoles(java.util.Set.of(role));
         when(userRepository.findById(201L)).thenReturn(Optional.of(approver));
-        when(workflowQueryRepository.findPendingAuditInstancesByUserId(201L)).thenReturn(List.of(instance));
+        when(userRepository.findRoleIdsByUserId(201L)).thenReturn(List.of(8L));
+        when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
 
         PageResult<WorkflowTaskResponse> result = newService().getMyPendingTasks(201L, 1);
 
         assertEquals(1, result.getTotal());
         assertEquals("PlanReport#123", result.getItems().get(0).getTaskName());
-        assertEquals("approver201", result.getItems().get(0).getAssigneeName());
+        assertEquals("Unknown", result.getItems().get(0).getAssigneeName());
     }
 
     @Test
@@ -144,7 +176,7 @@ class WorkflowReadModelServiceTest {
         AuditStepInstance approved = new AuditStepInstance();
         approved.setId(91L);
         approved.setStepDefId(6L);
-        approved.setStepIndex(1);
+        approved.setStepNo(1);
         approved.setStepName("一级审批");
         approved.setStatus(AuditInstance.STEP_STATUS_APPROVED);
         approved.setApproverId(11L);

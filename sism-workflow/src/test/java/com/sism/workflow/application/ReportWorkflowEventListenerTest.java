@@ -55,7 +55,7 @@ class ReportWorkflowEventListenerTest {
 
         ArgumentCaptor<StartWorkflowRequest> requestCaptor = ArgumentCaptor.forClass(StartWorkflowRequest.class);
         verify(businessWorkflowApplicationService).startWorkflow(requestCaptor.capture(), org.mockito.ArgumentMatchers.eq(66L), org.mockito.ArgumentMatchers.eq(200L));
-        assertEquals("PLAN_REPORT_FUNC", requestCaptor.getValue().getWorkflowCode());
+        assertEquals("PLAN_APPROVAL_FUNCDEPT", requestCaptor.getValue().getWorkflowCode());
         assertEquals(100L, requestCaptor.getValue().getBusinessEntityId());
         assertEquals("PlanReport", requestCaptor.getValue().getBusinessEntityType());
         assertEquals(66L, requestCaptor.getValue().getVariables().get("submitterId"));

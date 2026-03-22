@@ -56,6 +56,9 @@ public class Plan extends AggregateRoot<Long> {
     @Column(name = "status", nullable = false)
     private String status;
 
+    @Column(name = "audit_instance_id")
+    private Long auditInstanceId;
+
     public static Plan create(Long cycleId, Long targetOrgId, Long createdByOrgId, PlanLevel planLevel) {
         if (cycleId == null) {
             throw new IllegalArgumentException("Cycle ID cannot be null");

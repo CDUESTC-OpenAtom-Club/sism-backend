@@ -214,8 +214,8 @@ public class ReportWorkflowEventListener {
 
     private String resolveWorkflowCode(ReportOrgType reportOrgType) {
         if (reportOrgType == ReportOrgType.COLLEGE) {
-            return "PLAN_REPORT_COLLEGE";
+            return "PLAN_APPROVAL_COLLEGE";
         }
-        return "PLAN_REPORT_FUNC";
+        return "PLAN_APPROVAL_FUNCDEPT";
     }
 }

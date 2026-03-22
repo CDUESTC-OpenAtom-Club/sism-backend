@@ -447,13 +447,23 @@ class ReportWorkflowIntegrationTest {
                 public boolean existsByUsername(String username) {
                     return findByUsername(username).isPresent();
                 }
+
+                @Override
+                public List<String> findRoleCodesByUserId(Long userId) {
+                    return List.of();
+                }
+
+                @Override
+                public List<Long> findRoleIdsByUserId(Long userId) {
+                    return List.of();
+                }
             };
         }
     }
 
     private void ensureReportApprovalFlows() {
-        ensureFlowDefinition("PLAN_REPORT_FUNC", "职能部门报告审批");
-        ensureFlowDefinition("PLAN_REPORT_COLLEGE", "学院报告审批");
+        ensureFlowDefinition("PLAN_APPROVAL_FUNCDEPT", "Plan审批流程（职能部门）");
+        ensureFlowDefinition("PLAN_APPROVAL_COLLEGE", "Plan审批流程（二级学院）");
     }
 
     private void ensureFlowDefinition(String flowCode, String flowName) {
@@ -464,8 +474,8 @@ class ReportWorkflowIntegrationTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setFlowCode(flowCode);
         flowDef.setFlowName(flowName);
-        flowDef.setEntityType("PlanReport");
-        flowDef.setDescription("测试用报告审批流: " + flowCode);
+        flowDef.setEntityType("PLAN");
+        flowDef.setDescription("测试用复用审批流: " + flowCode);
         flowDef.setIsActive(true);
         flowDef.setVersion(1);
         flowDefinitionRepository.save(flowDef);

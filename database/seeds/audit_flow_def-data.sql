@@ -22,10 +22,8 @@ INSERT INTO public.audit_flow_def (
 VALUES
     (1, 'PLAN_DISPATCH_STRATEGY', 'Plan下发审批（战略发展部）', true, NOW(), NOW(), '战略发展部发起的 Plan 下发审批流程', 1, 'PLAN'),
     (2, 'PLAN_DISPATCH_FUNCDEPT', 'Plan下发审批（职能部门）', true, NOW(), NOW(), '职能部门发起的 Plan 下发审批流程', 1, 'PLAN'),
-    (3, 'PLAN_APPROVAL_FUNCDEPT', 'Plan审批流程（职能部门）', true, NOW(), NOW(), '职能部门 Plan 审批流程', 1, 'PLAN'),
-    (4, 'PLAN_APPROVAL_COLLEGE', 'Plan审批流程（二级学院）', true, NOW(), NOW(), '二级学院 Plan 审批流程', 1, 'PLAN'),
-    (5, 'PLAN_REPORT_FUNC', '月报审批流程（职能部门）', true, NOW(), NOW(), '职能部门月度填报审批流程', 1, 'PlanReport'),
-    (6, 'PLAN_REPORT_COLLEGE', '月报审批流程（二级学院）', true, NOW(), NOW(), '二级学院月度填报审批流程', 1, 'PlanReport')
+    (3, 'PLAN_APPROVAL_FUNCDEPT', 'Plan审批流程（职能部门）', true, NOW(), NOW(), '职能部门 Plan / 月报复用审批流程', 1, 'PLAN'),
+    (4, 'PLAN_APPROVAL_COLLEGE', 'Plan审批流程（二级学院）', true, NOW(), NOW(), '二级学院 Plan / 月报复用审批流程', 1, 'PLAN')
 ON CONFLICT (id) DO UPDATE
 SET
     flow_code = EXCLUDED.flow_code,

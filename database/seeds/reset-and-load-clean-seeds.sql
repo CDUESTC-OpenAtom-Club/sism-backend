@@ -66,9 +66,6 @@ COMMIT;
 \i audit_step_instance-data.sql
 \i workflow_task-data.sql
 \i workflow_task_history-data.sql
-\i audit_log-clean.sql
-\i progress_report-clean.sql
-\i refresh_tokens-clean.sql
 
 DO $$
 DECLARE
@@ -98,8 +95,7 @@ BEGIN
                 ('public.plan_report_indicator_attachment', 'id'),
                 ('public.alert_event', 'event_id'),
                 ('public.audit_instance', 'id'),
-                ('public.audit_step_instance', 'id'),
-                ('public.progress_report', 'report_id')
+                ('public.audit_step_instance', 'id')
         ) AS t(tbl, col)
     LOOP
         IF pg_get_serial_sequence(rec.tbl, rec.col) IS NOT NULL THEN

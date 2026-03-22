@@ -8,9 +8,6 @@
 
 BEGIN;
 
-DELETE FROM public.sys_task
-WHERE task_id IN (41004, 41021, 41022, 41023, 41024, 41025, 41026, 41027);
-
 INSERT INTO public.sys_task (
     task_id,
     created_at,

@@ -488,3 +488,10 @@ graph LR
 **最后更新**: 2026-02-14  
 **文档版本**: 1.0  
 **维护者**: SISM Backend Team
+## 当前规则
+
+- 当前数据库结构已经冻结为新的 Flyway `V1` 基线
+- 活跃迁移目录是 `sism-main/src/main/resources/db/migration/`
+- 尽量不要改数据库结构，除非客户需求明确要求
+- 如果不是客户明确需求，优先通过应用层、配置或种子数据解决问题
+- 如果必须改结构，只新增新的前向迁移，不修改 `V1__baseline_current_schema.sql`

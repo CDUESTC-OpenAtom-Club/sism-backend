@@ -30,10 +30,11 @@ public class StepInstanceFactory {
         List<AuditStepDef> stepDefs = flowDef != null && flowDef.getSteps() != null ? flowDef.getSteps() : List.of();
         if (stepDefs.isEmpty()) {
             AuditStepInstance fallback = new AuditStepInstance();
-            fallback.setStepIndex(1);
+            fallback.setStepNo(1);
             fallback.setStepName("默认审批");
             fallback.setStatus(AuditInstance.STEP_STATUS_PENDING);
             fallback.setApproverId(requesterId);
+            fallback.setApproverOrgId(requesterOrgId);
             instance.addStepInstance(fallback);
             return;
         }
@@ -44,28 +45,39 @@ public class StepInstanceFactory {
                         .thenComparing(step -> step.getId() == null ? Long.MAX_VALUE : step.getId()))
                 .toList();
 
-        int order = 1;
-        for (AuditStepDef stepDef : orderedStepDefs) {
-            validateStepDefinition(stepDef);
-            AuditStepInstance step = new AuditStepInstance();
-            Integer stepOrder = stepDef.getStepOrder();
-            int index = stepOrder != null && stepOrder > 0 ? stepOrder : order;
-            step.setStepIndex(index);
-            step.setStepDefId(stepDef.getId());
-            step.setStepName(stepDef.getStepName() != null ? stepDef.getStepName() : "审批步骤" + index);
-            Long resolvedApproverId;
-            if (stepDef.isSubmitStep()) {
-                resolvedApproverId = requesterId;
-            } else {
-                resolvedApproverId = approverResolver.resolveApproverId(stepDef, requesterId, requesterOrgId);
-            }
-            step.setApproverId(resolvedApproverId);
-            step.setStatus(order == 1 ? AuditInstance.STEP_STATUS_PENDING : AuditInstance.STEP_STATUS_WAITING);
-            instance.addStepInstance(step);
-            order++;
-        }
+        // 只创建第一个步骤
+        AuditStepDef firstStepDef = orderedStepDefs.get(0);
+        validateStepDefinition(firstStepDef);
+        AuditStepInstance firstStep = new AuditStepInstance();
+        firstStep.setStepNo(1);
+        firstStep.setStepDefId(firstStepDef.getId());
+        firstStep.setStepName(firstStepDef.getStepName() != null ? firstStepDef.getStepName() : "审批步骤1");
+        Long resolvedApproverId = firstStepDef.isSubmitStep()
+                ? requesterId
+                : approverResolver.resolveApproverId(firstStepDef, requesterId, requesterOrgId);
+        firstStep.setApproverId(resolvedApproverId);
+        firstStep.setApproverOrgId(firstStepDef.isSubmitStep()
+                ? requesterOrgId
+                : approverResolver.resolveApproverOrgId(resolvedApproverId));
+        firstStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        instance.addStepInstance(firstStep);
 
         submissionStepAutoCompletePolicy.apply(instance, orderedStepDefs.get(0), requesterId);
+
+        // 如果第一步被自动完成，创建第二个步骤
+        if (AuditInstance.STEP_STATUS_APPROVED.equals(firstStep.getStatus()) && orderedStepDefs.size() > 1) {
+            AuditStepDef secondStepDef = orderedStepDefs.get(1);
+            validateStepDefinition(secondStepDef);
+            AuditStepInstance secondStep = new AuditStepInstance();
+            secondStep.setStepNo(2);
+            secondStep.setStepDefId(secondStepDef.getId());
+            secondStep.setStepName(secondStepDef.getStepName() != null ? secondStepDef.getStepName() : "审批步骤2");
+            Long secondApproverId = approverResolver.resolveApproverId(secondStepDef, requesterId, requesterOrgId);
+            secondStep.setApproverId(secondApproverId);
+            secondStep.setApproverOrgId(approverResolver.resolveApproverOrgId(secondApproverId));
+            secondStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+            instance.addStepInstance(secondStep);
+        }
     }
 
     private void validateStepDefinition(AuditStepDef stepDef) {

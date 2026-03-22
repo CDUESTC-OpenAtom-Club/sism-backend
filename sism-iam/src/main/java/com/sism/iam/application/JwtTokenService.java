@@ -32,11 +32,15 @@ public class JwtTokenService {
     }
 
     public String generateToken(User user) {
+        return generateToken(user, extractRoleCodes(user.getRoles()));
+    }
+
+    public String generateToken(User user, List<String> roleCodes) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("username", user.getUsername());
         claims.put("orgId", user.getOrgId());
-        claims.put("roles", extractRoleCodes(user.getRoles()));
+        claims.put("roles", normalizeRoleCodes(roleCodes));
 
         return Jwts.builder()
                 .claims(claims)
@@ -116,11 +120,15 @@ public class JwtTokenService {
     }
 
     public String generateRefreshToken(User user) {
+        return generateRefreshToken(user, extractRoleCodes(user.getRoles()));
+    }
+
+    public String generateRefreshToken(User user, List<String> roleCodes) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", user.getId());
         claims.put("username", user.getUsername());
         claims.put("orgId", user.getOrgId());
-        claims.put("roles", extractRoleCodes(user.getRoles()));
+        claims.put("roles", normalizeRoleCodes(roleCodes));
         claims.put("type", "refresh");
 
         return Jwts.builder()
@@ -141,8 +149,17 @@ public class JwtTokenService {
             return List.of();
         }
 
-        return roles.stream()
+        return normalizeRoleCodes(roles.stream()
                 .map(Role::getRoleCode)
+                .toList());
+    }
+
+    private List<String> normalizeRoleCodes(Collection<String> roleCodes) {
+        if (roleCodes == null || roleCodes.isEmpty()) {
+            return List.of();
+        }
+
+        return roleCodes.stream()
                 .filter(roleCode -> roleCode != null && !roleCode.isBlank())
                 .distinct()
                 .toList();

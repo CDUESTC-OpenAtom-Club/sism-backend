@@ -16,13 +16,13 @@ class SubmissionStepAutoCompletePolicyTest {
         firstStepDef.setStepType(AuditStepDef.STEP_TYPE_SUBMIT);
 
         AuditStepInstance submit = new AuditStepInstance();
-        submit.setStepIndex(1);
+        submit.setStepNo(1);
         submit.setStepName("填报人提交");
         submit.setStatus(AuditInstance.STEP_STATUS_PENDING);
         submit.setApproverId(11L);
 
         AuditStepInstance approve = new AuditStepInstance();
-        approve.setStepIndex(2);
+        approve.setStepNo(2);
         approve.setStepName("审核");
         approve.setStatus(AuditInstance.STEP_STATUS_WAITING);
         approve.setApproverId(12L);
@@ -35,7 +35,7 @@ class SubmissionStepAutoCompletePolicyTest {
 
         assertEquals(AuditInstance.STEP_STATUS_APPROVED, submit.getStatus());
         assertEquals(AuditInstance.STEP_STATUS_PENDING, approve.getStatus());
-        assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepIndex());
+        assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 
     @Test
@@ -45,7 +45,7 @@ class SubmissionStepAutoCompletePolicyTest {
         firstStepDef.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
 
         AuditStepInstance first = new AuditStepInstance();
-        first.setStepIndex(1);
+        first.setStepNo(1);
         first.setStepName("一级审批");
         first.setStatus(AuditInstance.STEP_STATUS_PENDING);
         first.setApproverId(11L);
@@ -55,6 +55,6 @@ class SubmissionStepAutoCompletePolicyTest {
         policy.apply(instance, firstStepDef, 11L);
 
         assertEquals(AuditInstance.STEP_STATUS_PENDING, first.getStatus());
-        assertEquals(1, instance.resolveCurrentPendingStep().orElseThrow().getStepIndex());
+        assertEquals(1, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 }

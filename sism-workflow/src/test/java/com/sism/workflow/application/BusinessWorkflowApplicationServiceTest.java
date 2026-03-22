@@ -4,7 +4,9 @@ import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.definition.WorkflowPreviewQueryService;
 import com.sism.workflow.application.query.WorkflowReadModelMapper;
 import com.sism.workflow.application.query.WorkflowReadModelService;
+import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.model.WorkflowTask;
@@ -53,6 +55,9 @@ class BusinessWorkflowApplicationServiceTest {
 
     @Mock
     private WorkflowTaskRepository workflowTaskRepository;
+
+    @Mock
+    private ApproverResolver approverResolver;
 
     @InjectMocks
     private BusinessWorkflowApplicationService businessWorkflowApplicationService;
@@ -152,21 +157,31 @@ class BusinessWorkflowApplicationServiceTest {
         AuditInstance instance = new AuditInstance();
         instance.setId(128L);
         instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setFlowDefId(3L);
+        instance.setRequesterOrgId(35L);
 
         com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
                 new com.sism.workflow.domain.runtime.model.AuditStepInstance();
         currentStep.setId(256L);
-        currentStep.setStepIndex(2);
+        currentStep.setStepDefId(9L);
+        currentStep.setStepNo(2);
         currentStep.setStepName("分管校领导审批");
         currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
-        currentStep.setApproverId(9L);
         instance.addStepInstance(currentStep);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(9L);
+        stepDef.setRoleId(9L);
+        flowDef.setSteps(List.of(stepDef));
 
         ApprovalRequest request = new ApprovalRequest();
         request.setComment("同意");
 
         when(auditInstanceRepository.findById(256L)).thenReturn(Optional.empty());
         when(auditInstanceRepository.findByStepInstanceId(256L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
+        when(approverResolver.canUserApprove(stepDef, 9L, 35L)).thenReturn(true);
         when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("128").status("IN_REVIEW").build()
@@ -183,15 +198,23 @@ class BusinessWorkflowApplicationServiceTest {
         AuditInstance instance = new AuditInstance();
         instance.setId(133L);
         instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setFlowDefId(1L);
+        instance.setRequesterOrgId(35L);
 
         com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
                 new com.sism.workflow.domain.runtime.model.AuditStepInstance();
         currentStep.setId(356L);
-        currentStep.setStepIndex(2);
+        currentStep.setStepDefId(2L);
+        currentStep.setStepNo(2);
         currentStep.setStepName("战略发展部负责人审批");
         currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
-        currentStep.setApproverId(9L);
         instance.addStepInstance(currentStep);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(2L);
+        stepDef.setRoleId(8L);
+        flowDef.setSteps(List.of(stepDef));
 
         WorkflowTask workflowTask = new WorkflowTask();
         workflowTask.setId(392L);
@@ -204,6 +227,8 @@ class BusinessWorkflowApplicationServiceTest {
         when(auditInstanceRepository.findByStepInstanceId(392L)).thenReturn(Optional.empty());
         when(workflowTaskRepository.findById(392L)).thenReturn(Optional.of(workflowTask));
         when(auditInstanceRepository.findById(133L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
+        when(approverResolver.canUserApprove(stepDef, 9L, 35L)).thenReturn(true);
         when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("133").status("IN_REVIEW").build()
@@ -224,16 +249,26 @@ class BusinessWorkflowApplicationServiceTest {
         AuditInstance instance = new AuditInstance();
         instance.setId(88L);
         instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setFlowDefId(4L);
+        instance.setRequesterOrgId(56L);
         var currentStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
         currentStep.setId(501L);
-        currentStep.setStepIndex(2);
+        currentStep.setStepDefId(13L);
+        currentStep.setStepNo(2);
         currentStep.setStepName("一级审批");
         currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
-        currentStep.setApproverId(11L);
         instance.addStepInstance(currentStep);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(13L);
+        stepDef.setRoleId(9L);
+        flowDef.setSteps(List.of(stepDef));
 
         when(auditInstanceRepository.findById(501L)).thenReturn(Optional.empty());
         when(auditInstanceRepository.findByStepInstanceId(501L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
+        when(approverResolver.canUserApprove(stepDef, 11L, 56L)).thenReturn(true);
         when(workflowApplicationService.approveAuditInstance(instance, 11L, "通过")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("88").status("IN_REVIEW").build()
@@ -254,16 +289,26 @@ class BusinessWorkflowApplicationServiceTest {
         AuditInstance instance = new AuditInstance();
         instance.setId(89L);
         instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setFlowDefId(2L);
+        instance.setRequesterOrgId(44L);
         var currentStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
         currentStep.setId(601L);
-        currentStep.setStepIndex(2);
+        currentStep.setStepDefId(6L);
+        currentStep.setStepNo(2);
         currentStep.setStepName("一级审批");
         currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
-        currentStep.setApproverId(12L);
         instance.addStepInstance(currentStep);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(6L);
+        stepDef.setRoleId(9L);
+        flowDef.setSteps(List.of(stepDef));
 
         when(auditInstanceRepository.findById(601L)).thenReturn(Optional.empty());
         when(auditInstanceRepository.findByStepInstanceId(601L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
+        when(approverResolver.canUserApprove(stepDef, 12L, 44L)).thenReturn(true);
         when(workflowApplicationService.rejectAuditInstance(instance, 12L, "打回")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("89").status("IN_REVIEW").build()

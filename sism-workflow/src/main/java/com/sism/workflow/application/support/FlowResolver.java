@@ -16,8 +16,8 @@ public class FlowResolver {
 
     /**
      * 自动解析并挂载审批流程定义到实例。
-     * PlanReport 类型不参与自动解析——职能部门月报和学院月报使用不同流程，
-     * 必须由调用方（ReportWorkflowEventListener）通过 workflowCode 显式指定。
+     * PlanReport 类型不参与自动解析——月报虽然复用了 Plan 审批模板，
+     * 但仍需由业务入口按组织类型显式指定 workflowCode。
      */
     public void resolveAndAttachFlow(com.sism.workflow.domain.runtime.model.AuditInstance instance) {
         if (instance.getFlowDefId() != null) {
@@ -25,8 +25,7 @@ public class FlowResolver {
         }
 
         if (isPlanReportEntityType(instance.getEntityType())) {
-            // PlanReport 存在 FUNC / COLLEGE 两条流程，resolver 无法区分，
-            // 必须由业务入口显式设置 flowDefId，此处不做猜测。
+            // PlanReport 仍然需要按组织类型显式选流程，此处不做猜测。
             return;
         }
 

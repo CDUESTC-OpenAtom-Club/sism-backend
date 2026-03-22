@@ -17,7 +17,7 @@ public class SubmissionStepAutoCompletePolicy {
         }
 
         AuditStepInstance firstStep = instance.getStepInstances().stream()
-                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
                 .findFirst()
                 .orElse(null);
 
@@ -36,7 +36,7 @@ public class SubmissionStepAutoCompletePolicy {
         AuditStepInstance nextStep = instance.getStepInstances().stream()
                 .filter(step -> !step.equals(firstStep))
                 .filter(step -> AuditInstance.STEP_STATUS_WAITING.equals(step.getStatus()))
-                .sorted(Comparator.comparing(step -> step.getStepIndex() == null ? Integer.MAX_VALUE : step.getStepIndex()))
+                .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
                 .findFirst()
                 .orElse(null);
 

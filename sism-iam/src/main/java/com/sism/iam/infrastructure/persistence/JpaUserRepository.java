@@ -40,6 +40,16 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public List<Long> findRoleIdsByUserId(Long userId) {
+        return jpaRepository.findRoleIdsByUserId(userId);
+    }
+
+    @Override
+    public List<String> findRoleCodesByUserId(Long userId) {
+        return jpaRepository.findRoleCodesByUserId(userId);
+    }
+
+    @Override
     public List<User> findByIsActive(Boolean isActive) {
         return jpaRepository.findByIsActive(isActive);
     }

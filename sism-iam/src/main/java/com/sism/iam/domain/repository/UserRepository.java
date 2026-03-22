@@ -37,6 +37,16 @@ public interface UserRepository {
     List<User> findByRoleId(Long roleId);
 
     /**
+     * 根据用户ID查询角色ID列表
+     */
+    List<Long> findRoleIdsByUserId(Long userId);
+
+    /**
+     * 根据用户ID查询角色编码列表
+     */
+    List<String> findRoleCodesByUserId(Long userId);
+
+    /**
      * 根据激活状态查询用户
      */
     List<User> findByIsActive(Boolean isActive);

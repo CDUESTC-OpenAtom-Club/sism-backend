@@ -47,6 +47,14 @@ public class MilestoneController {
         return ResponseEntity.ok(ApiResponse.success(milestones));
     }
 
+    @GetMapping("/by-indicators")
+    @Operation(summary = "Batch get milestones by multiple indicator IDs")
+    public ResponseEntity<ApiResponse<java.util.Map<Long, java.util.List<MilestoneResponse>>>> getMilestonesByIndicatorIds(
+            @RequestParam("ids") java.util.List<Long> indicatorIds) {
+        java.util.Map<Long, java.util.List<MilestoneResponse>> result = milestoneApplicationService.getMilestonesByIndicatorIds(indicatorIds);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
     @PostMapping
     @Operation(summary = "Create a new milestone", description = "Primary strategy-side entrypoint for milestone management.")
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(

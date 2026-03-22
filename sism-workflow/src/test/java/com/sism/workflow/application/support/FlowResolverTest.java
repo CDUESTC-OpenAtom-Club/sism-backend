@@ -37,8 +37,8 @@ class FlowResolverTest {
 
     @Test
     void resolveAndAttachFlow_shouldNotAutoResolveForPlanReport() {
-        // PlanReport 存在 FUNC / COLLEGE 两条流程，resolver 无法区分，
-        // 必须由业务入口显式设置 flowDefId。
+        // PlanReport 仍需按组织类型显式选取复用的 PLAN_* 审批模板，
+        // resolver 无法仅凭 entityType 自动区分。
         FlowResolver resolver = new FlowResolver(flowDefinitionRepository);
         var instance = new com.sism.workflow.domain.runtime.model.AuditInstance();
         instance.setEntityType("PlanReport");

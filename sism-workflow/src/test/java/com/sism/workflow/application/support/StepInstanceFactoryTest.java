@@ -1,5 +1,6 @@
 package com.sism.workflow.application.support;
 
+import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
@@ -10,10 +11,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class StepInstanceFactoryTest {
@@ -86,5 +89,47 @@ class StepInstanceFactoryTest {
         instance.setEntityId(1L);
 
         assertDoesNotThrow(() -> factory.initialize(instance, flowDef, 1L, 1L));
+    }
+
+    @Test
+    void initialize_shouldPersistApproverOrgIdForApprovalStep() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+
+        AuditStepDef submitStep = new AuditStepDef();
+        submitStep.setId(1L);
+        submitStep.setStepName("提交");
+        submitStep.setStepOrder(1);
+        submitStep.setStepType(AuditStepDef.STEP_TYPE_SUBMIT);
+
+        AuditStepDef approvalStep = new AuditStepDef();
+        approvalStep.setId(2L);
+        approvalStep.setStepName("战略发展部负责人审批");
+        approvalStep.setStepOrder(2);
+        approvalStep.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
+        approvalStep.setRoleId(8L);
+        flowDef.setSteps(List.of(submitStep, approvalStep));
+
+        User approver = new User();
+        approver.setId(9L);
+        approver.setOrgId(35L);
+        approver.setIsActive(true);
+
+        when(userRepository.findByRoleId(8L)).thenReturn(List.of(approver));
+        when(userRepository.findById(9L)).thenReturn(Optional.of(approver));
+
+        StepInstanceFactory factory = new StepInstanceFactory(
+                new ApproverResolver(userRepository),
+                new SubmissionStepAutoCompletePolicy()
+        );
+
+        AuditInstance instance = new AuditInstance();
+        instance.setEntityType("PlanReport");
+        instance.setEntityId(1L);
+
+        factory.initialize(instance, flowDef, 100L, 35L);
+
+        assertEquals(35L, instance.getStepInstances().get(0).getApproverOrgId());
+        assertEquals(9L, instance.getStepInstances().get(1).getApproverId());
+        assertEquals(35L, instance.getStepInstances().get(1).getApproverOrgId());
     }
 }

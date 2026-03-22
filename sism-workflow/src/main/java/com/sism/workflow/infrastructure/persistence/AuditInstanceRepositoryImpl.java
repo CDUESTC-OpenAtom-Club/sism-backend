@@ -1,6 +1,5 @@
 package com.sism.workflow.infrastructure.persistence;
 
-import com.sism.workflow.domain.AuditStatus;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +42,7 @@ public class AuditInstanceRepositoryImpl implements AuditInstanceRepository {
     }
 
     @Override
-    public List<AuditInstance> findByStatus(AuditStatus status) {
+    public List<AuditInstance> findByStatus(String status) {
         return jpaWorkflowRepository.findByStatus(status);
     }
 

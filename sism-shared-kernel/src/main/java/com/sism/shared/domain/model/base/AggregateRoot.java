@@ -99,16 +99,16 @@ public abstract class AggregateRoot<ID> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AggregateRoot<?> that = (AggregateRoot<?>) o;
-        return Objects.equals(id, that.id);
+        return Objects.equals(getId(), that.getId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return Objects.hash(getId());
     }
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "{id=" + id + "}";
+        return getClass().getSimpleName() + "{id=" + getId() + "}";
     }
 }

@@ -1,22 +1,10 @@
 -- sys_role clean seed
 -- Source rule:
 -- - Align to the current plan-centric workflow model.
--- - Keep the canonical role set used by audit_step_def / sys_user_role / sys_role_permission.
--- - Clarify each role's business responsibility so later seed files can be audited consistently.
--- Resolution rule:
--- - role_id alone is NOT enough to locate a concrete approver.
--- - Current seeds resolve people by the combination of:
---   1) role_id
---   2) current workflow step_name / flow_id
---   3) approver_org_id or requester_org_id context
--- Relation rule:
--- - sys_role is defined by the workflow routing model in audit_step_def.
--- - Only the 4 core workflow roles used by role_id in audit_step_def are kept active here:
---   reporter / approver / leader / final approver.
--- - Business labels such as "战略发展部负责人" / "分管校领导" / "职能部门终审人"
---   are expressed by step_name + org context, not by separate role rows.
--- - Special case: "分管校领导" is treated as a global leader seat in the current clean seed,
---   so it may not be derived from the target organization itself.
+-- - Keep only the four canonical business roles:
+--   reporter / department head / strategy dept head / vice president.
+-- - Workflow seat names such as college dean or strategy final approver are resolved
+--   from workflow step + organization scope, not from extra role rows.
 
 BEGIN;
 
@@ -32,7 +20,7 @@ INSERT INTO public.sys_role (
 )
 VALUES
     (
-        5,
+        1,
         'ROLE_REPORTER',
         '填报人',
         'OWN_ORG',
@@ -42,32 +30,32 @@ VALUES
         NOW()
     ),
     (
-        6,
+        2,
         'ROLE_APPROVER',
-        '审批人',
+        '部门负责人',
         'OWN_ORG',
         true,
-        '通用审批角色。用于职能部门审批人与二级学院审批人节点，具体审批对象由当前 org_id 决定。',
+        '通用部门负责人审批角色。用于职能部门负责人、二级学院负责人，以及职能部门对下级单位提交内容的终审节点。具体审批对象由当前 org_id 与 step_name 共同决定。',
         NOW(),
         NOW()
     ),
     (
-        7,
-        'ROLE_LEADER',
-        '领导',
+        3,
+        'ROLE_STRATEGY_DEPT_HEAD',
+        '战略发展部负责人',
         'ALL',
         true,
-        '通用领导角色。用于战略发展部负责人、学院院长、分管校领导等领导审批节点。落人时必须结合 step_name 与组织上下文；其中“分管校领导”在当前种子中按全局领导席位处理。',
+        '战略发展部审批角色。用于战略发展部负责人审批节点与战略发展部终审节点，固定落到战略发展部组织。',
         NOW(),
         NOW()
     ),
     (
-        8,
-        'ROLE_FINAL_APPROVER',
-        '终审人',
+        3,
+        'ROLE_VICE_PRESIDENT',
+        '分管校领导',
         'ALL',
         true,
-        '通用终审角色。用于战略发展部终审与职能部门终审节点。落人时必须结合 step_name 与 approver_org_id，不能只靠角色本身查人。',
+        '高级审批角色。用于分管校领导审批节点与学院院长审批节点，具体身份由组织层级与当前流程节点共同决定。',
         NOW(),
         NOW()
     )
@@ -81,6 +69,6 @@ SET
     updated_at = EXCLUDED.updated_at;
 
 DELETE FROM public.sys_role
-WHERE id IN (9, 10, 11, 12, 13);
+WHERE id NOT IN (5, 6, 8, 9);
 
 COMMIT;

@@ -275,7 +275,7 @@
                         <location>filesystem:src/main/resources/db/migration</location>
                     </locations>
                     <baselineOnMigrate>true</baselineOnMigrate>
-                    <baselineVersion>1.0</baselineVersion>
+                    <baselineVersion>1</baselineVersion>
                     <validateOnMigrate>true</validateOnMigrate>
                     <outOfOrder>false</outOfOrder>
                     <placeholderReplacement>false</placeholderReplacement>

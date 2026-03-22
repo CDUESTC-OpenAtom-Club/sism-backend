@@ -1,10 +1,8 @@
 package com.sism.workflow.infrastructure.persistence;
 
-import com.sism.workflow.domain.AuditStatus;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.model.WorkflowTask;
-import com.sism.workflow.domain.AuditStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -44,8 +42,8 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.entityId = :businessId")
     List<AuditInstance> findByBusinessId(@Param("businessId") Long businessId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.status = :status")
-    List<AuditInstance> findByStatus(@Param("status") AuditStatus status);
+    @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.status = :status")
+    List<AuditInstance> findByStatus(@Param("status") String status);
 
     @Query("SELECT a FROM AuditInstance a WHERE a.requesterId = :initiatorId")
     List<AuditInstance> findByInitiatorId(@Param("initiatorId") Long initiatorId);

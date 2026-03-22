@@ -59,13 +59,13 @@ class PlanWorkflowSyncServiceTest {
         AuditStepInstance earlierRejected = new AuditStepInstance();
         earlierRejected.setStatus(AuditInstance.STEP_STATUS_REJECTED);
         earlierRejected.setComment("old reason");
-        earlierRejected.setStepIndex(1);
+        earlierRejected.setStepNo(1);
         instance.addStepInstance(earlierRejected);
 
         AuditStepInstance latestRejected = new AuditStepInstance();
         latestRejected.setStatus(AuditInstance.STEP_STATUS_REJECTED);
         latestRejected.setComment("latest reason");
-        latestRejected.setStepIndex(2);
+        latestRejected.setStepNo(2);
         instance.addStepInstance(latestRejected);
 
         service.syncAfterWorkflowChanged(instance);

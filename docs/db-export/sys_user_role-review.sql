@@ -40,16 +40,16 @@ WHERE u.username = 'zlb_admin'
         AND ur.role_id = 5
   );
 
--- zlb_audit1:
+-- zlb_final1:
 -- Target state: final/strategy approval role only
 DELETE FROM public.sys_user_role
-WHERE user_id = (SELECT id FROM public.sys_user WHERE username = 'zlb_audit1')
+WHERE user_id = (SELECT id FROM public.sys_user WHERE username = 'zlb_final1')
   AND role_id IN (5, 11);
 
 INSERT INTO public.sys_user_role (user_id, role_id)
 SELECT u.id, 10
 FROM public.sys_user u
-WHERE u.username = 'zlb_audit1'
+WHERE u.username = 'zlb_final1'
   AND NOT EXISTS (
       SELECT 1
       FROM public.sys_user_role ur
@@ -57,16 +57,16 @@ WHERE u.username = 'zlb_audit1'
         AND ur.role_id = 10
   );
 
--- zlb_audit2:
+-- zlb_final2:
 -- Target state: final/strategy approval role only
 DELETE FROM public.sys_user_role
-WHERE user_id = (SELECT id FROM public.sys_user WHERE username = 'zlb_audit2')
+WHERE user_id = (SELECT id FROM public.sys_user WHERE username = 'zlb_final2')
   AND role_id IN (5, 11);
 
 INSERT INTO public.sys_user_role (user_id, role_id)
 SELECT u.id, 10
 FROM public.sys_user u
-WHERE u.username = 'zlb_audit2'
+WHERE u.username = 'zlb_final2'
   AND NOT EXISTS (
       SELECT 1
       FROM public.sys_user_role ur
@@ -103,14 +103,14 @@ DELETE FROM public.sys_user_role
 WHERE user_id IN (
     SELECT id
     FROM public.sys_user
-    WHERE username IN ('baowei_audit1', 'baowei_audit2', 'jiaowu_audit1', 'jiaowu_audit2', 'dangban_audit1', 'dangban_audit2')
+    WHERE username IN ('baowei_audit1', 'baowei_audit2', 'jiaowu_audit1', 'dangban_audit1', 'dangban_audit2')
 )
 AND role_id IN (5, 11);
 
 INSERT INTO public.sys_user_role (user_id, role_id)
 SELECT u.id, 6
 FROM public.sys_user u
-WHERE u.username IN ('baowei_audit1', 'baowei_audit2', 'jiaowu_audit1', 'jiaowu_audit2', 'dangban_audit1', 'dangban_audit2')
+WHERE u.username IN ('baowei_audit1', 'baowei_audit2', 'jiaowu_audit1', 'dangban_audit1', 'dangban_audit2')
   AND NOT EXISTS (
       SELECT 1
       FROM public.sys_user_role ur
@@ -168,9 +168,10 @@ COMMIT;
 -- JOIN public.sys_user_role ur ON ur.user_id = u.id
 -- JOIN public.sys_role r ON r.id = ur.role_id
 -- WHERE u.username IN (
---   'zlb_admin','zlb_audit1','zlb_audit2',
+--   'zlb_admin','zlb_final1','zlb_final2',
 --   'baowei_report','baowei_audit1','baowei_audit2',
---   'jiaowu_report','jiaowu_audit1','jiaowu_audit2',
+--   'jiaowu_report','jiaowu_audit1','jiaowu_reserve',
+-- Note: jiaowu_reserve is a reserve account and should remain unbound in sys_user_role.
 --   'dangban_report','dangban_audit1','dangban_audit2',
 --   'makesi_report','makesi_audit1','makesi_audit2'
 -- )

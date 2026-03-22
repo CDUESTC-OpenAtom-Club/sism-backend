@@ -28,9 +28,25 @@ SELECT 'indicator', COUNT(*) FROM public.indicator
 UNION ALL
 SELECT 'indicator_milestone', COUNT(*) FROM public.indicator_milestone
 UNION ALL
+SELECT 'attachment', COUNT(*) FROM public.attachment
+UNION ALL
+SELECT 'alert_event', COUNT(*) FROM public.alert_event
+UNION ALL
 SELECT 'plan_report', COUNT(*) FROM public.plan_report
 UNION ALL
 SELECT 'plan_report_indicator', COUNT(*) FROM public.plan_report_indicator
+UNION ALL
+SELECT 'plan_report_indicator_attachment', COUNT(*) FROM public.plan_report_indicator_attachment
+UNION ALL
+SELECT 'progress_report', COUNT(*) FROM public.progress_report
+UNION ALL
+SELECT 'audit_instance', COUNT(*) FROM public.audit_instance
+UNION ALL
+SELECT 'audit_step_instance', COUNT(*) FROM public.audit_step_instance
+UNION ALL
+SELECT 'workflow_task', COUNT(*) FROM public.workflow_task
+UNION ALL
+SELECT 'workflow_task_history', COUNT(*) FROM public.workflow_task_history
 ORDER BY 1;
 
 \echo ''
@@ -175,4 +191,3 @@ BEGIN
         RAISE WARNING '[FAIL] clean seed validation found % issue(s)', total_issues;
     END IF;
 END $$;
-

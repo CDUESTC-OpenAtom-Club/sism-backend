@@ -1,6 +1,5 @@
 package com.sism.workflow.domain.runtime.repository;
 
-import com.sism.workflow.domain.AuditStatus;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +19,7 @@ public interface AuditInstanceRepository {
 
     List<AuditInstance> findByBusinessId(Long businessId);
 
-    List<AuditInstance> findByStatus(AuditStatus status);
+    List<AuditInstance> findByStatus(String status);
 
     List<AuditInstance> findByInitiatorId(Long initiatorId);
 

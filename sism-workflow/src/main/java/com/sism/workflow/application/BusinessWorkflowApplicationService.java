@@ -4,6 +4,7 @@ import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.definition.WorkflowPreviewQueryService;
 import com.sism.workflow.application.query.WorkflowReadModelMapper;
 import com.sism.workflow.application.query.WorkflowReadModelService;
+import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
@@ -38,6 +39,7 @@ public class BusinessWorkflowApplicationService {
     private final WorkflowReadModelMapper workflowReadModelMapper;
     private final WorkflowPreviewQueryService workflowPreviewQueryService;
     private final WorkflowTaskRepository workflowTaskRepository;
+    private final ApproverResolver approverResolver;
 
     // ==================== 工作流启动 ====================
 
@@ -168,13 +170,11 @@ public class BusinessWorkflowApplicationService {
 
         AuditInstance instance = resolveAuditInstanceForTask(taskId);
 
-        // 权限检查：检查当前用户是否是该任务的审批人
-        // 检查当前步骤的审批人是否是当前用户
-        Optional<AuditStepInstance> currentStep = instance.resolveCurrentPendingStep()
-                .filter(step -> userId.equals(step.getApproverId()));
+        AuditStepInstance currentStep = instance.resolveCurrentPendingStep()
+                .orElseThrow(() -> new SecurityException("You are not authorized to approve this task"));
+        AuditStepDef currentStepDef = resolveStepDefinition(instance, currentStep);
 
-        if (currentStep.isEmpty()) {
-            // 如果没有找到待审批的步骤，抛出权限异常
+        if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId())) {
             throw new SecurityException("You are not authorized to approve this task");
         }
 
@@ -209,11 +209,11 @@ public class BusinessWorkflowApplicationService {
 
         AuditInstance instance = resolveAuditInstanceForTask(taskId);
 
-        // 权限检查：检查当前用户是否是该任务的审批人
-        Optional<AuditStepInstance> currentStep = instance.resolveCurrentPendingStep()
-                .filter(step -> userId.equals(step.getApproverId()));
+        AuditStepInstance currentStep = instance.resolveCurrentPendingStep()
+                .orElseThrow(() -> new SecurityException("You are not authorized to reject this task"));
+        AuditStepDef currentStepDef = resolveStepDefinition(instance, currentStep);
 
-        if (currentStep.isEmpty()) {
+        if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId())) {
             throw new SecurityException("You are not authorized to reject this task");
         }
 
@@ -258,6 +258,18 @@ public class BusinessWorkflowApplicationService {
                             }
                         }))
                 .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+    }
+
+    private AuditStepDef resolveStepDefinition(AuditInstance instance, AuditStepInstance currentStep) {
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(instance.getFlowDefId());
+        if (flowDef == null || flowDef.getSteps() == null || flowDef.getSteps().isEmpty()) {
+            throw new IllegalStateException("Workflow definition not found for instance: " + instance.getId());
+        }
+
+        return flowDef.getSteps().stream()
+                .filter(step -> step.getId() != null && step.getId().equals(currentStep.getStepDefId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Workflow step definition not found for step: " + currentStep.getStepDefId()));
     }
 
     /**

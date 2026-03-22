@@ -175,6 +175,21 @@ public class MilestoneApplicationService {
     }
 
     /**
+     * 根据多个指标ID批量查询里程碑，按指标ID分组返回
+     */
+    public java.util.Map<Long, List<MilestoneResponse>> getMilestonesByIndicatorIds(List<Long> indicatorIds) {
+        if (indicatorIds == null || indicatorIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+        List<Milestone> milestones = milestoneRepository.findByIndicatorIdIn(indicatorIds);
+        return milestones.stream()
+                .collect(Collectors.groupingBy(
+                        m -> m.getIndicatorId() != null ? m.getIndicatorId() : -1L,
+                        Collectors.mapping(this::convertToResponse, Collectors.toList())
+                ));
+    }
+
+    /**
      * 检查里程碑是否存在
      */
     public boolean existsById(Long id) {

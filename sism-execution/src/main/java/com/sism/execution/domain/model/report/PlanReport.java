@@ -48,6 +48,9 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "status", length = 20, nullable = false)
     private String status = STATUS_DRAFT;
 
+    @Column(name = "audit_instance_id")
+    private Long auditInstanceId;
+
     // Fields not in database - marked as transient for future use or removed if not needed
     @Transient
     private String title;

@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -47,11 +48,14 @@ public class AuthService {
             throw new IllegalStateException("User account is not active");
         }
 
-        String accessToken = jwtTokenService.generateToken(user);
-        String refreshToken = jwtTokenService.generateRefreshToken(user);
+        List<String> roleCodes = userRepository.findRoleCodesByUserId(user.getId());
+
+        String accessToken = jwtTokenService.generateToken(user, roleCodes);
+        String refreshToken = jwtTokenService.generateRefreshToken(user, roleCodes);
 
         return LoginResponse.fromUser(
                 user,
+                roleCodes,
                 accessToken,
                 refreshToken,
                 jwtTokenService.getExpirationSeconds()

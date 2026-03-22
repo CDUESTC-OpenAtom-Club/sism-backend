@@ -9,8 +9,7 @@
 -- - plan.status is the authoritative package-level distribution status.
 -- - indicator.status may exist as a downstream projection/lifecycle field, but when the two
 --   differ, plan.status is the source-of-truth for the overall package.
--- - Most auto-generated containers stay at DRAFT baseline; only the representative 2026 examples
---   below are lifted to concrete business states for review readability.
+-- - All clean-seed plan containers stay at the DRAFT baseline.
 
 BEGIN;
 
@@ -23,7 +22,8 @@ INSERT INTO public.plan (
     target_org_id,
     created_by_org_id,
     plan_level,
-    status
+    status,
+    audit_instance_id
 )
 SELECT
     c.id * 1000 + o.id AS id,
@@ -40,12 +40,8 @@ SELECT
         WHEN o.id BETWEEN 36 AND 54 THEN 'STRAT_TO_FUNC'
         ELSE 'FUNC_TO_COLLEGE'
     END::plan_level AS plan_level,
-    CASE
-        WHEN c.id = 4 AND o.id = 36 THEN 'DISTRIBUTED'
-        WHEN c.id = 4 AND o.id = 42 THEN 'PENDING'
-        WHEN c.id = 4 AND o.id = 55 THEN 'DISTRIBUTED'
-        ELSE 'DRAFT'
-    END AS status
+    'DRAFT' AS status,
+    NULL::BIGINT AS audit_instance_id
 FROM public.cycle c
 JOIN public.sys_org o
     ON o.id BETWEEN 36 AND 62
@@ -58,6 +54,7 @@ SET
     target_org_id = EXCLUDED.target_org_id,
     created_by_org_id = EXCLUDED.created_by_org_id,
     plan_level = EXCLUDED.plan_level,
-    status = EXCLUDED.status;
+    status = EXCLUDED.status,
+    audit_instance_id = EXCLUDED.audit_instance_id;
 
 COMMIT;

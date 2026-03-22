@@ -17,6 +17,8 @@ public interface MilestoneRepository {
 
     List<Milestone> findByIndicatorId(Long indicatorId);
 
+    List<Milestone> findByIndicatorIdIn(List<Long> indicatorIds);
+
     List<Milestone> findByStatus(String status);
 
     Milestone save(Milestone milestone);
