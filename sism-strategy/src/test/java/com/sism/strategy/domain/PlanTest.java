@@ -49,10 +49,10 @@ class PlanTest {
     @DisplayName("Should allow plan approval submission only in draft or returned state")
     void shouldAllowPlanApprovalSubmissionOnlyInDraftOrReturnedState() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
-        assertDoesNotThrow(plan::ensureCanSubmitForApproval);
+        assertDoesNotThrow(() -> plan.ensureCanSubmitForApproval());
 
         plan.returnForRevision();
-        assertDoesNotThrow(plan::ensureCanSubmitForApproval);
+        assertDoesNotThrow(() -> plan.ensureCanSubmitForApproval());
     }
 
     @Test
@@ -65,6 +65,20 @@ class PlanTest {
         assertEquals("PENDING", plan.getStatus());
         assertNotNull(plan.getUpdatedAt());
         assertFalse(plan.isEditable());
+    }
+
+    @Test
+    @DisplayName("Should allow distributed plan submission when distributed state is explicitly allowed")
+    void shouldAllowDistributedPlanSubmissionWhenExplicitlyAllowed() {
+        Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
+        plan.activate();
+
+        assertDoesNotThrow(() -> plan.ensureCanSubmitForApproval(true));
+
+        plan.submitForApproval(true);
+
+        assertEquals("PENDING", plan.getStatus());
+        assertNotNull(plan.getUpdatedAt());
     }
 
     @Test

@@ -40,6 +40,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class PlanApplicationService {
+    private static final String PLAN_APPROVAL_WORKFLOW_CODE_FUNCDEPT = "PLAN_APPROVAL_FUNCDEPT";
+    private static final String PLAN_APPROVAL_WORKFLOW_CODE_COLLEGE = "PLAN_APPROVAL_COLLEGE";
+
 
     private final PlanRepository planRepository;
     private final CycleRepository cycleRepository;
@@ -143,7 +146,7 @@ public class PlanApplicationService {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
-        plan.submitForApproval();
+        plan.submitForApproval(allowsDistributedSubmission(request));
         Plan saved = planRepository.save(plan);
         eventPublisher.publish(new PlanSubmittedForApprovalEvent(
                 saved.getId(),
@@ -152,6 +155,15 @@ public class PlanApplicationService {
                 currentOrgId
         ));
         return enrichWorkflowFields(convertToResponse(saved, null), saved);
+    }
+
+    private boolean allowsDistributedSubmission(SubmitPlanApprovalRequest request) {
+        if (request == null || request.getWorkflowCode() == null) {
+            return false;
+        }
+
+        return PLAN_APPROVAL_WORKFLOW_CODE_FUNCDEPT.equals(request.getWorkflowCode())
+                || PLAN_APPROVAL_WORKFLOW_CODE_COLLEGE.equals(request.getWorkflowCode());
     }
 
     /**

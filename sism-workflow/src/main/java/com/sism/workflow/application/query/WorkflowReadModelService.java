@@ -429,7 +429,7 @@ public class WorkflowReadModelService {
                 .filter(candidate -> candidate.getId() != null && candidate.getId().equals(step.getStepDefId()))
                 .findFirst()
                 .orElse(null);
-        return approverResolver.canUserApprove(stepDef, userId, instance.getRequesterOrgId());
+        return approverResolver.canUserApprove(stepDef, userId, instance.getRequesterOrgId(), instance);
     }
 
     private String resolveUserName(Long userId) {

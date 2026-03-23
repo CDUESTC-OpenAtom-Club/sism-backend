@@ -185,9 +185,7 @@ class BusinessWorkflowApplicationServiceTest {
 
         when(auditInstanceRepository.findByStepInstanceId(256L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
-        when(approverResolver.canUserApprove(stepDef, 9L, 35L)).thenReturn(true);
-        when(userRepository.findPermissionCodesByUserId(9L))
-                .thenReturn(List.of("BTN_STRATEGY_TASK_DISPATCH_APPROVE"));
+        when(approverResolver.canUserApprove(stepDef, 9L, 35L, instance)).thenReturn(true);
         when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("128").status("IN_REVIEW").build()
@@ -234,9 +232,7 @@ class BusinessWorkflowApplicationServiceTest {
         when(workflowTaskRepository.findById(392L)).thenReturn(Optional.of(workflowTask));
         when(auditInstanceRepository.findById(133L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
-        when(approverResolver.canUserApprove(stepDef, 9L, 35L)).thenReturn(true);
-        when(userRepository.findPermissionCodesByUserId(9L))
-                .thenReturn(List.of("BTN_STRATEGY_TASK_DISPATCH_APPROVE"));
+        when(approverResolver.canUserApprove(stepDef, 9L, 35L, instance)).thenReturn(true);
         when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("133").status("IN_REVIEW").build()
@@ -246,6 +242,51 @@ class BusinessWorkflowApplicationServiceTest {
 
         assertEquals("133", response.getInstanceId());
         verify(workflowApplicationService).approveAuditInstance(instance, 9L, "同意");
+    }
+
+    @Test
+    void approveTask_shouldAllowPlanApprovalFlowWithIndicatorReportPermission() {
+        AuditInstance instance = new AuditInstance();
+        instance.setId(4036L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setFlowDefId(3L);
+        instance.setRequesterOrgId(36L);
+        instance.setEntityType("PLAN");
+
+        com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        currentStep.setId(5L);
+        currentStep.setStepDefId(8L);
+        currentStep.setStepNo(2);
+        currentStep.setStepName("职能部门审批人审批");
+        currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        instance.addStepInstance(currentStep);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setId(3L);
+        flowDef.setFlowCode("PLAN_APPROVAL_FUNCDEPT");
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(8L);
+        stepDef.setRoleId(2L);
+        flowDef.setSteps(List.of(stepDef));
+
+        ApprovalRequest request = new ApprovalRequest();
+        request.setComment("同意");
+
+        when(auditInstanceRepository.findByStepInstanceId(5L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
+        when(approverResolver.canUserApprove(stepDef, 192L, 36L, instance)).thenReturn(true);
+        when(userRepository.findPermissionCodesByUserId(192L))
+                .thenReturn(List.of("BTN_INDICATOR_REPORT_APPROVE"));
+        when(workflowApplicationService.approveAuditInstance(instance, 192L, "同意")).thenReturn(instance);
+        when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
+                WorkflowInstanceResponse.builder().instanceId("4036").status("IN_REVIEW").build()
+        );
+
+        WorkflowInstanceResponse response = businessWorkflowApplicationService.approveTask("5", request, 192L);
+
+        assertEquals("4036", response.getInstanceId());
+        verify(workflowApplicationService).approveAuditInstance(instance, 192L, "同意");
     }
 
     @Test
@@ -277,7 +318,7 @@ class BusinessWorkflowApplicationServiceTest {
 
         when(auditInstanceRepository.findByStepInstanceId(400L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
-        when(approverResolver.canUserApprove(stepDef, 9L, 22L)).thenReturn(true);
+        when(approverResolver.canUserApprove(stepDef, 9L, 22L, instance)).thenReturn(true);
         when(userRepository.findPermissionCodesByUserId(9L)).thenReturn(List.of());
 
         assertThrows(
@@ -345,7 +386,7 @@ class BusinessWorkflowApplicationServiceTest {
 
         when(auditInstanceRepository.findByStepInstanceId(501L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
-        when(approverResolver.canUserApprove(stepDef, 11L, 56L)).thenReturn(true);
+        when(approverResolver.canUserApprove(stepDef, 11L, 56L, instance)).thenReturn(true);
         when(workflowApplicationService.approveAuditInstance(instance, 11L, "通过")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("88").status("IN_REVIEW").build()
@@ -384,7 +425,7 @@ class BusinessWorkflowApplicationServiceTest {
 
         when(auditInstanceRepository.findByStepInstanceId(601L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
-        when(approverResolver.canUserApprove(stepDef, 12L, 44L)).thenReturn(true);
+        when(approverResolver.canUserApprove(stepDef, 12L, 44L, instance)).thenReturn(true);
         when(workflowApplicationService.rejectAuditInstance(instance, 12L, "打回")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("89").status("IN_REVIEW").build()
