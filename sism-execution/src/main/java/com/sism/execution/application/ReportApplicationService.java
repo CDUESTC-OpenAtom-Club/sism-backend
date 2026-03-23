@@ -2,10 +2,13 @@ package com.sism.execution.application;
 
 import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
+import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
+import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +31,8 @@ import java.util.Optional;
 public class ReportApplicationService {
 
     private final PlanReportRepository planReportRepository;
+    private final PlanReportIndicatorRepository planReportIndicatorRepository;
+    private final IndicatorRepository indicatorRepository;
     private final DomainEventPublisher eventPublisher;
 
     /**
@@ -64,8 +69,8 @@ public class ReportApplicationService {
      * 更新报告内容（包含标题）
      */
     @Transactional
-    public PlanReport updateReport(Long reportId, String title, String content, String summary, Integer progress,
-                                   String issues, String nextPlan) {
+    public PlanReport updateReport(Long reportId, String title, Long indicatorId, String content, String summary, Integer progress,
+                                   String issues, String nextPlan, String milestoneNote) {
         PlanReport report = planReportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
 
@@ -73,7 +78,17 @@ public class ReportApplicationService {
         if (title != null) {
             report.setTitle(title);
         }
-        return planReportRepository.save(report);
+        PlanReport savedReport = planReportRepository.save(report);
+        if (indicatorId != null) {
+            planReportIndicatorRepository.upsertDraftIndicator(
+                    savedReport.getId(),
+                    indicatorId,
+                    progress,
+                    content,
+                    milestoneNote
+            );
+        }
+        return savedReport;
     }
 
     /**
@@ -82,7 +97,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport updateReport(Long reportId, String content, String summary, Integer progress,
                                    String issues, String nextPlan) {
-        return updateReport(reportId, null, content, summary, progress, issues, nextPlan);
+        return updateReport(reportId, null, null, content, summary, progress, issues, nextPlan, null);
     }
 
     /**
@@ -140,14 +155,15 @@ public class ReportApplicationService {
     public PlanReport markWorkflowApproved(Long reportId, Long approverId) {
         PlanReport report = planReportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
-        if (PlanReport.STATUS_APPROVED.equals(report.getStatus())) {
-            return report;
+        if (!PlanReport.STATUS_APPROVED.equals(report.getStatus())) {
+            report.setStatus(PlanReport.STATUS_APPROVED);
+            report.setApprovedBy(approverId);
+            report.setApprovedAt(LocalDateTime.now());
+            report.setUpdatedAt(LocalDateTime.now());
+            report = planReportRepository.save(report);
         }
-        report.setStatus(PlanReport.STATUS_APPROVED);
-        report.setApprovedBy(approverId);
-        report.setApprovedAt(LocalDateTime.now());
-        report.setUpdatedAt(LocalDateTime.now());
-        return planReportRepository.save(report);
+        syncApprovedIndicatorProgress(report.getId());
+        return report;
     }
 
     @Transactional
@@ -273,6 +289,15 @@ public class ReportApplicationService {
                 queryRequest.getStatus(),
                 pageable
         );
+    }
+
+    private void syncApprovedIndicatorProgress(Long reportId) {
+        for (var detail : planReportIndicatorRepository.findByReportId(reportId)) {
+            Indicator indicator = indicatorRepository.findById(detail.indicatorId())
+                    .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + detail.indicatorId()));
+            indicator.setProgress(detail.progress());
+            indicatorRepository.save(indicator);
+        }
     }
 
     /**

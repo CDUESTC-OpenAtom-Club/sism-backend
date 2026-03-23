@@ -2,19 +2,25 @@ package com.sism.execution.application;
 
 import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
+import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
+import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
+import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.repository.IndicatorRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,6 +31,12 @@ class ReportApplicationServiceTest {
     private PlanReportRepository planReportRepository;
 
     @Mock
+    private PlanReportIndicatorRepository planReportIndicatorRepository;
+
+    @Mock
+    private IndicatorRepository indicatorRepository;
+
+    @Mock
     private DomainEventPublisher eventPublisher;
 
     private ReportApplicationService reportApplicationService;
@@ -33,6 +45,8 @@ class ReportApplicationServiceTest {
     void setUp() {
         reportApplicationService = new ReportApplicationService(
                 planReportRepository,
+                planReportIndicatorRepository,
+                indicatorRepository,
                 eventPublisher
         );
     }
@@ -99,5 +113,68 @@ class ReportApplicationServiceTest {
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_REJECTED);
         assertThat(updated.getRejectionReason()).isEqualTo("退回修改");
         verify(planReportRepository).save(report);
+    }
+
+    @Test
+    void updateReport_shouldPersistIndicatorDraftDetailWhenIndicatorIdProvided() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(12L);
+
+        when(planReportRepository.findById(12L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.updateReport(
+                12L,
+                "指标 A",
+                2001L,
+                "本月推进完成",
+                "本月推进完成",
+                45,
+                "本月推进完成",
+                "本月推进完成",
+                null
+        );
+
+        assertThat(updated.getId()).isEqualTo(12L);
+        verify(planReportIndicatorRepository)
+                .upsertDraftIndicator(12L, 2001L, 45, "本月推进完成", null);
+    }
+
+    @Test
+    void markWorkflowApproved_shouldSyncIndicatorProgressFromReportDetails() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(13L);
+        report.setStatus(PlanReport.STATUS_SUBMITTED);
+
+        Indicator indicator = new Indicator();
+        indicator.setId(2001L);
+        indicator.setProgress(0);
+
+        when(planReportRepository.findById(13L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(planReportIndicatorRepository.findByReportId(13L))
+                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2001L, 67, "审批通过备注", null)));
+        when(indicatorRepository.findById(2001L)).thenReturn(Optional.of(indicator));
+        when(indicatorRepository.save(any(Indicator.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.markWorkflowApproved(13L, 33L);
+
+        assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
+        assertThat(indicator.getProgress()).isEqualTo(67);
+        verify(indicatorRepository).save(indicator);
+    }
+
+    @Test
+    void updateReport_shouldNotPersistIndicatorDetailWhenIndicatorIdMissing() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(14L);
+
+        when(planReportRepository.findById(14L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reportApplicationService.updateReport(14L, "纯报表", null, 20, "问题", "计划");
+
+        verify(planReportIndicatorRepository, never())
+                .upsertDraftIndicator(any(), any(), any(), any(), any());
     }
 }
