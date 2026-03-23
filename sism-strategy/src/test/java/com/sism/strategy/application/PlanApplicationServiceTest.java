@@ -145,6 +145,27 @@ class PlanApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("Should allow functional department approval submission from distributed state")
+    void shouldAllowFunctionalDepartmentApprovalSubmissionFromDistributedState() {
+        Plan plan = Plan.create(2026L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+        plan.setId(4036L);
+        plan.activate();
+
+        SubmitPlanApprovalRequest request = new SubmitPlanApprovalRequest();
+        request.setWorkflowCode("PLAN_APPROVAL_FUNCDEPT");
+
+        when(planRepository.findById(4036L)).thenReturn(Optional.of(plan));
+        when(planRepository.save(same(plan))).thenReturn(plan);
+
+        PlanResponse response = service.submitPlanForApproval(4036L, request, 191L, 36L);
+
+        assertEquals(PlanStatus.PENDING.value(), plan.getStatus());
+        assertEquals(PlanStatus.PENDING.value(), response.getStatus());
+        verify(planRepository).save(same(plan));
+        verify(eventPublisher).publish(any());
+    }
+
+    @Test
     @DisplayName("Should batch workflow snapshot lookup when loading paged plans")
     void shouldBatchWorkflowSnapshotLookupWhenLoadingPagedPlans() {
         Plan first = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);

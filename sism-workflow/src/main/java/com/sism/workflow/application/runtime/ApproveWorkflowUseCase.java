@@ -77,7 +77,7 @@ public class ApproveWorkflowUseCase {
 
         // 使用当前审批人的组织ID来解析下一步审批人
         Long contextOrgId = getCurrentApproverOrgId(instance);
-        Long approverId = approverResolver.resolveApproverId(nextStepDef, instance.getRequesterId(), contextOrgId);
+        Long approverId = approverResolver.resolveApproverId(nextStepDef, instance.getRequesterId(), contextOrgId, instance);
         nextStep.setApproverId(approverId);
         nextStep.setApproverOrgId(approverResolver.resolveApproverOrgId(approverId));
         nextStep.setStatus(AuditInstance.STEP_STATUS_PENDING);

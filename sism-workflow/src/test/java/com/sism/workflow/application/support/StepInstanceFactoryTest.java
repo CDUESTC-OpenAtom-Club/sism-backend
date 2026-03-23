@@ -2,6 +2,7 @@ package com.sism.workflow.application.support;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
@@ -24,6 +25,9 @@ class StepInstanceFactoryTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private PlanRepository planRepository;
+
     @Test
     void initialize_shouldInferSubmitStepFromLegacyName() {
         AuditFlowDef flowDef = new AuditFlowDef();
@@ -34,7 +38,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository),
+                new ApproverResolver(userRepository, planRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -58,7 +62,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository),
+                new ApproverResolver(userRepository, planRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -80,7 +84,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository),
+                new ApproverResolver(userRepository, planRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -118,7 +122,7 @@ class StepInstanceFactoryTest {
         when(userRepository.findById(9L)).thenReturn(Optional.of(approver));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository),
+                new ApproverResolver(userRepository, planRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 

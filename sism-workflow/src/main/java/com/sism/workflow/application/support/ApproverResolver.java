@@ -2,7 +2,9 @@ package com.sism.workflow.application.support;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.interfaces.dto.ApproverCandidateResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -18,16 +20,24 @@ public class ApproverResolver {
     private static final Long ROLE_STRATEGY_DEPT_HEAD = 3L;
     private static final Long ROLE_VICE_PRESIDENT = 4L;
     private static final Long STRATEGY_ORG_ID = 35L;
+    private static final String PLAN_ENTITY_TYPE = "PLAN";
+    private static final String COLLEGE_FINAL_APPROVAL_STEP_NAME = "职能部门终审";
 
     private final UserRepository userRepository;
+    private final PlanRepository planRepository;
 
     public Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId) {
+        return resolveApproverId(stepDef, requesterId, requesterOrgId, null);
+    }
+
+    public Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId, AuditInstance instance) {
         Long roleId = stepDef.getRoleId();
         if (roleId == null || roleId <= 0) {
             throw new IllegalStateException("Workflow step is missing role assignment: " + stepDef.getStepName());
         }
 
-        return resolveByRoleId(roleId, requesterId, requesterOrgId, stepDef.getStepName());
+        Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
+        return resolveByRoleId(roleId, requesterId, scopeOrgId, stepDef.getStepName());
     }
 
     private Long resolveByRoleId(Long roleId, Long requesterId, Long requesterOrgId, String stepName) {
@@ -93,6 +103,10 @@ public class ApproverResolver {
     }
 
     public boolean canUserApprove(AuditStepDef stepDef, Long userId, Long requesterOrgId) {
+        return canUserApprove(stepDef, userId, requesterOrgId, null);
+    }
+
+    public boolean canUserApprove(AuditStepDef stepDef, Long userId, Long requesterOrgId, AuditInstance instance) {
         if (stepDef == null || stepDef.isSubmitStep() || userId == null || userId <= 0) {
             return false;
         }
@@ -102,10 +116,12 @@ public class ApproverResolver {
             return false;
         }
 
+        Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
+
         return userRepository.findById(userId)
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
                 .filter(user -> userRepository.findRoleIdsByUserId(userId).contains(roleId))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
+                .filter(user -> matchesRoleScope(user, roleId, scopeOrgId, stepDef.getStepName()))
                 .isPresent();
     }
 
@@ -136,6 +152,27 @@ public class ApproverResolver {
         if (!valid) {
             throw new IllegalArgumentException("Selected approver does not match step role: " + stepDef.getStepName());
         }
+    }
+
+    private Long resolveScopeOrgId(AuditStepDef stepDef, Long requesterOrgId, AuditInstance instance) {
+        if (!isCollegeFinalApprovalStep(stepDef, instance)) {
+            return requesterOrgId;
+        }
+
+        return planRepository.findById(instance.getEntityId())
+                .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
+                .orElse(requesterOrgId);
+    }
+
+    private boolean isCollegeFinalApprovalStep(AuditStepDef stepDef, AuditInstance instance) {
+        if (stepDef == null || instance == null) {
+            return false;
+        }
+        if (!PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+            return false;
+        }
+        String stepName = stepDef.getStepName();
+        return stepName != null && stepName.contains(COLLEGE_FINAL_APPROVAL_STEP_NAME);
     }
 
     private boolean matchesRoleScope(User user, Long roleId, Long requesterOrgId, String stepName) {

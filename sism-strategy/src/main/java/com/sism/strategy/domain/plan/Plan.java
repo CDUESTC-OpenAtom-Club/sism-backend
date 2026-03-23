@@ -100,8 +100,21 @@ public class Plan extends AggregateRoot<Long> {
         }
     }
 
+    public void ensureCanSubmitForApproval(boolean allowDistributed) {
+        if (allowDistributed && PlanStatus.DISTRIBUTED.value().equals(this.status)) {
+            return;
+        }
+        ensureCanSubmitForApproval();
+    }
+
     public void submitForApproval() {
         ensureCanSubmitForApproval();
+        this.status = PlanStatus.PENDING.value();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void submitForApproval(boolean allowDistributed) {
+        ensureCanSubmitForApproval(allowDistributed);
         this.status = PlanStatus.PENDING.value();
         this.updatedAt = LocalDateTime.now();
     }

@@ -4,6 +4,7 @@ import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
+import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.application.runtime.StartWorkflowUseCase;
 import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.application.support.FlowResolver;
@@ -47,6 +48,9 @@ class StartWorkflowUseCaseTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private PlanRepository planRepository;
+
     @Test
     void startAuditInstance_shouldAutoCompleteSubmitterStepAndActivateNextApprover() {
         AuditStepDef submitStep = new AuditStepDef();
@@ -82,7 +86,7 @@ class StartWorkflowUseCaseTest {
         lenient().when(flowDefinitionRepository.findByEntityType(any())).thenReturn(List.of());
 
         FlowResolver flowResolver = new FlowResolver(flowDefinitionRepository);
-        ApproverResolver approverResolver = new ApproverResolver(userRepository);
+        ApproverResolver approverResolver = new ApproverResolver(userRepository, planRepository);
         SubmissionStepAutoCompletePolicy autoCompletePolicy = new SubmissionStepAutoCompletePolicy();
         StepInstanceFactory stepInstanceFactory = new StepInstanceFactory(approverResolver, autoCompletePolicy);
         WorkflowEventDispatcher workflowEventDispatcher = new WorkflowEventDispatcher(eventPublisher, eventStore);

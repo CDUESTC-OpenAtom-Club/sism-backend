@@ -35,8 +35,14 @@ public class BusinessWorkflowApplicationService {
     private static final String PLAN_ENTITY_TYPE = "PLAN";
     private static final String PLAN_APPROVE_PERMISSION = "BTN_STRATEGY_TASK_DISPATCH_APPROVE";
     private static final String PLAN_REPORT_APPROVE_PERMISSION = "BTN_STRATEGY_TASK_REPORT_APPROVE";
+    private static final String INDICATOR_DISPATCH_APPROVE_PERMISSION = "BTN_INDICATOR_DISPATCH_APPROVE";
+    private static final String INDICATOR_REPORT_APPROVE_PERMISSION = "BTN_INDICATOR_REPORT_APPROVE";
     private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
     private static final String LEGACY_PLAN_REPORT_ENTITY_TYPE = "PlanReport";
+    private static final String PLAN_DISPATCH_STRATEGY_FLOW_CODE = "PLAN_DISPATCH_STRATEGY";
+    private static final String PLAN_DISPATCH_FUNCDEPT_FLOW_CODE = "PLAN_DISPATCH_FUNCDEPT";
+    private static final String PLAN_APPROVAL_FUNCDEPT_FLOW_CODE = "PLAN_APPROVAL_FUNCDEPT";
+    private static final String PLAN_APPROVAL_COLLEGE_FLOW_CODE = "PLAN_APPROVAL_COLLEGE";
 
     private final WorkflowDefinitionQueryService workflowDefinitionQueryService;
     private final AuditInstanceRepository auditInstanceRepository;
@@ -192,7 +198,7 @@ public class BusinessWorkflowApplicationService {
                 .orElseThrow(() -> new SecurityException("You are not authorized to approve this task"));
         AuditStepDef currentStepDef = resolveStepDefinition(instance, currentStep);
 
-        if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId())) {
+        if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId(), instance)) {
             throw new SecurityException("You are not authorized to approve this task");
         }
         ensureUserHasApprovalPermission(instance, userId);
@@ -232,7 +238,7 @@ public class BusinessWorkflowApplicationService {
                 .orElseThrow(() -> new SecurityException("You are not authorized to reject this task"));
         AuditStepDef currentStepDef = resolveStepDefinition(instance, currentStep);
 
-        if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId())) {
+        if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId(), instance)) {
             throw new SecurityException("You are not authorized to reject this task");
         }
         ensureUserHasApprovalPermission(instance, userId);
@@ -293,29 +299,45 @@ public class BusinessWorkflowApplicationService {
     }
 
     private void ensureUserHasApprovalPermission(AuditInstance instance, Long userId) {
-        String requiredPermission = resolveApprovalPermissionCode(instance);
-        if (requiredPermission == null || requiredPermission.isBlank()) {
+        List<String> requiredPermissions = resolveApprovalPermissionCodes(instance);
+        if (requiredPermissions.isEmpty()) {
             return;
         }
 
         List<String> permissionCodes = userRepository.findPermissionCodesByUserId(userId);
-        if (!permissionCodes.contains(requiredPermission)) {
+        boolean hasPermission = requiredPermissions.stream().anyMatch(permissionCodes::contains);
+        if (!hasPermission) {
             throw new SecurityException("You are not authorized to operate this approval task");
         }
     }
 
-    private String resolveApprovalPermissionCode(AuditInstance instance) {
+    private List<String> resolveApprovalPermissionCodes(AuditInstance instance) {
         if (instance == null || instance.getEntityType() == null) {
-            return null;
+            return List.of();
         }
 
         if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            return PLAN_APPROVE_PERMISSION;
+            AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId());
+            String flowCode = flowDef != null ? flowDef.getFlowCode() : null;
+            if (PLAN_APPROVAL_FUNCDEPT_FLOW_CODE.equals(flowCode) || PLAN_APPROVAL_COLLEGE_FLOW_CODE.equals(flowCode)) {
+                return List.of(PLAN_REPORT_APPROVE_PERMISSION, INDICATOR_REPORT_APPROVE_PERMISSION);
+            }
+            if (PLAN_DISPATCH_STRATEGY_FLOW_CODE.equals(flowCode) || PLAN_DISPATCH_FUNCDEPT_FLOW_CODE.equals(flowCode)) {
+                return List.of(PLAN_APPROVE_PERMISSION, INDICATOR_DISPATCH_APPROVE_PERMISSION);
+            }
+            return List.of(PLAN_APPROVE_PERMISSION, INDICATOR_DISPATCH_APPROVE_PERMISSION);
         }
         if (isPlanReportEntityType(instance.getEntityType())) {
-            return PLAN_REPORT_APPROVE_PERMISSION;
+            return List.of(PLAN_REPORT_APPROVE_PERMISSION, INDICATOR_REPORT_APPROVE_PERMISSION);
         }
-        return null;
+        return List.of();
+    }
+
+    private AuditFlowDef resolveFlowDef(Long flowDefId) {
+        if (flowDefId == null) {
+            return null;
+        }
+        return workflowDefinitionQueryService.getAuditFlowDefById(flowDefId);
     }
 
     /**
