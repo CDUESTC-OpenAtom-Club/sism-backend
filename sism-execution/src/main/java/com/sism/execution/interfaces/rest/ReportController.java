@@ -53,11 +53,13 @@ public class ReportController {
         PlanReport report = reportApplicationService.updateReport(
                 id,
                 request.getTitle(),
+                request.getIndicatorId(),
                 request.getContent(),
                 request.getSummary(),
                 request.getProgress(),
                 request.getIssues(),
-                request.getNextPlan()
+                request.getNextPlan(),
+                request.getMilestoneNote()
         );
         return ResponseEntity.ok(ApiResponse.success(PlanReportResponse.fromEntity(report)));
     }

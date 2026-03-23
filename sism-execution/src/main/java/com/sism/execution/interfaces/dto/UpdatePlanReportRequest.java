@@ -11,6 +11,8 @@ public class UpdatePlanReportRequest {
 
     private String title;
 
+    private Long indicatorId;
+
     private String content;
 
     private String summary;
@@ -20,4 +22,6 @@ public class UpdatePlanReportRequest {
     private String issues;
 
     private String nextPlan;
+
+    private String milestoneNote;
 }
