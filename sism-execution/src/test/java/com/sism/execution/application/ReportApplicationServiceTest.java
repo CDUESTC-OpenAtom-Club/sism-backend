@@ -165,6 +165,30 @@ class ReportApplicationServiceTest {
     }
 
     @Test
+    void approveReport_shouldSyncIndicatorProgressFromReportDetails() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(15L);
+        report.setStatus(PlanReport.STATUS_SUBMITTED);
+
+        Indicator indicator = new Indicator();
+        indicator.setId(2002L);
+        indicator.setProgress(0);
+
+        when(planReportRepository.findById(15L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(planReportIndicatorRepository.findByReportId(15L))
+                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2002L, 20, "审批完成", null)));
+        when(indicatorRepository.findById(2002L)).thenReturn(Optional.of(indicator));
+        when(indicatorRepository.save(any(Indicator.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.approveReport(15L, 33L);
+
+        assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
+        assertThat(indicator.getProgress()).isEqualTo(20);
+        verify(indicatorRepository).save(indicator);
+    }
+
+    @Test
     void updateReport_shouldNotPersistIndicatorDetailWhenIndicatorIdMissing() {
         PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         report.setId(14L);

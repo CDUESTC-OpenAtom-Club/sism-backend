@@ -133,6 +133,7 @@ public class ReportApplicationService {
 
         report.approve(userId);
         report = planReportRepository.save(report);
+        syncApprovedIndicatorProgress(report.getId());
         publishAndSaveEvents(report);
         return report;
     }
