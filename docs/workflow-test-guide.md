@@ -10,7 +10,7 @@
 **说明**:
 - 本文档以 [`audit_step_def-data.sql`](/Users/blackevil/Documents/前端架构测试/sism-backend/database/seeds/audit_step_def-data.sql) 的 14 个 canonical 步骤为准。
 - 部分旧文档里的 `jwc_*`、`jsjxy_*`、`zlb_leader` 等旧账号命名已不再适用于当前 clean seed。
-- 当前可直接复用的关键全局账号是 `admin`（分管校领导）、`zlb_admin`（战略发展部填报人）、`zlb_final1` / `zlb_final2`（`ROLE_STRATEGY_DEPT_HEAD`，可处理战略发展部负责人/终审节点）。
+- 当前可直接复用的关键全局账号是 `admin`（战略发展部分管校领导）、`zlb_admin`（战略发展部填报人）、`zlb_final1` / `zlb_final2`（`ROLE_STRATEGY_DEPT_HEAD`，可处理战略发展部负责人/终审节点）。
 
 ---
 
@@ -80,17 +80,17 @@
 |------|--------|------|------|------|
 | 发起人 | `jiaowu_report` | 教务处填报员 | 教务处 | 提交 Plan 下发申请 |
 | 第二步审批人 | `jiaowu_audit1` | 教务处审批人 | 教务处 | 职能部门审批角色 |
-| 第三步审批人 | `zlb_final1` | 系统管理员 | 战略发展部负责人 | 分管校领导角色 |
+| 第三步审批人 | `jiaowu_leader` | 教务处领导 | 教务处 | 分管校领导角色 |
 
 ### 其他职能部门账号
 
-**党委办公室**: `dangban_report`, `dangban_audit1`
-**教务处**: `jiaowu_report`, `jiaowu_audit1`
-**科技处**: `keji_report`, `keji_audit1`
-**财务部**: `caiwu_report`, `caiwu_audit1`
-**后勤资产处**: `houqin_report`, `houqin_audit1`
+**党委办公室**: `dangban_report`, `dangban_audit1`, `dangban_audit2`
+**教务处**: `jiaowu_report`, `jiaowu_audit1`, `jiaowu_leader`
+**科技处**: `keji_report`, `keji_audit1`, `keji_leader`
+**财务部**: `caiwu_report`, `caiwu_audit1`, `caiwu_leader`
+**后勤资产处**: `houqin_report`, `houqin_audit1`, `houqin_leader`
 
-说明: 当前 clean seed 中，多数职能部门的 `_leader` / `_audit2` 为预留账号，默认无审批角色，不能替代第二步审批人。
+说明: 当前 clean seed 中，职能部门的 `_leader` / `_audit2` 已分配 `ROLE_VICE_PRESIDENT`，用于第三步“分管校领导审批”节点；第二步仍使用 `_audit1`。
 
 ### 测试场景
 
@@ -151,7 +151,7 @@
 |------|--------|------|------|------|
 | 发起人 | `jiaowu_report` | 教务处填报员 | 教务处 | 提交 Plan 审批申请 |
 | 第二步审批人 | `jiaowu_audit1` | 教务处审批人 | 教务处 | 职能部门审批角色 |
-| 第三步审批人 | `admin` | 系统管理员 | 战略发展部 | 分管校领导角色 |
+| 第三步审批人 | `jiaowu_leader` | 教务处领导 | 教务处 | 分管校领导角色 |
 | 第四步审批人 | `zlb_final1` | 战略终审1 | 战略发展部 | 战略发展部终审角色 |
 
 ### 测试场景

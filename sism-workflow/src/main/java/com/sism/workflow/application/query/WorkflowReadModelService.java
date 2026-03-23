@@ -221,41 +221,12 @@ public class WorkflowReadModelService {
     private List<WorkflowHistoryResponse> buildHistory(AuditInstance instance) {
         List<WorkflowHistoryResponse> history = new ArrayList<>();
 
-        if (instance.getStartedAt() != null) {
-            history.add(WorkflowHistoryResponse.builder()
-                    .historyId(instance.getId() + "_start")
-                    .taskId(instance.getId().toString())
-                    .taskName(workflowReadModelMapper.buildInstanceLabel(instance))
-                    .operatorId(instance.getRequesterId())
-                    .operatorName(resolveUserName(instance.getRequesterId()))
-                    .action("START")
-                    .comment("Workflow started")
-                    .operateTime(instance.getStartedAt())
-                    .build());
-        }
-
         for (AuditStepInstance step : instance.getStepInstances()) {
             if (AuditInstance.STEP_STATUS_APPROVED.equals(step.getStatus())) {
                 history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "APPROVE"));
             } else if (AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus())) {
                 history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "REJECT"));
             }
-        }
-
-        if (instance.getCompletedAt() != null) {
-            String action = AuditInstance.STATUS_APPROVED.equals(instance.getStatus()) ? "FINISH_APPROVE"
-                    : AuditInstance.STATUS_REJECTED.equals(instance.getStatus()) ? "FINISH_REJECT"
-                    : "CANCEL";
-            history.add(WorkflowHistoryResponse.builder()
-                    .historyId(instance.getId() + "_finish")
-                    .taskId(instance.getId().toString())
-                    .taskName(workflowReadModelMapper.buildInstanceLabel(instance))
-                    .operatorId(instance.getRequesterId())
-                    .operatorName(resolveUserName(instance.getRequesterId()))
-                    .action(action)
-                    .comment(action)
-                    .operateTime(instance.getCompletedAt())
-                    .build());
         }
 
         return history;

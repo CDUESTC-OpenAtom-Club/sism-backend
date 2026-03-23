@@ -53,12 +53,9 @@ else
 fi
 echo ""
 
-# 检查 JAR 文件是否存在
-if [ ! -f "$JAR_PATH" ]; then
-    echo "⚠ JAR 文件不存在，正在构建..."
-    JAVA_HOME=/opt/homebrew/opt/openjdk@17 /opt/homebrew/bin/mvn clean package -DskipTests -Dmaven.test.skip=true -q
-    echo "✓ 构建完成"
-fi
+echo "→ 重新构建后端模块并刷新本地 Maven 依赖..."
+./mvnw -pl sism-main -am clean install -DskipTests -Dmaven.test.skip=true
+echo "✓ 构建完成"
 
 # 检查是否已有服务在运行
 if lsof -i :8080 > /dev/null 2>&1; then
@@ -81,7 +78,7 @@ RETRY_COUNT=0
 HEALTH_OK=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://localhost:8080/api/actuator/health > /dev/null 2>&1; then
+    if curl -s http://localhost:8080/api/v1/auth/health > /dev/null 2>&1; then
         HEALTH_OK=true
         break
     fi
@@ -117,7 +114,7 @@ fi
 
 echo ""
 echo "服务地址: http://localhost:8080"
-echo "健康检查: http://localhost:8080/api/actuator/health"
+echo "健康检查: http://localhost:8080/api/v1/auth/health"
 echo "日志文件: /tmp/sism-backend.log"
 echo ""
 echo "查看日志: tail -f /tmp/sism-backend.log"

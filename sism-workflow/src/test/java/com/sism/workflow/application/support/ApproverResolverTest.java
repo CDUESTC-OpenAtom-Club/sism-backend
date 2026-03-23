@@ -92,7 +92,7 @@ class ApproverResolverTest {
     }
 
     @Test
-    void resolveApproverId_shouldResolveVicePresidentByDedicatedRole() {
+    void resolveApproverId_shouldResolveFunctionalVicePresidentByRequesterOrgMapping() {
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setRoleId(4L);
         stepDef.setStepName("分管校领导审批");
@@ -111,7 +111,30 @@ class ApproverResolverTest {
 
         ApproverResolver resolver = new ApproverResolver(userRepository, planRepository);
 
-        assertEquals(124L, resolver.resolveApproverId(stepDef, 223L, 44L));
+        assertEquals(300L, resolver.resolveApproverId(stepDef, 223L, 44L));
+    }
+
+    @Test
+    void resolveApproverId_shouldKeepStrategyVicePresidentOnStrategyOrg() {
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setRoleId(4L);
+        stepDef.setStepName("分管校领导审批");
+
+        User strategyLeader = new User();
+        strategyLeader.setId(124L);
+        strategyLeader.setOrgId(35L);
+        strategyLeader.setIsActive(true);
+
+        User functionalLeader = new User();
+        functionalLeader.setId(326L);
+        functionalLeader.setOrgId(44L);
+        functionalLeader.setIsActive(true);
+
+        when(userRepository.findByRoleId(4L)).thenReturn(List.of(functionalLeader, strategyLeader));
+
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository);
+
+        assertEquals(124L, resolver.resolveApproverId(stepDef, 188L, 35L));
     }
 
     @Test

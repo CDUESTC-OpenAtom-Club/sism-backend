@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -22,6 +23,28 @@ public class ApproverResolver {
     private static final Long STRATEGY_ORG_ID = 35L;
     private static final String PLAN_ENTITY_TYPE = "PLAN";
     private static final String COLLEGE_FINAL_APPROVAL_STEP_NAME = "职能部门终审";
+    private static final Map<Long, Long> FUNCTIONAL_VICE_PRESIDENT_SCOPE_BY_ORG = Map.ofEntries(
+            Map.entry(35L, 35L),
+            Map.entry(36L, 36L),
+            Map.entry(37L, 37L),
+            Map.entry(38L, 38L),
+            Map.entry(39L, 39L),
+            Map.entry(40L, 40L),
+            Map.entry(41L, 41L),
+            Map.entry(42L, 42L),
+            Map.entry(43L, 43L),
+            Map.entry(44L, 44L),
+            Map.entry(45L, 45L),
+            Map.entry(46L, 46L),
+            Map.entry(47L, 47L),
+            Map.entry(48L, 48L),
+            Map.entry(49L, 49L),
+            Map.entry(50L, 50L),
+            Map.entry(51L, 51L),
+            Map.entry(52L, 52L),
+            Map.entry(53L, 53L),
+            Map.entry(54L, 54L)
+    );
 
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
@@ -185,13 +208,18 @@ public class ApproverResolver {
             return isStrategyOrg(userOrgId);
         }
         if (ROLE_VICE_PRESIDENT.equals(roleId)) {
-            if (stepName != null && stepName.contains("学院院长")) {
-                return requesterOrgId != null && requesterOrgId.equals(userOrgId);
-            }
-            return isStrategyOrg(userOrgId);
+            Long scopeOrgId = resolveVicePresidentScopeOrgId(stepName, requesterOrgId);
+            return scopeOrgId != null && scopeOrgId.equals(userOrgId);
         }
 
         return true;
+    }
+
+    private Long resolveVicePresidentScopeOrgId(String stepName, Long requesterOrgId) {
+        if (stepName != null && stepName.contains("学院院长")) {
+            return requesterOrgId;
+        }
+        return FUNCTIONAL_VICE_PRESIDENT_SCOPE_BY_ORG.getOrDefault(requesterOrgId, requesterOrgId);
     }
 
     private boolean isStrategyOrg(Long orgId) {
