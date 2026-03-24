@@ -81,4 +81,11 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
             """,
            nativeQuery = true)
     Page<Indicator> findByYear(@Param("year") Integer year, Pageable pageable);
+
+    /**
+     * 根据拥有组织ID和目标组织ID查询指标
+     * 用于批量撤回操作
+     */
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    List<Indicator> findByOwnerOrgIdAndTargetOrgIdAndIsDeletedFalse(Long ownerOrgId, Long targetOrgId);
 }

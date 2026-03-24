@@ -154,6 +154,61 @@ public class StrategyApplicationService {
         return indicator;
     }
 
+    /**
+     * 批量撤回指标
+     * 撤回指定ownerOrg发给targetOrg的所有指标
+     *
+     * @param ownerOrgId 发布部门ID
+     * @param targetOrgId 目标学院ID
+     * @param reason 撤回原因
+     * @return 批量撤回结果
+     */
+    @Transactional
+    public com.sism.strategy.interfaces.rest.IndicatorController.BatchWithdrawResponse batchWithdrawIndicators(
+            Long ownerOrgId,
+            Long targetOrgId,
+            String reason) {
+
+        // 查找所有符合条件的指标
+        List<Indicator> indicators = indicatorRepository.findByOwnerOrgIdAndTargetOrgId(ownerOrgId, targetOrgId);
+
+        int successCount = 0;
+        int failedCount = 0;
+        List<Long> withdrawnIndicatorIds = new java.util.ArrayList<>();
+        List<String> errors = new java.util.ArrayList<>();
+
+        for (Indicator indicator : indicators) {
+            try {
+                // 只撤回已进入下发链路的指标（PENDING, DISTRIBUTED 状态）
+                IndicatorStatus status = indicator.getStatus();
+                if (status == IndicatorStatus.DISTRIBUTED ||
+                    status == IndicatorStatus.PENDING) {
+
+                    indicator.withdraw();
+                    indicator = indicatorRepository.save(indicator);
+                    publishAndSaveEvents(indicator);
+
+                    withdrawnIndicatorIds.add(indicator.getId());
+                    successCount++;
+                } else {
+                    // 草稿状态的指标跳过，不计入失败
+                    continue;
+                }
+            } catch (Exception e) {
+                failedCount++;
+                errors.add("指标 " + indicator.getId() + ": " + e.getMessage());
+            }
+        }
+
+        return new com.sism.strategy.interfaces.rest.IndicatorController.BatchWithdrawResponse(
+                indicators.size(),
+                successCount,
+                failedCount,
+                withdrawnIndicatorIds,
+                errors
+        );
+    }
+
     public Indicator getIndicatorById(Long id) {
         return indicatorRepository.findById(id).orElse(null);
     }

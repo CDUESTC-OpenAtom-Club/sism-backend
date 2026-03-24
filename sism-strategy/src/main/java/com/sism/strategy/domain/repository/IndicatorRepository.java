@@ -50,6 +50,12 @@ public interface IndicatorRepository {
     List<Indicator> findByOwnerOrgId(Long ownerOrgId);
 
     /**
+     * 根据拥有组织ID和目标组织ID查询指标
+     * 用于批量撤回操作
+     */
+    List<Indicator> findByOwnerOrgIdAndTargetOrgId(Long ownerOrgId, Long targetOrgId);
+
+    /**
      * 根据状态查询指标
      */
     List<Indicator> findByStatus(String status);

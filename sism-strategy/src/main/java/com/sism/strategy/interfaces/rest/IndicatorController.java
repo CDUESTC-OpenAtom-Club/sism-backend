@@ -25,6 +25,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ public class IndicatorController {
     private final OrganizationRepository organizationRepository;
     private final TaskRepository taskRepository;
     private final JpaTaskRepositoryInternal jpaTaskRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @GetMapping
     @Operation(summary = "Get all indicators with pagination")
@@ -271,6 +273,18 @@ public class IndicatorController {
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(withdrawn)));
     }
 
+    @PostMapping("/batch-withdraw")
+    @Operation(summary = "Batch withdraw indicators by owner and target organization")
+    public ResponseEntity<ApiResponse<BatchWithdrawResponse>> batchWithdrawIndicators(
+            @RequestBody @Valid BatchWithdrawRequest request) {
+        BatchWithdrawResponse result = strategyApplicationService.batchWithdrawIndicators(
+                request.getOwnerOrgId(),
+                request.getTargetOrgId(),
+                request.getReason()
+        );
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
     @GetMapping("/search")
     @Operation(summary = "Search indicators by keyword")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> searchIndicators(
@@ -408,6 +422,8 @@ public class IndicatorController {
         response.setStatus(indicator.getStatus() != null ? indicator.getStatus().toString() : null);
         response.setLevel(indicator.getLevel() != null ? indicator.getLevel().toString() : null);
         response.setProgress(indicator.getProgress());
+        response.setReportProgress(getLatestReportProgress(indicator.getId()));
+        response.setHasCurrentMonthFill(hasCurrentMonthFill(indicator.getId()));
         response.setRemark(indicator.getRemark());
         response.setIndicatorType(indicator.getType());
         response.setCreatedAt(indicator.getCreatedAt());
@@ -471,6 +487,70 @@ public class IndicatorController {
                 ));
     }
 
+    /**
+     * 获取指标的最新填报进度
+     * 从 plan_report_indicator 表中查询最新的填报进度
+     *
+     * @param indicatorId 指标ID
+     * @return 最新填报进度，如果没有则返回 null
+     */
+    private Integer getLatestReportProgress(Long indicatorId) {
+        if (indicatorId == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.queryForObject(
+                    """
+                    SELECT pri.progress
+                    FROM public.plan_report_indicator pri
+                    INNER JOIN public.plan_report pr ON pri.report_id = pr.id
+                    WHERE pri.indicator_id = ?
+                    AND pr.is_deleted = false
+                    ORDER BY pr.created_at DESC
+                    LIMIT 1
+                    """,
+                    Integer.class,
+                    indicatorId
+            );
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 检查指标当前月份是否有填报数据
+     * 判断依据：plan_report 表中当前月份是否有该指标关联的填报记录
+     *
+     * @param indicatorId 指标ID
+     * @return true-有填报数据显示"编辑"，false-无数据显示"填报"
+     */
+    private Boolean hasCurrentMonthFill(Long indicatorId) {
+        if (indicatorId == null) {
+            return false;
+        }
+        try {
+            // 获取当前月份 (格式: YYYY-MM)
+            String currentMonth = java.time.YearMonth.now().toString();
+            // 查询当前月份是否有该指标的填报数据
+            Integer count = jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM public.plan_report_indicator pri
+                    INNER JOIN public.plan_report pr ON pri.report_id = pr.id
+                    WHERE pri.indicator_id = ?
+                    AND pr.report_month = ?
+                    AND pr.is_deleted = false
+                    """,
+                    Integer.class,
+                    indicatorId,
+                    currentMonth
+            );
+            return count != null && count > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private String firstNonBlank(String... values) {
         if (values == null) {
             return null;
@@ -510,6 +590,8 @@ public class IndicatorController {
         private Integer sortOrder;
         private String level;
         private Integer progress;
+        private Integer reportProgress;
+        private Boolean hasCurrentMonthFill;
         private String remark;
         private String indicatorType;
         private java.time.LocalDateTime createdAt;
@@ -582,6 +664,24 @@ public class IndicatorController {
     @Data
     public static class TerminateRequest {
         private String reason;
+    }
+
+    @Data
+    public static class BatchWithdrawRequest {
+        private Long ownerOrgId;
+        private Long targetOrgId;
+        private String reason;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BatchWithdrawResponse {
+        private int totalCount;
+        private int successCount;
+        private int failedCount;
+        private List<Long> withdrawnIndicatorIds;
+        private List<String> errors;
     }
 
     @Data
