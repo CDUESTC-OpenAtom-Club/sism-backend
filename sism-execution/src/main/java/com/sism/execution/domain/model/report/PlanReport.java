@@ -3,12 +3,14 @@ package com.sism.execution.domain.model.report;
 import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportApprovedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportRejectedEvent;
+import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * PlanReport - 月度进展报告聚合根
@@ -51,6 +53,9 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "audit_instance_id")
     private Long auditInstanceId;
 
+    @Column(name = "created_by")
+    private Long createdBy;
+
     // Fields not in database - marked as transient for future use or removed if not needed
     @Transient
     private String title;
@@ -73,17 +78,20 @@ public class PlanReport extends AggregateRoot<Long> {
     @Transient
     private Long submittedBy;
 
-    @Column(name = "submitted_at")
-    private LocalDateTime submittedAt;
-
     @Transient
     private Long approvedBy;
+
+    @Column(name = "submitted_at")
+    private LocalDateTime submittedAt;
 
     @Transient
     private LocalDateTime approvedAt;
 
     @Transient
     private String rejectionReason;
+
+    @Transient
+    private List<PlanReportIndicatorSnapshot> indicatorDetails = List.of();
 
     @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
@@ -97,6 +105,11 @@ public class PlanReport extends AggregateRoot<Long> {
      */
     public static PlanReport createDraft(String reportMonth, Long reportOrgId,
                                           ReportOrgType reportOrgType, Long planId) {
+        return createDraft(reportMonth, reportOrgId, reportOrgType, planId, null);
+    }
+
+    public static PlanReport createDraft(String reportMonth, Long reportOrgId,
+                                         ReportOrgType reportOrgType, Long planId, Long createdBy) {
         if (reportMonth == null || reportMonth.trim().isEmpty()) {
             throw new IllegalArgumentException("Report month cannot be null or empty");
         }
@@ -114,6 +127,7 @@ public class PlanReport extends AggregateRoot<Long> {
         report.planId = planId != null ? planId : 1L;  // Default to 1 if null
         report.status = STATUS_DRAFT;
         report.isDeleted = false;
+        report.createdBy = createdBy;
         return report;
     }
 
@@ -139,8 +153,6 @@ public class PlanReport extends AggregateRoot<Long> {
             throw new IllegalStateException("Cannot approve report: not in SUBMITTED status");
         }
         this.status = STATUS_APPROVED;
-        this.approvedBy = userId;
-        this.approvedAt = LocalDateTime.now();
         setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportApprovedEvent(this.id, this.reportMonth, this.reportOrgId, userId));
     }
@@ -156,8 +168,6 @@ public class PlanReport extends AggregateRoot<Long> {
             throw new IllegalArgumentException("Rejection reason cannot be null or empty");
         }
         this.status = STATUS_REJECTED;
-        this.approvedBy = userId;
-        this.approvedAt = LocalDateTime.now();
         this.rejectionReason = reason;
         setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportRejectedEvent(this.id, this.reportMonth, this.reportOrgId, userId, reason));
@@ -175,6 +185,12 @@ public class PlanReport extends AggregateRoot<Long> {
         }
         // These fields are transient - store in remark field instead if needed
         setUpdatedAt(LocalDateTime.now());
+    }
+
+    public void markCreatedByIfAbsent(Long userId) {
+        if (this.createdBy == null && userId != null && userId > 0) {
+            this.createdBy = userId;
+        }
     }
 
     /**

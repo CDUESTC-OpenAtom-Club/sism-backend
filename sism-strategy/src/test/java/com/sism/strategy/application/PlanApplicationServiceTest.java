@@ -7,6 +7,7 @@ import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.domain.Cycle;
+import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.interfaces.dto.PlanResponse;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.Optional;
 import java.util.List;
@@ -30,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -66,6 +69,9 @@ class PlanApplicationServiceTest {
     @Mock
     private PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService;
 
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+
     private PlanApplicationService service;
 
     @BeforeEach
@@ -78,7 +84,8 @@ class PlanApplicationServiceTest {
                 basicTaskWeightValidationService,
                 taskRepository,
                 eventPublisher,
-                planWorkflowSnapshotQueryService
+                planWorkflowSnapshotQueryService,
+                jdbcTemplate
         );
     }
 
@@ -339,5 +346,168 @@ class PlanApplicationServiceTest {
         assertNotNull(response.getWorkflowHistory());
         assertEquals(1, response.getWorkflowHistory().size());
         assertEquals("职能部门审批", response.getWorkflowHistory().get(0).getStepName());
+    }
+
+    @Test
+    @DisplayName("Should include latest report progress in plan details indicators")
+    void shouldIncludeLatestReportProgressInPlanDetailsIndicators() {
+        Plan plan = createPlanWithCycle(4L, 2026L);
+        StrategicTask task = createTask(41001L, 4L);
+        Indicator indicator = createIndicatorMock(2002L, 41001L, 0, "形成党委统战领域专项推进台账");
+
+        when(planRepository.findById(4L)).thenReturn(Optional.of(plan));
+        when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
+        when(organizationRepository.findAll()).thenReturn(List.of());
+        when(taskRepository.findByPlanId(4L)).thenReturn(List.of(task));
+        when(indicatorRepository.findByTaskId(41001L)).thenReturn(List.of(indicator));
+        when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(4L)).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(contains("MAX(pr.created_at)"), any(Object[].class)))
+                .thenReturn(List.of(Map.of("indicator_id", 2002L, "report_progress", 20)));
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
+                .thenReturn(List.of());
+
+        PlanApplicationService.PlanDetailsResponse response = service.getPlanDetails(4L);
+
+        assertNotNull(response.getIndicators());
+        assertEquals(1, response.getIndicators().size());
+        assertEquals(20, response.getIndicators().get(0).getReportProgress());
+        assertEquals("NONE", response.getIndicators().get(0).getProgressApprovalStatus());
+    }
+
+    @Test
+    @DisplayName("Should expose current draft pending fields from latest active report")
+    void shouldExposeCurrentDraftPendingFieldsFromLatestActiveReport() {
+        Plan plan = createPlanWithCycle(5L, 2026L);
+        StrategicTask task = createTask(51001L, 5L);
+        Indicator indicator = createIndicatorMock(2002L, 51001L, 0, "形成党委统战领域专项推进台账");
+
+        when(planRepository.findById(5L)).thenReturn(Optional.of(plan));
+        when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
+        when(organizationRepository.findAll()).thenReturn(List.of());
+        when(taskRepository.findByPlanId(5L)).thenReturn(List.of(task));
+        when(indicatorRepository.findByTaskId(51001L)).thenReturn(List.of(indicator));
+        when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(5L)).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
+                .thenReturn(List.of(Map.of("report_id", 9001L, "report_status", "DRAFT")));
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator pri"), any(Object[].class)))
+                .thenReturn(List.of(Map.of(
+                        "plan_report_indicator_id", 7001L,
+                        "indicator_id", 2002L,
+                        "pending_progress", 20,
+                        "pending_remark", "任务完成"
+                )));
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator_attachment pria"), any(Object[].class)))
+                .thenReturn(List.of(
+                        Map.of("plan_report_indicator_id", 7001L, "attachment_value", "https://files.example.com/a.pdf"),
+                        Map.of("plan_report_indicator_id", 7001L, "attachment_value", "推进台账.xlsx")
+                ));
+
+        PlanApplicationService.PlanDetailsResponse response = service.getPlanDetails(5L);
+
+        assertEquals(1, response.getIndicators().size());
+        var indicatorResponse = response.getIndicators().get(0);
+        assertEquals(9001L, indicatorResponse.getCurrentReportId());
+        assertEquals("DRAFT", indicatorResponse.getProgressApprovalStatus());
+        assertEquals(20, indicatorResponse.getPendingProgress());
+        assertEquals("任务完成", indicatorResponse.getPendingRemark());
+        assertEquals(List.of("https://files.example.com/a.pdf", "推进台账.xlsx"), indicatorResponse.getPendingAttachments());
+    }
+
+    @Test
+    @DisplayName("Should mark latest rejected active report as rejected even when older draft exists")
+    void shouldMarkLatestRejectedActiveReportAsRejected() {
+        Plan plan = createPlanWithCycle(6L, 2026L);
+        StrategicTask task = createTask(61001L, 6L);
+        Indicator indicator = createIndicatorMock(2001L, 61001L, 15, "完成党委办公室年度重点工作分解与落实");
+
+        when(planRepository.findById(6L)).thenReturn(Optional.of(plan));
+        when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
+        when(organizationRepository.findAll()).thenReturn(List.of());
+        when(taskRepository.findByPlanId(6L)).thenReturn(List.of(task));
+        when(indicatorRepository.findByTaskId(61001L)).thenReturn(List.of(indicator));
+        when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(6L)).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
+                .thenReturn(List.of(
+                        Map.of("report_id", 9102L, "report_status", "REJECTED"),
+                        Map.of("report_id", 9101L, "report_status", "DRAFT")
+                ));
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator pri"), any(Object[].class)))
+                .thenReturn(List.of(Map.of(
+                        "plan_report_indicator_id", 7101L,
+                        "indicator_id", 2001L,
+                        "pending_progress", 18,
+                        "pending_remark", "退回后待修改"
+                )));
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator_attachment pria"), any(Object[].class)))
+                .thenReturn(List.of());
+
+        PlanApplicationService.PlanDetailsResponse response = service.getPlanDetails(6L);
+
+        var indicatorResponse = response.getIndicators().get(0);
+        assertEquals(9102L, indicatorResponse.getCurrentReportId());
+        assertEquals("REJECTED", indicatorResponse.getProgressApprovalStatus());
+        assertEquals(18, indicatorResponse.getPendingProgress());
+        assertEquals("退回后待修改", indicatorResponse.getPendingRemark());
+    }
+
+    @Test
+    @DisplayName("Should return empty pending fields when no active report exists")
+    void shouldReturnEmptyPendingFieldsWhenNoActiveReportExists() {
+        Plan plan = createPlanWithCycle(7L, 2026L);
+        StrategicTask task = createTask(71001L, 7L);
+        Indicator indicator = createIndicatorMock(2045L, 71001L, 0, "形成党委统战领域专项推进台账");
+
+        when(planRepository.findById(7L)).thenReturn(Optional.of(plan));
+        when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
+        when(organizationRepository.findAll()).thenReturn(List.of());
+        when(taskRepository.findByPlanId(7L)).thenReturn(List.of(task));
+        when(indicatorRepository.findByTaskId(71001L)).thenReturn(List.of(indicator));
+        when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(7L)).thenReturn(List.of());
+        when(jdbcTemplate.queryForList(contains("MAX(pr.created_at)"), any(Object[].class)))
+                .thenReturn(List.of());
+        when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
+                .thenReturn(List.of());
+
+        PlanApplicationService.PlanDetailsResponse response = service.getPlanDetails(7L);
+
+        var indicatorResponse = response.getIndicators().get(0);
+        assertEquals("NONE", indicatorResponse.getProgressApprovalStatus());
+        assertEquals(null, indicatorResponse.getCurrentReportId());
+        assertEquals(null, indicatorResponse.getPendingProgress());
+        assertEquals(null, indicatorResponse.getPendingRemark());
+        assertEquals(List.of(), indicatorResponse.getPendingAttachments());
+    }
+
+    private Plan createPlanWithCycle(Long planId, Long cycleId) {
+        Plan plan = Plan.create(cycleId, 35L, 35L, PlanLevel.STRATEGIC);
+        plan.setId(planId);
+        return plan;
+    }
+
+    private Cycle createCycle(Long cycleId, int year) {
+        Cycle cycle = new Cycle();
+        cycle.setId(cycleId);
+        cycle.setYear(year);
+        return cycle;
+    }
+
+    private StrategicTask createTask(Long taskId, Long planId) {
+        StrategicTask task = new StrategicTask();
+        task.setId(taskId);
+        task.setPlanId(planId);
+        return task;
+    }
+
+    private Indicator createIndicatorMock(Long indicatorId, Long taskId, int progress, String indicatorName) {
+        Indicator indicator = org.mockito.Mockito.mock(Indicator.class);
+        when(indicator.getId()).thenReturn(indicatorId);
+        when(indicator.getName()).thenReturn(indicatorName);
+        when(indicator.getDescription()).thenReturn(indicatorName);
+        when(indicator.getTaskId()).thenReturn(taskId);
+        when(indicator.getWeight()).thenReturn(java.math.BigDecimal.valueOf(50));
+        when(indicator.getProgress()).thenReturn(progress);
+        when(indicator.getCreatedAt()).thenReturn(java.time.LocalDateTime.now());
+        when(indicator.getUpdatedAt()).thenReturn(java.time.LocalDateTime.now());
+        return indicator;
     }
 }

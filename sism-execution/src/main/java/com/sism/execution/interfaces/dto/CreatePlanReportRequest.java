@@ -23,4 +23,6 @@ public class CreatePlanReportRequest {
 
     @NotNull(message = "计划ID不能为空")
     private Long planId;
+
+    private Long createdBy;
 }

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +40,9 @@ class ReportApplicationServiceTest {
     @Mock
     private DomainEventPublisher eventPublisher;
 
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+
     private ReportApplicationService reportApplicationService;
 
     @BeforeEach
@@ -47,7 +51,8 @@ class ReportApplicationServiceTest {
                 planReportRepository,
                 planReportIndicatorRepository,
                 indicatorRepository,
-                eventPublisher
+                eventPublisher,
+                jdbcTemplate
         );
     }
 
@@ -62,12 +67,13 @@ class ReportApplicationServiceTest {
                 .thenReturn(Optional.of(deletedReport));
         when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        PlanReport restored = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        PlanReport restored = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 501L);
 
         assertThat(restored.getId()).isEqualTo(6L);
         assertThat(restored.getIsDeleted()).isFalse();
         assertThat(restored.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
         assertThat(restored.getSubmittedAt()).isNull();
+        assertThat(restored.getCreatedBy()).isEqualTo(501L);
         verify(planReportRepository).save(deletedReport);
     }
 
@@ -83,6 +89,17 @@ class ReportApplicationServiceTest {
         assertThatThrownBy(() -> reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("当前月份已存在报告，请勿重复创建");
+    }
+
+    @Test
+    void createReport_shouldPersistFirstFiller() {
+        when(planReportRepository.findByUniqueKey(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+                .thenReturn(Optional.empty());
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport created = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 7001L);
+
+        assertThat(created.getCreatedBy()).isEqualTo(7001L);
     }
 
     @Test
@@ -119,9 +136,13 @@ class ReportApplicationServiceTest {
     void updateReport_shouldPersistIndicatorDraftDetailWhenIndicatorIdProvided() {
         PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         report.setId(12L);
+        Indicator indicator = new Indicator();
+        indicator.setId(2001L);
+        indicator.setProgress(20);
 
         when(planReportRepository.findById(12L)).thenReturn(Optional.of(report));
         when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(indicatorRepository.findById(2001L)).thenReturn(Optional.of(indicator));
 
         PlanReport updated = reportApplicationService.updateReport(
                 12L,
@@ -132,12 +153,62 @@ class ReportApplicationServiceTest {
                 45,
                 "本月推进完成",
                 "本月推进完成",
-                null
+                null,
+                8001L
         );
 
         assertThat(updated.getId()).isEqualTo(12L);
+        assertThat(updated.getCreatedBy()).isEqualTo(8001L);
         verify(planReportIndicatorRepository)
                 .upsertDraftIndicator(12L, 2001L, 45, "本月推进完成", null);
+    }
+
+    @Test
+    void updateReport_shouldRejectProgressNotGreaterThanActualIndicatorProgress() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(18L);
+        Indicator indicator = new Indicator();
+        indicator.setId(2008L);
+        indicator.setProgress(30);
+
+        when(planReportRepository.findById(18L)).thenReturn(Optional.of(report));
+        when(indicatorRepository.findById(2008L)).thenReturn(Optional.of(indicator));
+
+        assertThatThrownBy(() -> reportApplicationService.updateReport(
+                18L,
+                "指标 B",
+                2008L,
+                "进度未增长",
+                "进度未增长",
+                30,
+                "进度未增长",
+                "进度未增长",
+                null,
+                9001L
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("填报进度必须大于真实进度，当前真实进度为 30%");
+
+        verify(planReportRepository, never()).save(any(PlanReport.class));
+        verify(planReportIndicatorRepository, never())
+                .upsertDraftIndicator(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void findReportById_shouldHydrateIndicatorDetailsFromDraftTable() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(16L);
+
+        when(planReportRepository.findById(16L)).thenReturn(Optional.of(report));
+        when(planReportIndicatorRepository.findByReportId(16L))
+                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2003L, 15, "已填报草稿", "里程碑一")));
+
+        PlanReport hydrated = reportApplicationService.findReportById(16L).orElseThrow();
+
+        assertThat(hydrated.getIndicatorDetails()).hasSize(1);
+        assertThat(hydrated.getIndicatorDetails().get(0).indicatorId()).isEqualTo(2003L);
+        assertThat(hydrated.getIndicatorDetails().get(0).progress()).isEqualTo(15);
+        assertThat(hydrated.getIndicatorDetails().get(0).comment()).isEqualTo("已填报草稿");
     }
 
     @Test

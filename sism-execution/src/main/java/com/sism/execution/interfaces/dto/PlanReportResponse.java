@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * PlanReportResponse - 计划报告响应DTO
@@ -39,6 +40,7 @@ public class PlanReportResponse {
     private String rejectionReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<PlanReportIndicatorDetailResponse> indicatorDetails;
 
     /**
      * 从实体转换为响应DTO
@@ -65,6 +67,9 @@ public class PlanReportResponse {
                 .rejectionReason(report.getRejectionReason())
                 .createdAt(report.getCreatedAt())
                 .updatedAt(report.getUpdatedAt())
+                .indicatorDetails(report.getIndicatorDetails().stream()
+                        .map(PlanReportIndicatorDetailResponse::fromSnapshot)
+                        .toList())
                 .build();
     }
 }

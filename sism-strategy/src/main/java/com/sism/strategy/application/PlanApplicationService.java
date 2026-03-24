@@ -20,6 +20,7 @@ import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
 import com.sism.task.domain.repository.TaskRepository;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,9 +29,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * PlanApplicationService - 计划应用服务
@@ -52,6 +59,7 @@ public class PlanApplicationService {
     private final TaskRepository taskRepository;
     private final DomainEventPublisher eventPublisher;
     private final PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * 创建计划
@@ -406,9 +414,33 @@ public class PlanApplicationService {
 
         // 查询计划下所有任务的指标（指标按 taskId 关联，不是按 planId 直接关联）
         String planStatus = PlanStatus.fromRaw(plan.getStatus()).value();
-        List<InternalIndicatorResponse> indicators = taskRepository.findByPlanId(id).stream()
+        List<Indicator> planIndicators = taskRepository.findByPlanId(id).stream()
                 .flatMap(task -> indicatorRepository.findByTaskId(task.getId()).stream())
-                .map(indicator -> convertIndicatorToResponse(indicator, planStatus))
+                .toList();
+        Map<Long, Integer> reportProgressByIndicatorId = getLatestReportProgressByIndicatorIds(
+                planIndicators.stream()
+                        .map(Indicator::getId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toCollection(LinkedHashSet::new))
+                        .stream()
+                        .toList()
+        );
+        CurrentReportContext currentReportContext = getCurrentReportContext(
+                plan.getId(),
+                planIndicators.stream()
+                        .map(Indicator::getId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toCollection(LinkedHashSet::new))
+                        .stream()
+                        .toList()
+        );
+
+        List<InternalIndicatorResponse> indicators = planIndicators.stream()
+                .map(indicator -> convertIndicatorToResponse(
+                        indicator,
+                        planStatus,
+                        reportProgressByIndicatorId.get(indicator.getId()),
+                        currentReportContext))
                 .collect(Collectors.toList());
         details.setIndicators(indicators);
         details.setWorkflowHistory(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(plan.getId()));
@@ -522,10 +554,14 @@ public class PlanApplicationService {
      * 将Indicator实体转换为响应DTO
      * 指标状态统一使用 Plan 的状态
      */
-    private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator, String planStatus) {
+    private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator,
+                                                                String planStatus,
+                                                                Integer reportProgress,
+                                                                CurrentReportContext currentReportContext) {
         // 使用 Plan 的状态作为指标状态
         String effectiveStatus = planStatus != null ? planStatus :
                 (indicator.getStatus() != null ? indicator.getStatus().name() : "DRAFT");
+        PendingIndicatorState pendingIndicatorState = currentReportContext.getPendingState(indicator.getId());
 
         return InternalIndicatorResponse.builder()
                 .id(indicator.getId())
@@ -538,6 +574,12 @@ public class PlanApplicationService {
                 .weightPercent(indicator.getWeight())
                 .status(effectiveStatus)
                 .progress(indicator.getProgress())
+                .reportProgress(reportProgress)
+                .currentReportId(currentReportContext.currentReportId())
+                .progressApprovalStatus(currentReportContext.progressApprovalStatus())
+                .pendingProgress(pendingIndicatorState.pendingProgress())
+                .pendingRemark(pendingIndicatorState.pendingRemark())
+                .pendingAttachments(pendingIndicatorState.pendingAttachments())
                 .createdAt(indicator.getCreatedAt())
                 .updatedAt(indicator.getUpdatedAt())
                 .build();
@@ -547,7 +589,203 @@ public class PlanApplicationService {
      * 将Indicator实体转换为响应DTO（兼容旧方法，用于非Plan关联场景）
      */
     private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator) {
-        return convertIndicatorToResponse(indicator, null);
+        return convertIndicatorToResponse(indicator, null, null, CurrentReportContext.empty());
+    }
+
+    private CurrentReportContext getCurrentReportContext(Long planId, List<Long> indicatorIds) {
+        if (planId == null) {
+            return CurrentReportContext.empty();
+        }
+
+        List<Map<String, Object>> reportRows = jdbcTemplate.queryForList(
+                """
+                SELECT pr.id AS report_id, pr.status AS report_status
+                FROM public.plan_report pr
+                WHERE pr.plan_id = ?
+                  AND pr.is_deleted = false
+                  AND pr.status IN ('DRAFT', 'IN_REVIEW', 'REJECTED')
+                ORDER BY pr.updated_at DESC NULLS LAST, pr.id DESC
+                LIMIT 1
+                """,
+                planId
+        );
+
+        if (reportRows.isEmpty()) {
+            return CurrentReportContext.empty();
+        }
+
+        Object reportIdValue = reportRows.get(0).get("report_id");
+        if (!(reportIdValue instanceof Number reportIdNumber)) {
+            return CurrentReportContext.empty();
+        }
+
+        Long currentReportId = reportIdNumber.longValue();
+        String progressApprovalStatus = mapReportStatusToProgressApprovalStatus(reportRows.get(0).get("report_status"));
+
+        if (indicatorIds == null || indicatorIds.isEmpty()) {
+            return new CurrentReportContext(currentReportId, progressApprovalStatus, Map.of());
+        }
+
+        String indicatorPlaceholders = indicatorIds.stream()
+                .map(id -> "?")
+                .collect(Collectors.joining(","));
+
+        List<Map<String, Object>> pendingRows = jdbcTemplate.queryForList(
+                """
+                SELECT pri.id AS plan_report_indicator_id,
+                       pri.indicator_id AS indicator_id,
+                       pri.progress AS pending_progress,
+                       pri.comment AS pending_remark
+                FROM public.plan_report_indicator pri
+                WHERE pri.report_id = ?
+                  AND pri.indicator_id IN (%s)
+                """.formatted(indicatorPlaceholders),
+                Stream.concat(Stream.of(currentReportId), indicatorIds.stream()).toArray()
+        );
+
+        if (pendingRows.isEmpty()) {
+            return new CurrentReportContext(currentReportId, progressApprovalStatus, Map.of());
+        }
+
+        Map<Long, Long> reportIndicatorIdByIndicatorId = new HashMap<>();
+        Map<Long, PendingIndicatorState> pendingStateByIndicatorId = new HashMap<>();
+        for (Map<String, Object> row : pendingRows) {
+            Object indicatorIdValue = row.get("indicator_id");
+            if (!(indicatorIdValue instanceof Number indicatorIdNumber)) {
+                continue;
+            }
+
+            Long indicatorId = indicatorIdNumber.longValue();
+            Integer pendingProgress = row.get("pending_progress") instanceof Number pendingProgressNumber
+                    ? pendingProgressNumber.intValue()
+                    : null;
+            String pendingRemark = row.get("pending_remark") == null
+                    ? null
+                    : String.valueOf(row.get("pending_remark"));
+
+            pendingStateByIndicatorId.put(
+                    indicatorId,
+                    new PendingIndicatorState(pendingProgress, pendingRemark, List.of())
+            );
+
+            Object planReportIndicatorIdValue = row.get("plan_report_indicator_id");
+            if (planReportIndicatorIdValue instanceof Number planReportIndicatorIdNumber) {
+                reportIndicatorIdByIndicatorId.put(indicatorId, planReportIndicatorIdNumber.longValue());
+            }
+        }
+
+        if (!reportIndicatorIdByIndicatorId.isEmpty()) {
+            List<Long> planReportIndicatorIds = new ArrayList<>(reportIndicatorIdByIndicatorId.values());
+            String reportIndicatorPlaceholders = planReportIndicatorIds.stream()
+                    .map(id -> "?")
+                    .collect(Collectors.joining(","));
+
+            List<Map<String, Object>> attachmentRows = jdbcTemplate.queryForList(
+                    """
+                    SELECT pria.plan_report_indicator_id AS plan_report_indicator_id,
+                           COALESCE(NULLIF(a.public_url, ''), NULLIF(a.object_key, ''), a.original_name) AS attachment_value
+                    FROM public.plan_report_indicator_attachment pria
+                    JOIN public.attachment a ON a.id = pria.attachment_id
+                    WHERE pria.plan_report_indicator_id IN (%s)
+                      AND COALESCE(a.is_deleted, false) = false
+                    ORDER BY pria.sort_order ASC, pria.id ASC
+                    """.formatted(reportIndicatorPlaceholders),
+                    planReportIndicatorIds.toArray()
+            );
+
+            Map<Long, List<String>> attachmentsByReportIndicatorId = new HashMap<>();
+            for (Map<String, Object> row : attachmentRows) {
+                Object reportIndicatorIdValue = row.get("plan_report_indicator_id");
+                Object attachmentValue = row.get("attachment_value");
+                if (!(reportIndicatorIdValue instanceof Number reportIndicatorIdNumber) || attachmentValue == null) {
+                    continue;
+                }
+                String attachment = String.valueOf(attachmentValue).trim();
+                if (attachment.isEmpty()) {
+                    continue;
+                }
+                attachmentsByReportIndicatorId
+                        .computeIfAbsent(reportIndicatorIdNumber.longValue(), ignored -> new ArrayList<>())
+                        .add(attachment);
+            }
+
+            for (Map.Entry<Long, Long> entry : reportIndicatorIdByIndicatorId.entrySet()) {
+                Long indicatorId = entry.getKey();
+                Long planReportIndicatorId = entry.getValue();
+                PendingIndicatorState pendingState = pendingStateByIndicatorId.get(indicatorId);
+                if (pendingState == null) {
+                    continue;
+                }
+                pendingStateByIndicatorId.put(
+                        indicatorId,
+                        new PendingIndicatorState(
+                                pendingState.pendingProgress(),
+                                pendingState.pendingRemark(),
+                                attachmentsByReportIndicatorId.getOrDefault(planReportIndicatorId, List.of())
+                        )
+                );
+            }
+        }
+
+        return new CurrentReportContext(currentReportId, progressApprovalStatus, pendingStateByIndicatorId);
+    }
+
+    private String mapReportStatusToProgressApprovalStatus(Object rawStatus) {
+        if (rawStatus == null) {
+            return "NONE";
+        }
+
+        String normalized = String.valueOf(rawStatus).trim().toUpperCase();
+        return switch (normalized) {
+            case "DRAFT" -> "DRAFT";
+            case "SUBMITTED", "IN_REVIEW" -> "PENDING";
+            case "REJECTED" -> "REJECTED";
+            default -> "NONE";
+        };
+    }
+
+    private Map<Long, Integer> getLatestReportProgressByIndicatorIds(List<Long> indicatorIds) {
+        if (indicatorIds == null || indicatorIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String placeholders = indicatorIds.stream()
+                .map(id -> "?")
+                .collect(Collectors.joining(","));
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT pri.indicator_id AS indicator_id, pri.progress AS report_progress
+                FROM public.plan_report_indicator pri
+                INNER JOIN (
+                    SELECT pri2.indicator_id, MAX(pr.created_at) AS latest_created_at
+                    FROM public.plan_report_indicator pri2
+                    INNER JOIN public.plan_report pr ON pri2.report_id = pr.id
+                    WHERE pr.is_deleted = false
+                    AND pri2.indicator_id IN (%s)
+                    GROUP BY pri2.indicator_id
+                ) latest ON latest.indicator_id = pri.indicator_id
+                INNER JOIN public.plan_report pr ON pri.report_id = pr.id
+                WHERE pr.is_deleted = false
+                AND pri.indicator_id IN (%s)
+                AND pr.created_at = latest.latest_created_at
+                """.formatted(placeholders, placeholders),
+                Stream.concat(indicatorIds.stream(), indicatorIds.stream()).toArray()
+        );
+
+        Map<Long, Integer> reportProgressByIndicatorId = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object indicatorIdValue = row.get("indicator_id");
+            Object reportProgressValue = row.get("report_progress");
+            if (!(indicatorIdValue instanceof Number indicatorIdNumber)) {
+                continue;
+            }
+            if (!(reportProgressValue instanceof Number reportProgressNumber)) {
+                continue;
+            }
+            reportProgressByIndicatorId.put(indicatorIdNumber.longValue(), reportProgressNumber.intValue());
+        }
+        return reportProgressByIndicatorId;
     }
 
     /**
@@ -609,8 +847,41 @@ public class PlanApplicationService {
         private java.math.BigDecimal weightPercent;
         private String status;
         private Integer progress;
+        private Integer reportProgress;
+        private Long currentReportId;
+        private String progressApprovalStatus;
+        private Integer pendingProgress;
+        private String pendingRemark;
+        private List<String> pendingAttachments;
         private java.time.LocalDateTime createdAt;
         private java.time.LocalDateTime updatedAt;
+    }
+
+    private record CurrentReportContext(Long currentReportId,
+                                        String progressApprovalStatus,
+                                        Map<Long, PendingIndicatorState> pendingStateByIndicatorId) {
+        private static CurrentReportContext empty() {
+            return new CurrentReportContext(null, "NONE", Map.of());
+        }
+
+        private PendingIndicatorState getPendingState(Long indicatorId) {
+            if (indicatorId == null) {
+                return PendingIndicatorState.empty();
+            }
+            return pendingStateByIndicatorId.getOrDefault(indicatorId, PendingIndicatorState.empty());
+        }
+    }
+
+    private record PendingIndicatorState(Integer pendingProgress,
+                                         String pendingRemark,
+                                         List<String> pendingAttachments) {
+        private PendingIndicatorState {
+            pendingAttachments = pendingAttachments == null ? Collections.emptyList() : List.copyOf(pendingAttachments);
+        }
+
+        private static PendingIndicatorState empty() {
+            return new PendingIndicatorState(null, null, List.of());
+        }
     }
 
     /**

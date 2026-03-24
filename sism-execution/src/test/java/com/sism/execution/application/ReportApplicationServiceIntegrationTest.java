@@ -59,6 +59,37 @@ class ReportApplicationServiceIntegrationTest {
     @BeforeEach
     void setUp() {
         jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS public.audit_instance (
+                    id BIGINT PRIMARY KEY,
+                    status VARCHAR(32) NOT NULL,
+                    started_at TIMESTAMP,
+                    created_at TIMESTAMP,
+                    updated_at TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    entity_id BIGINT NOT NULL,
+                    entity_type VARCHAR(255),
+                    flow_def_id BIGINT,
+                    is_deleted BOOLEAN NOT NULL,
+                    requester_id BIGINT,
+                    requester_org_id BIGINT
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS public.audit_step_instance (
+                    id BIGINT PRIMARY KEY,
+                    instance_id BIGINT,
+                    step_name VARCHAR(128) NOT NULL,
+                    approved_at TIMESTAMP,
+                    approver_id BIGINT,
+                    comment VARCHAR(255),
+                    status VARCHAR(255),
+                    step_def_id BIGINT,
+                    approver_org_id BIGINT,
+                    step_no INTEGER,
+                    created_at TIMESTAMP
+                )
+                """);
+        jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS public.plan_report_indicator (
                     id BIGINT PRIMARY KEY,
                     report_id BIGINT NOT NULL,
@@ -101,6 +132,68 @@ class ReportApplicationServiceIntegrationTest {
         assertThat(approved.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
         assertThat(persistedReport.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
         assertThat(persistedIndicator.getProgress()).isEqualTo(68);
+    }
+
+    @Test
+    void createReport_shouldPersistCreatedByAndHydrateWorkflowApprovalSnapshot() {
+        long sequence = TEST_SEQUENCE.getAndIncrement();
+        SysOrg targetOrg = persistOrg("target-created-by-" + sequence, OrgType.functional);
+
+        PlanReport created = reportApplicationService.createReport(
+                "202603",
+                targetOrg.getId(),
+                ReportOrgType.FUNC_DEPT,
+                40_000L + sequence,
+                8_801L
+        );
+        flushAndClear();
+
+        PlanReport persistedCreated = planReportRepository.findById(created.getId()).orElseThrow();
+        assertThat(persistedCreated.getCreatedBy()).isEqualTo(8_801L);
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO public.audit_instance
+                    (id, status, started_at, created_at, updated_at, completed_at, entity_id, entity_type, flow_def_id, is_deleted, requester_id, requester_org_id)
+                VALUES (?, 'APPROVED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, ?, 'PLAN_REPORT', 1, FALSE, ?, ?)
+                """,
+                90_000L + sequence,
+                created.getId(),
+                8_801L,
+                targetOrg.getId()
+        );
+        jdbcTemplate.update(
+                """
+                INSERT INTO public.audit_step_instance
+                    (id, instance_id, step_name, approved_at, approver_id, comment, status, step_def_id, approver_org_id, step_no, created_at)
+                VALUES (?, ?, '部门审批', CURRENT_TIMESTAMP, ?, '同意', 'APPROVED', 1, ?, 2, CURRENT_TIMESTAMP)
+                """,
+                91_000L + sequence,
+                90_000L + sequence,
+                9_901L,
+                targetOrg.getId()
+        );
+
+        reportApplicationService.attachAuditInstance(created.getId(), 90_000L + sequence);
+        flushAndClear();
+
+        PlanReport hydrated = reportApplicationService.findReportById(created.getId()).orElseThrow();
+
+        assertThat(hydrated.getSubmittedBy()).isEqualTo(8_801L);
+        assertThat(hydrated.getApprovedBy()).isEqualTo(9_901L);
+        assertThat(hydrated.getApprovedAt()).isNotNull();
+    }
+
+    @Test
+    void findReportById_shouldHydrateIndicatorDraftDetails() {
+        TestFixture fixture = createSubmittedReportWithIndicator(15);
+
+        PlanReport hydrated = reportApplicationService.findReportById(fixture.report().getId()).orElseThrow();
+
+        assertThat(hydrated.getIndicatorDetails()).hasSize(1);
+        assertThat(hydrated.getIndicatorDetails().get(0).indicatorId()).isEqualTo(fixture.indicator().getId());
+        assertThat(hydrated.getIndicatorDetails().get(0).progress()).isEqualTo(15);
+        assertThat(hydrated.getIndicatorDetails().get(0).comment()).startsWith("填报说明-");
     }
 
     private TestFixture createSubmittedReportWithIndicator(int progress) {

@@ -24,4 +24,6 @@ public class UpdatePlanReportRequest {
     private String nextPlan;
 
     private String milestoneNote;
+
+    private Long operatorUserId;
 }

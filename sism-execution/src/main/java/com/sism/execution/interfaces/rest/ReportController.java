@@ -40,7 +40,8 @@ public class ReportController {
                 request.getReportMonth(),
                 request.getReportOrgId(),
                 request.getReportOrgType(),
-                request.getPlanId()
+                request.getPlanId(),
+                request.getCreatedBy()
         );
         return ResponseEntity.ok(ApiResponse.success(PlanReportResponse.fromEntity(report)));
     }
@@ -59,17 +60,10 @@ public class ReportController {
                 request.getProgress(),
                 request.getIssues(),
                 request.getNextPlan(),
-                request.getMilestoneNote()
+                request.getMilestoneNote(),
+                request.getOperatorUserId()
         );
         return ResponseEntity.ok(ApiResponse.success(PlanReportResponse.fromEntity(report)));
-    }
-
-    @DeleteMapping("/{id}")
-    @Operation(summary = "删除报告", description = "逻辑删除指定的报告")
-    public ResponseEntity<ApiResponse<Void>> deleteReport(
-            @Parameter(description = "报告ID") @PathVariable Long id) {
-        reportApplicationService.deleteReport(id);
-        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     @GetMapping("/{id}")

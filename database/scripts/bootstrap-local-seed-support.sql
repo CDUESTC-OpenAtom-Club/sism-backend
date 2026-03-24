@@ -162,9 +162,6 @@ ALTER TABLE public.plan_report
 ALTER TABLE public.plan
     ADD COLUMN IF NOT EXISTS audit_instance_id BIGINT;
 
-ALTER TABLE public.indicator
-    ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN NOT NULL DEFAULT TRUE;
-
 ALTER TABLE public.audit_instance
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP,
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;
