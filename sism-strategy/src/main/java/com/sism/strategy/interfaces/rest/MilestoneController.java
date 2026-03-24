@@ -3,6 +3,7 @@ package com.sism.strategy.interfaces.rest;
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
 import com.sism.strategy.application.MilestoneApplicationService;
+import com.sism.strategy.interfaces.dto.BatchSaveMilestonesRequest;
 import com.sism.strategy.interfaces.dto.MilestoneResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -69,6 +70,16 @@ public class MilestoneController {
             @PathVariable Long id,
             @Valid @RequestBody com.sism.strategy.interfaces.dto.UpdateMilestoneRequest request) {
         MilestoneResponse response = milestoneApplicationService.updateMilestone(id, request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PutMapping("/indicator/{indicatorId}/batch")
+    @Operation(summary = "Batch save milestones for an indicator")
+    public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> saveMilestones(
+            @PathVariable Long indicatorId,
+            @Valid @RequestBody BatchSaveMilestonesRequest request) {
+        java.util.List<MilestoneResponse> response =
+                milestoneApplicationService.saveMilestones(indicatorId, request.getMilestones());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

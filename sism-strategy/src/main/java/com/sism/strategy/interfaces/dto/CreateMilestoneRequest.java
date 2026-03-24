@@ -1,5 +1,6 @@
 package com.sism.strategy.interfaces.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
@@ -23,6 +24,7 @@ public class CreateMilestoneRequest {
 
     private String description;
 
+    @JsonDeserialize(using = FlexibleLocalDateTimeDeserializer.class)
     private LocalDateTime dueDate;
 
     @Min(value = 0, message = "目标进度不能小于0")

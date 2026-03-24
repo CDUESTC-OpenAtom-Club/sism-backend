@@ -2,6 +2,7 @@ package com.sism.strategy.application;
 
 import com.sism.strategy.domain.model.milestone.Milestone;
 import com.sism.strategy.domain.repository.MilestoneRepository;
+import com.sism.strategy.interfaces.dto.BatchSaveMilestonesRequest;
 import com.sism.strategy.interfaces.dto.CreateMilestoneRequest;
 import com.sism.strategy.interfaces.dto.MilestoneResponse;
 import com.sism.strategy.interfaces.dto.UpdateMilestoneRequest;
@@ -15,8 +16,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -102,6 +106,69 @@ public class MilestoneApplicationService {
 
         Milestone updated = milestoneRepository.save(milestone);
         return convertToResponse(updated);
+    }
+
+    /**
+     * 整包保存指标里程碑。
+     * 前端在弹窗内完成所有编辑后，仅在点击保存时一次性提交，
+     * 后端在单个事务内统一处理新增、更新、删除。
+     */
+    @Transactional
+    public List<MilestoneResponse> saveMilestones(Long indicatorId, List<BatchSaveMilestonesRequest.Item> requests) {
+        List<Milestone> existingMilestones = milestoneRepository.findByIndicatorId(indicatorId);
+        Map<Long, Milestone> existingById = existingMilestones.stream()
+                .filter(item -> item.getId() != null)
+                .collect(Collectors.toMap(Milestone::getId, item -> item, (left, right) -> left, HashMap::new));
+
+        Set<Long> retainedIds = requests.stream()
+                .map(BatchSaveMilestonesRequest.Item::getId)
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toSet());
+
+        for (Milestone milestone : existingMilestones) {
+            Long milestoneId = milestone.getId();
+            if (milestoneId != null && !retainedIds.contains(milestoneId)) {
+                milestoneRepository.delete(milestone);
+            }
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        for (int index = 0; index < requests.size(); index++) {
+            BatchSaveMilestonesRequest.Item request = requests.get(index);
+            Long requestId = request.getId();
+            Milestone milestone = requestId != null && requestId > 0
+                    ? existingById.get(requestId)
+                    : null;
+
+            if (requestId != null && requestId > 0 && milestone == null) {
+                throw new IllegalArgumentException("Milestone does not belong to indicator: " + requestId);
+            }
+
+            if (milestone == null) {
+                milestone = new Milestone();
+                milestone.setIndicatorId(indicatorId);
+                milestone.setCreatedAt(now);
+            }
+
+            milestone.setMilestoneName(request.getMilestoneName().trim());
+            milestone.setDescription(request.getDescription());
+            milestone.setTargetDate(request.getDueDate());
+            milestone.setStatus(request.getStatus() != null ? request.getStatus() : "NOT_STARTED");
+            milestone.setProgress(request.getTargetProgress() != null ? request.getTargetProgress() : 0);
+            milestone.setSortOrder(request.getSortOrder() != null ? request.getSortOrder() : index + 1);
+            milestone.setIsPaired(request.getIsPaired());
+            milestone.setInheritedFrom(request.getInheritedFrom());
+            milestone.setUpdatedAt(now);
+
+            milestoneRepository.save(milestone);
+        }
+
+        return milestoneRepository.findByIndicatorId(indicatorId).stream()
+                .sorted(java.util.Comparator.comparing(
+                        milestone -> milestone.getSortOrder() != null ? milestone.getSortOrder() : Integer.MAX_VALUE
+                ))
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
     }
 
     /**
