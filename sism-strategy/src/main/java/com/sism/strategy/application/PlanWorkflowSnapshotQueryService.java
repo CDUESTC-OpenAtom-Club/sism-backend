@@ -74,7 +74,7 @@ public class PlanWorkflowSnapshotQueryService {
             Object[] columns = (Object[]) row;
             Long planId = asLong(columns[0]);
             String status = asString(columns[2]);
-            if (planId == null || "WITHDRAWN".equalsIgnoreCase(status)) {
+            if (planId == null) {
                 continue;
             }
             latestInstanceByPlanId.put(
@@ -93,6 +93,12 @@ public class PlanWorkflowSnapshotQueryService {
             return Map.of();
         }
 
+        Set<Long> requesterIds = latestInstanceByPlanId.values().stream()
+                .map(AuditInstanceRow::getRequesterId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> requesterNamesById = resolveUserNames(requesterIds);
+
         Map<Long, WorkflowSnapshot> snapshotsByPlanId = new LinkedHashMap<>();
         latestInstanceByPlanId.forEach((planId, instance) -> snapshotsByPlanId.put(
                 planId,
@@ -100,7 +106,10 @@ public class PlanWorkflowSnapshotQueryService {
                         .workflowInstanceId(instance.getInstanceId())
                         .workflowStatus(instance.getStatus())
                         .starterId(instance.getRequesterId())
-                        .starterName(resolveUserName(instance.getRequesterId()))
+                        .starterName(requesterNamesById.getOrDefault(
+                                instance.getRequesterId(),
+                                instance.getRequesterId() == null ? null : "User#" + instance.getRequesterId()
+                        ))
                         .startedAt(instance.getStartedAt())
                         .completedAt(instance.getCompletedAt())
                         .build()
@@ -138,8 +147,10 @@ public class PlanWorkflowSnapshotQueryService {
                 SELECT asi.step_name, asi.approver_id, asi.status
                 FROM audit_step_instance asi
                 WHERE asi.instance_id = :instanceId
-                  AND asi.status = 'PENDING'
-                ORDER BY asi.step_no DESC, asi.id DESC
+                  AND asi.status IN ('PENDING', 'WITHDRAWN')
+                ORDER BY CASE WHEN asi.status = 'PENDING' THEN 0 ELSE 1 END,
+                         asi.step_no DESC,
+                         asi.id DESC
                 LIMIT 1
                 """)
                 .setParameter("instanceId", instance.getInstanceId())
@@ -162,7 +173,11 @@ public class PlanWorkflowSnapshotQueryService {
                 .setParameter("instanceId", instance.getInstanceId())
                 .getResultList();
         long handledCount = handledSteps.isEmpty() ? 0L : ((Number) handledSteps.get(0)).longValue();
-        boolean canWithdraw = "IN_REVIEW".equalsIgnoreCase(snapshot.getWorkflowStatus()) && handledCount <= 1L;
+        boolean hasCurrentPendingStep = !currentSteps.isEmpty()
+                && "PENDING".equalsIgnoreCase(asString(((Object[]) currentSteps.get(0))[2]));
+        boolean canWithdraw = "IN_REVIEW".equalsIgnoreCase(snapshot.getWorkflowStatus())
+                && hasCurrentPendingStep
+                && handledCount <= 1L;
         snapshot.setCanWithdraw(canWithdraw);
         snapshot.setLastRejectReason(findLastRejectReason(instance.getInstanceId()));
         return snapshot;
@@ -179,11 +194,15 @@ public class PlanWorkflowSnapshotQueryService {
                 SELECT DISTINCT ON (asi.instance_id)
                     asi.instance_id,
                     asi.step_name,
-                    asi.approver_id
+                    asi.approver_id,
+                    asi.status
                 FROM audit_step_instance asi
                 WHERE asi.instance_id IN :instanceIds
-                  AND asi.status = 'PENDING'
-                ORDER BY asi.instance_id, asi.step_no DESC, asi.id DESC
+                  AND asi.status IN ('PENDING', 'WITHDRAWN')
+                ORDER BY asi.instance_id,
+                         CASE WHEN asi.status = 'PENDING' THEN 0 ELSE 1 END,
+                         asi.step_no DESC,
+                         asi.id DESC
                 """)
                 .setParameter("instanceIds", instanceIds)
                 .getResultList();
@@ -233,13 +252,33 @@ public class PlanWorkflowSnapshotQueryService {
             handledCountByInstanceId.put(asLong(columns[0]), ((Number) columns[1]).longValue());
         }
 
+        List<?> pendingCounts = entityManager.createNativeQuery("""
+                SELECT asi.instance_id, COUNT(1)
+                FROM audit_step_instance asi
+                WHERE asi.instance_id IN :instanceIds
+                  AND asi.status = 'PENDING'
+                GROUP BY asi.instance_id
+                """)
+                .setParameter("instanceIds", instanceIds)
+                .getResultList();
+
+        Map<Long, Long> pendingCountByInstanceId = new HashMap<>();
+        for (Object row : pendingCounts) {
+            Object[] columns = (Object[]) row;
+            pendingCountByInstanceId.put(asLong(columns[0]), ((Number) columns[1]).longValue());
+        }
+
         planIdByInstanceId.forEach((instanceId, planId) -> {
             WorkflowSnapshot snapshot = snapshotsByPlanId.get(planId);
             if (snapshot == null) {
                 return;
             }
             long handledCount = handledCountByInstanceId.getOrDefault(instanceId, 0L);
-            boolean canWithdraw = "IN_REVIEW".equalsIgnoreCase(snapshot.getWorkflowStatus()) && handledCount <= 1L;
+            long pendingStepCount = pendingCountByInstanceId.getOrDefault(instanceId, 0L);
+            boolean hasCurrentPendingStep = pendingStepCount > 0L;
+            boolean canWithdraw = "IN_REVIEW".equalsIgnoreCase(snapshot.getWorkflowStatus())
+                    && hasCurrentPendingStep
+                    && handledCount <= 1L;
             snapshot.setCanWithdraw(canWithdraw);
         });
     }
@@ -292,7 +331,7 @@ public class PlanWorkflowSnapshotQueryService {
                 SELECT asi.id, asi.step_name, asi.approver_id, asi.status, asi.comment, asi.approved_at, asi.created_at
                 FROM audit_step_instance asi
                 WHERE asi.instance_id = :instanceId
-                  AND asi.status IN ('APPROVED', 'REJECTED')
+                  AND asi.status IN ('APPROVED', 'REJECTED', 'WITHDRAWN')
                 ORDER BY asi.step_no ASC, asi.approved_at ASC, asi.created_at ASC
                 """)
                 .setParameter("instanceId", workflowInstanceId)
@@ -306,12 +345,22 @@ public class PlanWorkflowSnapshotQueryService {
                     .stepName(asString(columns[1]))
                     .operatorId(approverId)
                     .operatorName(resolveUserName(approverId))
-                    .action("REJECTED".equalsIgnoreCase(asString(columns[3])) ? "REJECT" : "APPROVE")
+                    .action(resolveHistoryAction(asString(columns[3])))
                     .comment(asString(columns[4]))
                     .operateTime(asLocalDateTime(columns[5]) != null ? asLocalDateTime(columns[5]) : asLocalDateTime(columns[6]))
                     .build());
         }
         return history;
+    }
+
+    private String resolveHistoryAction(String status) {
+        if ("REJECTED".equalsIgnoreCase(status)) {
+            return "REJECT";
+        }
+        if ("WITHDRAWN".equalsIgnoreCase(status)) {
+            return "WITHDRAW";
+        }
+        return "APPROVE";
     }
 
     private AuditInstanceRow findLatestInstance(String entityType, Long entityId) {
@@ -335,9 +384,6 @@ public class PlanWorkflowSnapshotQueryService {
         }
 
         Object[] row = (Object[]) instances.get(0);
-        if ("WITHDRAWN".equalsIgnoreCase(asString(row[1]))) {
-            return null;
-        }
         return new AuditInstanceRow(
                 asLong(row[0]),
                 asString(row[1]),
@@ -377,13 +423,29 @@ public class PlanWorkflowSnapshotQueryService {
             return Map.of();
         }
 
-        Map<Long, String> namesById = new HashMap<>();
-        userIds.stream()
+        Set<Long> normalizedUserIds = userIds.stream()
                 .filter(Objects::nonNull)
-                .forEach(userId -> userRepository.findById(userId).ifPresent(user -> namesById.put(
-                        user.getId(),
-                        user.getRealName() != null && !user.getRealName().isBlank() ? user.getRealName() : user.getUsername()
-                )));
+                .collect(Collectors.toSet());
+        if (normalizedUserIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, String> namesById = new HashMap<>();
+        List<?> rows = entityManager.createNativeQuery("""
+                SELECT u.id, u.real_name, u.username
+                FROM sys_user u
+                WHERE u.id IN :userIds
+                """)
+                .setParameter("userIds", normalizedUserIds)
+                .getResultList();
+
+        for (Object row : rows) {
+            Object[] columns = (Object[]) row;
+            Long userId = asLong(columns[0]);
+            String realName = asString(columns[1]);
+            String username = asString(columns[2]);
+            namesById.put(userId, realName != null && !realName.isBlank() ? realName : username);
+        }
         return namesById;
     }
 

@@ -17,15 +17,15 @@ spring:
     password: ${DB_PASSWORD:sism_pass}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+      maximum-pool-size: ${DB_HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${DB_HIKARI_MIN_IDLE:5}
+      connection-timeout: ${DB_HIKARI_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DB_HIKARI_IDLE_TIMEOUT:120000}
+      max-lifetime: ${DB_HIKARI_MAX_LIFETIME:180000}
       connection-test-query: SELECT 1
-      validation-timeout: 5000
+      validation-timeout: ${DB_HIKARI_VALIDATION_TIMEOUT:5000}
       leak-detection-threshold: 60000
-      keepalive-time: 300000
+      keepalive-time: ${DB_HIKARI_KEEPALIVE_TIME:60000}
   
   # JPA Configuration
   jpa:
@@ -67,10 +67,10 @@ management:
 # Logging Configuration
 logging:
   level:
-    root: INFO
-    com.sism: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.sism: ${LOG_LEVEL_APP:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOG_LEVEL_SQL_BINDER:WARN}
 
 # Swagger/OpenAPI Configuration
 springdoc:

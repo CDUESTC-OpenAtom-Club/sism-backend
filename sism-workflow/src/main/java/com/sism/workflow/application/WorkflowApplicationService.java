@@ -94,6 +94,11 @@ public class WorkflowApplicationService {
         return cancelWorkflowUseCase.cancel(instance);
     }
 
+    public AuditInstance resumeWithdrawnAuditInstance(AuditInstance instance) {
+        instance.reactivateWithdrawnStep();
+        return approveOrSavePassthrough(instance);
+    }
+
     public AuditInstance transferAuditInstance(Long instanceId, Long targetUserId) {
         AuditInstance instance = workflowInstanceQueryService.getAuditInstanceById(instanceId);
         if (instance == null) {

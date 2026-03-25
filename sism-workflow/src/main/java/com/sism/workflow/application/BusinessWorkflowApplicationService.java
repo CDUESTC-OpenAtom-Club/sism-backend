@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Comparator;
 
 /**
  * BusinessWorkflowApplicationService - 业务工作流应用服务
@@ -79,6 +80,15 @@ public class BusinessWorkflowApplicationService {
         String entityType = request.getBusinessEntityType() != null
                 ? request.getBusinessEntityType()
                 : flowDef.getEntityType();
+
+        AuditInstance resumableInstance = findResumableWithdrawnInstance(
+                request.getBusinessEntityId(),
+                entityType,
+                flowDef.getId());
+        if (resumableInstance != null) {
+            AuditInstance resumed = workflowApplicationService.resumeWithdrawnAuditInstance(resumableInstance);
+            return workflowReadModelMapper.toInstanceResponse(resumed);
+        }
 
         boolean hasActive = hasActiveInstance(request.getBusinessEntityId(), entityType);
         if (hasActive) {
@@ -179,6 +189,28 @@ public class BusinessWorkflowApplicationService {
     private boolean isPlanReportEntityType(String entityType) {
         return PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(entityType)
                 || LEGACY_PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(entityType);
+    }
+
+    private AuditInstance findResumableWithdrawnInstance(Long entityId, String entityType, Long flowDefId) {
+        List<AuditInstance> candidates = isPlanReportEntityType(entityType)
+                ? List.of(
+                auditInstanceRepository.findByBusinessTypeAndBusinessId(PLAN_REPORT_ENTITY_TYPE, entityId),
+                auditInstanceRepository.findByBusinessTypeAndBusinessId(LEGACY_PLAN_REPORT_ENTITY_TYPE, entityId))
+                .stream()
+                .flatMap(List::stream)
+                .toList()
+                : auditInstanceRepository.findByBusinessTypeAndBusinessId(entityType, entityId);
+
+        return candidates.stream()
+                .filter(instance -> AuditInstance.STATUS_PENDING.equals(instance.getStatus()))
+                .filter(instance -> flowDefId == null || flowDefId.equals(instance.getFlowDefId()))
+                .filter(instance -> instance.resolveLatestStepInstance()
+                        .map(step -> AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus()))
+                        .orElse(false))
+                .max(Comparator
+                        .comparing(AuditInstance::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(AuditInstance::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .orElse(null);
     }
 
     // ==================== 工作流操作 ====================

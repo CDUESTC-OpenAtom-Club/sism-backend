@@ -31,7 +31,7 @@ public class WorkflowReadModelMapper {
     }
 
     public WorkflowInstanceResponse toInstanceResponse(AuditInstance instance) {
-        AuditStepInstance currentStep = instance.resolveCurrentPendingStep().orElse(null);
+        AuditStepInstance currentStep = instance.resolveCurrentDisplayStep().orElse(null);
         return WorkflowInstanceResponse.builder()
                 .instanceId(instance.getId() != null ? instance.getId().toString() : null)
                 .definitionId(instance.getFlowDefId() != null ? instance.getFlowDefId().toString() : null)
@@ -111,14 +111,12 @@ public class WorkflowReadModelMapper {
         return switch (stepStatus.toUpperCase()) {
             case "APPROVED" -> "COMPLETED";
             case "REJECTED" -> "REJECTED";
+            case "WITHDRAWN" -> "WITHDRAWN";
             default -> "PENDING";
         };
     }
 
     private String toExternalInstanceStatus(String status) {
-        if (AuditInstance.STATUS_WITHDRAWN.equalsIgnoreCase(status)) {
-            return AuditInstance.STATUS_REJECTED;
-        }
         return status;
     }
 

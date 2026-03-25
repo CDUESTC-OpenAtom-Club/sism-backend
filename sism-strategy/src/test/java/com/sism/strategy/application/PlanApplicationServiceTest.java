@@ -1,5 +1,6 @@
 package com.sism.strategy.application;
 
+import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.plan.PlanStatus;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.Optional;
 import java.util.List;
@@ -30,16 +32,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.same;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.lenient;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Plan Application Service Tests")
@@ -72,10 +81,15 @@ class PlanApplicationServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private PlatformTransactionManager transactionManager;
+
     private PlanApplicationService service;
 
     @BeforeEach
     void setUp() {
+        lenient().when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenReturn(new SimpleTransactionStatus());
         service = new PlanApplicationService(
                 planRepository,
                 cycleRepository,
@@ -85,7 +99,8 @@ class PlanApplicationServiceTest {
                 taskRepository,
                 eventPublisher,
                 planWorkflowSnapshotQueryService,
-                jdbcTemplate
+                jdbcTemplate,
+                transactionManager
         );
     }
 
@@ -173,6 +188,56 @@ class PlanApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("Should resume withdrawn workflow step synchronously when resubmitting a withdrawn plan")
+    void shouldResumeWithdrawnWorkflowSynchronouslyWhenResubmitting() {
+        Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
+        plan.setId(7075L);
+        plan.withdraw();
+
+        SubmitPlanApprovalRequest request = new SubmitPlanApprovalRequest();
+        request.setWorkflowCode("PLAN_DISPATCH_STRATEGY");
+
+        when(planRepository.findById(7075L)).thenReturn(Optional.of(plan));
+        when(planRepository.save(same(plan))).thenReturn(plan);
+        when(planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(7075L)).thenReturn(
+                PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                        .workflowInstanceId(18L)
+                        .workflowStatus("IN_REVIEW")
+                        .currentStepName("战略发展部负责人审批")
+                        .currentApproverId(189L)
+                        .currentApproverName("战略发展部终审人1")
+                        .canWithdraw(false)
+                        .build()
+        ).thenReturn(
+                PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                        .workflowInstanceId(18L)
+                        .workflowStatus("IN_REVIEW")
+                        .currentStepName("战略发展部负责人审批")
+                        .currentApproverId(189L)
+                        .currentApproverName("战略发展部终审人1")
+                        .canWithdraw(true)
+                        .build()
+        );
+        when(jdbcTemplate.query(
+                contains("SELECT asi.id"),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                eq(18L)
+        )).thenReturn(List.of(37L));
+
+        PlanResponse response = service.submitPlanForApproval(7075L, request, 188L, 35L);
+
+        assertEquals(PlanStatus.PENDING.value(), plan.getStatus());
+        assertEquals(PlanStatus.PENDING.value(), response.getStatus());
+        assertEquals(18L, response.getWorkflowInstanceId());
+        assertEquals("IN_REVIEW", response.getWorkflowStatus());
+        assertEquals("战略发展部负责人审批", response.getCurrentStepName());
+        assertTrue(Boolean.TRUE.equals(response.getCanWithdraw()));
+        verify(jdbcTemplate).update(contains("UPDATE public.audit_step_instance"), eq(37L));
+        verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(18L));
+        verify(eventPublisher, never()).publish(any());
+    }
+
+    @Test
     @DisplayName("Should batch workflow snapshot lookup when loading paged plans")
     void shouldBatchWorkflowSnapshotLookupWhenLoadingPagedPlans() {
         Plan first = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
@@ -238,11 +303,83 @@ class PlanApplicationServiceTest {
         plan.returnForRevision();
 
         when(planRepository.findById(11L)).thenReturn(Optional.of(plan));
+        when(planRepository.save(same(plan))).thenReturn(plan);
+        when(taskRepository.findByPlanId(11L)).thenReturn(List.of());
 
         service.markWorkflowWithdrawn(11L);
 
         assertEquals(PlanStatus.DRAFT.value(), plan.getStatus());
         verify(planRepository).save(plan);
+    }
+
+    @Test
+    @DisplayName("Should withdraw plan only when workflow snapshot allows it and keep workflow fields in response")
+    void shouldWithdrawPlanUsingWorkflowSnapshot() {
+        Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
+        plan.setId(21L);
+        plan.submitForApproval();
+
+        StrategicTask task = createTask(21001L, 21L);
+        Indicator indicator = mock(Indicator.class);
+
+        when(planRepository.findById(21L)).thenReturn(Optional.of(plan));
+        when(planRepository.save(same(plan))).thenReturn(plan);
+        when(planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(21L)).thenReturn(
+                PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                        .workflowInstanceId(701L)
+                        .workflowStatus("IN_REVIEW")
+                        .currentStepName("部门审批")
+                        .currentApproverId(88L)
+                        .currentApproverName("审批人")
+                        .canWithdraw(true)
+                        .build()
+        ).thenReturn(
+                PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                        .workflowInstanceId(701L)
+                        .workflowStatus("IN_REVIEW")
+                        .canWithdraw(false)
+                        .build()
+        );
+        when(taskRepository.findByPlanId(21L)).thenReturn(List.of(task));
+        when(indicatorRepository.findByTaskId(21001L)).thenReturn(List.of(indicator));
+        when(jdbcTemplate.query(
+                contains("SELECT asi.id"),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                eq(701L)
+        )).thenReturn(List.of(9901L));
+
+        PlanResponse response = service.withdrawPlan(21L);
+
+        assertEquals(PlanStatus.DRAFT.value(), plan.getStatus());
+        assertEquals(PlanStatus.DRAFT.value(), response.getStatus());
+        assertEquals("IN_REVIEW", response.getWorkflowStatus());
+        assertEquals(701L, response.getWorkflowInstanceId());
+        verify(indicator).setStatus(IndicatorStatus.DRAFT);
+        verify(indicatorRepository).save(indicator);
+        verify(jdbcTemplate).update(contains("UPDATE public.audit_step_instance"), eq(9901L));
+        verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(701L));
+    }
+
+    @Test
+    @DisplayName("Should reject withdraw when workflow snapshot is missing or not withdrawable")
+    void shouldRejectWithdrawWhenWorkflowIsNotWithdrawable() {
+        Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
+        plan.setId(22L);
+        plan.submitForApproval();
+
+        when(planRepository.findById(22L)).thenReturn(Optional.of(plan));
+        when(planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(22L)).thenReturn(
+                PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                        .workflowInstanceId(702L)
+                        .workflowStatus("IN_REVIEW")
+                        .canWithdraw(false)
+                        .build()
+        );
+
+        IllegalStateException error = assertThrows(IllegalStateException.class, () -> service.withdrawPlan(22L));
+
+        assertEquals("Plan is not in a withdrawable workflow state", error.getMessage());
+        verify(planRepository, never()).save(any());
     }
 
     @Test
@@ -499,7 +636,7 @@ class PlanApplicationServiceTest {
     }
 
     private Indicator createIndicatorMock(Long indicatorId, Long taskId, int progress, String indicatorName) {
-        Indicator indicator = org.mockito.Mockito.mock(Indicator.class);
+        Indicator indicator = mock(Indicator.class);
         when(indicator.getId()).thenReturn(indicatorId);
         when(indicator.getName()).thenReturn(indicatorName);
         when(indicator.getDescription()).thenReturn(indicatorName);

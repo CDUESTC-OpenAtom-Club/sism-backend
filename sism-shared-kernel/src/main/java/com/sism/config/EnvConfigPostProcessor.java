@@ -122,6 +122,7 @@ public class EnvConfigPostProcessor implements EnvironmentPostProcessor {
             case "DB_HIKARI_VALIDATION_TIMEOUT" -> "spring.datasource.hikari.validation-timeout";
             case "DB_HIKARI_IDLE_TIMEOUT" -> "spring.datasource.hikari.idle-timeout";
             case "DB_HIKARI_MAX_LIFETIME" -> "spring.datasource.hikari.max-lifetime";
+            case "DB_HIKARI_KEEPALIVE_TIME" -> "spring.datasource.hikari.keepalive-time";
 
             // Flyway configuration
             case "FLYWAY_ENABLED", "SPRING_FLYWAY_ENABLED" -> "spring.flyway.enabled";

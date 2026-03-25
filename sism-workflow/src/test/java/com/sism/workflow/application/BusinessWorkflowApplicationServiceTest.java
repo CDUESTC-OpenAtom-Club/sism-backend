@@ -146,6 +146,46 @@ class BusinessWorkflowApplicationServiceTest {
     }
 
     @Test
+    void startWorkflow_shouldResumeWithdrawnInstanceBeforeCreatingNewOne() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setId(7L);
+        flowDef.setFlowCode("PLAN_APPROVAL_FUNCDEPT");
+        flowDef.setEntityType("PLAN");
+        flowDef.setIsActive(true);
+
+        AuditInstance resumable = new AuditInstance();
+        resumable.setId(501L);
+        resumable.setFlowDefId(7L);
+        resumable.setEntityType("PLAN");
+        resumable.setEntityId(9001L);
+        resumable.setStatus(AuditInstance.STATUS_PENDING);
+
+        var withdrawnStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        withdrawnStep.setId(601L);
+        withdrawnStep.setStepNo(2);
+        withdrawnStep.setStepName("部门审批");
+        withdrawnStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        resumable.addStepInstance(withdrawnStep);
+
+        StartWorkflowRequest request = new StartWorkflowRequest();
+        request.setWorkflowCode("PLAN_APPROVAL_FUNCDEPT");
+        request.setBusinessEntityId(9001L);
+        request.setBusinessEntityType("PLAN");
+
+        when(workflowDefinitionQueryService.getAuditFlowDefByCode("PLAN_APPROVAL_FUNCDEPT")).thenReturn(flowDef);
+        when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN", 9001L)).thenReturn(List.of(resumable));
+        when(workflowApplicationService.resumeWithdrawnAuditInstance(resumable)).thenReturn(resumable);
+        when(workflowReadModelMapper.toInstanceResponse(resumable)).thenReturn(
+                WorkflowInstanceResponse.builder().instanceId("501").status("IN_REVIEW").build()
+        );
+
+        WorkflowInstanceResponse response = businessWorkflowApplicationService.startWorkflow(request, 188L, 35L);
+
+        assertEquals("501", response.getInstanceId());
+        verify(workflowApplicationService).resumeWithdrawnAuditInstance(resumable);
+    }
+
+    @Test
     void approveTask_shouldRejectUnauthorizedUser() {
         AuditInstance instance = new AuditInstance();
         instance.setId(1L);

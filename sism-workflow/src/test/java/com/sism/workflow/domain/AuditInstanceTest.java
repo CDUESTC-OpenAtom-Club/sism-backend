@@ -101,7 +101,10 @@ class AuditInstanceTest {
 
         assertTrue(instance.canRequesterWithdraw());
         assertDoesNotThrow(instance::cancel);
-        assertEquals(AuditInstance.STATUS_WITHDRAWN, instance.getStatus());
+        assertEquals(AuditInstance.STATUS_PENDING, instance.getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_WITHDRAWN, firstApproval.getStatus());
+        assertEquals("提交人撤回", firstApproval.getComment());
+        assertNotNull(firstApproval.getApprovedAt());
     }
 
     @Test
@@ -160,6 +163,28 @@ class AuditInstanceTest {
         assertEquals(AuditInstance.STEP_STATUS_APPROVED, departmentStep.getStatus());
         assertEquals(AuditInstance.STEP_STATUS_REJECTED, leaderStep.getStatus());
         assertEquals(3, instance.getStepInstances().size());
+    }
+
+    @Test
+    @DisplayName("Should reactivate latest withdrawn step when submitter starts workflow again")
+    void shouldReactivateLatestWithdrawnStep() {
+        AuditInstance instance = new AuditInstance();
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance withdrawnStep = new AuditStepInstance();
+        withdrawnStep.setStepNo(2);
+        withdrawnStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        withdrawnStep.setComment("提交人撤回");
+        withdrawnStep.setApprovedAt(java.time.LocalDateTime.now());
+
+        instance.addStepInstance(withdrawnStep);
+
+        instance.reactivateWithdrawnStep();
+
+        assertEquals(AuditInstance.STEP_STATUS_PENDING, withdrawnStep.getStatus());
+        assertNull(withdrawnStep.getComment());
+        assertNull(withdrawnStep.getApprovedAt());
+        assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 
     private AuditFlowDef buildFlowDef() {

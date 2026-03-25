@@ -29,17 +29,15 @@ public class AuditInstance extends AggregateRoot<Long> {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    public static final String STATUS_DRAFT = "DRAFT";
     public static final String STATUS_PENDING = "IN_REVIEW";
     public static final String STATUS_IN_PROGRESS = "IN_REVIEW";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
-    public static final String STATUS_WITHDRAWN = "WITHDRAWN";
-    public static final String STATUS_CANCELLED = "WITHDRAWN";
     public static final String STEP_STATUS_PENDING = "PENDING";
     public static final String STEP_STATUS_WAITING = "WAITING";
     public static final String STEP_STATUS_APPROVED = "APPROVED";
     public static final String STEP_STATUS_REJECTED = "REJECTED";
+    public static final String STEP_STATUS_WITHDRAWN = "WITHDRAWN";
 
     @Column(name = "flow_def_id")
     private Long flowDefId;
@@ -179,8 +177,29 @@ public class AuditInstance extends AggregateRoot<Long> {
         if (!canRequesterWithdraw()) {
             throw new IllegalStateException("Cannot cancel: first approval step has already been handled");
         }
-        this.status = STATUS_WITHDRAWN;
-        this.completedAt = LocalDateTime.now();
+        AuditStepInstance current = resolveCurrentPendingStep()
+                .orElseThrow(() -> new IllegalStateException("Cannot cancel: no pending step available"));
+        current.setStatus(STEP_STATUS_WITHDRAWN);
+        current.setComment("提交人撤回");
+        current.setApprovedAt(LocalDateTime.now());
+        this.status = STATUS_PENDING;
+        this.completedAt = null;
+    }
+
+    public void reactivateWithdrawnStep() {
+        if (!STATUS_PENDING.equals(status)) {
+            throw new IllegalStateException("Cannot reactivate: workflow is not in review");
+        }
+        AuditStepInstance withdrawnStep = stepInstances.stream()
+                .filter(step -> STEP_STATUS_WITHDRAWN.equals(step.getStatus()))
+                .max(Comparator
+                        .comparing((AuditStepInstance step) -> step.getStepNo() == null ? Integer.MIN_VALUE : step.getStepNo())
+                        .thenComparing(step -> step.getCreatedAt() == null ? LocalDateTime.MIN : step.getCreatedAt()))
+                .orElseThrow(() -> new IllegalStateException("Cannot reactivate: no withdrawn step available"));
+        withdrawnStep.setStatus(STEP_STATUS_PENDING);
+        withdrawnStep.setComment(null);
+        withdrawnStep.setApprovedAt(null);
+        this.completedAt = null;
     }
 
     public void start(Long requesterId, Long requesterOrgId) {
@@ -217,6 +236,22 @@ public class AuditInstance extends AggregateRoot<Long> {
                 .findFirst();
     }
 
+    public Optional<AuditStepInstance> resolveCurrentDisplayStep() {
+        Optional<AuditStepInstance> currentPendingStep = resolveCurrentPendingStep();
+        if (currentPendingStep.isPresent()) {
+            return currentPendingStep;
+        }
+
+        return stepInstances.stream()
+                .filter(step -> STEP_STATUS_WITHDRAWN.equals(step.getStatus()))
+                .sorted(Comparator
+                        .comparing((AuditStepInstance step) -> step.getStepNo() == null ? Integer.MIN_VALUE : step.getStepNo())
+                        .reversed()
+                        .thenComparing(step -> step.getCreatedAt() == null ? LocalDateTime.MIN : step.getCreatedAt(),
+                                Comparator.reverseOrder()))
+                .findFirst();
+    }
+
     public Optional<AuditStepInstance> resolveLatestStepInstance() {
         return stepInstances.stream()
                 .sorted(Comparator
@@ -242,6 +277,10 @@ public class AuditInstance extends AggregateRoot<Long> {
 
     public boolean canRequesterWithdraw() {
         if (!STATUS_PENDING.equals(status)) {
+            return false;
+        }
+
+        if (resolveCurrentPendingStep().isEmpty()) {
             return false;
         }
 

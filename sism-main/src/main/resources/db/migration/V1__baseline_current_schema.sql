@@ -626,7 +626,7 @@ CREATE TABLE public.audit_instance (
     is_deleted boolean NOT NULL,
     requester_id bigint,
     requester_org_id bigint,
-    CONSTRAINT audit_instance_status_check CHECK (((status)::text = ANY (ARRAY[('DRAFT'::character varying)::text, ('IN_REVIEW'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text, ('WITHDRAWN'::character varying)::text])))
+    CONSTRAINT audit_instance_status_check CHECK (((status)::text = ANY (ARRAY[('IN_REVIEW'::character varying)::text, ('APPROVED'::character varying)::text, ('REJECTED'::character varying)::text])))
 );
 
 
@@ -641,8 +641,7 @@ COMMENT ON TABLE public.audit_instance IS 'Audit workflow instance. Approval con
 -- Name: COLUMN audit_instance.status; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.audit_instance.status IS '填写节点：DRAFT /APPROVED 
-审核节点：IN_REVIEW / APPROVED / REJECTED';
+COMMENT ON COLUMN public.audit_instance.status IS '审批实例状态：IN_REVIEW / APPROVED / REJECTED';
 
 
 --
@@ -799,6 +798,13 @@ COMMENT ON COLUMN public.audit_step_instance.instance_id IS '所属流程实例I
 --
 
 COMMENT ON COLUMN public.audit_step_instance.step_name IS '节点名称（冗余保存，便于展示）';
+
+
+--
+-- Name: COLUMN audit_step_instance.status; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON COLUMN public.audit_step_instance.status IS '审批节点状态：PENDING / WAITING / APPROVED / REJECTED / WITHDRAWN';
 
 
 --

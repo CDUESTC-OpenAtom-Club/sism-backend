@@ -26,7 +26,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.LinkedHashSet;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
+import java.time.Duration;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -60,6 +63,7 @@ public class PlanApplicationService {
     private final DomainEventPublisher eventPublisher;
     private final PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService;
     private final JdbcTemplate jdbcTemplate;
+    private final PlatformTransactionManager transactionManager;
 
     /**
      * 创建计划
@@ -146,23 +150,40 @@ public class PlanApplicationService {
     /**
      * 提交计划审批
      */
-    @Transactional
     public PlanResponse submitPlanForApproval(Long id,
                                               SubmitPlanApprovalRequest request,
                                               Long currentUserId,
                                               Long currentOrgId) {
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        Plan saved = transactionTemplate.execute(status ->
+                submitPlanForApprovalInTransaction(id, request, currentUserId, currentOrgId));
+        PlanWorkflowSnapshotQueryService.WorkflowSnapshot refreshedSnapshot =
+                awaitWorkflowSnapshot(saved.getId(), Duration.ofSeconds(5));
+        return enrichWorkflowFields(convertToResponse(saved, null), refreshedSnapshot);
+    }
+
+    private Plan submitPlanForApprovalInTransaction(Long id,
+                                                    SubmitPlanApprovalRequest request,
+                                                    Long currentUserId,
+                                                    Long currentOrgId) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        PlanWorkflowSnapshotQueryService.WorkflowSnapshot existingSnapshot =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(id);
 
         plan.submitForApproval(allowsDistributedSubmission(request));
         Plan saved = planRepository.save(plan);
-        eventPublisher.publish(new PlanSubmittedForApprovalEvent(
-                saved.getId(),
-                request.getWorkflowCode(),
-                currentUserId,
-                currentOrgId
-        ));
-        return enrichWorkflowFields(convertToResponse(saved, null), saved);
+        boolean resumedWithdrawnWorkflow = reactivateWithdrawnWorkflowCurrentStep(
+                existingSnapshot == null ? null : existingSnapshot.getWorkflowInstanceId());
+        if (!resumedWithdrawnWorkflow) {
+            eventPublisher.publish(new PlanSubmittedForApprovalEvent(
+                    saved.getId(),
+                    request.getWorkflowCode(),
+                    currentUserId,
+                    currentOrgId
+            ));
+        }
+        return saved;
     }
 
     private boolean allowsDistributedSubmission(SubmitPlanApprovalRequest request) {
@@ -214,9 +235,19 @@ public class PlanApplicationService {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
+        PlanWorkflowSnapshotQueryService.WorkflowSnapshot workflowSnapshot =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(id);
+        if (workflowSnapshot == null || !Boolean.TRUE.equals(workflowSnapshot.getCanWithdraw())) {
+            throw new IllegalStateException("Plan is not in a withdrawable workflow state");
+        }
+
+        withdrawWorkflowCurrentStep(workflowSnapshot.getWorkflowInstanceId());
         plan.withdraw();
         Plan saved = planRepository.save(plan);
-        return convertToResponse(saved, null);
+        syncIndicatorStatusWithPlan(saved);
+        PlanWorkflowSnapshotQueryService.WorkflowSnapshot refreshedSnapshot =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(id);
+        return enrichWorkflowFields(convertToResponse(saved, null), refreshedSnapshot);
     }
 
     @Transactional
@@ -241,8 +272,89 @@ public class PlanApplicationService {
     public void markWorkflowWithdrawn(Long planId) {
         planRepository.findById(planId).ifPresent(plan -> {
             plan.withdraw();
-            planRepository.save(plan);
+            Plan saved = planRepository.save(plan);
+            syncIndicatorStatusWithPlan(saved);
         });
+    }
+
+    private void withdrawWorkflowCurrentStep(Long workflowInstanceId) {
+        if (workflowInstanceId == null) {
+            return;
+        }
+
+        List<Long> pendingStepIds = jdbcTemplate.query(
+                """
+                SELECT asi.id
+                FROM public.audit_step_instance asi
+                WHERE asi.instance_id = ?
+                  AND asi.status = 'PENDING'
+                ORDER BY asi.step_no DESC NULLS LAST, asi.id DESC
+                LIMIT 1
+                """,
+                (rs, _rowNum) -> rs.getLong(1),
+                workflowInstanceId
+        );
+
+        if (!pendingStepIds.isEmpty()) {
+            jdbcTemplate.update("""
+                    UPDATE public.audit_step_instance
+                    SET status = 'WITHDRAWN',
+                        approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP),
+                        comment = CASE
+                            WHEN comment IS NULL OR btrim(comment) = '' THEN '提交人撤回'
+                            ELSE comment
+                        END
+                    WHERE id = ?
+                    """, pendingStepIds.get(0));
+        }
+
+        jdbcTemplate.update("""
+                UPDATE public.audit_instance
+                SET status = 'IN_REVIEW',
+                    completed_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, workflowInstanceId);
+    }
+
+    private boolean reactivateWithdrawnWorkflowCurrentStep(Long workflowInstanceId) {
+        if (workflowInstanceId == null) {
+            return false;
+        }
+
+        List<Long> withdrawnStepIds = jdbcTemplate.query(
+                """
+                SELECT asi.id
+                FROM public.audit_step_instance asi
+                WHERE asi.instance_id = ?
+                  AND asi.status = 'WITHDRAWN'
+                ORDER BY asi.step_no DESC NULLS LAST, asi.id DESC
+                LIMIT 1
+                """,
+                (rs, _rowNum) -> rs.getLong(1),
+                workflowInstanceId
+        );
+
+        if (withdrawnStepIds.isEmpty()) {
+            return false;
+        }
+
+        Long stepId = withdrawnStepIds.get(0);
+        jdbcTemplate.update("""
+                UPDATE public.audit_step_instance
+                SET status = 'PENDING',
+                    approved_at = NULL,
+                    comment = NULL
+                WHERE id = ?
+                """, stepId);
+        jdbcTemplate.update("""
+                UPDATE public.audit_instance
+                SET status = 'IN_REVIEW',
+                    completed_at = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, workflowInstanceId);
+        return true;
     }
 
     /**
@@ -327,9 +439,7 @@ public class PlanApplicationService {
         Page<Plan> planPage = planRepository.findPage(cycleIds, queryStatuses, pageable);
         Map<Long, String> orgNamesById = loadOrgNamesById();
         Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
-                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
-                        planPage.getContent().stream().map(Plan::getId).toList()
-                );
+                safeLoadWorkflowSnapshotsByPlanIds(planPage.getContent().stream().map(Plan::getId).toList());
         Page<PlanResponse> responsePage = planPage.map(
                 plan -> enrichWorkflowFields(
                         convertToResponse(plan, null, orgNamesById),
@@ -358,9 +468,7 @@ public class PlanApplicationService {
         Map<Long, String> orgNamesById = loadOrgNamesById();
         List<Plan> plans = planRepository.findByCycleId(cycleId);
         Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
-                planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
-                        plans.stream().map(Plan::getId).toList()
-                );
+                safeLoadWorkflowSnapshotsByPlanIds(plans.stream().map(Plan::getId).toList());
         return plans.stream()
                 .map(plan -> enrichWorkflowFields(
                         convertToResponse(plan, cycle.getYear().toString(), orgNamesById),
@@ -545,9 +653,59 @@ public class PlanApplicationService {
         return response;
     }
 
+    private PlanWorkflowSnapshotQueryService.WorkflowSnapshot awaitWorkflowSnapshot(Long planId, Duration timeout) {
+        if (planId == null) {
+            return null;
+        }
+
+        PlanWorkflowSnapshotQueryService.WorkflowSnapshot latestSnapshot = null;
+        long timeoutMs = timeout == null ? 0L : Math.max(timeout.toMillis(), 0L);
+        long deadline = System.currentTimeMillis() + timeoutMs;
+
+        do {
+            latestSnapshot = planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(planId);
+            if (isReadyForSubmitResponse(latestSnapshot)) {
+                return latestSnapshot;
+            }
+
+            if (System.currentTimeMillis() >= deadline) {
+                break;
+            }
+
+            try {
+                Thread.sleep(200L);
+            } catch (InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        } while (true);
+
+        return latestSnapshot;
+    }
+
+    private boolean isReadyForSubmitResponse(PlanWorkflowSnapshotQueryService.WorkflowSnapshot snapshot) {
+        return snapshot != null
+                && snapshot.getWorkflowInstanceId() != null
+                && snapshot.getCurrentStepName() != null
+                && Boolean.TRUE.equals(snapshot.getCanWithdraw());
+    }
+
     private Map<Long, String> loadOrgNamesById() {
         return organizationRepository.findAll().stream()
                 .collect(Collectors.toMap(SysOrg::getId, SysOrg::getOrgName, (existing, replacement) -> existing));
+    }
+
+    private Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> safeLoadWorkflowSnapshotsByPlanIds(List<Long> planIds) {
+        if (planIds == null || planIds.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(planIds);
+        } catch (Exception ex) {
+            log.warn("Failed to batch load workflow snapshots for plans={}, falling back to base plan responses: {}",
+                    planIds.size(), ex.getMessage());
+            return Map.of();
+        }
     }
 
     /**

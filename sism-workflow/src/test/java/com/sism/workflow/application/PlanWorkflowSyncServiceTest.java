@@ -74,18 +74,18 @@ class PlanWorkflowSyncServiceTest {
     }
 
     @Test
-    void shouldSyncWithdrawnPlanBackToDraft() {
+    void shouldIgnoreInReviewPlanWhenSyncingWorkflowState() {
         when(planApplicationServiceProvider.getIfAvailable()).thenReturn(planApplicationService);
 
         PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
         AuditInstance instance = new AuditInstance();
         instance.setEntityId(100L);
         instance.setEntityType("PLAN");
-        instance.setStatus(AuditInstance.STATUS_WITHDRAWN);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
 
         service.syncAfterWorkflowChanged(instance);
 
-        verify(planApplicationService).markWorkflowWithdrawn(100L);
+        verify(planApplicationService, org.mockito.Mockito.never()).markWorkflowWithdrawn(100L);
     }
 
     @Test

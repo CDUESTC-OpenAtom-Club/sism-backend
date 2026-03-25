@@ -233,15 +233,15 @@ class WorkflowReadModelServiceTest {
         var detail = newService().getInstanceDetail("9");
 
         assertEquals(1, detail.getTasks().size());
-        assertEquals(3, detail.getHistory().size());
+        assertEquals(1, detail.getHistory().size());
         assertEquals(null, detail.getCurrentTaskId());
         assertEquals("审批人", detail.getTasks().get(0).getAssigneeName());
-        assertEquals("PLAN_REPORT#100", detail.getHistory().get(0).getTaskName());
-        assertEquals("FINISH_APPROVE", detail.getHistory().get(2).getComment());
+        assertEquals("一级审批", detail.getHistory().get(0).getTaskName());
+        assertEquals(null, detail.getHistory().get(0).getComment());
     }
 
     @Test
-    void getInstanceDetailByBusiness_shouldPreferRejectedOverWithdrawnWhenNoNewerVisibleInstanceExists() {
+    void getInstanceDetailByBusiness_shouldPreferLatestInReviewInstance() {
         AuditInstance approved = new AuditInstance();
         approved.setId(41L);
         approved.setFlowDefId(1L);
@@ -253,15 +253,15 @@ class WorkflowReadModelServiceTest {
         approved.setStartedAt(LocalDateTime.of(2026, 3, 22, 8, 8));
         approved.setCompletedAt(LocalDateTime.of(2026, 3, 22, 8, 9));
 
-        AuditInstance withdrawn = new AuditInstance();
-        withdrawn.setId(42L);
-        withdrawn.setFlowDefId(1L);
-        withdrawn.setEntityType("PLAN");
-        withdrawn.setEntityId(7071L);
-        withdrawn.setRequesterId(188L);
-        withdrawn.setRequesterOrgId(35L);
-        withdrawn.setStatus(AuditInstance.STATUS_WITHDRAWN);
-        withdrawn.setStartedAt(LocalDateTime.of(2026, 3, 22, 8, 10));
+        AuditInstance inReview = new AuditInstance();
+        inReview.setId(42L);
+        inReview.setFlowDefId(1L);
+        inReview.setEntityType("PLAN");
+        inReview.setEntityId(7071L);
+        inReview.setRequesterId(188L);
+        inReview.setRequesterOrgId(35L);
+        inReview.setStatus(AuditInstance.STATUS_PENDING);
+        inReview.setStartedAt(LocalDateTime.of(2026, 3, 22, 8, 10));
 
         Plan plan = new Plan();
         plan.setId(7071L);
@@ -275,7 +275,7 @@ class WorkflowReadModelServiceTest {
         flowDef.setSteps(List.of());
 
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN", 7071L))
-                .thenReturn(List.of(approved, withdrawn));
+                .thenReturn(List.of(approved, inReview));
         when(planRepository.findById(7071L)).thenReturn(Optional.of(plan));
         when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
         when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
@@ -285,7 +285,7 @@ class WorkflowReadModelServiceTest {
         WorkflowInstanceDetailResponse detail = newService().getInstanceDetailByBusiness("PLAN", 7071L);
 
         assertNotNull(detail);
-        assertEquals("41", detail.getInstanceId());
+        assertEquals("42", detail.getInstanceId());
         assertEquals("PLAN_DISPATCH_STRATEGY", detail.getFlowCode());
         assertEquals("战略发展部", detail.getSourceOrgName());
         assertEquals("教务处", detail.getTargetOrgName());
@@ -388,7 +388,7 @@ class WorkflowReadModelServiceTest {
     }
 
     @Test
-    void getInstanceDetailByBusiness_shouldReturnLatestNonWithdrawnInstance() {
+    void getInstanceDetailByBusiness_shouldReturnLatestInReviewInstance() {
         AuditInstance rejected = new AuditInstance();
         rejected.setId(401L);
         rejected.setFlowDefId(3L);
@@ -397,15 +397,16 @@ class WorkflowReadModelServiceTest {
         rejected.setStatus(AuditInstance.STATUS_REJECTED);
         rejected.setStartedAt(LocalDateTime.of(2026, 3, 20, 10, 0));
 
-        AuditInstance withdrawn = new AuditInstance();
-        withdrawn.setId(402L);
-        withdrawn.setEntityType("PLAN");
-        withdrawn.setEntityId(88L);
-        withdrawn.setStatus(AuditInstance.STATUS_WITHDRAWN);
-        withdrawn.setStartedAt(LocalDateTime.of(2026, 3, 21, 10, 0));
+        AuditInstance inReview = new AuditInstance();
+        inReview.setId(402L);
+        inReview.setFlowDefId(3L);
+        inReview.setEntityType("PLAN");
+        inReview.setEntityId(88L);
+        inReview.setStatus(AuditInstance.STATUS_PENDING);
+        inReview.setStartedAt(LocalDateTime.of(2026, 3, 21, 10, 0));
 
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN", 88L))
-                .thenReturn(List.of(rejected, withdrawn));
+                .thenReturn(List.of(rejected, inReview));
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(3L);
         flowDef.setFlowCode("PLAN_APPROVAL_FUNCDEPT");
@@ -423,8 +424,8 @@ class WorkflowReadModelServiceTest {
         var detail = newService().getInstanceDetailByBusiness("PLAN", 88L);
 
         assertNotNull(detail);
-        assertEquals("401", detail.getInstanceId());
-        assertEquals("REJECTED", detail.getStatus());
+        assertEquals("402", detail.getInstanceId());
+        assertEquals("IN_REVIEW", detail.getStatus());
         assertEquals("PLAN_APPROVAL_FUNCDEPT", detail.getFlowCode());
     }
 

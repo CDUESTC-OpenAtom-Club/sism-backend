@@ -44,11 +44,6 @@ public class PlanWorkflowSyncService {
                 return;
             }
 
-            if (AuditInstance.STATUS_WITHDRAWN.equals(instance.getStatus())) {
-                planApplicationService.markWorkflowWithdrawn(instance.getEntityId());
-                return;
-            }
-
             instance.getStepInstances().stream()
                     .filter(step -> AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus()))
                     .reduce((first, second) -> second)
@@ -71,9 +66,6 @@ public class PlanWorkflowSyncService {
                         .orElse("审批驳回");
                 log.info("Workflow REJECTED for PlanReport#{}, reason: {}", instance.getEntityId(), reason);
                 reportService.markWorkflowRejected(instance.getEntityId(), instance.getRequesterId(), reason);
-            } else if (AuditInstance.STATUS_WITHDRAWN.equals(instance.getStatus())) {
-                log.info("Workflow WITHDRAWN for PlanReport#{}, syncing report status", instance.getEntityId());
-                reportService.markWorkflowWithdrawn(instance.getEntityId());
             }
         });
     }

@@ -226,6 +226,8 @@ public class WorkflowReadModelService {
                 history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "APPROVE"));
             } else if (AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus())) {
                 history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "REJECT"));
+            } else if (AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus())) {
+                history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "WITHDRAW"));
             }
         }
 
@@ -259,7 +261,6 @@ public class WorkflowReadModelService {
 
     private Optional<AuditInstance> findLatestCurrentInstance(String entityType, Long entityId) {
         return findInstancesByBusiness(entityType, entityId).stream()
-                .filter(instance -> !AuditInstance.STATUS_WITHDRAWN.equalsIgnoreCase(instance.getStatus()))
                 .max(Comparator
                         .comparing(AuditInstance::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(AuditInstance::getId, Comparator.nullsLast(Comparator.naturalOrder())));
