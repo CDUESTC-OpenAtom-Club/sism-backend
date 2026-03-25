@@ -9,7 +9,6 @@ on:
   workflow_dispatch:
 
 env:
-  JAVA_VERSION: '17'
   JAR_NAME: sism-backend-1.0.0.jar
   SERVER_USER: root
   SERVER_HOST: 175.24.139.148
@@ -41,11 +40,10 @@ jobs:
           clean: false
           fetch-depth: 1
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+      - name: Verify build toolchain
+        run: |
+          java -version
+          mvn -version
 
       - name: Build with Maven
         run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
