@@ -20,22 +20,25 @@ jobs:
     runs-on: [self-hosted, linux]
     
     steps:
-      - name: Fix Git permissions
+      - name: Reset workspace permissions
         run: |
-          echo "Fixing Git repository permissions..."
+          echo "Resetting runner workspace..."
           WORK_DIR="${GITHUB_WORKSPACE}"
-          if [ -d "$WORK_DIR/.git" ]; then
-            sudo chown -R $(whoami):$(whoami) "$WORK_DIR/.git" || true
-            sudo chmod -R u+rwX "$WORK_DIR/.git" || true
-          fi
-          # Clean up any stale locks
-          rm -f "$WORK_DIR/.git/index.lock" 2>/dev/null || true
-          echo "Git permissions fixed"
+          PARENT_DIR="$(dirname "$WORK_DIR")"
+
+          sudo mkdir -p "$WORK_DIR"
+          sudo chown -R "$(whoami):$(whoami)" "$PARENT_DIR" || true
+          sudo chmod -R u+rwX "$PARENT_DIR" || true
+
+          # Remove stale checkout content so actions/checkout never trips on
+          # root-owned build artifacts left behind by prior runs.
+          sudo find "$WORK_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+          echo "Runner workspace reset complete"
 
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          clean: true
+          clean: false
           fetch-depth: 1
 
       - name: Set up JDK
