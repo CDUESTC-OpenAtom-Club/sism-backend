@@ -103,8 +103,7 @@ class RejectWorkflowUseCaseTest {
         instance.addStepInstance(leaderInstance);
 
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
-        when(approverResolver.resolveApproverId(dept, 100L, 57L)).thenReturn(200L);
-        when(approverResolver.resolveApproverOrgId(200L)).thenReturn(57L);
+        when(approverResolver.resolveApproverOrgId(dept, 57L, instance)).thenReturn(57L);
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AuditInstance saved = rejectWorkflowUseCase.reject(instance, 300L, "打回");
@@ -115,5 +114,6 @@ class RejectWorkflowUseCaseTest {
         assertEquals(AuditInstance.STEP_STATUS_PENDING, saved.getStepInstances().get(3).getStatus());
         assertEquals(12L, saved.getStepInstances().get(3).getStepDefId());
         assertEquals(4, saved.getStepInstances().get(3).getStepNo());
+        assertEquals(null, saved.getStepInstances().get(3).getApproverId());
     }
 }

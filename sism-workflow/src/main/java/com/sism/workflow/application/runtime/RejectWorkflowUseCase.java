@@ -85,13 +85,11 @@ public class RejectWorkflowUseCase {
         returnedStep.setStepName(returnedStepDef.getStepName());
 
         Long contextOrgId = resolveContextOrgId(instance, returnedStepDef);
-        Long approverId = returnedStepDef.isSubmitStep()
-                ? instance.getRequesterId()
-                : approverResolver.resolveApproverId(returnedStepDef, instance.getRequesterId(), contextOrgId, instance);
+        Long approverId = returnedStepDef.isSubmitStep() ? instance.getRequesterId() : null;
         returnedStep.setApproverId(approverId);
         returnedStep.setApproverOrgId(returnedStepDef.isSubmitStep()
                 ? instance.getRequesterOrgId()
-                : approverResolver.resolveApproverOrgId(approverId));
+                : approverResolver.resolveApproverOrgId(returnedStepDef, contextOrgId, instance));
         returnedStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(returnedStep);
         log.info("Reject workflow instance {} appended returned step defId={}, stepNo={}, approverId={}",

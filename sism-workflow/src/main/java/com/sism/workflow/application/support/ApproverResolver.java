@@ -102,6 +102,25 @@ public class ApproverResolver {
                 .orElse(null);
     }
 
+    public Long resolveApproverOrgId(AuditStepDef stepDef, Long requesterOrgId, AuditInstance instance) {
+        if (stepDef == null) {
+            return requesterOrgId;
+        }
+        if (stepDef.isSubmitStep()) {
+            return requesterOrgId;
+        }
+
+        Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
+        Long roleId = stepDef.getRoleId();
+        if (ROLE_STRATEGY_DEPT_HEAD.equals(roleId)) {
+            return STRATEGY_ORG_ID;
+        }
+        if (ROLE_VICE_PRESIDENT.equals(roleId)) {
+            return resolveVicePresidentScopeOrgId(stepDef.getStepName(), scopeOrgId);
+        }
+        return scopeOrgId;
+    }
+
     public List<ApproverCandidateResponse> resolveCandidates(AuditStepDef stepDef, Long requesterOrgId) {
         Long roleId = stepDef.getRoleId();
         if (roleId == null || roleId <= 0) {

@@ -22,8 +22,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.sql.ResultSet;
 import java.util.Optional;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
@@ -219,10 +222,17 @@ class PlanApplicationServiceTest {
                         .build()
         );
         when(jdbcTemplate.query(
-                contains("SELECT asi.id"),
+                contains("asi.status = 'WITHDRAWN'"),
                 any(org.springframework.jdbc.core.RowMapper.class),
                 eq(18L)
-        )).thenReturn(List.of(37L));
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            RowMapper<Object> rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong(1)).thenReturn(37L);
+            when(rs.getInt(2)).thenReturn(1);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
 
         PlanResponse response = service.submitPlanForApproval(7075L, request, 188L, 35L);
 
@@ -232,7 +242,8 @@ class PlanApplicationServiceTest {
         assertEquals("IN_REVIEW", response.getWorkflowStatus());
         assertEquals("战略发展部负责人审批", response.getCurrentStepName());
         assertTrue(Boolean.TRUE.equals(response.getCanWithdraw()));
-        verify(jdbcTemplate).update(contains("UPDATE public.audit_step_instance"), eq(37L));
+        verify(jdbcTemplate).update(contains("SET status = 'APPROVED'"), anyLong());
+        verify(jdbcTemplate).update(contains("SET status = 'PENDING'"), eq(18L));
         verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(18L));
         verify(eventPublisher, never()).publish(any());
     }
@@ -343,10 +354,17 @@ class PlanApplicationServiceTest {
         when(taskRepository.findByPlanId(21L)).thenReturn(List.of(task));
         when(indicatorRepository.findByTaskId(21001L)).thenReturn(List.of(indicator));
         when(jdbcTemplate.query(
-                contains("SELECT asi.id"),
+                contains("asi.step_no = 1"),
                 any(org.springframework.jdbc.core.RowMapper.class),
                 eq(701L)
-        )).thenReturn(List.of(9901L));
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            RowMapper<Object> rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong(1)).thenReturn(9901L);
+            when(rs.getInt(2)).thenReturn(1);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
 
         PlanResponse response = service.withdrawPlan(21L);
 
@@ -356,7 +374,8 @@ class PlanApplicationServiceTest {
         assertEquals(701L, response.getWorkflowInstanceId());
         verify(indicator).setStatus(IndicatorStatus.DRAFT);
         verify(indicatorRepository).save(indicator);
-        verify(jdbcTemplate).update(contains("UPDATE public.audit_step_instance"), eq(9901L));
+        verify(jdbcTemplate).update(contains("SET status = 'WITHDRAWN'"), anyLong());
+        verify(jdbcTemplate).update(contains("SET status = 'WAITING'"), eq(701L));
         verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(701L));
     }
 

@@ -110,7 +110,7 @@ class WorkflowReadModelServiceTest {
         pending.setStepNo(2);
         pending.setStepName("部门负责人审批");
         pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
-        pending.setApproverId(101L);
+        pending.setApproverOrgId(44L);
         pending.setCreatedAt(LocalDateTime.now());
 
         instance.addStepInstance(pending);
@@ -143,7 +143,7 @@ class WorkflowReadModelServiceTest {
         assertEquals(1, result.getTotal());
         assertEquals("88", result.getItems().get(0).getTaskId());
         assertEquals("step_5", result.getItems().get(0).getTaskKey());
-        assertEquals("审批人A", result.getItems().get(0).getAssigneeName());
+        assertNull(result.getItems().get(0).getAssigneeName());
         assertEquals("PLAN_REPORT", result.getItems().get(0).getEntityType());
     }
 
@@ -192,7 +192,7 @@ class WorkflowReadModelServiceTest {
 
         assertEquals(1, result.getTotal());
         assertEquals("PLAN_REPORT", result.getItems().get(0).getEntityType());
-        assertEquals("Unknown", result.getItems().get(0).getAssigneeName());
+        assertNull(result.getItems().get(0).getAssigneeName());
     }
 
     @Test
@@ -238,6 +238,43 @@ class WorkflowReadModelServiceTest {
         assertEquals("审批人", detail.getTasks().get(0).getAssigneeName());
         assertEquals("一级审批", detail.getHistory().get(0).getTaskName());
         assertEquals(null, detail.getHistory().get(0).getComment());
+    }
+
+    @Test
+    void getInstanceDetail_shouldHideCurrentApproverForPendingRoleStep() {
+        AuditInstance instance = new AuditInstance();
+        instance.setId(19L);
+        instance.setFlowDefId(2L);
+        instance.setEntityType("PLAN");
+        instance.setEntityId(701L);
+        instance.setRequesterId(1L);
+        instance.setRequesterOrgId(35L);
+        instance.setStartedAt(LocalDateTime.now().minusHours(3));
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance pending = new AuditStepInstance();
+        pending.setId(191L);
+        pending.setStepDefId(16L);
+        pending.setStepNo(2);
+        pending.setStepName("战略发展部负责人审批");
+        pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        pending.setApproverOrgId(35L);
+        pending.setCreatedAt(LocalDateTime.now().minusHours(1));
+        instance.addStepInstance(pending);
+
+        when(auditInstanceRepository.findById(19L)).thenReturn(Optional.of(instance));
+        when(planRepository.findById(701L)).thenReturn(Optional.of(namedPlan(701L, 35L, 44L)));
+        when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
+        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(namedUser(1L, "发起人")));
+
+        WorkflowInstanceDetailResponse detail = newService().getInstanceDetail("19");
+
+        assertEquals("战略发展部负责人审批", detail.getCurrentStepName());
+        assertNull(detail.getCurrentApproverId());
+        assertNull(detail.getCurrentApproverName());
+        assertNull(detail.getTasks().get(0).getAssigneeName());
+        assertEquals("战略发展部", detail.getTasks().get(0).getApproverOrgName());
     }
 
     @Test
@@ -441,5 +478,13 @@ class WorkflowReadModelServiceTest {
         user.setId(id);
         user.setRealName(realName);
         return user;
+    }
+
+    private Plan namedPlan(Long id, Long createdByOrgId, Long targetOrgId) {
+        Plan plan = new Plan();
+        plan.setId(id);
+        plan.setCreatedByOrgId(createdByOrgId);
+        plan.setTargetOrgId(targetOrgId);
+        return plan;
     }
 }

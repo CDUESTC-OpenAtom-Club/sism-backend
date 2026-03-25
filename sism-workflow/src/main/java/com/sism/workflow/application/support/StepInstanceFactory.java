@@ -52,13 +52,11 @@ public class StepInstanceFactory {
         firstStep.setStepNo(1);
         firstStep.setStepDefId(firstStepDef.getId());
         firstStep.setStepName(firstStepDef.getStepName() != null ? firstStepDef.getStepName() : "审批步骤1");
-        Long resolvedApproverId = firstStepDef.isSubmitStep()
-                ? requesterId
-                : approverResolver.resolveApproverId(firstStepDef, requesterId, requesterOrgId, instance);
+        Long resolvedApproverId = firstStepDef.isSubmitStep() ? requesterId : null;
         firstStep.setApproverId(resolvedApproverId);
         firstStep.setApproverOrgId(firstStepDef.isSubmitStep()
                 ? requesterOrgId
-                : approverResolver.resolveApproverOrgId(resolvedApproverId));
+                : approverResolver.resolveApproverOrgId(firstStepDef, requesterOrgId, instance));
         firstStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(firstStep);
 
@@ -72,9 +70,8 @@ public class StepInstanceFactory {
             secondStep.setStepNo(2);
             secondStep.setStepDefId(secondStepDef.getId());
             secondStep.setStepName(secondStepDef.getStepName() != null ? secondStepDef.getStepName() : "审批步骤2");
-            Long secondApproverId = approverResolver.resolveApproverId(secondStepDef, requesterId, requesterOrgId, instance);
-            secondStep.setApproverId(secondApproverId);
-            secondStep.setApproverOrgId(approverResolver.resolveApproverOrgId(secondApproverId));
+            secondStep.setApproverId(null);
+            secondStep.setApproverOrgId(approverResolver.resolveApproverOrgId(secondStepDef, requesterOrgId, instance));
             secondStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
             instance.addStepInstance(secondStep);
         }

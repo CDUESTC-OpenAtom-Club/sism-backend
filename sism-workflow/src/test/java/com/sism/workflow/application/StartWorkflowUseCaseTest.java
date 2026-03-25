@@ -71,16 +71,7 @@ class StartWorkflowUseCaseTest {
         flowDef.setFlowName("Plan下发审批（战略发展部）");
         flowDef.setSteps(List.of(submitStep, approvalStep));
 
-        User approver = new User();
-        approver.setId(189L);
-        approver.setUsername("zlb_audit1");
-        approver.setRealName("战略部审核人1");
-        approver.setOrgId(35L);
-        approver.setIsActive(true);
-
         when(flowDefinitionRepository.findById(1L)).thenReturn(Optional.of(flowDef));
-        when(userRepository.findByRoleId(3L)).thenReturn(List.of(approver));
-        when(userRepository.findById(189L)).thenReturn(Optional.of(approver));
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(flowDefinitionRepository.findByCode(any())).thenReturn(Optional.empty());
         lenient().when(flowDefinitionRepository.findByEntityType(any())).thenReturn(List.of());
@@ -115,7 +106,7 @@ class StartWorkflowUseCaseTest {
 
         var secondStep = result.getStepInstances().get(1);
         assertEquals(AuditInstance.STEP_STATUS_PENDING, secondStep.getStatus());
-        assertEquals(189L, secondStep.getApproverId());
+        assertEquals(null, secondStep.getApproverId());
         assertEquals(35L, secondStep.getApproverOrgId());
         assertEquals(2, result.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }

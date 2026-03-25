@@ -28,11 +28,15 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
+import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @RestController
 @RequestMapping("/api/v1/indicators")
@@ -69,9 +73,17 @@ public class IndicatorController {
 
         Map<Long, String> taskNameMap = buildTaskNameMap(indicatorPage.getContent());
         Map<Long, List<MilestoneResponse>> milestoneMap = buildMilestoneMap(indicatorPage.getContent());
+        Map<Long, Integer> latestReportProgressMap = buildLatestReportProgressMap(indicatorPage.getContent());
+        Map<Long, Boolean> currentMonthFillMap = buildCurrentMonthFillMap(indicatorPage.getContent());
         PageResult<IndicatorResponse> result = PageResult.of(
                 indicatorPage.getContent().stream()
-                        .map(indicator -> toIndicatorResponse(indicator, taskNameMap, milestoneMap))
+                        .map(indicator -> toIndicatorResponse(
+                                indicator,
+                                taskNameMap,
+                                milestoneMap,
+                                latestReportProgressMap,
+                                currentMonthFillMap
+                        ))
                         .toList(),
                 (int) indicatorPage.getTotalElements(),
                 page,
@@ -392,16 +404,30 @@ public class IndicatorController {
     // ==================== Helper Methods ====================
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator) {
-        return toIndicatorResponse(indicator, Map.of(), buildMilestoneMap(List.of(indicator)));
+        return toIndicatorResponse(
+                indicator,
+                Map.of(),
+                buildMilestoneMap(List.of(indicator)),
+                buildLatestReportProgressMap(List.of(indicator)),
+                buildCurrentMonthFillMap(List.of(indicator))
+        );
     }
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator, Map<Long, String> taskNameMap) {
-        return toIndicatorResponse(indicator, taskNameMap, buildMilestoneMap(List.of(indicator)));
+        return toIndicatorResponse(
+                indicator,
+                taskNameMap,
+                buildMilestoneMap(List.of(indicator)),
+                buildLatestReportProgressMap(List.of(indicator)),
+                buildCurrentMonthFillMap(List.of(indicator))
+        );
     }
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator,
                                                  Map<Long, String> taskNameMap,
-                                                 Map<Long, List<MilestoneResponse>> milestoneMap) {
+                                                 Map<Long, List<MilestoneResponse>> milestoneMap,
+                                                 Map<Long, Integer> latestReportProgressMap,
+                                                 Map<Long, Boolean> currentMonthFillMap) {
         IndicatorResponse response = new IndicatorResponse();
         response.setId(indicator.getId());
         response.setTaskId(indicator.getTaskId());
@@ -422,8 +448,8 @@ public class IndicatorController {
         response.setStatus(indicator.getStatus() != null ? indicator.getStatus().toString() : null);
         response.setLevel(indicator.getLevel() != null ? indicator.getLevel().toString() : null);
         response.setProgress(indicator.getProgress());
-        response.setReportProgress(getLatestReportProgress(indicator.getId()));
-        response.setHasCurrentMonthFill(hasCurrentMonthFill(indicator.getId()));
+        response.setReportProgress(latestReportProgressMap.get(indicator.getId()));
+        response.setHasCurrentMonthFill(currentMonthFillMap.getOrDefault(indicator.getId(), false));
         response.setRemark(indicator.getRemark());
         response.setIndicatorType(indicator.getType());
         response.setCreatedAt(indicator.getCreatedAt());
@@ -485,6 +511,108 @@ public class IndicatorController {
                         java.util.LinkedHashMap::new,
                         java.util.stream.Collectors.toList()
                 ));
+    }
+
+    private Map<Long, Integer> buildLatestReportProgressMap(List<Indicator> indicators) {
+        List<Long> indicatorIds = extractIndicatorIds(indicators);
+        if (indicatorIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String placeholders = indicatorIds.stream()
+                .map(id -> "?")
+                .collect(Collectors.joining(","));
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT pri.indicator_id AS indicator_id, pri.progress AS report_progress
+                FROM public.plan_report_indicator pri
+                INNER JOIN (
+                    SELECT pri2.indicator_id, MAX(pr.created_at) AS latest_created_at
+                    FROM public.plan_report_indicator pri2
+                    INNER JOIN public.plan_report pr ON pri2.report_id = pr.id
+                    WHERE pr.is_deleted = false
+                      AND pri2.indicator_id IN (%s)
+                    GROUP BY pri2.indicator_id
+                ) latest ON latest.indicator_id = pri.indicator_id
+                INNER JOIN public.plan_report pr ON pri.report_id = pr.id
+                WHERE pr.is_deleted = false
+                  AND pri.indicator_id IN (%s)
+                  AND pr.created_at = latest.latest_created_at
+                """.formatted(placeholders, placeholders),
+                Stream.concat(indicatorIds.stream(), indicatorIds.stream()).toArray()
+        );
+
+        Map<Long, Integer> reportProgressByIndicatorId = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object indicatorIdValue = row.get("indicator_id");
+            Object reportProgressValue = row.get("report_progress");
+            if (!(indicatorIdValue instanceof Number indicatorIdNumber)) {
+                continue;
+            }
+            if (!(reportProgressValue instanceof Number reportProgressNumber)) {
+                continue;
+            }
+            reportProgressByIndicatorId.put(indicatorIdNumber.longValue(), reportProgressNumber.intValue());
+        }
+        return reportProgressByIndicatorId;
+    }
+
+    private Map<Long, Boolean> buildCurrentMonthFillMap(List<Indicator> indicators) {
+        List<Long> indicatorIds = extractIndicatorIds(indicators);
+        if (indicatorIds.isEmpty()) {
+            return Map.of();
+        }
+
+        String placeholders = indicatorIds.stream()
+                .map(id -> "?")
+                .collect(Collectors.joining(","));
+
+        String currentMonth = YearMonth.now().toString();
+        List<Object> params = new java.util.ArrayList<>(indicatorIds);
+        params.add(currentMonth);
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT pri.indicator_id AS indicator_id, COUNT(*) AS fill_count
+                FROM public.plan_report_indicator pri
+                INNER JOIN public.plan_report pr ON pri.report_id = pr.id
+                WHERE pri.indicator_id IN (%s)
+                  AND pr.report_month = ?
+                  AND pr.is_deleted = false
+                GROUP BY pri.indicator_id
+                """.formatted(placeholders),
+                params.toArray()
+        );
+
+        Map<Long, Boolean> fillMap = new HashMap<>();
+        for (Long indicatorId : indicatorIds) {
+            fillMap.put(indicatorId, false);
+        }
+        for (Map<String, Object> row : rows) {
+            Object indicatorIdValue = row.get("indicator_id");
+            Object fillCountValue = row.get("fill_count");
+            if (!(indicatorIdValue instanceof Number indicatorIdNumber)) {
+                continue;
+            }
+            boolean hasFill = fillCountValue instanceof Number fillCountNumber
+                    && fillCountNumber.longValue() > 0L;
+            fillMap.put(indicatorIdNumber.longValue(), hasFill);
+        }
+        return fillMap;
+    }
+
+    private List<Long> extractIndicatorIds(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return List.of();
+        }
+
+        return indicators.stream()
+                .map(Indicator::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new))
+                .stream()
+                .toList();
     }
 
     /**

@@ -32,6 +32,8 @@ public class WorkflowReadModelMapper {
 
     public WorkflowInstanceResponse toInstanceResponse(AuditInstance instance) {
         AuditStepInstance currentStep = instance.resolveCurrentDisplayStep().orElse(null);
+        boolean pendingCurrentStep = currentStep != null
+                && AuditInstance.STEP_STATUS_PENDING.equalsIgnoreCase(currentStep.getStatus());
         return WorkflowInstanceResponse.builder()
                 .instanceId(instance.getId() != null ? instance.getId().toString() : null)
                 .definitionId(instance.getFlowDefId() != null ? instance.getFlowDefId().toString() : null)
@@ -44,20 +46,21 @@ public class WorkflowReadModelMapper {
                 .endTime(instance.getCompletedAt())
                 .currentTaskId(currentStep != null && currentStep.getId() != null ? currentStep.getId().toString() : null)
                 .currentStepName(currentStep != null ? currentStep.getStepName() : null)
-                .currentApproverId(currentStep != null ? currentStep.getApproverId() : null)
-                .currentApproverName(currentStep != null ? resolveApproverNameSafely(currentStep.getApproverId()) : null)
+                .currentApproverId(pendingCurrentStep ? null : currentStep != null ? currentStep.getApproverId() : null)
+                .currentApproverName(pendingCurrentStep ? null : currentStep != null ? resolveApproverNameSafely(currentStep.getApproverId()) : null)
                 .canWithdraw(instance.canRequesterWithdraw())
                 .build();
     }
 
     public WorkflowTaskResponse toTaskResponse(AuditStepInstance step) {
+        boolean pendingStep = step != null && AuditInstance.STEP_STATUS_PENDING.equalsIgnoreCase(step.getStatus());
         return WorkflowTaskResponse.builder()
                 .taskId(step.getId() != null ? step.getId().toString() : null)
                 .taskName(step.getStepName())
                 .taskKey(step.getStepDefId() != null ? "step_" + step.getStepDefId() : "step_" + step.getStepNo())
                 .status(convertStepStatus(step.getStatus()))
-                .assigneeId(step.getApproverId())
-                .assigneeName(approverResolver.resolveApproverName(step.getApproverId()))
+                .assigneeId(pendingStep ? null : step.getApproverId())
+                .assigneeName(pendingStep ? null : resolveApproverNameSafely(step.getApproverId()))
                 .approverOrgId(step.getApproverOrgId())
                 .stepNo(step.getStepNo())
                 .comment(step.getComment())
@@ -75,8 +78,8 @@ public class WorkflowReadModelMapper {
                 .status("PENDING")
                 .entityType(instance.getEntityType())
                 .entityId(instance.getEntityId())
-                .assigneeId(step.getApproverId())
-                .assigneeName(approverResolver.resolveApproverName(step.getApproverId()))
+                .assigneeId(null)
+                .assigneeName(null)
                 .approverOrgId(step.getApproverOrgId())
                 .stepNo(step.getStepNo())
                 .createdTime(step.getCreatedAt() != null ? step.getCreatedAt() : instance.getStartedAt())

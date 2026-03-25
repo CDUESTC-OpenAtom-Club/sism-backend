@@ -75,11 +75,10 @@ public class ApproveWorkflowUseCase {
         nextStep.setStepDefId(nextStepDef.getId());
         nextStep.setStepName(nextStepDef.getStepName());
 
-        // 使用当前审批人的组织ID来解析下一步审批人
+        // 下一审批节点只保留角色/组织范围，不预绑定具体用户
         Long contextOrgId = getCurrentApproverOrgId(instance);
-        Long approverId = approverResolver.resolveApproverId(nextStepDef, instance.getRequesterId(), contextOrgId, instance);
-        nextStep.setApproverId(approverId);
-        nextStep.setApproverOrgId(approverResolver.resolveApproverOrgId(approverId));
+        nextStep.setApproverId(null);
+        nextStep.setApproverOrgId(approverResolver.resolveApproverOrgId(nextStepDef, contextOrgId, instance));
         nextStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(nextStep);
         return true;
