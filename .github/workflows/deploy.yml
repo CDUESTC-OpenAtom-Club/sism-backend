@@ -28,17 +28,39 @@ jobs:
           sudo mkdir -p "$WORK_DIR"
           sudo chown -R "$(whoami):$(whoami)" "$PARENT_DIR" || true
           sudo chmod -R u+rwX "$PARENT_DIR" || true
-
-          # Remove stale checkout content so actions/checkout never trips on
-          # root-owned build artifacts left behind by prior runs.
-          sudo find "$WORK_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
           echo "Runner workspace reset complete"
 
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          clean: false
-          fetch-depth: 1
+      - name: Prepare repository
+        run: |
+          echo "[INFO] Preparing repository in $GITHUB_WORKSPACE"
+          cd "$GITHUB_WORKSPACE"
+
+          git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+
+          if [ -d .git ]; then
+            echo "[INFO] Existing repository found"
+            CURRENT_SHA="$(git rev-parse HEAD 2>/dev/null || echo '')"
+            echo "[INFO] Current SHA: $CURRENT_SHA"
+            echo "[INFO] Target SHA: ${GITHUB_SHA}"
+
+            if [ "$CURRENT_SHA" = "${GITHUB_SHA}" ]; then
+              echo "[INFO] Repository already at target commit, skipping remote fetch"
+              git reset --hard "${GITHUB_SHA}" || true
+              git clean -fd || true
+              exit 0
+            fi
+
+            git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git" || true
+          else
+            echo "[INFO] Initializing repository from scratch"
+            git init
+            git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          fi
+
+          echo "[INFO] Fetching target commit from origin"
+          git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"
+          git checkout -f "${GITHUB_SHA}"
+          git clean -fd
 
       - name: Verify build toolchain
         run: |
