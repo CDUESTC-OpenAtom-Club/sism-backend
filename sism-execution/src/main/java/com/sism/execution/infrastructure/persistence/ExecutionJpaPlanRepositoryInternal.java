@@ -1,7 +1,7 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.model.plan.Plan;
-import com.sism.execution.domain.model.plan.PlanLevel;
+import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.plan.PlanLevel;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,7 +26,7 @@ public interface ExecutionJpaPlanRepositoryInternal extends JpaRepository<Plan, 
 
     @Query("""
             SELECT p
-            FROM ExecutionPlan p
+            FROM Plan p
             WHERE p.isDeleted = false
               AND (:skipCycleFilter = true OR p.cycleId IN :cycleIds)
             """)
@@ -38,7 +38,7 @@ public interface ExecutionJpaPlanRepositoryInternal extends JpaRepository<Plan, 
 
     @Query("""
             SELECT p
-            FROM ExecutionPlan p
+            FROM Plan p
             WHERE p.isDeleted = false
               AND p.status = :status
               AND (:skipCycleFilter = true OR p.cycleId IN :cycleIds)
