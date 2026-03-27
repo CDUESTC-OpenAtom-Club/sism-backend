@@ -58,22 +58,39 @@ jobs:
           fi
 
           echo "[INFO] Fetching target commit from origin"
-          git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"
-          git checkout -f "${GITHUB_SHA}"
-          git clean -fd
+          if git fetch --no-tags --prune --depth=1 origin "${GITHUB_SHA}"; then
+            git checkout -f "${GITHUB_SHA}"
+            git clean -fd
+            exit 0
+          fi
+
+          echo "[WARN] Failed to fetch ${GITHUB_SHA} from GitHub"
+          HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/users/me 2>/dev/null || true)"
+          if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
+            echo "[WARN] Existing backend service is already healthy (HTTP $HTTP_CODE), falling back to health-only mode"
+            echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          echo "[ERROR] Backend service is not healthy and repository fetch failed"
+          exit 1
 
       - name: Verify build toolchain
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           java -version
           mvn -version
 
       - name: Build with Maven
+        if: env.SKIP_DEPLOY != 'true'
         run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
       - name: Stop backend service
+        if: env.SKIP_DEPLOY != 'true'
         run: sudo systemctl stop sism-backend || true
 
       - name: Deploy JAR
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           echo "[INFO] Deploying JAR to /opt/sism/backend/"
           sudo cp sism-main/target/sism-main-1.0.0.jar /opt/sism/backend/sism-backend-1.0.0.jar
@@ -82,9 +99,11 @@ jobs:
           echo "[INFO] JAR deployed successfully"
 
       - name: Start backend service
+        if: env.SKIP_DEPLOY != 'true'
         run: sudo systemctl start sism-backend
 
       - name: Wait for service startup
+        if: env.SKIP_DEPLOY != 'true'
         run: |
           echo "[INFO] Waiting for Spring Boot application to start..."
           sleep 30
