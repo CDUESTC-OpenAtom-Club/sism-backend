@@ -1,10 +1,9 @@
 -- plan clean seed
 -- Business rule:
--- - Every year, every target organization should own a plan container,
---   even when there is no concrete task yet.
--- - Functional departments use STRAT_TO_FUNC containers created by strategy office.
--- - Colleges use FUNC_TO_COLLEGE containers. Here we use org 44 (教务处) as the
---   default academic-plan creator for clean seed purposes.
+-- - plan is a distribution container, not a self-owned annual container.
+-- - Only strategy -> functional department containers are pre-seeded.
+-- - functional -> college containers must be created by actual upstream distribution flow
+--   and must not be pre-generated for colleges.
 -- Status rule:
 -- - plan.status is the authoritative package-level distribution status.
 -- - indicator.status may exist as a downstream projection/lifecycle field, but when the two
@@ -44,7 +43,7 @@ SELECT
     NULL::BIGINT AS audit_instance_id
 FROM public.cycle c
 JOIN public.sys_org o
-    ON o.id BETWEEN 36 AND 62
+    ON o.id BETWEEN 36 AND 54
 WHERE o.is_deleted = false
 ON CONFLICT (id) DO UPDATE
 SET
