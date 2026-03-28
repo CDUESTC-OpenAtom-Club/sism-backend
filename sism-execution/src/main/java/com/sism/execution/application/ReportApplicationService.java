@@ -260,7 +260,6 @@ public class ReportApplicationService {
         PlanReport report = planReportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
-        report.setAuditInstanceId(null);
         report.setSubmittedAt(null);
         report.setUpdatedAt(LocalDateTime.now());
         return enrichReportMetadata(planReportRepository.save(report));
