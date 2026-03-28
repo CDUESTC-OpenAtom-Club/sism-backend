@@ -10,6 +10,8 @@ import com.sism.strategy.application.StrategyApplicationService;
 import com.sism.strategy.domain.Indicator;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
+import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsRequest;
+import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsResponse;
 import com.sism.strategy.interfaces.dto.MilestoneResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -295,6 +297,73 @@ public class IndicatorController {
                 request.getReason()
         );
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping("/actions/batch-distribute")
+    @Operation(summary = "Batch distribute indicators for distribution page")
+    public ResponseEntity<ApiResponse<BatchDistributeIndicatorsResponse>> batchDistributeIndicators(
+            @RequestBody @Valid BatchDistributeIndicatorsRequest request) {
+        List<BatchDistributeIndicatorsResponse.ItemResult> items = request.getIndicators().stream()
+                .map(item -> {
+                    Indicator distributed;
+
+                    if (item.getIndicatorId() != null) {
+                        SysOrg targetOrg = organizationRepository.findById(item.getTargetOrgId())
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                        "Target organization not found: " + item.getTargetOrgId()));
+                        distributed = strategyApplicationService.distributeIndicator(
+                                item.getIndicatorId(),
+                                targetOrg,
+                                item.getCustomDesc()
+                        );
+                    } else {
+                        if (item.getOwnerOrgId() == null) {
+                            throw new IllegalArgumentException("Owner organization is required");
+                        }
+                        if (item.getTaskId() == null) {
+                            throw new IllegalArgumentException("Task ID is required");
+                        }
+
+                        String indicatorDesc = firstNonBlank(item.getIndicatorDesc(), item.getCustomDesc());
+                        if (indicatorDesc == null || indicatorDesc.isBlank()) {
+                            throw new IllegalArgumentException("Indicator description is required");
+                        }
+
+                        SysOrg ownerOrg = organizationRepository.findById(item.getOwnerOrgId())
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                        "Owner organization not found: " + item.getOwnerOrgId()));
+                        SysOrg targetOrg = organizationRepository.findById(item.getTargetOrgId())
+                                .orElseThrow(() -> new IllegalArgumentException(
+                                        "Target organization not found: " + item.getTargetOrgId()));
+
+                        Indicator created = strategyApplicationService.createIndicator(
+                                indicatorDesc,
+                                ownerOrg,
+                                targetOrg,
+                                item.getTaskId(),
+                                item.getParentIndicatorId(),
+                                item.getWeightPercent(),
+                                item.getSortOrder(),
+                                item.getRemark(),
+                                item.getProgress()
+                        );
+                        distributed = strategyApplicationService.distributeIndicator(
+                                created.getId(),
+                                targetOrg,
+                                item.getCustomDesc()
+                        );
+                    }
+
+                    return new BatchDistributeIndicatorsResponse.ItemResult(
+                            item.getClientRequestId(),
+                            distributed.getId()
+                    );
+                })
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success(
+                new BatchDistributeIndicatorsResponse(items.size(), items)
+        ));
     }
 
     @GetMapping("/search")
