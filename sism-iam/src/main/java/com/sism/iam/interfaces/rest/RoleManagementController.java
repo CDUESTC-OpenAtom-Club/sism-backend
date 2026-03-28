@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/roles")
 @RequiredArgsConstructor
-@Tag(name = "Role Management", description = "Role and permission management endpoints")
+@Tag(name = "角色权限管理", description = "角色和权限管理接口")
 public class RoleManagementController {
 
     private final RoleService roleService;

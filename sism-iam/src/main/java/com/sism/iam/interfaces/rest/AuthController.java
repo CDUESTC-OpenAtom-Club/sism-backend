@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Authentication endpoints")
+@Tag(name = "认证管理", description = "用户认证相关接口")
 public class AuthController {
 
     private final AuthService authService;
@@ -103,10 +103,10 @@ public class AuthController {
     }
 
     /**
-     * Health check endpoint
+     * 健康检查端点
      */
     @GetMapping("/health")
-    @Operation(summary = "Health check")
+    @Operation(summary = "健康检查")
     public ResponseEntity<ApiResponse<Map<String, Object>>> health() {
         return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "status", "UP",

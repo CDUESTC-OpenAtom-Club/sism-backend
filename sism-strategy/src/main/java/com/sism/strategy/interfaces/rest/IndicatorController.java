@@ -43,7 +43,7 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping("/api/v1/indicators")
 @RequiredArgsConstructor
-@Tag(name = "Indicators", description = "Indicator management endpoints")
+@Tag(name = "指标管理", description = "指标管理相关接口")
 public class IndicatorController {
 
     private final StrategyApplicationService strategyApplicationService;
@@ -54,7 +54,7 @@ public class IndicatorController {
     private final JdbcTemplate jdbcTemplate;
 
     @GetMapping
-    @Operation(summary = "Get all indicators with pagination")
+    @Operation(summary = "分页获取所有指标")
     public ResponseEntity<ApiResponse<PageResult<IndicatorResponse>>> listIndicators(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -95,7 +95,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get indicator by ID")
+    @Operation(summary = "根据ID获取指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> getIndicatorById(@PathVariable Long id) {
         Indicator indicator = strategyApplicationService.getIndicatorById(id);
         if (indicator == null) {
@@ -105,7 +105,7 @@ public class IndicatorController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new indicator")
+    @Operation(summary = "创建新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> createIndicator(
             @Valid @RequestBody CreateIndicatorRequest request) {
         // 兼容两种请求格式：
@@ -146,7 +146,7 @@ public class IndicatorController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update indicator")
+    @Operation(summary = "更新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> updateIndicator(
             @PathVariable Long id,
             @RequestBody UpdateIndicatorRequest request) {
@@ -178,14 +178,14 @@ public class IndicatorController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete indicator")
+    @Operation(summary = "删除指标")
     public ResponseEntity<ApiResponse<Void>> deleteIndicator(@PathVariable Long id) {
         strategyApplicationService.deleteIndicator(id);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
     @PostMapping("/{id}/submit")
-    @Operation(summary = "Submit indicator for review")
+    @Operation(summary = "提交指标审核")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReview(@PathVariable Long id) {
         Indicator indicator = strategyApplicationService.getIndicatorById(id);
         if (indicator == null) {
@@ -196,13 +196,13 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/submit-review")
-    @Operation(summary = "Submit indicator for review (legacy alias)")
+    @Operation(summary = "提交指标审核(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReviewAlias(@PathVariable Long id) {
         return submitForReview(id);
     }
 
     @PostMapping("/{id}/approve")
-    @Operation(summary = "Approve indicator")
+    @Operation(summary = "审核通过指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicator(@PathVariable Long id) {
         Indicator indicator = strategyApplicationService.getIndicatorById(id);
         if (indicator == null) {
@@ -213,13 +213,13 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/approve-review")
-    @Operation(summary = "Approve indicator (legacy alias)")
+    @Operation(summary = "审核通过指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicatorAlias(@PathVariable Long id) {
         return approveIndicator(id);
     }
 
     @PostMapping("/{id}/reject")
-    @Operation(summary = "Reject indicator")
+    @Operation(summary = "拒绝指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicator(
             @PathVariable Long id,
             @RequestBody RejectRequest request) {
@@ -233,7 +233,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/reject-review")
-    @Operation(summary = "Reject indicator (legacy alias)")
+    @Operation(summary = "拒绝指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicatorAlias(
             @PathVariable Long id,
             @RequestBody(required = false) RejectRequest request) {
@@ -241,7 +241,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/distribute")
-    @Operation(summary = "Distribute indicator to target organization")
+    @Operation(summary = "分发指标到目标组织")
     public ResponseEntity<ApiResponse<IndicatorResponse>> distributeIndicator(
             @PathVariable Long id,
             @RequestParam(required = false) Long targetOrgId,
@@ -276,7 +276,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/withdraw")
-    @Operation(summary = "Withdraw distributed indicator")
+    @Operation(summary = "撤回已分发的指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> withdrawIndicator(
             @PathVariable Long id,
             @RequestBody(required = false) WithdrawRequest request) {
@@ -288,7 +288,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/batch-withdraw")
-    @Operation(summary = "Batch withdraw indicators by owner and target organization")
+    @Operation(summary = "批量撤回指标(按所属和目标组织)")
     public ResponseEntity<ApiResponse<BatchWithdrawResponse>> batchWithdrawIndicators(
             @RequestBody @Valid BatchWithdrawRequest request) {
         BatchWithdrawResponse result = strategyApplicationService.batchWithdrawIndicators(
@@ -300,7 +300,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/actions/batch-distribute")
-    @Operation(summary = "Batch distribute indicators for distribution page")
+    @Operation(summary = "批量分发指标(分发页面专用)")
     public ResponseEntity<ApiResponse<BatchDistributeIndicatorsResponse>> batchDistributeIndicators(
             @RequestBody @Valid BatchDistributeIndicatorsRequest request) {
         List<BatchDistributeIndicatorsResponse.ItemResult> items = request.getIndicators().stream()
@@ -367,7 +367,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search indicators by keyword")
+    @Operation(summary = "按关键词搜索指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> searchIndicators(
             @RequestParam String keyword) {
         List<Indicator> result = strategyApplicationService.searchIndicators(keyword);
@@ -378,7 +378,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/task/{taskId}")
-    @Operation(summary = "Get indicators by task ID")
+    @Operation(summary = "根据任务ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByTaskId(@PathVariable Long taskId) {
         List<Indicator> indicators = strategyApplicationService.getIndicatorsByTaskId(taskId);
         List<IndicatorResponse> responses = indicators.stream()
@@ -388,7 +388,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/task/{taskId}/root")
-    @Operation(summary = "Get root indicators by task ID")
+    @Operation(summary = "根据任务ID获取根指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getRootIndicatorsByTaskId(@PathVariable Long taskId) {
         List<IndicatorResponse> responses = strategyApplicationService.getRootIndicatorsByTaskId(taskId).stream()
                 .map(this::toIndicatorResponse)
@@ -397,7 +397,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/owner/{orgId}")
-    @Operation(summary = "Get indicators by owner organization")
+    @Operation(summary = "根据所属组织ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByOwnerOrg(@PathVariable Long orgId) {
         List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByOwnerOrgId(orgId).stream()
                 .map(this::toIndicatorResponse)
@@ -406,7 +406,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/target/{orgId}")
-    @Operation(summary = "Get indicators by target organization")
+    @Operation(summary = "根据目标组织ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByTargetOrg(@PathVariable Long orgId) {
         List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByTargetOrgId(orgId).stream()
                 .map(this::toIndicatorResponse)
@@ -415,7 +415,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/{id}/distribution-eligibility")
-    @Operation(summary = "Check indicator distribution eligibility")
+    @Operation(summary = "检查指标分发 eligibility")
     public ResponseEntity<ApiResponse<DistributionEligibilityResponse>> getDistributionEligibility(@PathVariable Long id) {
         Indicator indicator = strategyApplicationService.getIndicatorById(id);
         if (indicator == null) {
@@ -439,7 +439,7 @@ public class IndicatorController {
     }
 
     @GetMapping("/{id}/distributed")
-    @Operation(summary = "Get distributed child indicators")
+    @Operation(summary = "获取已分发的子指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getDistributedIndicators(@PathVariable Long id) {
         List<IndicatorResponse> responses = strategyApplicationService.getDistributedIndicators(id).stream()
                 .map(this::toIndicatorResponse)
@@ -448,21 +448,21 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/breakdown")
-    @Operation(summary = "Break down indicator into child indicators")
+    @Operation(summary = "分解指标为子指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> breakdownIndicator(@PathVariable Long id) {
         Indicator brokenDown = strategyApplicationService.breakdownIndicator(id);
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(brokenDown)));
     }
 
     @PostMapping("/{id}/activate")
-    @Operation(summary = "Activate indicator")
+    @Operation(summary = "激活指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> activateIndicator(@PathVariable Long id) {
         Indicator activated = strategyApplicationService.activateIndicator(id);
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(activated)));
     }
 
     @PostMapping("/{id}/terminate")
-    @Operation(summary = "Terminate indicator")
+    @Operation(summary = "终止指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> terminateIndicator(
             @PathVariable Long id,
             @RequestBody TerminateRequest request) {

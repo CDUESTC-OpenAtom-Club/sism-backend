@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 @RestController("executionReportController")
 @RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
-@Tag(name = "Plan Reports", description = "Plan report management endpoints")
+@Tag(name = "计划报告", description = "计划报告管理接口")
 public class ReportController {
 
     private final ReportApplicationService reportApplicationService;

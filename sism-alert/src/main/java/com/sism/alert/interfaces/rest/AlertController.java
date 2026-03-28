@@ -27,7 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/alerts")
 @RequiredArgsConstructor
-@Tag(name = "Alerts", description = "Alert and warning management endpoints")
+@Tag(name = "预警管理", description = "预警和警告管理接口")
 public class AlertController {
 
     private final AlertApplicationService alertApplicationService;
@@ -36,7 +36,7 @@ public class AlertController {
     // ==================== Create ====================
 
     @PostMapping
-    @Operation(summary = "Create alert", description = "Create a new alert")
+    @Operation(summary = "创建预警", description = "创建新的预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Alert>> createAlert(
             @Valid @RequestBody AlertRequest request,
@@ -56,7 +56,7 @@ public class AlertController {
     }
 
     @PostMapping("/{id}/trigger")
-    @Operation(summary = "Trigger alert", description = "Manually trigger an alert")
+    @Operation(summary = "触发预警", description = "手动触发预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Alert>> triggerAlert(
             @PathVariable Long id,
@@ -72,7 +72,7 @@ public class AlertController {
     // ==================== Read ====================
 
     @GetMapping
-    @Operation(summary = "Get all alerts", description = "Query all alerts")
+    @Operation(summary = "获取所有预警", description = "查询所有预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getAllAlerts(Authentication authentication) {
         List<Alert> alerts = alertApplicationService.getAllAlerts();
@@ -81,7 +81,7 @@ public class AlertController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get alert by ID", description = "Query alert by ID")
+    @Operation(summary = "根据ID获取预警", description = "根据ID查询预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Alert>> getAlertById(
             @PathVariable Long id,
@@ -96,7 +96,7 @@ public class AlertController {
     }
 
     @GetMapping("/status/{status}")
-    @Operation(summary = "Get alerts by status", description = "Query alerts by status")
+    @Operation(summary = "按状态获取预警", description = "按状态查询预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getAlertsByStatus(
             @PathVariable String status,
@@ -108,7 +108,7 @@ public class AlertController {
     }
 
     @GetMapping("/severity/{severity}")
-    @Operation(summary = "Get alerts by severity", description = "Query alerts by severity")
+    @Operation(summary = "按严重程度获取预警", description = "按严重程度查询预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getAlertsBySeverity(
             @PathVariable String severity,
@@ -120,7 +120,7 @@ public class AlertController {
     }
 
     @GetMapping("/indicator/{indicatorId}")
-    @Operation(summary = "Get alerts by indicator", description = "Query alerts by indicator ID")
+    @Operation(summary = "按指标获取预警", description = "按指标ID查询预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getAlertsByIndicator(
             @PathVariable Long indicatorId,
@@ -132,7 +132,7 @@ public class AlertController {
     }
 
     @GetMapping("/unresolved")
-    @Operation(summary = "Get unresolved alerts", description = "Query all unresolved alerts")
+    @Operation(summary = "获取未解决的预警", description = "查询所有未解决的预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getUnresolvedAlerts(Authentication authentication) {
         List<Alert> alerts = alertApplicationService.getUnresolvedAlerts();
@@ -141,7 +141,7 @@ public class AlertController {
     }
 
     @GetMapping("/events/unclosed")
-    @Operation(summary = "Get unclosed alert events", description = "Query all unclosed alert events (frontend compatibility)")
+    @Operation(summary = "获取未关闭的预警事件", description = "查询所有未关闭的预警事件(前端兼容性)")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getUnclosedAlertEvents(Authentication authentication) {
         // Alias for /unresolved to match frontend API expectations
@@ -153,7 +153,7 @@ public class AlertController {
     // ==================== Update ====================
 
     @PostMapping("/{id}/resolve")
-    @Operation(summary = "Resolve alert", description = "Confirm and resolve an alert")
+    @Operation(summary = "解决预警", description = "确认并解决预警")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Alert>> resolveAlert(
             @PathVariable Long id,
@@ -174,7 +174,7 @@ public class AlertController {
     // ==================== Statistics ====================
 
     @GetMapping("/count")
-    @Operation(summary = "Count alerts", description = "Get total alert count")
+    @Operation(summary = "统计预警数量", description = "获取预警总数")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Long>>> countAlerts(Authentication authentication) {
         long total = alertApplicationService.countAlerts();
@@ -190,7 +190,7 @@ public class AlertController {
     }
 
     @GetMapping("/stats")
-    @Operation(summary = "Get alert stats", description = "Get alert statistics with severity breakdown")
+    @Operation(summary = "获取预警统计", description = "获取预警统计数据(按严重程度细分)")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAlertStats(Authentication authentication) {
         Map<String, Object> stats = alertApplicationService.getAlertStats();

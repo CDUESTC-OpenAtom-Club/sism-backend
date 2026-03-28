@@ -19,13 +19,13 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/milestones")
 @RequiredArgsConstructor
-@Tag(name = "Milestones", description = "Primary strategy-side milestone endpoints. This is the authoritative planning entrypoint.")
+@Tag(name = "里程碑", description = "战略侧里程碑主要接口。这是规划的权威入口点。")
 public class MilestoneController {
 
     private final MilestoneApplicationService milestoneApplicationService;
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get milestone by ID")
+    @Operation(summary = "根据ID获取里程碑")
     public ResponseEntity<ApiResponse<MilestoneResponse>> getMilestoneById(@PathVariable Long id) {
         return milestoneApplicationService.getMilestoneById(id)
                 .map(milestone -> ResponseEntity.ok(ApiResponse.success(milestone)))
@@ -33,7 +33,7 @@ public class MilestoneController {
     }
 
     @GetMapping("/plan/{planId}")
-    @Operation(summary = "Get milestones by plan ID")
+    @Operation(summary = "根据计划ID获取里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> getMilestonesByPlan(@PathVariable Long planId) {
         // 注意：MilestoneApplicationService当前没有getMilestonesByPlanId方法
         // 这里返回空列表，需要在MilestoneApplicationService中添加相关方法
@@ -42,14 +42,14 @@ public class MilestoneController {
     }
 
     @GetMapping("/indicator/{indicatorId}")
-    @Operation(summary = "Get milestones by indicator ID")
+    @Operation(summary = "根据指标ID获取里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> getMilestonesByIndicatorId(@PathVariable Long indicatorId) {
         java.util.List<MilestoneResponse> milestones = milestoneApplicationService.getMilestonesByIndicatorId(indicatorId);
         return ResponseEntity.ok(ApiResponse.success(milestones));
     }
 
     @GetMapping("/by-indicators")
-    @Operation(summary = "Batch get milestones by multiple indicator IDs")
+    @Operation(summary = "批量获取多个指标ID的里程碑")
     public ResponseEntity<ApiResponse<java.util.Map<Long, java.util.List<MilestoneResponse>>>> getMilestonesByIndicatorIds(
             @RequestParam("ids") java.util.List<Long> indicatorIds) {
         java.util.Map<Long, java.util.List<MilestoneResponse>> result = milestoneApplicationService.getMilestonesByIndicatorIds(indicatorIds);
@@ -57,7 +57,7 @@ public class MilestoneController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new milestone", description = "Primary strategy-side entrypoint for milestone management.")
+    @Operation(summary = "创建新里程碑", description = "战略侧里程碑管理的主要入口点。")
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(
             @Valid @RequestBody com.sism.strategy.interfaces.dto.CreateMilestoneRequest request) {
         MilestoneResponse response = milestoneApplicationService.createMilestone(request);
@@ -65,7 +65,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update a milestone")
+    @Operation(summary = "更新里程碑")
     public ResponseEntity<ApiResponse<MilestoneResponse>> updateMilestone(
             @PathVariable Long id,
             @Valid @RequestBody com.sism.strategy.interfaces.dto.UpdateMilestoneRequest request) {
@@ -74,7 +74,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/indicator/{indicatorId}/batch")
-    @Operation(summary = "Batch save milestones for an indicator")
+    @Operation(summary = "为指标批量保存里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> saveMilestones(
             @PathVariable Long indicatorId,
             @Valid @RequestBody BatchSaveMilestonesRequest request) {
@@ -84,14 +84,14 @@ public class MilestoneController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a milestone")
+    @Operation(summary = "删除里程碑")
     public ResponseEntity<ApiResponse<Void>> deleteMilestone(@PathVariable Long id) {
         milestoneApplicationService.deleteMilestone(id);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
     @GetMapping
-    @Operation(summary = "Get all milestones with pagination")
+    @Operation(summary = "分页获取所有里程碑")
     public ResponseEntity<ApiResponse<PageResult<MilestoneResponse>>> listMilestones(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,

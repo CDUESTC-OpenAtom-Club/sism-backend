@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/profile")
 @RequiredArgsConstructor
-@Tag(name = "User Profile", description = "User profile management endpoints")
+@Tag(name = "用户中心", description = "用户个人资料管理接口")
 public class UserProfileController {
 
     private final UserRepository userRepository;

@@ -16,11 +16,11 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/actuator")
-@Tag(name = "System Health", description = "Health check endpoints for frontend compatibility")
+@Tag(name = "System Health", description = "前端兼容性健康检查接口")
 public class SystemHealthController {
 
     @GetMapping("/health")
-    @Operation(summary = "Get service health status")
+    @Operation(summary = "获取服务健康状态")
     public ResponseEntity<ApiResponse<Map<String, Object>>> health() {
         return ResponseEntity.ok(ApiResponse.success(Map.of(
                 "status", "UP",
