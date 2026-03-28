@@ -102,4 +102,32 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
             @Param("reportMonth") String reportMonth,
             @Param("reportOrgType") ReportOrgType reportOrgType,
             @Param("reportOrgId") Long reportOrgId);
+
+    @Query("""
+            SELECT pr
+            FROM PlanReport pr
+            WHERE pr.planId = :planId
+              AND pr.reportMonth = :reportMonth
+              AND pr.reportOrgType = :reportOrgType
+              AND pr.reportOrgId = :reportOrgId
+              AND pr.isDeleted = false
+            ORDER BY pr.createdAt DESC, pr.id DESC
+            """)
+    List<PlanReport> findLatestCandidatesByMonthlyScope(
+            @Param("planId") Long planId,
+            @Param("reportMonth") String reportMonth,
+            @Param("reportOrgType") ReportOrgType reportOrgType,
+            @Param("reportOrgId") Long reportOrgId);
+
+    @Override
+    default Optional<PlanReport> findLatestByMonthlyScope(
+            Long planId,
+            String reportMonth,
+            ReportOrgType reportOrgType,
+            Long reportOrgId
+    ) {
+        return findLatestCandidatesByMonthlyScope(planId, reportMonth, reportOrgType, reportOrgId)
+                .stream()
+                .findFirst();
+    }
 }

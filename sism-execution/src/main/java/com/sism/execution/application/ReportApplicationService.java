@@ -53,7 +53,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport createReport(String reportMonth, Long reportOrgId,
                                    ReportOrgType reportOrgType, Long planId, Long createdBy) {
-        Optional<PlanReport> existingReport = planReportRepository.findByUniqueKey(
+        Optional<PlanReport> existingReport = planReportRepository.findLatestByMonthlyScope(
                 planId, reportMonth, reportOrgType, reportOrgId);
 
         if (existingReport.isPresent()) {
@@ -69,7 +69,16 @@ public class ReportApplicationService {
                 return enrichReportMetadata(planReportRepository.save(report));
             }
 
-            throw new IllegalStateException("当前月份已存在报告，请勿重复创建");
+            if (PlanReport.STATUS_DRAFT.equals(report.getStatus())) {
+                report.markCreatedByIfAbsent(createdBy);
+                report.setUpdatedAt(LocalDateTime.now());
+                report.validate();
+                return enrichReportMetadata(planReportRepository.save(report));
+            }
+
+            if (PlanReport.STATUS_SUBMITTED.equals(report.getStatus())) {
+                throw new IllegalStateException("当前月份已有报告正在审批中，请等待审批完成或先撤回");
+            }
         }
 
         PlanReport report = PlanReport.createDraft(
@@ -251,6 +260,8 @@ public class ReportApplicationService {
         PlanReport report = planReportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
+        report.setAuditInstanceId(null);
+        report.setSubmittedAt(null);
         report.setUpdatedAt(LocalDateTime.now());
         return enrichReportMetadata(planReportRepository.save(report));
     }

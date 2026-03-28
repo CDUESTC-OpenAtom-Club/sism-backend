@@ -57,13 +57,13 @@ class ReportApplicationServiceTest {
     }
 
     @Test
-    void createReport_restoresDeletedReportWithSameUniqueKey() {
+    void createReport_restoresLatestDeletedReportInMonthlyScope() {
         PlanReport deletedReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         deletedReport.setId(6L);
         deletedReport.setIsDeleted(true);
         deletedReport.setStatus(PlanReport.STATUS_REJECTED);
 
-        when(planReportRepository.findByUniqueKey(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
                 .thenReturn(Optional.of(deletedReport));
         when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -78,28 +78,61 @@ class ReportApplicationServiceTest {
     }
 
     @Test
-    void createReport_rejectsDuplicateActiveReport() {
+    void createReport_reusesLatestDraftReportInMonthlyScope() {
         PlanReport activeReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         activeReport.setId(7L);
         activeReport.setIsDeleted(false);
 
-        when(planReportRepository.findByUniqueKey(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
                 .thenReturn(Optional.of(activeReport));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("当前月份已存在报告，请勿重复创建");
+        PlanReport reused = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+
+        assertThat(reused.getId()).isEqualTo(7L);
+        verify(planReportRepository).save(activeReport);
     }
 
     @Test
     void createReport_shouldPersistFirstFiller() {
-        when(planReportRepository.findByUniqueKey(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
                 .thenReturn(Optional.empty());
         when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         PlanReport created = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 7001L);
 
         assertThat(created.getCreatedBy()).isEqualTo(7001L);
+    }
+
+    @Test
+    void createReport_createsNewRoundWhenLatestMonthlyReportIsApproved() {
+        PlanReport approvedReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        approvedReport.setId(17L);
+        approvedReport.setStatus(PlanReport.STATUS_APPROVED);
+
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+                .thenReturn(Optional.of(approvedReport));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport created = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 7002L);
+
+        assertThat(created.getId()).isNull();
+        assertThat(created.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
+        assertThat(created.getCreatedBy()).isEqualTo(7002L);
+    }
+
+    @Test
+    void createReport_rejectsNewRoundWhenLatestMonthlyReportIsInReview() {
+        PlanReport inReviewReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        inReviewReport.setId(18L);
+        inReviewReport.setStatus(PlanReport.STATUS_SUBMITTED);
+
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+                .thenReturn(Optional.of(inReviewReport));
+
+        assertThatThrownBy(() -> reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("当前月份已有报告正在审批中，请等待审批完成或先撤回");
     }
 
     @Test
@@ -130,6 +163,24 @@ class ReportApplicationServiceTest {
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_REJECTED);
         assertThat(updated.getRejectionReason()).isEqualTo("退回修改");
         verify(planReportRepository).save(report);
+    }
+
+    @Test
+    void markWorkflowWithdrawn_shouldResetDraftStateAndClearAuditLink() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(19L);
+        report.setStatus(PlanReport.STATUS_SUBMITTED);
+        report.setAuditInstanceId(901L);
+        report.setSubmittedAt(java.time.LocalDateTime.now());
+
+        when(planReportRepository.findById(19L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.markWorkflowWithdrawn(19L);
+
+        assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
+        assertThat(updated.getAuditInstanceId()).isNull();
+        assertThat(updated.getSubmittedAt()).isNull();
     }
 
     @Test

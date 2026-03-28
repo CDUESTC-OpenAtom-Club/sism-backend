@@ -56,4 +56,6 @@ public interface PlanReportRepository {
     List<PlanReport> findByMonthAndOrgId(String month, Long orgId);
 
     Optional<PlanReport> findByUniqueKey(Long planId, String reportMonth, ReportOrgType reportOrgType, Long reportOrgId);
+
+    Optional<PlanReport> findLatestByMonthlyScope(Long planId, String reportMonth, ReportOrgType reportOrgType, Long reportOrgId);
 }
