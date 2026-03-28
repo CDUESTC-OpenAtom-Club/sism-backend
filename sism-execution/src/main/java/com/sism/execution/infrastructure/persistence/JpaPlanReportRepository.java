@@ -111,7 +111,7 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
               AND pr.reportOrgType = :reportOrgType
               AND pr.reportOrgId = :reportOrgId
               AND pr.isDeleted = false
-            ORDER BY pr.createdAt DESC, pr.id DESC
+            ORDER BY pr.submittedAt DESC, pr.id DESC
             """)
     List<PlanReport> findLatestCandidatesByMonthlyScope(
             @Param("planId") Long planId,
