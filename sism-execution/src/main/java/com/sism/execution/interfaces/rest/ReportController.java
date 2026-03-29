@@ -51,18 +51,31 @@ public class ReportController {
     public ResponseEntity<ApiResponse<PlanReportResponse>> updateReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
             @Valid @RequestBody UpdatePlanReportRequest request) {
-        PlanReport report = reportApplicationService.updateReport(
-                id,
-                request.getTitle(),
-                request.getIndicatorId(),
-                request.getContent(),
-                request.getSummary(),
-                request.getProgress(),
-                request.getIssues(),
-                request.getNextPlan(),
-                request.getMilestoneNote(),
-                request.getOperatorUserId()
-        );
+        PlanReport report =
+                request.getIndicatorDetails() != null && !request.getIndicatorDetails().isEmpty()
+                        ? reportApplicationService.updateReportBatch(
+                                id,
+                                request.getTitle(),
+                                request.getContent(),
+                                request.getSummary(),
+                                request.getProgress(),
+                                request.getIssues(),
+                                request.getNextPlan(),
+                                request.getOperatorUserId(),
+                                request.getIndicatorDetails()
+                        )
+                        : reportApplicationService.updateReport(
+                                id,
+                                request.getTitle(),
+                                request.getIndicatorId(),
+                                request.getContent(),
+                                request.getSummary(),
+                                request.getProgress(),
+                                request.getIssues(),
+                                request.getNextPlan(),
+                                request.getMilestoneNote(),
+                                request.getOperatorUserId()
+                        );
         return ResponseEntity.ok(ApiResponse.success(PlanReportResponse.fromEntity(report)));
     }
 

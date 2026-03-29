@@ -1,5 +1,6 @@
 package com.sism.workflow.application.support;
 
+import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.strategy.domain.repository.PlanRepository;
@@ -22,6 +23,7 @@ public class ApproverResolver {
     private static final Long ROLE_VICE_PRESIDENT = 4L;
     private static final Long STRATEGY_ORG_ID = 35L;
     private static final String PLAN_ENTITY_TYPE = "PLAN";
+    private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
     private static final String COLLEGE_FINAL_APPROVAL_STEP_NAME = "职能部门终审";
     private static final Map<Long, Long> FUNCTIONAL_VICE_PRESIDENT_SCOPE_BY_ORG = Map.ofEntries(
             Map.entry(35L, 35L),
@@ -48,6 +50,7 @@ public class ApproverResolver {
 
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
+    private final PlanReportRepository planReportRepository;
 
     public Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId) {
         return resolveApproverId(stepDef, requesterId, requesterOrgId, null);
@@ -201,16 +204,29 @@ public class ApproverResolver {
             return requesterOrgId;
         }
 
-        return planRepository.findById(instance.getEntityId())
-                .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
-                .orElse(requesterOrgId);
+        if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+            return planRepository.findById(instance.getEntityId())
+                    .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
+                    .orElse(requesterOrgId);
+        }
+
+        if (PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+            return planReportRepository.findById(instance.getEntityId())
+                    .map(report -> report.getPlanId())
+                    .flatMap(planRepository::findById)
+                    .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
+                    .orElse(requesterOrgId);
+        }
+
+        return requesterOrgId;
     }
 
     private boolean isCollegeFinalApprovalStep(AuditStepDef stepDef, AuditInstance instance) {
         if (stepDef == null || instance == null) {
             return false;
         }
-        if (!PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+        if (!PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())
+                && !PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
             return false;
         }
         String stepName = stepDef.getStepName();

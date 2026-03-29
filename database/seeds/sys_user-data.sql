@@ -22,8 +22,8 @@ INSERT INTO public.sys_user (
 VALUES
     (124, NOW(), NOW(), true, '$2b$10$D6/ksnZaAwCkuD13HaTHTOrTKNnlawU5eThyDlK7t.rZx5PrRpgLy', '系统管理员', NULL, 'admin', 35),
     (188, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略部管理员', NULL, 'zlb_admin', 35),
-    (189, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部终审人1', NULL, 'zlb_final1', 35),
-    (190, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部终审人2', NULL, 'zlb_final2', 35),
+    (189, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部负责人1', NULL, 'zlb_final1', 35),
+    (190, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部负责人2', NULL, 'zlb_final2', 35),
     (191, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办填报人', NULL, 'dangban_report', 36),
     (192, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办审核人1', NULL, 'dangban_audit1', 36),
     (193, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办审核人2', NULL, 'dangban_audit2', 36),

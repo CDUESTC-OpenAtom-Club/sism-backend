@@ -2,6 +2,8 @@ package com.sism.execution.interfaces.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * UpdatePlanReportRequest - 更新计划报告请求DTO
  * 用于接收更新报告内容的请求参数
@@ -26,4 +28,6 @@ public class UpdatePlanReportRequest {
     private String milestoneNote;
 
     private Long operatorUserId;
+
+    private List<UpdatePlanReportIndicatorDetailRequest> indicatorDetails;
 }

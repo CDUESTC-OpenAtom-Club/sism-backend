@@ -5,6 +5,7 @@ import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
+import com.sism.execution.interfaces.dto.UpdatePlanReportIndicatorDetailRequest;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.strategy.domain.Indicator;
@@ -112,6 +113,46 @@ public class ReportApplicationService {
                     milestoneNote
             );
         }
+        return enrichReportMetadata(savedReport);
+    }
+
+    @Transactional
+    public PlanReport updateReportBatch(Long reportId,
+                                        String title,
+                                        String content,
+                                        String summary,
+                                        Integer progress,
+                                        String issues,
+                                        String nextPlan,
+                                        Long operatorUserId,
+                                        List<UpdatePlanReportIndicatorDetailRequest> indicatorDetails) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+
+        report.markCreatedByIfAbsent(operatorUserId);
+        report.updateContent(content, summary, progress, issues, nextPlan);
+        if (title != null) {
+            report.setTitle(title);
+        }
+        PlanReport savedReport = planReportRepository.save(report);
+
+        List<UpdatePlanReportIndicatorDetailRequest> normalizedDetails = indicatorDetails == null
+                ? List.of()
+                : indicatorDetails.stream()
+                .filter(Objects::nonNull)
+                .toList();
+
+        for (UpdatePlanReportIndicatorDetailRequest detail : normalizedDetails) {
+            validatePendingProgress(detail.getIndicatorId(), detail.getProgress());
+            planReportIndicatorRepository.upsertDraftIndicator(
+                    savedReport.getId(),
+                    detail.getIndicatorId(),
+                    detail.getProgress(),
+                    detail.getContent(),
+                    detail.getMilestoneNote()
+            );
+        }
+
         return enrichReportMetadata(savedReport);
     }
 
