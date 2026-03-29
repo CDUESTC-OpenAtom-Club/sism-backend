@@ -46,6 +46,16 @@ BEGIN
   
   RAISE NOTICE '=== 迁移完成统计 ===';
   RAISE NOTICE '总指标数: %', total_count;
-  RAISE NOTICE '已设置 responsible_dept: % (%.1f%%)', has_responsible, (has_responsible::FLOAT / total_count * 100);
-  RAISE NOTICE '已设置 owner_dept: % (%.1f%%)', has_owner, (has_owner::FLOAT / total_count * 100);
+  RAISE NOTICE '已设置 responsible_dept: % (%.1f%%)',
+    has_responsible,
+    CASE
+      WHEN total_count > 0 THEN has_responsible::FLOAT / total_count * 100
+      ELSE 0
+    END;
+  RAISE NOTICE '已设置 owner_dept: % (%.1f%%)',
+    has_owner,
+    CASE
+      WHEN total_count > 0 THEN has_owner::FLOAT / total_count * 100
+      ELSE 0
+    END;
 END $$;
