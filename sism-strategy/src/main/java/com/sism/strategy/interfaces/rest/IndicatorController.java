@@ -116,6 +116,11 @@ public class IndicatorController {
                 request.getDescription(),
                 request.getIndicatorName()
         );
+        String indicatorType = requireIndicatorType(
+                request.getType(),
+                request.getType1(),
+                request.getIndicatorType()
+        );
         if (description == null || description.isBlank()) {
             throw new IllegalArgumentException("Indicator description is required");
         }
@@ -137,6 +142,7 @@ public class IndicatorController {
                 targetOrg,
                 request.getTaskId(),
                 request.getParentIndicatorId(),
+                indicatorType,
                 request.getWeightPercent(),
                 request.getSortOrder(),
                 request.getRemark(),
@@ -162,7 +168,6 @@ public class IndicatorController {
         if ((indicatorDesc == null || indicatorDesc.isBlank()) && request.getIndicatorName() != null) {
             indicatorDesc = request.getIndicatorName();
         }
-
         Indicator updated = strategyApplicationService.updateIndicator(
                 id,
                 indicatorDesc,
@@ -325,6 +330,11 @@ public class IndicatorController {
                         }
 
                         String indicatorDesc = firstNonBlank(item.getIndicatorDesc(), item.getCustomDesc());
+                        String indicatorType = requireIndicatorType(
+                                item.getType(),
+                                item.getType1(),
+                                item.getIndicatorType()
+                        );
                         if (indicatorDesc == null || indicatorDesc.isBlank()) {
                             throw new IllegalArgumentException("Indicator description is required");
                         }
@@ -342,6 +352,7 @@ public class IndicatorController {
                                 targetOrg,
                                 item.getTaskId(),
                                 item.getParentIndicatorId(),
+                                indicatorType,
                                 item.getWeightPercent(),
                                 item.getSortOrder(),
                                 item.getRemark(),
@@ -760,6 +771,25 @@ public class IndicatorController {
         return null;
     }
 
+    private String optionalIndicatorType(String... values) {
+        String value = firstNonBlank(values);
+        if (value == null) {
+            return null;
+        }
+        if (!"定量".equals(value) && !"定性".equals(value)) {
+            throw new IllegalArgumentException("Indicator type must be either 定量 or 定性");
+        }
+        return value;
+    }
+
+    private String requireIndicatorType(String... values) {
+        String value = optionalIndicatorType(values);
+        if (value == null) {
+            throw new IllegalArgumentException("Indicator type is required");
+        }
+        return value;
+    }
+
     // ==================== Request/Response DTOs ====================
 
     @Data
@@ -804,6 +834,9 @@ public class IndicatorController {
 
         private String description;
         private String indicatorDesc;
+        private String type;
+        private String indicatorType;
+        private String type1;
         private Long taskId;
         private Long parentIndicatorId;
         private Long ownerOrgId;

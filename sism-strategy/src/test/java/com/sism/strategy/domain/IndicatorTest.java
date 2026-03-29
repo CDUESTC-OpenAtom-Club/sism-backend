@@ -26,7 +26,7 @@ class IndicatorTest {
     @Test
     @DisplayName("Should create Indicator with valid parameters")
     void shouldCreateIndicatorWithValidParameters() {
-        Indicator indicator = Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg);
+        Indicator indicator = Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg, "定性");
 
         assertNotNull(indicator);
         assertNotNull(indicator.getDescription());
@@ -37,13 +37,14 @@ class IndicatorTest {
         assertFalse(indicator.getIsDeleted());
         assertNotNull(indicator.getCreatedAt());
         assertNotNull(indicator.getUpdatedAt());
+        assertEquals("定性", indicator.getType());
     }
 
     @Test
     @DisplayName("Should throw exception when creating Indicator with null name")
     void shouldThrowExceptionWhenCreatingIndicatorWithNullName() {
         assertThrows(IllegalArgumentException.class, () ->
-            Indicator.create(null, "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg)
+            Indicator.create(null, "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg, "定量")
         );
     }
 
@@ -51,7 +52,7 @@ class IndicatorTest {
     @DisplayName("Should throw exception when creating Indicator with negative weight")
     void shouldThrowExceptionWhenCreatingIndicatorWithNegativeWeight() {
         assertThrows(IllegalArgumentException.class, () ->
-            Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(-10), ownerOrg, targetOrg)
+            Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(-10), ownerOrg, targetOrg, "定量")
         );
     }
 
@@ -59,14 +60,14 @@ class IndicatorTest {
     @DisplayName("Should throw exception when creating Indicator with weight exceeding 100")
     void shouldThrowExceptionWhenCreatingIndicatorWithWeightExceeding100() {
         assertThrows(IllegalArgumentException.class, () ->
-            Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(101), ownerOrg, targetOrg)
+            Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(101), ownerOrg, targetOrg, "定量")
         );
     }
 
     @Test
     @DisplayName("Should submit indicator for review successfully")
     void shouldSubmitIndicatorForReviewSuccessfully() {
-        Indicator indicator = Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg);
+        Indicator indicator = Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg, "定量");
 
         indicator.submitForReview();
 
@@ -77,7 +78,7 @@ class IndicatorTest {
     @Test
     @DisplayName("Should validate Indicator with valid parameters")
     void shouldValidateIndicatorWithValidParameters() {
-        Indicator indicator = Indicator.create("有效指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg);
+        Indicator indicator = Indicator.create("有效指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg, "定量");
 
         assertDoesNotThrow(indicator::validate);
     }
@@ -86,7 +87,15 @@ class IndicatorTest {
     @DisplayName("Should validate Indicator with invalid parameters")
     void shouldValidateIndicatorWithInvalidParameters() {
         assertThrows(IllegalArgumentException.class, () -> {
-            Indicator.create(null, null, null, null, null);
+            Indicator.create(null, null, null, null, null, null);
         });
+    }
+
+    @Test
+    @DisplayName("Should reject missing indicator type instead of defaulting to quantitative")
+    void shouldRejectMissingIndicatorType() {
+        assertThrows(IllegalArgumentException.class, () ->
+            Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg, null)
+        );
     }
 }
