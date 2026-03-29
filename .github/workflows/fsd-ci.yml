@@ -31,14 +31,14 @@ jobs:
           distribution: 'temurin'
       - name: Install Maven dependencies
         run: |
-          mvn -q -DskipTests -e dependency:go-offline
+          mvn -q -pl sism-main -am -DskipTests install
       - name: Run Flyway migrations against test DB
         env:
           FLYWAY_URL: jdbc:postgresql://localhost:5432/sism_dev
           FLYWAY_USER: postgres
           FLYWAY_PASSWORD: postgres
         run: |
-          mvn -q flyway:migrate -Dflyway.url=$FLYWAY_URL -Dflyway.user=$FLYWAY_USER -Dflyway.password=$FLYWAY_PASSWORD
+          mvn -q -pl sism-main -am flyway:migrate -Dflyway.url=$FLYWAY_URL -Dflyway.user=$FLYWAY_USER -Dflyway.password=$FLYWAY_PASSWORD
       - name: Build and test backend
         run: |
           mvn -q test
