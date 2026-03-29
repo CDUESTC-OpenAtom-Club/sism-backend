@@ -38,7 +38,7 @@ jobs:
           FLYWAY_USER: postgres
           FLYWAY_PASSWORD: postgres
         run: |
-          mvn -q -pl sism-main -am flyway:migrate -Dflyway.url=$FLYWAY_URL -Dflyway.user=$FLYWAY_USER -Dflyway.password=$FLYWAY_PASSWORD
+          mvn -q -pl sism-main -am flyway:migrate -Dflyway.target=1 -Dflyway.url=$FLYWAY_URL -Dflyway.user=$FLYWAY_USER -Dflyway.password=$FLYWAY_PASSWORD
       - name: Build and test backend
         run: |
           mvn -q test
