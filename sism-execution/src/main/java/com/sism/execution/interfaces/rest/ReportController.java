@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 @RestController("executionReportController")
 @RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
-@Tag(name = "Plan Reports", description = "Plan report management endpoints")
+@Tag(name = "计划报告", description = "计划报告管理接口")
 public class ReportController {
 
     private final ReportApplicationService reportApplicationService;
@@ -51,18 +51,31 @@ public class ReportController {
     public ResponseEntity<ApiResponse<PlanReportResponse>> updateReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
             @Valid @RequestBody UpdatePlanReportRequest request) {
-        PlanReport report = reportApplicationService.updateReport(
-                id,
-                request.getTitle(),
-                request.getIndicatorId(),
-                request.getContent(),
-                request.getSummary(),
-                request.getProgress(),
-                request.getIssues(),
-                request.getNextPlan(),
-                request.getMilestoneNote(),
-                request.getOperatorUserId()
-        );
+        PlanReport report =
+                request.getIndicatorDetails() != null && !request.getIndicatorDetails().isEmpty()
+                        ? reportApplicationService.updateReportBatch(
+                                id,
+                                request.getTitle(),
+                                request.getContent(),
+                                request.getSummary(),
+                                request.getProgress(),
+                                request.getIssues(),
+                                request.getNextPlan(),
+                                request.getOperatorUserId(),
+                                request.getIndicatorDetails()
+                        )
+                        : reportApplicationService.updateReport(
+                                id,
+                                request.getTitle(),
+                                request.getIndicatorId(),
+                                request.getContent(),
+                                request.getSummary(),
+                                request.getProgress(),
+                                request.getIssues(),
+                                request.getNextPlan(),
+                                request.getMilestoneNote(),
+                                request.getOperatorUserId()
+                        );
         return ResponseEntity.ok(ApiResponse.success(PlanReportResponse.fromEntity(report)));
     }
 

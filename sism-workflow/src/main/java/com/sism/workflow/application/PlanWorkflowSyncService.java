@@ -58,6 +58,15 @@ public class PlanWorkflowSyncService {
             if (AuditInstance.STATUS_APPROVED.equals(instance.getStatus())) {
                 log.info("Workflow APPROVED for PlanReport#{}, syncing report status", instance.getEntityId());
                 reportService.markWorkflowApproved(instance.getEntityId(), instance.getRequesterId());
+                return;
+            }
+
+            boolean hasWithdrawnStep = instance.getStepInstances().stream()
+                    .anyMatch(step -> AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus()));
+            if (hasWithdrawnStep) {
+                log.info("Workflow WITHDRAWN for PlanReport#{}, resetting report status to draft", instance.getEntityId());
+                reportService.markWorkflowWithdrawn(instance.getEntityId());
+                return;
             } else if (AuditInstance.STATUS_REJECTED.equals(instance.getStatus())) {
                 String reason = instance.getStepInstances().stream()
                         .filter(step -> AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus()))

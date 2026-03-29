@@ -201,7 +201,7 @@ class ReportApplicationServiceIntegrationTest {
         SysOrg ownerOrg = persistOrg("owner-org-" + sequence, OrgType.functional);
         SysOrg targetOrg = persistOrg("target-org-" + sequence, OrgType.functional);
 
-        Indicator indicator = Indicator.create("indicator-" + sequence, ownerOrg, targetOrg);
+        Indicator indicator = Indicator.create("indicator-" + sequence, ownerOrg, targetOrg, "定量");
         indicator.setStatus(IndicatorStatus.DISTRIBUTED);
         indicator = indicatorRepository.save(indicator);
 

@@ -18,20 +18,20 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/tasks")
 @RequiredArgsConstructor
-@Tag(name = "Tasks", description = "Task center endpoints. Strategic tasks are one current task type.")
+@Tag(name = "任务管理", description = "任务中心相关接口。战略任务是当前的任务类型之一。")
 public class TaskController {
 
     private final TaskApplicationService taskApplicationService;
 
     @PostMapping
-    @Operation(summary = "Create a new task-center task", description = "Creates a strategic task today and keeps task-category semantics explicit for future task types.")
+    @Operation(summary = "创建新任务", description = "创建战略任务，并为未来任务类型保留明确的任务类别语义。")
     public ResponseEntity<ApiResponse<TaskResponse>> createTask(@Valid @RequestBody CreateTaskRequest request) {
         TaskResponse created = taskApplicationService.createTask(request);
         return ResponseEntity.ok(ApiResponse.success(created));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get task by ID")
+    @Operation(summary = "根据ID获取任务")
     public ResponseEntity<ApiResponse<TaskResponse>> getTask(@PathVariable Long id) {
         TaskResponse task = taskApplicationService.getTaskById(id);
         if (task == null) {
@@ -41,14 +41,14 @@ public class TaskController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all tasks")
+    @Operation(summary = "获取所有任务")
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getAllTasks() {
         List<TaskResponse> tasks = taskApplicationService.getAllTasks();
         return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search tasks with filters and pagination", description = "The search response distinguishes planStatus from taskStatus.")
+    @Operation(summary = "搜索任务(带过滤和分页)", description = "搜索响应区分计划状态和任务自身状态。")
     public ResponseEntity<ApiResponse<PageResult<TaskResponse>>> searchTasks(
             @Parameter(description = "计划ID") @RequestParam(required = false) Long planId,
             @Parameter(description = "考核周期ID") @RequestParam(required = false) Long cycleId,
@@ -77,28 +77,28 @@ public class TaskController {
     }
 
     @PostMapping("/{id}/activate")
-    @Operation(summary = "Activate a task", description = "Updates taskStatus only. This endpoint does not represent plan approval or distribution state.")
+    @Operation(summary = "激活任务", description = "仅更新任务状态。此接口不代表计划审批或分发状态。")
     public ResponseEntity<ApiResponse<TaskResponse>> activateTask(@PathVariable Long id) {
         TaskResponse activated = taskApplicationService.activateTask(id);
         return ResponseEntity.ok(ApiResponse.success(activated));
     }
 
     @PostMapping("/{id}/complete")
-    @Operation(summary = "Complete a task", description = "Updates taskStatus only. This endpoint does not represent plan approval or distribution state.")
+    @Operation(summary = "完成任务", description = "仅更新任务状态。此接口不代表计划审批或分发状态。")
     public ResponseEntity<ApiResponse<TaskResponse>> completeTask(@PathVariable Long id) {
         TaskResponse completed = taskApplicationService.completeTask(id);
         return ResponseEntity.ok(ApiResponse.success(completed));
     }
 
     @PostMapping("/{id}/cancel")
-    @Operation(summary = "Cancel a task", description = "Updates taskStatus only. This endpoint does not represent plan approval or distribution state.")
+    @Operation(summary = "取消任务", description = "仅更新任务状态。此接口不代表计划审批或分发状态。")
     public ResponseEntity<ApiResponse<TaskResponse>> cancelTask(@PathVariable Long id) {
         TaskResponse cancelled = taskApplicationService.cancelTask(id);
         return ResponseEntity.ok(ApiResponse.success(cancelled));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update entire task")
+    @Operation(summary = "更新任务")
     public ResponseEntity<ApiResponse<TaskResponse>> updateTask(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskRequest request) {
@@ -107,7 +107,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}/name")
-    @Operation(summary = "Update task name")
+    @Operation(summary = "更新任务名称")
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskName(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskNameRequest request) {
@@ -116,7 +116,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}/sort-order")
-    @Operation(summary = "Update task sort order")
+    @Operation(summary = "更新任务排序顺序")
     public ResponseEntity<ApiResponse<TaskResponse>> updateSortOrder(
             @PathVariable Long id,
             @RequestParam Integer sortOrder) {
@@ -125,7 +125,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}/desc")
-    @Operation(summary = "Update task description")
+    @Operation(summary = "更新任务描述")
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskDesc(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskDescRequest request) {
@@ -134,7 +134,7 @@ public class TaskController {
     }
 
     @PutMapping("/{id}/remark")
-    @Operation(summary = "Update task remark")
+    @Operation(summary = "更新任务备注")
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskRemark(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskRemarkRequest request) {
@@ -143,14 +143,14 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a task (soft delete)")
+    @Operation(summary = "删除任务(软删除)")
     public ResponseEntity<ApiResponse<Void>> deleteTask(@PathVariable Long id) {
         taskApplicationService.deleteTask(id);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
     @GetMapping("/by-org/{orgId}")
-    @Operation(summary = "Get tasks by organization ID")
+    @Operation(summary = "根据组织ID获取任务列表")
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasksByOrgId(
             @PathVariable @Parameter(description = "组织ID") Long orgId) {
         List<TaskResponse> tasks = taskApplicationService.getTasksByOrgId(orgId);
@@ -158,7 +158,7 @@ public class TaskController {
     }
 
     @GetMapping("/by-plan/{planId}")
-    @Operation(summary = "Get tasks by plan ID")
+    @Operation(summary = "根据计划ID获取任务列表")
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasksByPlanId(
             @PathVariable @Parameter(description = "计划ID") Long planId) {
         List<TaskResponse> tasks = taskApplicationService.getTasksByPlanId(planId);
@@ -166,7 +166,7 @@ public class TaskController {
     }
 
     @GetMapping("/by-cycle/{cycleId}")
-    @Operation(summary = "Get tasks by cycle ID")
+    @Operation(summary = "根据考核周期ID获取任务列表")
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasksByCycleId(
             @PathVariable @Parameter(description = "考核周期ID") Long cycleId) {
         List<TaskResponse> tasks = taskApplicationService.getTasksByCycleId(cycleId);
@@ -174,7 +174,7 @@ public class TaskController {
     }
 
     @GetMapping("/by-type/{taskType}")
-    @Operation(summary = "Get tasks by task type")
+    @Operation(summary = "根据任务类型获取任务列表")
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasksByType(
             @PathVariable @Parameter(description = "任务类型") TaskType taskType) {
         List<TaskResponse> tasks = taskApplicationService.getTasksByType(taskType);

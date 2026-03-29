@@ -148,11 +148,22 @@ public class WorkflowReadModelService {
     }
 
     private WorkflowInstanceDetailResponse buildInstanceDetail(AuditInstance instance) {
-        WorkflowInstanceResponse summary = buildInstanceSummary(instance);
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+
+        WorkflowInstanceResponse summary = buildInstanceSummary(
+                instance,
+                userNameCache,
+                orgNameCache,
+                flowDefCache,
+                businessContextCache
+        );
         WorkflowInstanceDetailResponse response = new WorkflowInstanceDetailResponse();
         copySummary(summary, response);
 
-        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId());
+        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId(), flowDefCache);
         Map<Long, AuditStepDef> stepDefById = flowDef == null || flowDef.getSteps() == null
                 ? Map.of()
                 : flowDef.getSteps().stream()
@@ -161,37 +172,51 @@ public class WorkflowReadModelService {
 
         List<WorkflowTaskResponse> tasks = instance.getStepInstances().stream()
                 .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
-                .map(step -> enrichStepDetail(instance, step, stepDefById.get(step.getStepDefId())))
+                .map(step -> enrichStepDetail(instance, step, stepDefById.get(step.getStepDefId()), userNameCache, orgNameCache))
                 .toList();
         response.setTasks(tasks);
-        response.setHistory(buildHistory(instance));
+        response.setHistory(buildHistory(instance, userNameCache));
         return response;
     }
 
     private WorkflowInstanceResponse buildInstanceSummary(AuditInstance instance) {
+        return buildInstanceSummary(instance, new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>());
+    }
+
+    private WorkflowInstanceResponse buildInstanceSummary(
+            AuditInstance instance,
+            Map<Long, String> userNameCache,
+            Map<Long, String> orgNameCache,
+            Map<Long, AuditFlowDef> flowDefCache,
+            Map<String, WorkflowBusinessContext> businessContextCache) {
         WorkflowInstanceResponse response = workflowReadModelMapper.toInstanceResponse(instance);
-        WorkflowBusinessContext context = resolveBusinessContext(instance);
-        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId());
+        WorkflowBusinessContext context = resolveBusinessContext(instance, orgNameCache, businessContextCache);
+        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId(), flowDefCache);
 
         response.setEntityType(toExternalEntityType(instance.getEntityType()));
         response.setEntityId(instance.getEntityId());
         response.setBusinessEntityId(instance.getEntityId());
         response.setFlowCode(flowDef != null ? flowDef.getFlowCode() : null);
         response.setFlowName(flowDef != null ? flowDef.getFlowName() : null);
-        response.setStarterName(resolveUserName(instance.getRequesterId()));
+        response.setStarterName(resolveUserName(instance.getRequesterId(), userNameCache));
         response.setPlanId(context.planId());
         response.setPlanName(context.planName());
         response.setSourceOrgId(context.sourceOrgId());
         response.setSourceOrgName(context.sourceOrgName());
         response.setTargetOrgId(context.targetOrgId());
         response.setTargetOrgName(context.targetOrgName());
+        response.setCurrentApproverName(resolveUserName(response.getCurrentApproverId(), userNameCache));
         return response;
     }
 
     private WorkflowTaskResponse enrichTaskResponse(AuditInstance instance, AuditStepInstance step) {
         WorkflowTaskResponse response = workflowReadModelMapper.toPendingTaskResponse(instance, step);
-        WorkflowBusinessContext context = resolveBusinessContext(instance);
-        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId());
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+        WorkflowBusinessContext context = resolveBusinessContext(instance, orgNameCache, businessContextCache);
+        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId(), flowDefCache);
         response.setEntityType(toExternalEntityType(instance.getEntityType()));
         response.setEntityId(instance.getEntityId());
         response.setPlanId(context.planId());
@@ -203,31 +228,43 @@ public class WorkflowReadModelService {
         response.setTargetOrgId(context.targetOrgId());
         response.setTargetOrgName(context.targetOrgName());
         response.setCurrentStepName(step.getStepName());
-        response.setApproverOrgName(resolveOrgName(step.getApproverOrgId()));
+        response.setApproverOrgName(resolveOrgName(step.getApproverOrgId(), orgNameCache));
         return response;
     }
 
-    private WorkflowTaskResponse enrichStepDetail(AuditInstance instance, AuditStepInstance step, AuditStepDef stepDef) {
+    private WorkflowTaskResponse enrichStepDetail(
+            AuditInstance instance,
+            AuditStepInstance step,
+            AuditStepDef stepDef,
+            Map<Long, String> userNameCache,
+            Map<Long, String> orgNameCache) {
         WorkflowTaskResponse response = workflowReadModelMapper.toTaskResponse(step);
         response.setInstanceId(instance.getId() != null ? instance.getId().toString() : null);
         response.setEntityType(toExternalEntityType(instance.getEntityType()));
         response.setEntityId(instance.getEntityId());
         response.setCurrentStepName(step.getStepName());
-        response.setApproverOrgName(resolveOrgName(step.getApproverOrgId()));
+        response.setAssigneeName(resolveUserName(step.getApproverId(), userNameCache));
+        response.setApproverOrgName(resolveOrgName(step.getApproverOrgId(), orgNameCache));
         response.setStepType(stepDef != null ? stepDef.getStepType() : null);
         return response;
     }
 
-    private List<WorkflowHistoryResponse> buildHistory(AuditInstance instance) {
+    private List<WorkflowHistoryResponse> buildHistory(AuditInstance instance, Map<Long, String> userNameCache) {
         List<WorkflowHistoryResponse> history = new ArrayList<>();
 
         for (AuditStepInstance step : instance.getStepInstances()) {
             if (AuditInstance.STEP_STATUS_APPROVED.equals(step.getStatus())) {
-                history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "APPROVE"));
+                WorkflowHistoryResponse item = workflowReadModelMapper.toHistoryResponse(instance, step, "APPROVE");
+                item.setOperatorName(resolveUserName(step.getApproverId(), userNameCache));
+                history.add(item);
             } else if (AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus())) {
-                history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "REJECT"));
+                WorkflowHistoryResponse item = workflowReadModelMapper.toHistoryResponse(instance, step, "REJECT");
+                item.setOperatorName(resolveUserName(step.getApproverId(), userNameCache));
+                history.add(item);
             } else if (AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus())) {
-                history.add(workflowReadModelMapper.toHistoryResponse(instance, step, "WITHDRAW"));
+                WorkflowHistoryResponse item = workflowReadModelMapper.toHistoryResponse(instance, step, "WITHDRAW");
+                item.setOperatorName(resolveUserName(step.getApproverId(), userNameCache));
+                history.add(item);
             }
         }
 
@@ -235,8 +272,12 @@ public class WorkflowReadModelService {
     }
 
     private WorkflowHistoryCardResponse buildHistoryCard(AuditInstance instance, int roundNo) {
-        WorkflowBusinessContext context = resolveBusinessContext(instance);
-        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId());
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+        WorkflowBusinessContext context = resolveBusinessContext(instance, orgNameCache, businessContextCache);
+        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId(), flowDefCache);
         return WorkflowHistoryCardResponse.builder()
                 .instanceId(instance.getId() != null ? instance.getId().toString() : null)
                 .instanceNo(buildInstanceNo(toExternalEntityType(instance.getEntityType()), instance.getEntityId(), roundNo))
@@ -255,7 +296,7 @@ public class WorkflowReadModelService {
                 .startedAt(instance.getStartedAt())
                 .completedAt(instance.getCompletedAt())
                 .requesterId(instance.getRequesterId())
-                .requesterName(resolveUserName(instance.getRequesterId()))
+                .requesterName(resolveUserName(instance.getRequesterId(), userNameCache))
                 .build();
     }
 
@@ -309,13 +350,25 @@ public class WorkflowReadModelService {
                         && AuditInstance.STEP_STATUS_APPROVED.equalsIgnoreCase(step.getStatus()));
     }
 
-    private WorkflowBusinessContext resolveBusinessContext(AuditInstance instance) {
+    private WorkflowBusinessContext resolveBusinessContext(
+            AuditInstance instance,
+            Map<Long, String> orgNameCache,
+            Map<String, WorkflowBusinessContext> businessContextCache) {
         if (instance == null) {
             return WorkflowBusinessContext.empty();
         }
 
+        String cacheKey = String.join(":",
+                String.valueOf(instance.getEntityType()),
+                String.valueOf(instance.getEntityId()));
+        WorkflowBusinessContext cached = businessContextCache.get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        WorkflowBusinessContext resolved;
         if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            return planRepository.findById(instance.getEntityId())
+            resolved = planRepository.findById(instance.getEntityId())
                     .map(this::buildPlanContext)
                     .orElseGet(() -> new WorkflowBusinessContext(
                             instance.getEntityId(),
@@ -326,15 +379,21 @@ public class WorkflowReadModelService {
                             null,
                             null
                     ));
+            businessContextCache.put(cacheKey, resolved);
+            return resolved;
         }
 
         if (isPlanReportEntityType(instance.getEntityType())) {
-            return planReportRepository.findById(instance.getEntityId())
+            resolved = planReportRepository.findById(instance.getEntityId())
                     .map(this::buildPlanReportContext)
                     .orElseGet(WorkflowBusinessContext::empty);
+            businessContextCache.put(cacheKey, resolved);
+            return resolved;
         }
 
-        return WorkflowBusinessContext.empty();
+        resolved = WorkflowBusinessContext.empty();
+        businessContextCache.put(cacheKey, resolved);
+        return resolved;
     }
 
     private WorkflowBusinessContext buildPlanContext(Plan plan) {
@@ -385,10 +444,19 @@ public class WorkflowReadModelService {
     }
 
     private AuditFlowDef resolveFlowDef(Long flowDefId) {
+        return resolveFlowDef(flowDefId, new HashMap<>());
+    }
+
+    private AuditFlowDef resolveFlowDef(Long flowDefId, Map<Long, AuditFlowDef> flowDefCache) {
         if (flowDefId == null) {
             return null;
         }
-        return workflowDefinitionQueryService.getAuditFlowDefById(flowDefId);
+        if (flowDefCache.containsKey(flowDefId)) {
+            return flowDefCache.get(flowDefId);
+        }
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(flowDefId);
+        flowDefCache.put(flowDefId, flowDef);
+        return flowDef;
     }
 
     private boolean canUserHandleStep(AuditInstance instance, AuditStepInstance step, Long userId) {
@@ -405,23 +473,41 @@ public class WorkflowReadModelService {
     }
 
     private String resolveUserName(Long userId) {
+        return resolveUserName(userId, new HashMap<>());
+    }
+
+    private String resolveUserName(Long userId, Map<Long, String> userNameCache) {
         if (userId == null) {
             return null;
         }
-        return userRepository.findById(userId)
+        if (userNameCache.containsKey(userId)) {
+            return userNameCache.get(userId);
+        }
+        String userName = userRepository.findById(userId)
                 .map(user -> user.getRealName() != null && !user.getRealName().isBlank()
                         ? user.getRealName()
                         : (user.getUsername() == null || user.getUsername().isBlank() ? "User#" + userId : user.getUsername()))
                 .orElse("User#" + userId);
+        userNameCache.put(userId, userName);
+        return userName;
     }
 
     private String resolveOrgName(Long orgId) {
+        return resolveOrgName(orgId, new HashMap<>());
+    }
+
+    private String resolveOrgName(Long orgId, Map<Long, String> orgNameCache) {
         if (orgId == null) {
             return null;
         }
-        return organizationRepository.findById(orgId)
+        if (orgNameCache.containsKey(orgId)) {
+            return orgNameCache.get(orgId);
+        }
+        String orgName = organizationRepository.findById(orgId)
                 .map(org -> org.getName() != null && !org.getName().isBlank() ? org.getName() : "Org#" + orgId)
                 .orElse("Org#" + orgId);
+        orgNameCache.put(orgId, orgName);
+        return orgName;
     }
 
     private List<String> normalizeEntityTypes(String entityType) {

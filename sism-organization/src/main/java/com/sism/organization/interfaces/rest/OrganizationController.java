@@ -21,14 +21,14 @@ import java.util.List;
 @RestController
 @RequestMapping({"/api/v1/organizations", "/api/v1/orgs"})
 @RequiredArgsConstructor
-@Tag(name = "Organizations", description = "Organization management endpoints")
+@Tag(name = "组织管理", description = "组织管理相关接口")
 public class OrganizationController {
 
     private final OrganizationApplicationService organizationApplicationService;
     private final OrgMapper orgMapper;
 
     @PostMapping
-    @Operation(summary = "Create a new organization")
+    @Operation(summary = "创建新组织")
     public ResponseEntity<ApiResponse<OrgResponse>> createOrganization(
             @Valid @RequestBody OrgRequest request) {
         // Convert from shared OrgType to domain OrgType
@@ -40,7 +40,7 @@ public class OrganizationController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all organizations")
+    @Operation(summary = "获取所有组织")
     public ResponseEntity<ApiResponse<List<OrgResponse>>> getAllOrganizations() {
         List<SysOrg> orgs = organizationApplicationService.getAllOrganizations();
         List<OrgResponse> responses = orgMapper.toResponseList(orgs);
@@ -48,15 +48,15 @@ public class OrganizationController {
     }
 
     @GetMapping("/departments")
-    @Operation(summary = "Get all departments (legacy alias)")
+    @Operation(summary = "获取所有部门(旧版别名)")
     public ResponseEntity<ApiResponse<List<OrgResponse>>> getAllDepartments() {
         return getAllOrganizations();
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get organization by ID")
+    @Operation(summary = "根据ID获取组织")
     public ResponseEntity<ApiResponse<OrgResponse>> getOrganizationById(
-            @Parameter(description = "Organization ID") @PathVariable Long id) {
+            @Parameter(description = "组织ID") @PathVariable Long id) {
         SysOrg org = organizationApplicationService.getOrganizationById(id);
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
@@ -66,27 +66,27 @@ public class OrganizationController {
     }
 
     @GetMapping("/tree")
-    @Operation(summary = "Get organization tree")
+    @Operation(summary = "获取组织树")
     public ResponseEntity<ApiResponse<List<OrgResponse>>> getOrganizationTree(
-            @Parameter(description = "Include users in response") @RequestParam(defaultValue = "false") boolean includeUsers,
-            @Parameter(description = "Include disabled organizations") @RequestParam(defaultValue = "false") boolean includeDisabled) {
+            @Parameter(description = "响应中是否包含用户") @RequestParam(defaultValue = "false") boolean includeUsers,
+            @Parameter(description = "是否包含已禁用的组织") @RequestParam(defaultValue = "false") boolean includeDisabled) {
         List<SysOrg> tree = organizationApplicationService.getOrganizationTree(includeUsers, includeDisabled);
         List<OrgResponse> responses = orgMapper.toResponseList(tree);
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/{id}/users")
-    @Operation(summary = "Get users by organization ID")
+    @Operation(summary = "根据组织ID获取用户列表")
     public ResponseEntity<ApiResponse<List<User>>> getUsersByOrganizationId(
-            @Parameter(description = "Organization ID") @PathVariable Long id) {
+            @Parameter(description = "组织ID") @PathVariable Long id) {
         List<User> users = organizationApplicationService.getUsersByOrganizationId(id);
         return ResponseEntity.ok(ApiResponse.success(users));
     }
 
     @PostMapping("/{id}/activate")
-    @Operation(summary = "Activate an organization")
+    @Operation(summary = "激活组织")
     public ResponseEntity<ApiResponse<OrgResponse>> activateOrganization(
-            @Parameter(description = "Organization ID") @PathVariable Long id) {
+            @Parameter(description = "组织ID") @PathVariable Long id) {
         SysOrg org = organizationApplicationService.getOrganizationById(id);
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
@@ -97,9 +97,9 @@ public class OrganizationController {
     }
 
     @PostMapping("/{id}/deactivate")
-    @Operation(summary = "Deactivate an organization")
+    @Operation(summary = "停用组织")
     public ResponseEntity<ApiResponse<OrgResponse>> deactivateOrganization(
-            @Parameter(description = "Organization ID") @PathVariable Long id) {
+            @Parameter(description = "组织ID") @PathVariable Long id) {
         SysOrg org = organizationApplicationService.getOrganizationById(id);
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
@@ -110,10 +110,10 @@ public class OrganizationController {
     }
 
     @PutMapping("/{id}/name")
-    @Operation(summary = "Rename an organization")
+    @Operation(summary = "重命名组织")
     public ResponseEntity<ApiResponse<OrgResponse>> renameOrganization(
-            @Parameter(description = "Organization ID") @PathVariable Long id,
-            @Parameter(description = "New organization name") @RequestParam String newName) {
+            @Parameter(description = "组织ID") @PathVariable Long id,
+            @Parameter(description = "新组织名称") @RequestParam String newName) {
         SysOrg org = organizationApplicationService.getOrganizationById(id);
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
@@ -124,10 +124,10 @@ public class OrganizationController {
     }
 
     @PutMapping("/{id}/type")
-    @Operation(summary = "Change organization type")
+    @Operation(summary = "修改组织类型")
     public ResponseEntity<ApiResponse<OrgResponse>> changeOrganizationType(
-            @Parameter(description = "Organization ID") @PathVariable Long id,
-            @Parameter(description = "New organization type") @RequestParam OrgType newType) {
+            @Parameter(description = "组织ID") @PathVariable Long id,
+            @Parameter(description = "新组织类型") @RequestParam OrgType newType) {
         SysOrg org = organizationApplicationService.getOrganizationById(id);
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));
@@ -141,10 +141,10 @@ public class OrganizationController {
     }
 
     @PutMapping("/{id}/sort-order")
-    @Operation(summary = "Update organization sort order")
+    @Operation(summary = "更新组织排序顺序")
     public ResponseEntity<ApiResponse<OrgResponse>> updateSortOrder(
-            @Parameter(description = "Organization ID") @PathVariable Long id,
-            @Parameter(description = "New sort order") @RequestParam Integer sortOrder) {
+            @Parameter(description = "组织ID") @PathVariable Long id,
+            @Parameter(description = "新排序顺序") @RequestParam Integer sortOrder) {
         SysOrg org = organizationApplicationService.getOrganizationById(id);
         if (org == null) {
             return ResponseEntity.ok(ApiResponse.error(404, "Organization not found"));

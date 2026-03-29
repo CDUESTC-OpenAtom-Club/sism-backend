@@ -5,6 +5,7 @@ import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
+import com.sism.execution.interfaces.dto.UpdatePlanReportIndicatorDetailRequest;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.strategy.domain.Indicator;
@@ -53,7 +54,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport createReport(String reportMonth, Long reportOrgId,
                                    ReportOrgType reportOrgType, Long planId, Long createdBy) {
-        Optional<PlanReport> existingReport = planReportRepository.findByUniqueKey(
+        Optional<PlanReport> existingReport = planReportRepository.findLatestByMonthlyScope(
                 planId, reportMonth, reportOrgType, reportOrgId);
 
         if (existingReport.isPresent()) {
@@ -69,7 +70,16 @@ public class ReportApplicationService {
                 return enrichReportMetadata(planReportRepository.save(report));
             }
 
-            throw new IllegalStateException("当前月份已存在报告，请勿重复创建");
+            if (PlanReport.STATUS_DRAFT.equals(report.getStatus())) {
+                report.markCreatedByIfAbsent(createdBy);
+                report.setUpdatedAt(LocalDateTime.now());
+                report.validate();
+                return enrichReportMetadata(planReportRepository.save(report));
+            }
+
+            if (PlanReport.STATUS_SUBMITTED.equals(report.getStatus())) {
+                throw new IllegalStateException("当前月份已有报告正在审批中，请等待审批完成或先撤回");
+            }
         }
 
         PlanReport report = PlanReport.createDraft(
@@ -103,6 +113,46 @@ public class ReportApplicationService {
                     milestoneNote
             );
         }
+        return enrichReportMetadata(savedReport);
+    }
+
+    @Transactional
+    public PlanReport updateReportBatch(Long reportId,
+                                        String title,
+                                        String content,
+                                        String summary,
+                                        Integer progress,
+                                        String issues,
+                                        String nextPlan,
+                                        Long operatorUserId,
+                                        List<UpdatePlanReportIndicatorDetailRequest> indicatorDetails) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+
+        report.markCreatedByIfAbsent(operatorUserId);
+        report.updateContent(content, summary, progress, issues, nextPlan);
+        if (title != null) {
+            report.setTitle(title);
+        }
+        PlanReport savedReport = planReportRepository.save(report);
+
+        List<UpdatePlanReportIndicatorDetailRequest> normalizedDetails = indicatorDetails == null
+                ? List.of()
+                : indicatorDetails.stream()
+                .filter(Objects::nonNull)
+                .toList();
+
+        for (UpdatePlanReportIndicatorDetailRequest detail : normalizedDetails) {
+            validatePendingProgress(detail.getIndicatorId(), detail.getProgress());
+            planReportIndicatorRepository.upsertDraftIndicator(
+                    savedReport.getId(),
+                    detail.getIndicatorId(),
+                    detail.getProgress(),
+                    detail.getContent(),
+                    detail.getMilestoneNote()
+            );
+        }
+
         return enrichReportMetadata(savedReport);
     }
 
@@ -251,6 +301,7 @@ public class ReportApplicationService {
         PlanReport report = planReportRepository.findById(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
+        report.setSubmittedAt(null);
         report.setUpdatedAt(LocalDateTime.now());
         return enrichReportMetadata(planReportRepository.save(report));
     }

@@ -202,11 +202,12 @@ public class BusinessWorkflowApplicationService {
                 : auditInstanceRepository.findByBusinessTypeAndBusinessId(entityType, entityId);
 
         return candidates.stream()
-                .filter(instance -> AuditInstance.STATUS_PENDING.equals(instance.getStatus()))
+                .filter(instance ->
+                        AuditInstance.STATUS_PENDING.equals(instance.getStatus())
+                                || AuditInstance.STATUS_WITHDRAWN.equals(instance.getStatus()))
                 .filter(instance -> flowDefId == null || flowDefId.equals(instance.getFlowDefId()))
-                .filter(instance -> instance.resolveLatestStepInstance()
-                        .map(step -> AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus()))
-                        .orElse(false))
+                .filter(instance -> instance.getStepInstances().stream()
+                        .anyMatch(step -> AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus())))
                 .max(Comparator
                         .comparing(AuditInstance::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(AuditInstance::getId, Comparator.nullsLast(Comparator.naturalOrder())))

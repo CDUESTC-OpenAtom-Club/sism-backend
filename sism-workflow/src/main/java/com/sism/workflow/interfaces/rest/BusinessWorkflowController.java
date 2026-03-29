@@ -24,7 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/workflows")
 @RequiredArgsConstructor
-@Tag(name = "Business Workflows", description = "Business workflow management endpoints")
+@Tag(name = "业务工作流", description = "业务工作流管理接口")
 public class BusinessWorkflowController {
 
     private final BusinessWorkflowApplicationService workflowService;
@@ -32,7 +32,7 @@ public class BusinessWorkflowController {
     // 1. 启动工作流
 
     @PostMapping("/start")
-    @Operation(summary = "Start a fixed-template workflow and bind approvers to approval nodes")
+    @Operation(summary = "启动固定模板工作流并绑定审批人到审批节点")
     public ResponseEntity<ApiResponse<WorkflowInstanceResponse>> startWorkflow(
             @Valid @RequestBody StartWorkflowRequest request,
             @AuthenticationPrincipal CurrentUser currentUser
@@ -43,7 +43,7 @@ public class BusinessWorkflowController {
     }
 
     @PostMapping("/{definitionId}/instances")
-    @Operation(summary = "Start a workflow instance by definition ID")
+    @Operation(summary = "通过定义ID启动工作流实例")
     public ResponseEntity<ApiResponse<WorkflowInstanceResponse>> startWorkflowInstance(
             @PathVariable String definitionId,
             @Valid @RequestBody StartInstanceRequest request,
@@ -57,7 +57,7 @@ public class BusinessWorkflowController {
     // 2. 查询工作流
 
     @GetMapping("/definitions")
-    @Operation(summary = "List workflow definitions with pagination")
+    @Operation(summary = "分页列出工作流定义")
     public ResponseEntity<ApiResponse<PageResult<WorkflowDefinitionResponse>>> listDefinitions(
             @RequestParam(defaultValue = "1") int pageNum,
             @RequestParam(defaultValue = "10") int pageSize
@@ -67,7 +67,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/{definitionId}/instances")
-    @Operation(summary = "List workflow instances for a definition")
+    @Operation(summary = "列出工作流定义的实例")
     public ResponseEntity<ApiResponse<PageResult<WorkflowInstanceResponse>>> listInstances(
             @PathVariable String definitionId,
             @RequestParam(defaultValue = "1") int pageNum,
@@ -78,7 +78,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/instances/{instanceId}")
-    @Operation(summary = "Get workflow instance detail")
+    @Operation(summary = "获取工作流实例详情")
     public ResponseEntity<ApiResponse<WorkflowInstanceDetailResponse>> getInstanceDetail(
             @PathVariable String instanceId
     ) {
@@ -87,7 +87,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/instances/entity/{entityType}/{entityId}")
-    @Operation(summary = "Get latest workflow instance detail by business entity")
+    @Operation(summary = "按业务实体获取最新工作流实例详情")
     public ResponseEntity<ApiResponse<WorkflowInstanceDetailResponse>> getInstanceDetailByBusiness(
             @PathVariable String entityType,
             @PathVariable Long entityId
@@ -97,7 +97,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/instances/entity/{entityType}/{entityId}/list")
-    @Operation(summary = "List completed workflow history cards by business entity")
+    @Operation(summary = "按业务实体列出已完成的工作流历史卡片")
     public ResponseEntity<ApiResponse<List<WorkflowHistoryCardResponse>>> listInstanceHistoryByBusiness(
             @PathVariable String entityType,
             @PathVariable Long entityId
@@ -107,7 +107,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/my-tasks")
-    @Operation(summary = "Get my pending workflow tasks")
+    @Operation(summary = "获取我的待处理工作流任务")
     public ResponseEntity<ApiResponse<PageResult<WorkflowTaskResponse>>> getMyPendingTasks(
             @AuthenticationPrincipal CurrentUser currentUser,
             @RequestParam(defaultValue = "1") int pageNum
@@ -123,7 +123,7 @@ public class BusinessWorkflowController {
     // 3. 工作流操作
 
     @PostMapping("/tasks/{taskId}/approve")
-    @Operation(summary = "Approve the current workflow node and advance to the next node")
+    @Operation(summary = "审批当前工作流节点并推进到下一个节点")
     public ResponseEntity<ApiResponse<WorkflowInstanceResponse>> approveTask(
             @PathVariable String taskId,
             @Valid @RequestBody ApprovalRequest request,
@@ -135,7 +135,7 @@ public class BusinessWorkflowController {
     }
 
     @PostMapping("/tasks/{taskId}/decision")
-    @Operation(summary = "Decide the current workflow node by task instance ID and boolean result")
+    @Operation(summary = "通过任务实例ID和布尔结果决定当前工作流节点")
     public ResponseEntity<ApiResponse<WorkflowInstanceResponse>> decideTask(
             @PathVariable String taskId,
             @Valid @RequestBody WorkflowTaskDecisionRequest request,
@@ -147,7 +147,7 @@ public class BusinessWorkflowController {
     }
 
     @PostMapping("/tasks/{taskId}/reject")
-    @Operation(summary = "Reject the current workflow node and roll back to the previous approved node")
+    @Operation(summary = "拒绝当前工作流节点并回退到上一个已审批节点")
     public ResponseEntity<ApiResponse<WorkflowInstanceResponse>> rejectTask(
             @PathVariable String taskId,
             @Valid @RequestBody RejectionRequest request,
@@ -159,7 +159,7 @@ public class BusinessWorkflowController {
     }
 
     @PostMapping("/tasks/{taskId}/reassign")
-    @Operation(summary = "Reassign a workflow task (not supported for fixed approval templates)")
+    @Operation(summary = "重新分配工作流任务(固定审批模板不支持)")
     public ResponseEntity<ApiResponse<WorkflowInstanceResponse>> reassignTask(
             @PathVariable String taskId,
             @Valid @RequestBody ReassignRequest request,
@@ -171,7 +171,7 @@ public class BusinessWorkflowController {
     }
 
     @PostMapping("/{instanceId}/cancel")
-    @Operation(summary = "Cancel a workflow instance before the first approval node is handled")
+    @Operation(summary = "在第一个审批节点处理前取消工作流实例")
     public ResponseEntity<ApiResponse<Void>> cancelInstance(
             @PathVariable String instanceId,
             @AuthenticationPrincipal CurrentUser currentUser
@@ -183,7 +183,7 @@ public class BusinessWorkflowController {
     // 4. 流程定义管理
 
     @GetMapping("/definitions/{definitionId}")
-    @Operation(summary = "Get workflow definition by ID")
+    @Operation(summary = "根据ID获取工作流定义")
     public ResponseEntity<ApiResponse<WorkflowDefinitionResponse>> getDefinitionById(
             @PathVariable String definitionId
     ) {
@@ -192,7 +192,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/definitions/code/{flowCode}")
-    @Operation(summary = "Get workflow definition by code")
+    @Operation(summary = "根据代码获取工作流定义")
     public ResponseEntity<ApiResponse<WorkflowDefinitionResponse>> getDefinitionByCode(
             @PathVariable String flowCode
     ) {
@@ -201,7 +201,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/definitions/code/{flowCode}/preview")
-    @Operation(summary = "Preview workflow definition with candidate approvers")
+    @Operation(summary = "预览工作流定义及候选审批人")
     public ResponseEntity<ApiResponse<WorkflowDefinitionPreviewResponse>> getDefinitionPreviewByCode(
             @PathVariable String flowCode,
             @AuthenticationPrincipal CurrentUser currentUser
@@ -211,7 +211,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/definitions/entity-type/{entityType}")
-    @Operation(summary = "Get workflow definitions by entity type")
+    @Operation(summary = "根据实体类型获取工作流定义")
     public ResponseEntity<ApiResponse<List<WorkflowDefinitionResponse>>> getDefinitionsByEntityType(
             @PathVariable String entityType
     ) {
@@ -221,7 +221,7 @@ public class BusinessWorkflowController {
 
     @PostMapping("/definitions")
     @Operation(
-            summary = "Create a fixed workflow template with explicit ordered steps",
+            summary = "创建带有明确有序步骤的固定工作流模板",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
                     content = @io.swagger.v3.oas.annotations.media.Content(
@@ -254,7 +254,7 @@ public class BusinessWorkflowController {
     }
 
     @GetMapping("/my-applied")
-    @Operation(summary = "Get my applied workflow instances")
+    @Operation(summary = "获取我发起的工作流实例")
     public ResponseEntity<ApiResponse<PageResult<WorkflowInstanceResponse>>> getMyAppliedInstances(
             @AuthenticationPrincipal CurrentUser currentUser,
             @RequestParam(defaultValue = "1") int pageNum,
@@ -268,7 +268,7 @@ public class BusinessWorkflowController {
     // 6. 统计
 
     @GetMapping("/statistics")
-    @Operation(summary = "Get workflow statistics")
+    @Operation(summary = "获取工作流统计数据")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getStatistics() {
         Map<String, Object> stats = workflowService.getStatistics();
         return ResponseEntity.ok(ApiResponse.success(stats));

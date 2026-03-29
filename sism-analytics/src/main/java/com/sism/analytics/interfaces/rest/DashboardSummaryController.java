@@ -23,13 +23,13 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/dashboard")
 @RequiredArgsConstructor
-@Tag(name = "Dashboard", description = "Dashboard summary and analytics endpoints")
+@Tag(name = "仪表盘汇总", description = "仪表盘汇总和分析接口")
 public class DashboardSummaryController {
 
     private final DashboardSummaryService dashboardSummaryService;
 
     @GetMapping
-    @Operation(summary = "Get dashboard summary", description = "Get aggregated dashboard data including scores, completion rates, and alert counts")
+    @Operation(summary = "获取仪表盘汇总", description = "获取聚合的仪表盘数据，包括得分、完成率和预警数量")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<DashboardSummaryDTO>> getDashboardSummary() {
         DashboardSummaryDTO summary = dashboardSummaryService.getDashboardSummary();
@@ -37,7 +37,7 @@ public class DashboardSummaryController {
     }
 
     @GetMapping("/department-progress")
-    @Operation(summary = "Get department progress", description = "Get progress data grouped by department/organization")
+    @Operation(summary = "获取部门进度", description = "获取按部门/组织分组的进度数据")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DepartmentProgressDTO>>> getDepartmentProgress() {
         List<DepartmentProgressDTO> progress = dashboardSummaryService.getDepartmentProgress();
@@ -45,7 +45,7 @@ public class DashboardSummaryController {
     }
 
     @GetMapping("/recent-activities")
-    @Operation(summary = "Get recent activities", description = "Get recent indicator changes and updates")
+    @Operation(summary = "获取最近活动", description = "获取最近的指标变更和更新")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecentActivities() {
         List<Map<String, Object>> activities = dashboardSummaryService.getRecentActivities();

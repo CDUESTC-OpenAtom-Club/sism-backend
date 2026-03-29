@@ -27,6 +27,13 @@ public interface PlanRepository {
 
     List<Plan> findByPlanLevel(PlanLevel planLevel);
 
+    Optional<Plan> findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+            Long cycleId,
+            PlanLevel planLevel,
+            Long createdByOrgId,
+            Long targetOrgId
+    );
+
     List<Plan> findByStatuses(List<String> statuses);
 
     Plan save(Plan plan);

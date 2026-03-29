@@ -64,6 +64,7 @@ public class PlanApplicationService {
     private final PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService;
     private final JdbcTemplate jdbcTemplate;
     private final PlatformTransactionManager transactionManager;
+    private final PlanIntegrityService planIntegrityService;
 
     /**
      * 创建计划
@@ -405,6 +406,7 @@ public class PlanApplicationService {
      * 根据ID查询计划
      */
     public Optional<PlanResponse> getPlanById(Long id) {
+        planIntegrityService.ensurePlanMatrix();
         Map<Long, String> orgNamesById = loadOrgNamesById();
         return planRepository.findById(id)
                 .map(plan -> enrichWorkflowFields(convertToResponse(plan, null, orgNamesById), plan));
@@ -415,6 +417,7 @@ public class PlanApplicationService {
      * Task 与 Plan 通过 sys_task.plan_id 关联。
      */
     public Optional<PlanResponse> getPlanByTaskId(Long taskId) {
+        planIntegrityService.ensurePlanMatrix();
         Map<Long, String> orgNamesById = loadOrgNamesById();
         return taskRepository.findById(taskId)
                 .map(com.sism.task.domain.StrategicTask::getPlanId)
@@ -426,6 +429,7 @@ public class PlanApplicationService {
      * 查询所有计划
      */
     public List<PlanResponse> getAllPlans() {
+        planIntegrityService.ensurePlanMatrix();
         Map<Long, String> orgNamesById = loadOrgNamesById();
         List<Plan> plans = planRepository.findAll();
         Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
@@ -443,6 +447,7 @@ public class PlanApplicationService {
      * 分页查询计划
      */
     public Page<PlanResponse> getPlans(int page, int size, Integer year, String status) {
+        planIntegrityService.ensurePlanMatrix();
         long startedAt = System.currentTimeMillis();
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         List<Long> cycleIds = year == null
@@ -493,6 +498,7 @@ public class PlanApplicationService {
      * 根据周期ID查询计划
      */
     public List<PlanResponse> getPlansByCycle(Long cycleId) {
+        planIntegrityService.ensurePlanMatrix();
         Cycle cycle = cycleRepository.findById(cycleId)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
 
@@ -511,6 +517,7 @@ public class PlanApplicationService {
      * 获取计划详情（包含指标和里程碑）
      */
     public PlanDetailsResponse getPlanDetails(Long id) {
+        planIntegrityService.ensurePlanMatrix();
         long startedAt = System.currentTimeMillis();
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
@@ -551,11 +558,8 @@ public class PlanApplicationService {
         details.setCurrentApproverName(planResponse.getCurrentApproverName());
         details.setCanWithdraw(planResponse.getCanWithdraw());
 
-        // 查询计划下所有任务的指标（指标按 taskId 关联，不是按 planId 直接关联）
         String planStatus = PlanStatus.fromRaw(plan.getStatus()).value();
-        List<Indicator> planIndicators = taskRepository.findByPlanId(id).stream()
-                .flatMap(task -> indicatorRepository.findByTaskId(task.getId()).stream())
-                .toList();
+        List<Indicator> planIndicators = loadPlanIndicators(plan);
         Map<Long, Integer> reportProgressByIndicatorId = getLatestReportProgressByIndicatorIds(
                 planIndicators.stream()
                         .map(Indicator::getId)
@@ -986,10 +990,7 @@ public class PlanApplicationService {
         // 获取 Plan 对应的状态
         IndicatorStatus targetStatus = mapPlanStatusToIndicatorStatus(plan.getStatus());
 
-        // 查找计划下所有任务关联的指标（指标按 taskId 关联）
-        List<Indicator> indicators = taskRepository.findByPlanId(plan.getId()).stream()
-                .flatMap(task -> indicatorRepository.findByTaskId(task.getId()).stream())
-                .collect(Collectors.toList());
+        List<Indicator> indicators = loadPlanIndicators(plan);
 
         // 更新所有指标的状态
         for (Indicator indicator : indicators) {
@@ -1006,6 +1007,39 @@ public class PlanApplicationService {
             case DISTRIBUTED -> IndicatorStatus.DISTRIBUTED;
             case PENDING, DRAFT, RETURNED -> IndicatorStatus.DRAFT;
         };
+    }
+
+    private List<Indicator> loadPlanIndicators(Plan plan) {
+        List<Indicator> taskBoundIndicators = taskRepository.findByPlanId(plan.getId()).stream()
+                .flatMap(task -> indicatorRepository.findByTaskId(task.getId()).stream())
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        if (!taskBoundIndicators.isEmpty()) {
+            return taskBoundIndicators;
+        }
+
+        if (plan.getPlanLevel() != PlanLevel.FUNC_TO_COLLEGE) {
+            return taskBoundIndicators;
+        }
+
+        Long ownerOrgId = plan.getCreatedByOrgId();
+        Long targetOrgId = plan.getTargetOrgId();
+        if (ownerOrgId == null || targetOrgId == null) {
+            return taskBoundIndicators;
+        }
+
+        Long cycleId = plan.getCycleId();
+        return indicatorRepository.findByOwnerOrgIdAndTargetOrgId(ownerOrgId, targetOrgId).stream()
+                .filter(indicator -> {
+                    Long taskId = indicator.getTaskId();
+                    if (taskId == null) {
+                        return false;
+                    }
+                    return taskRepository.findById(taskId)
+                            .map(task -> Objects.equals(task.getCycleId(), cycleId))
+                            .orElse(false);
+                })
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**

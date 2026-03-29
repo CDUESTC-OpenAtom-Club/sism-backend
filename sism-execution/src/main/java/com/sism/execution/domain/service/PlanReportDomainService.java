@@ -86,7 +86,7 @@ public class PlanReportDomainService {
      * 查询某组织的待审批报告
      */
     public List<PlanReport> findPendingReports(Long orgId) {
-        return planReportRepository.findByReportOrgIdAndStatus(orgId, "PENDING");
+        return planReportRepository.findByReportOrgIdAndStatus(orgId, PlanReport.STATUS_SUBMITTED);
     }
 
     /**

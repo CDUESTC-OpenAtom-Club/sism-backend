@@ -18,7 +18,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/ws/notifications")
-@Tag(name = "WebSocket Notifications", description = "Endpoints for local WebSocket notification verification")
+@Tag(name = "WebSocket Notifications", description = "本地WebSocket通知验证接口")
 public class WebSocketNotificationController {
 
     private final WebSocketNotificationService notificationService;
@@ -28,7 +28,7 @@ public class WebSocketNotificationController {
     }
 
     @PostMapping("/test/{userId}")
-    @Operation(summary = "Send a test notification to a specific user")
+    @Operation(summary = "发送测试通知给特定用户")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendTestNotification(
             @PathVariable String userId,
             @RequestParam(defaultValue = "APPROVAL_REQUIRED") String type,

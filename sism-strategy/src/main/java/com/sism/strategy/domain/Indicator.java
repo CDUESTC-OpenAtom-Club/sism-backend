@@ -97,14 +97,15 @@ public class Indicator extends AggregateRoot<Long> {
     // private List<com.sism.execution.domain.model.milestone.Milestone> milestones = new ArrayList<>();
 
     public static Indicator create(String description, com.sism.organization.domain.SysOrg ownerOrg,
-                                    com.sism.organization.domain.SysOrg targetOrg) {
+                                    com.sism.organization.domain.SysOrg targetOrg,
+                                    String indicatorType) {
         Indicator indicator = new Indicator();
         indicator.indicatorDesc = Objects.requireNonNull(description, "Indicator description cannot be null");
         indicator.ownerOrg = Objects.requireNonNull(ownerOrg, "Owner organization cannot be null");
         indicator.targetOrg = Objects.requireNonNull(targetOrg, "Target organization cannot be null");
         indicator.weightPercent = BigDecimal.valueOf(100);
         indicator.sortOrder = 0;
-        indicator.type = "定量";  // Database constraint only allows '定量' or '定性'
+        indicator.type = normalizeIndicatorType(indicatorType);
         indicator.progress = 0;
         indicator.status = IndicatorStatus.DRAFT;
         indicator.level = indicator.calculateLevel();
@@ -117,7 +118,8 @@ public class Indicator extends AggregateRoot<Long> {
 
     public static Indicator create(String name, String description, BigDecimal weight,
                                     com.sism.organization.domain.SysOrg ownerOrg,
-                                    com.sism.organization.domain.SysOrg targetOrg) {
+                                    com.sism.organization.domain.SysOrg targetOrg,
+                                    String indicatorType) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Indicator name cannot be null or empty");
         }
@@ -143,7 +145,7 @@ public class Indicator extends AggregateRoot<Long> {
         indicator.targetOrg = targetOrg;
         indicator.weightPercent = weight;
         indicator.sortOrder = 0;
-        indicator.type = "定量";  // Database constraint only allows '定量' or '定性'
+        indicator.type = normalizeIndicatorType(indicatorType);
         indicator.progress = 0;
         indicator.status = IndicatorStatus.DRAFT;
         indicator.createdAt = LocalDateTime.now();
@@ -167,6 +169,10 @@ public class Indicator extends AggregateRoot<Long> {
 
     public void setDescription(String description) {
         this.indicatorDesc = description;
+    }
+
+    public void setType(String type) {
+        this.type = normalizeIndicatorType(type);
     }
 
     public BigDecimal getWeight() {
@@ -464,6 +470,7 @@ public class Indicator extends AggregateRoot<Long> {
         if (indicatorDesc == null || indicatorDesc.trim().isEmpty()) {
             throw new IllegalArgumentException("Indicator description is required");
         }
+        normalizeIndicatorType(type);
         if (weightPercent == null || weightPercent.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Weight percent must be positive");
         }
@@ -480,5 +487,18 @@ public class Indicator extends AggregateRoot<Long> {
         if (isDeleted == null) {
             isDeleted = false;
         }
+    }
+
+    private static String normalizeIndicatorType(String rawType) {
+        if (rawType == null || rawType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Indicator type is required");
+        }
+
+        String normalizedType = rawType.trim();
+        if (!"定量".equals(normalizedType) && !"定性".equals(normalizedType)) {
+            throw new IllegalArgumentException("Indicator type must be either 定量 or 定性");
+        }
+
+        return normalizedType;
     }
 }

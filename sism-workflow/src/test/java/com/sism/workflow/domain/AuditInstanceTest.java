@@ -101,10 +101,13 @@ class AuditInstanceTest {
 
         assertTrue(instance.canRequesterWithdraw());
         assertDoesNotThrow(instance::cancel);
-        assertEquals(AuditInstance.STATUS_PENDING, instance.getStatus());
-        assertEquals(AuditInstance.STEP_STATUS_WITHDRAWN, firstApproval.getStatus());
-        assertEquals("提交人撤回", firstApproval.getComment());
-        assertNotNull(firstApproval.getApprovedAt());
+        assertEquals(AuditInstance.STATUS_WITHDRAWN, instance.getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_WITHDRAWN, submitStep.getStatus());
+        assertEquals("提交人撤回", submitStep.getComment());
+        assertNotNull(submitStep.getApprovedAt());
+        assertEquals(AuditInstance.STEP_STATUS_WAITING, firstApproval.getStatus());
+        assertNull(firstApproval.getComment());
+        assertNull(firstApproval.getApprovedAt());
     }
 
     @Test
@@ -169,21 +172,28 @@ class AuditInstanceTest {
     @DisplayName("Should reactivate latest withdrawn step when submitter starts workflow again")
     void shouldReactivateLatestWithdrawnStep() {
         AuditInstance instance = new AuditInstance();
-        instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setStatus(AuditInstance.STATUS_WITHDRAWN);
 
         AuditStepInstance withdrawnStep = new AuditStepInstance();
-        withdrawnStep.setStepNo(2);
+        withdrawnStep.setStepNo(1);
         withdrawnStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
         withdrawnStep.setComment("提交人撤回");
         withdrawnStep.setApprovedAt(java.time.LocalDateTime.now());
 
+        AuditStepInstance waitingApproval = new AuditStepInstance();
+        waitingApproval.setStepNo(2);
+        waitingApproval.setStatus(AuditInstance.STEP_STATUS_WAITING);
+
         instance.addStepInstance(withdrawnStep);
+        instance.addStepInstance(waitingApproval);
 
         instance.reactivateWithdrawnStep();
 
-        assertEquals(AuditInstance.STEP_STATUS_PENDING, withdrawnStep.getStatus());
-        assertNull(withdrawnStep.getComment());
-        assertNull(withdrawnStep.getApprovedAt());
+        assertEquals(AuditInstance.STATUS_PENDING, instance.getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_APPROVED, withdrawnStep.getStatus());
+        assertEquals("系统自动完成提交流程节点", withdrawnStep.getComment());
+        assertNotNull(withdrawnStep.getApprovedAt());
+        assertEquals(AuditInstance.STEP_STATUS_PENDING, waitingApproval.getStatus());
         assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 

@@ -160,7 +160,34 @@ psql -U your_username -d sism_dev -f database/seeds/seed_data_v3_review.sql
 
 #### 7. 启动应用
 
-**Windows 快捷启动 (推荐):**
+**使用统一启动脚本 (强烈推荐):**
+
+`start.sh` 是项目的**标准生产级启动方式**，具有以下重要特性：
+
+| 特性 | 说明 |
+|------|------|
+| **环境检查** | 自动验证 Java 环境和 `.env` 配置 |
+| **进程清理** | 优雅停止旧进程，避免端口冲突 |
+| **自动构建** | 执行 Maven 构建并刷新依赖 |
+| **健康检查** | 启动后自动等待服务就绪 |
+| **接口验证** | 验证关键 API 端点正常工作 |
+| **后台运行** | 使用 nohup 实现服务后台运行 |
+| **日志输出** | 统一日志文件便于排查问题 |
+
+```bash
+# 赋予执行权限（首次使用）
+chmod +x start.sh
+
+# 执行启动脚本
+./start.sh
+```
+
+启动成功后，脚本会输出：
+- 服务地址: http://localhost:8080
+- 健康检查端点
+- 日志查看命令: `tail -f /tmp/sism-backend.log`
+
+**Windows 快捷启动:**
 ```cmd
 # 开发模式 - 自动加载 .env 配置
 start-dev.bat
@@ -169,7 +196,7 @@ start-dev.bat
 start-prod.bat
 ```
 
-**手动运行:**
+**手动运行（不推荐用于生产）:**
 ```bash
 # 开发模式
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev

@@ -57,6 +57,21 @@ public class JpaPlanRepository implements PlanRepository {
     }
 
     @Override
+    public Optional<Plan> findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+            Long cycleId,
+            PlanLevel planLevel,
+            Long createdByOrgId,
+            Long targetOrgId
+    ) {
+        return jpaRepository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                cycleId,
+                planLevel,
+                createdByOrgId,
+                targetOrgId
+        );
+    }
+
+    @Override
     public List<Plan> findByStatuses(List<String> statuses) {
         if (statuses == null || statuses.isEmpty()) {
             return List.of();

@@ -22,14 +22,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController("strategyPlanController")
 @RequestMapping("/api/v1/plans")
 @RequiredArgsConstructor
-@Tag(name = "Plans", description = "Primary strategy-side plan endpoints. This is the authoritative planning entrypoint.")
+@Tag(name = "规划管理", description = "战略侧规划主要接口。这是规划的权威入口点。")
 public class PlanController {
 
     private final PlanApplicationService planApplicationService;
     private final StrategyApplicationService strategyApplicationService;
 
     @GetMapping
-    @Operation(summary = "Get all plans with pagination", description = "Primary strategy-side entrypoint for planning queries.")
+    @Operation(summary = "分页获取所有规划", description = "战略侧规划查询的主要入口点。")
     public ResponseEntity<ApiResponse<PageResult<PlanResponse>>> listPlans(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -46,7 +46,7 @@ public class PlanController {
     }
 
     @GetMapping("/{id:[0-9]+}")
-    @Operation(summary = "Get plan by ID")
+    @Operation(summary = "根据ID获取规划")
     public ResponseEntity<ApiResponse<PlanResponse>> getPlanById(@PathVariable Long id) {
         return planApplicationService.getPlanById(id)
                 .map(plan -> ResponseEntity.ok(ApiResponse.success(plan)))
@@ -54,14 +54,14 @@ public class PlanController {
     }
 
     @GetMapping("/cycle/{cycleId}")
-    @Operation(summary = "Get plans by cycle ID")
+    @Operation(summary = "根据考核周期ID获取规划")
     public ResponseEntity<ApiResponse<java.util.List<PlanResponse>>> getPlansByCycle(@PathVariable Long cycleId) {
         java.util.List<PlanResponse> plans = planApplicationService.getPlansByCycle(cycleId);
         return ResponseEntity.ok(ApiResponse.success(plans));
     }
 
     @PostMapping
-    @Operation(summary = "Create a new plan", description = "Primary strategy-side entrypoint for creating planning batches.")
+    @Operation(summary = "创建新规划", description = "战略侧创建规划批次的主要入口点。")
     public ResponseEntity<ApiResponse<PlanResponse>> createPlan(
             @Valid @RequestBody com.sism.strategy.interfaces.dto.CreatePlanRequest request) {
         PlanResponse response = planApplicationService.createPlan(request);
@@ -69,7 +69,7 @@ public class PlanController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update a plan")
+    @Operation(summary = "更新规划")
     public ResponseEntity<ApiResponse<PlanResponse>> updatePlan(
             @PathVariable Long id,
             @Valid @RequestBody com.sism.strategy.interfaces.dto.UpdatePlanRequest request) {
@@ -78,28 +78,28 @@ public class PlanController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a plan")
+    @Operation(summary = "删除规划")
     public ResponseEntity<ApiResponse<Void>> deletePlan(@PathVariable Long id) {
         planApplicationService.deletePlan(id);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
     @PostMapping("/{id}/publish")
-    @Operation(summary = "Publish a plan")
+    @Operation(summary = "发布规划")
     public ResponseEntity<ApiResponse<PlanResponse>> publishPlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.publishPlan(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/archive")
-    @Operation(summary = "Archive a plan")
+    @Operation(summary = "归档规划")
     public ResponseEntity<ApiResponse<PlanResponse>> archivePlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.archivePlan(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/submit")
-    @Operation(summary = "Submit plan for approval")
+    @Operation(summary = "提交规划审批")
     public ResponseEntity<ApiResponse<PlanResponse>> submitPlanForApproval(
             @PathVariable Long id,
             @Valid @RequestBody SubmitPlanApprovalRequest request,
@@ -113,7 +113,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/submit-dispatch")
-    @Operation(summary = "Submit plan for dispatch approval")
+    @Operation(summary = "提交规划分发审批")
     public ResponseEntity<ApiResponse<PlanResponse>> submitPlanForDispatchApproval(
             @PathVariable Long id,
             @Valid @RequestBody SubmitPlanApprovalRequest request,
@@ -122,35 +122,35 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/approve")
-    @Operation(summary = "Approve a plan")
+    @Operation(summary = "审批通过规划")
     public ResponseEntity<ApiResponse<PlanResponse>> approvePlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.approvePlan(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/reject")
-    @Operation(summary = "Reject a plan")
+    @Operation(summary = "拒绝规划")
     public ResponseEntity<ApiResponse<PlanResponse>> rejectPlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.rejectPlan(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/withdraw")
-    @Operation(summary = "Withdraw plan to draft")
+    @Operation(summary = "撤回规划至草稿")
     public ResponseEntity<ApiResponse<PlanResponse>> withdrawPlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.withdrawPlan(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{id:[0-9]+}/details")
-    @Operation(summary = "Get plan details with indicators and milestones")
+    @Operation(summary = "获取规划详情(含指标和里程碑)")
     public ResponseEntity<ApiResponse<PlanApplicationService.PlanDetailsResponse>> getPlanDetails(@PathVariable Long id) {
         PlanApplicationService.PlanDetailsResponse response = planApplicationService.getPlanDetails(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/task/{taskId}")
-    @Operation(summary = "Get plan by task ID")
+    @Operation(summary = "根据任务ID获取规划")
     public ResponseEntity<ApiResponse<PlanResponse>> getPlanByTaskId(@PathVariable Long taskId) {
         // 通过 taskId 查找关联的 plan
         return planApplicationService.getPlanByTaskId(taskId)

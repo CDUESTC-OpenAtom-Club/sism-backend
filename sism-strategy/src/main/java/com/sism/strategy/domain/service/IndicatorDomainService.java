@@ -36,7 +36,8 @@ public class IndicatorDomainService {
         Indicator newIndicator = Indicator.create(
                 sourceIndicator.getDescription(),
                 sourceIndicator.getOwnerOrg(),
-                targetOrg
+                targetOrg,
+                sourceIndicator.getType()
         );
         newIndicator.setParent(sourceIndicator);
         if (targetValue != null) {
@@ -67,7 +68,8 @@ public class IndicatorDomainService {
                     Indicator child = Indicator.create(
                             parent.getDescription(),
                             parent.getTargetOrg(),
-                            item.targetOrg()
+                            item.targetOrg(),
+                            parent.getType()
                     );
                     child.setParent(parent);
                     if (item.targetValue() != null) {

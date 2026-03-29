@@ -4,6 +4,7 @@ import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
+import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
@@ -31,11 +32,14 @@ class BasicTaskWeightValidationServiceTest {
     @Mock
     private IndicatorRepository indicatorRepository;
 
+    @Mock
+    private PlanRepository planRepository;
+
     private BasicTaskWeightValidationService service;
 
     @BeforeEach
     void setUp() {
-        service = new BasicTaskWeightValidationService(taskRepository, indicatorRepository);
+        service = new BasicTaskWeightValidationService(taskRepository, indicatorRepository, planRepository);
     }
 
     @Test
@@ -84,7 +88,7 @@ class BasicTaskWeightValidationServiceTest {
         SysOrg targetOrg = SysOrg.create("实验室建设管理处", OrgType.admin);
         targetOrg.setId(targetOrgId);
 
-        Indicator indicator = Indicator.create("测试指标", ownerOrg, targetOrg);
+        Indicator indicator = Indicator.create("测试指标", ownerOrg, targetOrg, "定量");
         indicator.setId(id);
         indicator.setTaskId(taskId);
         indicator.setParent(null);

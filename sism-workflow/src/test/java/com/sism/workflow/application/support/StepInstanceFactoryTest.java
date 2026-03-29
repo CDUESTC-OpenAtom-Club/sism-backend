@@ -1,5 +1,6 @@
 package com.sism.workflow.application.support;
 
+import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.strategy.domain.repository.PlanRepository;
@@ -28,6 +29,9 @@ class StepInstanceFactoryTest {
     @Mock
     private PlanRepository planRepository;
 
+    @Mock
+    private PlanReportRepository planReportRepository;
+
     @Test
     void initialize_shouldInferSubmitStepFromLegacyName() {
         AuditFlowDef flowDef = new AuditFlowDef();
@@ -38,7 +42,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository),
+                new ApproverResolver(userRepository, planRepository, planReportRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -62,7 +66,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository),
+                new ApproverResolver(userRepository, planRepository, planReportRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -84,7 +88,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository),
+                new ApproverResolver(userRepository, planRepository, planReportRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -122,7 +126,7 @@ class StepInstanceFactoryTest {
         when(userRepository.findById(9L)).thenReturn(Optional.of(approver));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository),
+                new ApproverResolver(userRepository, planRepository, planReportRepository),
                 new SubmissionStepAutoCompletePolicy()
         );
 

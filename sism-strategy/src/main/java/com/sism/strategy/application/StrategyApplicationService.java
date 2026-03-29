@@ -31,8 +31,8 @@ public class StrategyApplicationService {
     private final BasicTaskWeightValidationService basicTaskWeightValidationService;
 
     @Transactional
-    public Indicator createIndicator(String indicatorDesc, SysOrg ownerOrg, SysOrg targetOrg) {
-        Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg);
+    public Indicator createIndicator(String indicatorDesc, SysOrg ownerOrg, SysOrg targetOrg, String indicatorType) {
+        Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg, indicatorType);
         indicator.validate();
         indicator = indicatorRepository.save(indicator);
         publishAndSaveEvents(indicator);
@@ -46,11 +46,12 @@ public class StrategyApplicationService {
             SysOrg targetOrg,
             Long taskId,
             Long parentIndicatorId,
+            String indicatorType,
             BigDecimal weightPercent,
             Integer sortOrder,
             String remark,
             Integer progress) {
-        Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg);
+        Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg, indicatorType);
 
         if (taskId != null) {
             indicator.setTaskId(taskId);

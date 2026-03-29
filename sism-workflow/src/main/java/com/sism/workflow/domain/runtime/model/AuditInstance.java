@@ -33,6 +33,7 @@ public class AuditInstance extends AggregateRoot<Long> {
     public static final String STATUS_IN_PROGRESS = "IN_REVIEW";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
+    public static final String STATUS_WITHDRAWN = "WITHDRAWN";
     public static final String STEP_STATUS_PENDING = "PENDING";
     public static final String STEP_STATUS_WAITING = "WAITING";
     public static final String STEP_STATUS_APPROVED = "APPROVED";
@@ -179,16 +180,32 @@ public class AuditInstance extends AggregateRoot<Long> {
         }
         AuditStepInstance current = resolveCurrentPendingStep()
                 .orElseThrow(() -> new IllegalStateException("Cannot cancel: no pending step available"));
-        current.setStatus(STEP_STATUS_WITHDRAWN);
-        current.setComment("提交人撤回");
-        current.setApprovedAt(LocalDateTime.now());
-        this.status = STATUS_PENDING;
-        this.completedAt = null;
+
+        AuditStepInstance submitStep = stepInstances.stream()
+                .filter(step -> Integer.valueOf(1).equals(step.getStepNo()))
+                .findFirst()
+                .orElse(current);
+
+        submitStep.setStatus(STEP_STATUS_WITHDRAWN);
+        submitStep.setComment("提交人撤回");
+        submitStep.setApprovedAt(LocalDateTime.now());
+
+        stepInstances.stream()
+                .filter(step -> !step.equals(submitStep))
+                .filter(step -> STEP_STATUS_PENDING.equals(step.getStatus()) || STEP_STATUS_WAITING.equals(step.getStatus()))
+                .forEach(step -> {
+                    step.setStatus(STEP_STATUS_WAITING);
+                    step.setComment(null);
+                    step.setApprovedAt(null);
+                });
+
+        this.status = STATUS_WITHDRAWN;
+        this.completedAt = LocalDateTime.now();
     }
 
     public void reactivateWithdrawnStep() {
-        if (!STATUS_PENDING.equals(status)) {
-            throw new IllegalStateException("Cannot reactivate: workflow is not in review");
+        if (!STATUS_PENDING.equals(status) && !STATUS_WITHDRAWN.equals(status)) {
+            throw new IllegalStateException("Cannot reactivate: workflow is not in a resumable state");
         }
         AuditStepInstance withdrawnStep = stepInstances.stream()
                 .filter(step -> STEP_STATUS_WITHDRAWN.equals(step.getStatus()))
@@ -196,9 +213,29 @@ public class AuditInstance extends AggregateRoot<Long> {
                         .comparing((AuditStepInstance step) -> step.getStepNo() == null ? Integer.MIN_VALUE : step.getStepNo())
                         .thenComparing(step -> step.getCreatedAt() == null ? LocalDateTime.MIN : step.getCreatedAt()))
                 .orElseThrow(() -> new IllegalStateException("Cannot reactivate: no withdrawn step available"));
-        withdrawnStep.setStatus(STEP_STATUS_PENDING);
-        withdrawnStep.setComment(null);
-        withdrawnStep.setApprovedAt(null);
+
+        if (Integer.valueOf(1).equals(withdrawnStep.getStepNo())) {
+            withdrawnStep.setStatus(STEP_STATUS_APPROVED);
+            withdrawnStep.setComment("系统自动完成提交流程节点");
+            withdrawnStep.setApprovedAt(LocalDateTime.now());
+
+            stepInstances.stream()
+                    .filter(step -> !step.equals(withdrawnStep))
+                    .filter(step -> STEP_STATUS_WAITING.equals(step.getStatus()))
+                    .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
+                    .findFirst()
+                    .ifPresent(step -> {
+                        step.setStatus(STEP_STATUS_PENDING);
+                        step.setComment(null);
+                        step.setApprovedAt(null);
+                    });
+        } else {
+            withdrawnStep.setStatus(STEP_STATUS_PENDING);
+            withdrawnStep.setComment(null);
+            withdrawnStep.setApprovedAt(null);
+        }
+
+        this.status = STATUS_PENDING;
         this.completedAt = null;
     }
 

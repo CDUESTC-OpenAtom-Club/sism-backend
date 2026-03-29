@@ -87,6 +87,9 @@ class PlanApplicationServiceTest {
     @Mock
     private PlatformTransactionManager transactionManager;
 
+    @Mock
+    private PlanIntegrityService planIntegrityService;
+
     private PlanApplicationService service;
 
     @BeforeEach
@@ -103,7 +106,8 @@ class PlanApplicationServiceTest {
                 eventPublisher,
                 planWorkflowSnapshotQueryService,
                 jdbcTemplate,
-                transactionManager
+                transactionManager,
+                planIntegrityService
         );
     }
 

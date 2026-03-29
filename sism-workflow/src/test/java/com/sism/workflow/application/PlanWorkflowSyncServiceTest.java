@@ -103,4 +103,32 @@ class PlanWorkflowSyncServiceTest {
 
         verify(reportApplicationService).markWorkflowApproved(200L, 66L);
     }
+
+    @Test
+    void shouldSyncWithdrawnPlanReportBackToDraft() {
+        when(reportApplicationServiceProvider.getIfAvailable()).thenReturn(reportApplicationService);
+
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
+        AuditInstance instance = new AuditInstance();
+        instance.setEntityId(201L);
+        instance.setEntityType("PLAN_REPORT");
+        instance.setRequesterId(267L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance submitStep = new AuditStepInstance();
+        submitStep.setStepNo(1);
+        submitStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+        instance.addStepInstance(submitStep);
+
+        AuditStepInstance withdrawnStep = new AuditStepInstance();
+        withdrawnStep.setStepNo(2);
+        withdrawnStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        withdrawnStep.setComment("提交人撤回");
+        instance.addStepInstance(withdrawnStep);
+
+        service.syncAfterWorkflowChanged(instance);
+
+        verify(reportApplicationService).markWorkflowWithdrawn(201L);
+        verify(reportApplicationService, never()).markWorkflowRejected(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+    }
 }

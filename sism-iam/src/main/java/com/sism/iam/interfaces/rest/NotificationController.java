@@ -28,7 +28,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
-@Tag(name = "Notifications", description = "Alert event notification management")
+@Tag(name = "通知管理", description = "告警事件通知管理接口")
 public class NotificationController {
 
     private final NotificationService notificationService;
@@ -76,7 +76,7 @@ public class NotificationController {
      * 根据指标ID查询告警事件
      */
     @GetMapping("/indicator/{indicatorId}")
-    @Operation(summary = "Get alert events by indicator ID with pagination")
+    @Operation(summary = "按指标ID分页查询告警事件")
     public ResponseEntity<Page<Notification>> getNotificationsByIndicatorId(
             @PathVariable Long indicatorId,
             @RequestParam(defaultValue = "0") int page,
@@ -90,7 +90,7 @@ public class NotificationController {
      * 根据规则ID查询告警事件
      */
     @GetMapping("/rule/{ruleId}")
-    @Operation(summary = "Get alert events by rule ID")
+    @Operation(summary = "按规则ID查询告警事件")
     public ResponseEntity<List<Notification>> getNotificationsByRuleId(@PathVariable Long ruleId) {
         return ResponseEntity.ok(notificationService.getNotificationsByRuleId(ruleId));
     }
@@ -99,7 +99,7 @@ public class NotificationController {
      * 根据窗口ID查询告警事件
      */
     @GetMapping("/window/{windowId}")
-    @Operation(summary = "Get alert events by window ID")
+    @Operation(summary = "按时间窗口ID查询告警事件")
     public ResponseEntity<List<Notification>> getNotificationsByWindowId(@PathVariable Long windowId) {
         return ResponseEntity.ok(notificationService.getNotificationsByWindowId(windowId));
     }
@@ -108,7 +108,7 @@ public class NotificationController {
      * 获取指定指标的告警事件统计
      */
     @GetMapping("/indicator/{indicatorId}/count")
-    @Operation(summary = "Count alert events for an indicator")
+    @Operation(summary = "统计指标的告警事件数量")
     public ResponseEntity<Long> countNotificationsByIndicatorId(@PathVariable Long indicatorId) {
         return ResponseEntity.ok(notificationService.countNotificationsByIndicatorId(indicatorId));
     }
@@ -117,7 +117,7 @@ public class NotificationController {
      * 获取指定规则和状态的告警事件统计
      */
     @GetMapping("/rule/{ruleId}/count")
-    @Operation(summary = "Count alert events by rule and status")
+    @Operation(summary = "按规则和状态统计告警事件数量")
     public ResponseEntity<Long> countNotificationsByRuleIdAndStatus(
             @PathVariable Long ruleId,
             @RequestParam String status) {
@@ -128,7 +128,7 @@ public class NotificationController {
      * 根据ID查询单个告警事件
      */
     @GetMapping("/{id}")
-    @Operation(summary = "Get alert event by ID")
+    @Operation(summary = "根据ID获取告警事件")
     public ResponseEntity<Notification> getNotificationById(@PathVariable Long id) {
         return notificationService.getNotificationById(id)
                 .map(ResponseEntity::ok)
@@ -139,7 +139,7 @@ public class NotificationController {
      * 查询所有告警事件
      */
     @GetMapping
-    @Operation(summary = "Get all alert events")
+    @Operation(summary = "获取所有告警事件")
     public ResponseEntity<List<Notification>> getAllNotifications() {
         return ResponseEntity.ok(notificationService.getAllNotifications());
     }
@@ -148,7 +148,7 @@ public class NotificationController {
      * 创建告警事件
      */
     @PostMapping
-    @Operation(summary = "Create a new alert event")
+    @Operation(summary = "创建新告警事件")
     public ResponseEntity<Notification> createNotification(
             @RequestParam Long indicatorId,
             @RequestParam Long ruleId,
@@ -174,7 +174,7 @@ public class NotificationController {
      * 更新告警事件状态
      */
     @PatchMapping("/{id}/status")
-    @Operation(summary = "Update alert event status")
+    @Operation(summary = "更新告警事件状态")
     public ResponseEntity<Notification> updateNotificationStatus(
             @PathVariable Long id,
             @RequestParam String newStatus) {
@@ -185,7 +185,7 @@ public class NotificationController {
      * 标记告警事件为已处理
      */
     @PostMapping("/{id}/handle")
-    @Operation(summary = "Mark alert event as handled")
+    @Operation(summary = "标记告警事件为已处理")
     public ResponseEntity<Notification> handleNotification(
             @PathVariable Long id,
             @RequestParam Long handledByUserId,
@@ -199,7 +199,7 @@ public class NotificationController {
      * 删除告警事件
      */
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete alert event")
+    @Operation(summary = "删除告警事件")
     public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
         notificationService.deleteNotification(id);
         return ResponseEntity.noContent().build();
