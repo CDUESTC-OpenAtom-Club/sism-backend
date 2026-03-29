@@ -547,6 +547,16 @@ class ReportWorkflowIntegrationTest {
                 public List<Plan> findByPlanLevel(com.sism.strategy.domain.plan.PlanLevel planLevel) { return List.of(); }
 
                 @Override
+                public Optional<Plan> findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                        Long cycleId,
+                        com.sism.strategy.domain.plan.PlanLevel planLevel,
+                        Long createdByOrgId,
+                        Long targetOrgId
+                ) {
+                    return Optional.empty();
+                }
+
+                @Override
                 public List<Plan> findByStatuses(List<String> statuses) { return List.of(); }
 
                 @Override
