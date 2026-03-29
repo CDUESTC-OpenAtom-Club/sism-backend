@@ -31,7 +31,6 @@ jobs:
           distribution: 'temurin'
       - name: Install Maven dependencies
         run: |
-          cd sism-backend
           mvn -q -DskipTests -e dependency:go-offline
       - name: Run Flyway migrations against test DB
         env:
@@ -39,9 +38,7 @@ jobs:
           FLYWAY_USER: postgres
           FLYWAY_PASSWORD: postgres
         run: |
-          cd sism-backend
           mvn -q flyway:migrate -Dflyway.url=$FLYWAY_URL -Dflyway.user=$FLYWAY_USER -Dflyway.password=$FLYWAY_PASSWORD
       - name: Build and test backend
         run: |
-          cd sism-backend
           mvn -q test
