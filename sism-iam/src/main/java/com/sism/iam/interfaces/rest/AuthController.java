@@ -6,14 +6,18 @@ import com.sism.iam.application.dto.CurrentUser;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.User;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,6 +34,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final OrganizationRepository organizationRepository;
 
     /**
      * 用户登录
@@ -119,10 +124,26 @@ public class AuthController {
      */
     @GetMapping("/users")
     @Operation(summary = "查询所有用户")
-    public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getAllUsers() {
-        return ResponseEntity.ok(ApiResponse.success(
-                userService.findAll().stream().map(UserSummaryResponse::fromUser).collect(Collectors.toList())
-        ));
+    public ResponseEntity<ApiResponse<UserListPageResponse>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size
+    ) {
+        List<UserListItemResponse> allUsers = userService.findAll().stream()
+                .map(this::toUserListItemResponse)
+                .toList();
+
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        int start = Math.min(safePage * safeSize, allUsers.size());
+        int end = Math.min(start + safeSize, allUsers.size());
+
+        var userPage = new PageImpl<>(
+                allUsers.subList(start, end),
+                PageRequest.of(safePage, safeSize),
+                allUsers.size()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(UserListPageResponse.fromPage(userPage)));
     }
 
     /**
@@ -272,6 +293,78 @@ public class AuthController {
                     user.getRoles().stream().map(role -> role.getRoleCode()).collect(Collectors.toList())
             );
         }
+    }
+
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class UserRoleItemResponse {
+        private String roleCode;
+        private String roleName;
+    }
+
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class UserListItemResponse {
+        private Long userId;
+        private String username;
+        private String realName;
+        private String email;
+        private String phone;
+        private Long orgId;
+        private String orgName;
+        private List<UserRoleItemResponse> roles;
+        private String status;
+        private String lastLoginAt;
+        private String createdAt;
+        private String updatedAt;
+    }
+
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class UserListPageResponse {
+        private List<UserListItemResponse> content;
+        private long totalElements;
+        private int totalPages;
+        private int number;
+        private int size;
+
+        public static UserListPageResponse fromPage(org.springframework.data.domain.Page<UserListItemResponse> page) {
+            return new UserListPageResponse(
+                    new ArrayList<>(page.getContent()),
+                    page.getTotalElements(),
+                    page.getTotalPages(),
+                    page.getNumber(),
+                    page.getSize()
+            );
+        }
+    }
+
+    private UserListItemResponse toUserListItemResponse(User user) {
+        String orgName = organizationRepository.findById(user.getOrgId())
+                .map(org -> org.getName() != null && !org.getName().isBlank() ? org.getName() : null)
+                .orElse(null);
+
+        List<UserRoleItemResponse> roles = user.getRoles().stream()
+                .map(role -> new UserRoleItemResponse(role.getRoleCode(), role.getRoleName()))
+                .toList();
+
+        return new UserListItemResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getRealName(),
+                null,
+                null,
+                user.getOrgId(),
+                orgName,
+                roles,
+                Boolean.TRUE.equals(user.getIsActive()) ? "active" : "disabled",
+                null,
+                user.getCreatedAt() != null ? user.getCreatedAt().toString() : null,
+                user.getUpdatedAt() != null ? user.getUpdatedAt().toString() : null
+        );
     }
 
     /**
