@@ -64,13 +64,13 @@ class WorkflowReadModelServiceTest {
     private OrganizationRepository organizationRepository;
 
     private WorkflowReadModelService newService() {
-        WorkflowReadModelMapper mapper = new WorkflowReadModelMapper(new ApproverResolver(userRepository, planRepository));
+        WorkflowReadModelMapper mapper = new WorkflowReadModelMapper(new ApproverResolver(userRepository, planRepository, planReportRepository));
         return new WorkflowReadModelService(
                 workflowDefinitionQueryService,
                 auditInstanceRepository,
                 workflowQueryRepository,
                 mapper,
-                new ApproverResolver(userRepository, planRepository),
+                new ApproverResolver(userRepository, planRepository, planReportRepository),
                 planRepository,
                 planReportRepository,
                 organizationRepository,

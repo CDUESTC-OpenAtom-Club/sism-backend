@@ -3,19 +3,14 @@ package com.sism.workflow.application.query;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.model.AuditStepInstance;
-import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.interfaces.dto.WorkflowDefinitionResponse;
 import com.sism.workflow.interfaces.dto.WorkflowHistoryResponse;
 import com.sism.workflow.interfaces.dto.WorkflowInstanceResponse;
 import com.sism.workflow.interfaces.dto.WorkflowTaskResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class WorkflowReadModelMapper {
-
-    private final ApproverResolver approverResolver;
 
     public WorkflowDefinitionResponse toDefinitionResponse(AuditFlowDef flowDef) {
         return WorkflowDefinitionResponse.builder()
@@ -47,7 +42,7 @@ public class WorkflowReadModelMapper {
                 .currentTaskId(currentStep != null && currentStep.getId() != null ? currentStep.getId().toString() : null)
                 .currentStepName(currentStep != null ? currentStep.getStepName() : null)
                 .currentApproverId(pendingCurrentStep ? null : currentStep != null ? currentStep.getApproverId() : null)
-                .currentApproverName(pendingCurrentStep ? null : currentStep != null ? resolveApproverNameSafely(currentStep.getApproverId()) : null)
+                .currentApproverName(null)
                 .canWithdraw(instance.canRequesterWithdraw())
                 .build();
     }
@@ -60,7 +55,7 @@ public class WorkflowReadModelMapper {
                 .taskKey(step.getStepDefId() != null ? "step_" + step.getStepDefId() : "step_" + step.getStepNo())
                 .status(convertStepStatus(step.getStatus()))
                 .assigneeId(pendingStep ? null : step.getApproverId())
-                .assigneeName(pendingStep ? null : resolveApproverNameSafely(step.getApproverId()))
+                .assigneeName(null)
                 .approverOrgId(step.getApproverOrgId())
                 .stepNo(step.getStepNo())
                 .comment(step.getComment())
@@ -93,7 +88,7 @@ public class WorkflowReadModelMapper {
                 .taskId(instance.getId().toString())
                 .taskName(step.getStepName())
                 .operatorId(step.getApproverId())
-                .operatorName(approverResolver.resolveApproverName(step.getApproverId()))
+                .operatorName(null)
                 .action(action)
                 .comment(step.getComment())
                 .operateTime(step.getApprovedAt() != null ? step.getApprovedAt() : step.getCreatedAt())
@@ -121,9 +116,5 @@ public class WorkflowReadModelMapper {
 
     private String toExternalInstanceStatus(String status) {
         return status;
-    }
-
-    private String resolveApproverNameSafely(Long userId) {
-        return approverResolver.resolveApproverName(userId);
     }
 }

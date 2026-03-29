@@ -31,15 +31,16 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT DISTINCT d FROM AuditFlowDef d LEFT JOIN FETCH d.steps WHERE d.entityType = :entityType")
     List<AuditFlowDef> findAuditFlowDefsByEntityType(@Param("entityType") String entityType);
 
-    Optional<AuditInstance> findById(Long id);
+    @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.id = :instanceId")
+    Optional<AuditInstance> findByIdWithSteps(@Param("instanceId") Long instanceId);
 
     List<AuditInstance> findAll();
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.entityType = :businessType AND a.entityId = :businessId")
+    @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.entityType = :businessType AND a.entityId = :businessId")
     List<AuditInstance> findByBusinessTypeAndBusinessId(@Param("businessType") String businessType,
                                                          @Param("businessId") Long businessId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.entityId = :businessId")
+    @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.entityId = :businessId")
     List<AuditInstance> findByBusinessId(@Param("businessId") Long businessId);
 
     @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.status = :status")
@@ -48,7 +49,7 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
     @Query("SELECT a FROM AuditInstance a WHERE a.requesterId = :initiatorId")
     List<AuditInstance> findByInitiatorId(@Param("initiatorId") Long initiatorId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.id = :instanceId")
+    @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.id = :instanceId")
     Optional<AuditInstance> findAuditInstanceById(@Param("instanceId") Long instanceId);
 
     @Query("SELECT DISTINCT a FROM AuditInstance a JOIN a.stepInstances s WHERE s.id = :stepInstanceId")
@@ -62,10 +63,10 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
             "WHERE a.status = 'APPROVED' AND s.approverId = :userId")
     List<AuditInstance> findApprovedAuditInstancesByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.requesterId = :userId")
+    @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.requesterId = :userId")
     List<AuditInstance> findAppliedAuditInstancesByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT a FROM AuditInstance a WHERE a.id = :instanceId")
+    @Query("SELECT DISTINCT a FROM AuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.id = :instanceId")
     List<AuditInstance> findAuditInstanceHistory(@Param("instanceId") Long instanceId);
 
     @Query("SELECT COUNT(a) FROM AuditInstance a")

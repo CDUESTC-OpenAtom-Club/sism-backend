@@ -21,6 +21,13 @@ public interface JpaPlanRepositoryInternal extends JpaRepository<Plan, Long> {
 
     List<Plan> findByPlanLevel(PlanLevel planLevel);
 
+    java.util.Optional<Plan> findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+            Long cycleId,
+            PlanLevel planLevel,
+            Long createdByOrgId,
+            Long targetOrgId
+    );
+
     List<Plan> findByStatusIn(List<String> statuses);
 
     @Query("""
