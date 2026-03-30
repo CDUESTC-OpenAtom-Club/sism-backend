@@ -5,9 +5,20 @@
 -- ============================================
 -- Step 1: Add unique constraint to sys_org.name
 -- ============================================
-ALTER TABLE sys_org ADD CONSTRAINT uk_sys_org_name UNIQUE (name);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_schema = 'public'
+          AND table_name = 'sys_org'
+          AND constraint_name = 'uk_sys_org_name'
+    ) THEN
+        ALTER TABLE sys_org ADD CONSTRAINT uk_sys_org_name UNIQUE (name);
+    END IF;
 
-COMMENT ON CONSTRAINT uk_sys_org_name ON sys_org IS '组织名称唯一约束';
+    EXECUTE 'COMMENT ON CONSTRAINT uk_sys_org_name ON public.sys_org IS ''组织名称唯一约束''';
+END $$;
 
 -- ============================================
 -- Step 2: Remove parent_org_id from sys_org (flat structure)
@@ -43,14 +54,31 @@ END $$;
 -- Current: app_user.org_id = 205 (党委保卫部 | 保卫处 in org table)
 -- Target: sys_org.id = 42 (党委保卫部 | 保卫处)
 
--- Create a temporary mapping table
-CREATE TEMP TABLE org_mapping AS
-SELECT 
-    o.org_id as old_org_id,
-    s.id as new_org_id,
-    o.org_name as org_name
-FROM org o
-INNER JOIN sys_org s ON o.org_name = s.name;
+-- Create a temporary mapping table only if org table exists
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'org'
+    ) THEN
+        CREATE TEMP TABLE org_mapping AS
+        SELECT
+            o.org_id as old_org_id,
+            s.id as new_org_id,
+            o.org_name as org_name
+        FROM org o
+        INNER JOIN sys_org s ON o.org_name = s.name;
+    ELSE
+        -- Create an empty temp table to avoid errors in subsequent steps
+        CREATE TEMP TABLE org_mapping (
+            old_org_id bigint,
+            new_org_id bigint,
+            org_name text
+        );
+    END IF;
+END $$;
 
 -- Show mapping for verification
 DO $$
@@ -66,35 +94,77 @@ BEGIN
 END $$;
 
 -- Update app_user to reference sys_org using the mapping
-UPDATE app_user
-SET org_id = (
-    SELECT new_org_id 
-    FROM org_mapping 
-    WHERE old_org_id = app_user.org_id
-    LIMIT 1
-)
-WHERE EXISTS (
-    SELECT 1 
-    FROM org_mapping 
-    WHERE old_org_id = app_user.org_id
-);
+-- Only execute if org_mapping has data
+DO $$
+DECLARE
+    mapping_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO mapping_count FROM org_mapping;
 
--- 3.3: Add new foreign key constraint
-ALTER TABLE app_user 
-    ADD CONSTRAINT fk_app_user_sys_org 
-    FOREIGN KEY (org_id) 
-    REFERENCES sys_org(id)
-    ON DELETE RESTRICT
-    ON UPDATE CASCADE;
+    IF mapping_count > 0 THEN
+        UPDATE app_user
+        SET org_id = (
+            SELECT new_org_id
+            FROM org_mapping
+            WHERE old_org_id = app_user.org_id
+            LIMIT 1
+        )
+        WHERE EXISTS (
+            SELECT 1
+            FROM org_mapping
+            WHERE old_org_id = app_user.org_id
+        );
 
-COMMENT ON CONSTRAINT fk_app_user_sys_org ON app_user IS '用户所属组织外键约束';
+        RAISE NOTICE 'Updated % app_user records to reference sys_org', mapping_count;
+    ELSE
+        RAISE NOTICE 'No org mapping data found - skipping app_user update';
+    END IF;
+END $$;
+
+-- 3.3: Add new foreign key constraint (only if not exists)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE table_schema = 'public'
+          AND table_name = 'app_user'
+          AND constraint_name = 'fk_app_user_sys_org'
+    ) THEN
+        ALTER TABLE app_user
+            ADD CONSTRAINT fk_app_user_sys_org
+            FOREIGN KEY (org_id)
+            REFERENCES sys_org(id)
+            ON DELETE RESTRICT
+            ON UPDATE CASCADE;
+    END IF;
+
+    EXECUTE 'COMMENT ON CONSTRAINT fk_app_user_sys_org ON public.app_user IS ''用户所属组织外键约束''';
+END $$;
 
 -- ============================================
 -- Step 4: Rename org table to org_deprecated
 -- ============================================
-ALTER TABLE org RENAME TO org_deprecated;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'org'
+    ) THEN
+        ALTER TABLE org RENAME TO org_deprecated;
+    END IF;
 
-COMMENT ON TABLE org_deprecated IS '已废弃的组织表，已迁移到sys_org，保留用于数据恢复';
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'org_deprecated'
+    ) THEN
+        EXECUTE 'COMMENT ON TABLE public.org_deprecated IS ''已废弃的组织表，已迁移到sys_org，保留用于数据恢复''';
+    END IF;
+END $$;
 
 -- ============================================
 -- Step 5: Add indexes to sys_org for performance
