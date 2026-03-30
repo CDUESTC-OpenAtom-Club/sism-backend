@@ -333,6 +333,7 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
         report.setSubmittedAt(null);
+        report.setAuditInstanceId(null);
         report.setUpdatedAt(LocalDateTime.now());
         return enrichReportMetadata(planReportRepository.save(report));
     }

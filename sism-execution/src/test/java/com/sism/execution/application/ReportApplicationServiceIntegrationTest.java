@@ -101,6 +101,28 @@ class ReportApplicationServiceIntegrationTest {
                     CONSTRAINT uq_report_indicator UNIQUE (report_id, indicator_id)
                 )
                 """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS public.plan_report_indicator_attachment (
+                    id BIGINT PRIMARY KEY,
+                    plan_report_indicator_id BIGINT NOT NULL,
+                    attachment_id BIGINT NOT NULL,
+                    sort_order INTEGER DEFAULT 0 NOT NULL,
+                    created_by BIGINT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS public.attachment (
+                    id BIGINT PRIMARY KEY,
+                    original_name VARCHAR(255) NOT NULL,
+                    size_bytes BIGINT NOT NULL,
+                    content_type VARCHAR(255),
+                    public_url VARCHAR(255),
+                    is_deleted BOOLEAN DEFAULT FALSE NOT NULL,
+                    uploaded_by BIGINT,
+                    uploaded_at TIMESTAMP
+                )
+                """);
     }
 
     @Test

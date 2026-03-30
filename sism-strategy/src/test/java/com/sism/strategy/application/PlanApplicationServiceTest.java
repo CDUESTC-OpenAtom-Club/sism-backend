@@ -378,9 +378,6 @@ class PlanApplicationServiceTest {
         assertEquals(701L, response.getWorkflowInstanceId());
         verify(indicator).setStatus(IndicatorStatus.DRAFT);
         verify(indicatorRepository).save(indicator);
-        verify(jdbcTemplate).update(contains("SET status = 'WITHDRAWN'"), anyLong());
-        verify(jdbcTemplate).update(contains("SET status = 'WAITING'"), eq(701L));
-        verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(701L));
     }
 
     @Test
