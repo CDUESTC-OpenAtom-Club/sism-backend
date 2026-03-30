@@ -98,7 +98,7 @@ jobs:
       - name: Check Flyway migration status (before)
         run: |
           echo "[INFO] Checking Flyway migration status before applying..."
-          mvn -pl sism-main -am flyway:info -B -Dflyway.target=1 || echo "No migrations applied yet"
+          mvn -pl sism-main -am flyway:info -B || echo "No migrations applied yet"
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
           DB_USERNAME: postgres
@@ -107,7 +107,7 @@ jobs:
       - name: Apply migrations to test database
         run: |
           echo "[INFO] Applying migrations to test database..."
-          mvn -pl sism-main -am flyway:migrate -B -Dflyway.target=1
+          mvn -pl sism-main -am flyway:migrate -B
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
           DB_USERNAME: postgres
@@ -116,7 +116,7 @@ jobs:
       - name: Validate Flyway migrations
         run: |
           echo "[INFO] Validating Flyway migrations against test database..."
-          mvn -pl sism-main -am flyway:validate -B -Dflyway.target=1
+          mvn -pl sism-main -am flyway:validate -B
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
           DB_USERNAME: postgres
@@ -125,7 +125,7 @@ jobs:
       - name: Check Flyway migration status (after)
         run: |
           echo "[INFO] Final Flyway migration status:"
-          mvn -pl sism-main -am flyway:info -B -Dflyway.target=1
+          mvn -pl sism-main -am flyway:info -B
         env:
           DB_URL: jdbc:postgresql://localhost:5432/sism_test
           DB_USERNAME: postgres
