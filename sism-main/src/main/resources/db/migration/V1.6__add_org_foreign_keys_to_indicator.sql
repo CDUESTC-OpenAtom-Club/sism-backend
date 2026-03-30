@@ -30,16 +30,16 @@ WHERE i.responsible_dept IS NOT NULL
   AND i.responsible_dept = so.name
   AND i.target_org_id IS NULL;
 
--- Step 5: 对于无法映射的记录，设置为第一个 FUNCTIONAL_DEPT 组织
+-- Step 5: 对于无法映射的记录，设置为第一个 functional 组织
 -- （假设这是一个合理的默认值）
 DO $$
 DECLARE
     default_org_id BIGINT;
 BEGIN
-    -- 获取第一个 FUNCTIONAL_DEPT 组织的 ID
+    -- 获取第一个 functional 组织的 ID
     SELECT id INTO default_org_id
     FROM sys_org
-    WHERE type = 'FUNCTIONAL_DEPT'
+    WHERE type = 'functional'
     AND is_active = true
     ORDER BY sort_order
     LIMIT 1;
@@ -53,10 +53,10 @@ BEGIN
         UPDATE indicator
         SET target_org_id = default_org_id
         WHERE target_org_id IS NULL;
-        
+
         RAISE NOTICE '已将 NULL 值设置为默认组织 ID: %', default_org_id;
     ELSE
-        RAISE EXCEPTION '无法找到默认组织（FUNCTIONAL_DEPT）';
+        RAISE EXCEPTION '无法找到默认组织（functional）';
     END IF;
 END $$;
 
