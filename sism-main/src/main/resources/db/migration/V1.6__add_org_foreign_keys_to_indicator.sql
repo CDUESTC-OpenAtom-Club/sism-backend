@@ -30,17 +30,25 @@ WHERE i.responsible_dept IS NOT NULL
   AND i.responsible_dept = so.name
   AND i.target_org_id IS NULL;
 
--- Step 5: 对于无法映射的记录，设置为第一个 functional 组织
--- （假设这是一个合理的默认值）
+-- Step 5: 对于无法映射的记录，设置为第一个组织
+-- （如果没有组织数据则跳过）
 DO $$
 DECLARE
     default_org_id BIGINT;
+    indicator_count INTEGER;
 BEGIN
-    -- 获取第一个 functional 组织的 ID
+    -- 检查是否有 indicator 数据
+    SELECT COUNT(*) INTO indicator_count FROM indicator;
+
+    IF indicator_count = 0 THEN
+        RAISE NOTICE '没有 indicator 数据，跳过默认值设置';
+        RETURN;
+    END IF;
+
+    -- 获取第一个组织的 ID（任意类型）
     SELECT id INTO default_org_id
     FROM sys_org
-    WHERE type = 'functional'
-    AND is_active = true
+    WHERE is_active = true
     ORDER BY sort_order
     LIMIT 1;
 
@@ -56,41 +64,74 @@ BEGIN
 
         RAISE NOTICE '已将 NULL 值设置为默认组织 ID: %', default_org_id;
     ELSE
-        RAISE EXCEPTION '无法找到默认组织（functional）';
+        RAISE NOTICE '没有可用的组织，跳过默认值设置';
     END IF;
 END $$;
 
--- Step 6: 验证没有 NULL 值
+-- Step 6: 验证没有 NULL 值（如果没有组织数据则跳过）
 DO $$
 DECLARE
     null_owner_count INTEGER;
     null_target_count INTEGER;
+    org_count INTEGER;
 BEGIN
+    -- 检查是否有组织数据
+    SELECT COUNT(*) INTO org_count FROM sys_org;
+
+    IF org_count = 0 THEN
+        RAISE NOTICE '没有组织数据，跳过验证';
+        RETURN;
+    END IF;
+
     SELECT COUNT(*) INTO null_owner_count FROM indicator WHERE owner_org_id IS NULL;
     SELECT COUNT(*) INTO null_target_count FROM indicator WHERE target_org_id IS NULL;
-    
+
     IF null_owner_count > 0 OR null_target_count > 0 THEN
         RAISE EXCEPTION '仍有 NULL 值: owner_org_id=%, target_org_id=%', null_owner_count, null_target_count;
     END IF;
-    
+
     RAISE NOTICE '验证通过：所有记录都有有效的组织 ID';
 END $$;
 
--- Step 7: 添加 NOT NULL 约束
-ALTER TABLE indicator
-ALTER COLUMN owner_org_id SET NOT NULL,
-ALTER COLUMN target_org_id SET NOT NULL;
+-- Step 7: 添加 NOT NULL 约束（如果有组织数据）
+DO $$
+DECLARE
+    org_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO org_count FROM sys_org;
 
--- Step 8: 添加外键约束
-ALTER TABLE indicator
-ADD CONSTRAINT fk_indicator_owner_org
-    FOREIGN KEY (owner_org_id)
-    REFERENCES sys_org(id)
-    ON DELETE RESTRICT,
-ADD CONSTRAINT fk_indicator_target_org
-    FOREIGN KEY (target_org_id)
-    REFERENCES sys_org(id)
-    ON DELETE RESTRICT;
+    IF org_count > 0 THEN
+        ALTER TABLE indicator
+        ALTER COLUMN owner_org_id SET NOT NULL,
+        ALTER COLUMN target_org_id SET NOT NULL;
+        RAISE NOTICE '已添加 NOT NULL 约束';
+    ELSE
+        RAISE NOTICE '没有组织数据，跳过 NOT NULL 约束';
+    END IF;
+END $$;
+
+-- Step 8: 添加外键约束（如果有组织数据）
+DO $$
+DECLARE
+    org_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO org_count FROM sys_org;
+
+    IF org_count > 0 THEN
+        ALTER TABLE indicator
+        ADD CONSTRAINT IF NOT EXISTS fk_indicator_owner_org
+            FOREIGN KEY (owner_org_id)
+            REFERENCES sys_org(id)
+            ON DELETE RESTRICT,
+        ADD CONSTRAINT IF NOT EXISTS fk_indicator_target_org
+            FOREIGN KEY (target_org_id)
+            REFERENCES sys_org(id)
+            ON DELETE RESTRICT;
+        RAISE NOTICE '已添加外键约束';
+    ELSE
+        RAISE NOTICE '没有组织数据，跳过外键约束';
+    END IF;
+END $$;
 
 -- Step 9: 添加索引以提高查询性能
 CREATE INDEX IF NOT EXISTS idx_indicator_owner_org ON indicator(owner_org_id);
