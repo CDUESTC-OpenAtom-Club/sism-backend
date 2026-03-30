@@ -154,8 +154,11 @@ ALTER TABLE indicator
 ALTER COLUMN level SET NOT NULL;
 
 -- 完成
-RAISE NOTICE '✓ indicator 表迁移完成';
-RAISE NOTICE '  - 添加了 owner_org_id 和 target_org_id 列';
-RAISE NOTICE '  - 添加了外键约束';
-RAISE NOTICE '  - 添加了索引';
-RAISE NOTICE '  - 添加了 level 列';
+DO $$
+BEGIN
+    RAISE NOTICE '✓ indicator 表迁移完成';
+    RAISE NOTICE '  - 添加了 owner_org_id 和 target_org_id 列';
+    RAISE NOTICE '  - 添加了外键约束';
+    RAISE NOTICE '  - 添加了索引';
+    RAISE NOTICE '  - 添加了 level 列';
+END $$;
