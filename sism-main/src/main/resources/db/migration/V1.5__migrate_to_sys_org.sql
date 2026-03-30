@@ -34,19 +34,28 @@ DO $$
 DECLARE
     constraint_name_var TEXT;
 BEGIN
-    -- Find the constraint name dynamically
-    SELECT constraint_name INTO constraint_name_var
-    FROM information_schema.table_constraints
-    WHERE table_name = 'app_user' 
-      AND constraint_type = 'FOREIGN KEY'
-      AND constraint_name LIKE '%org%';
-    
-    -- Drop the constraint if it exists
-    IF constraint_name_var IS NOT NULL THEN
-        EXECUTE 'ALTER TABLE app_user DROP CONSTRAINT ' || constraint_name_var;
-        RAISE NOTICE 'Dropped constraint: %', constraint_name_var;
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'app_user'
+    ) THEN
+        -- Find the constraint name dynamically
+        SELECT constraint_name INTO constraint_name_var
+        FROM information_schema.table_constraints
+        WHERE table_name = 'app_user'
+          AND constraint_type = 'FOREIGN KEY'
+          AND constraint_name LIKE '%org%';
+
+        -- Drop the constraint if it exists
+        IF constraint_name_var IS NOT NULL THEN
+            EXECUTE 'ALTER TABLE app_user DROP CONSTRAINT ' || constraint_name_var;
+            RAISE NOTICE 'Dropped constraint: %', constraint_name_var;
+        ELSE
+            RAISE NOTICE 'No foreign key constraint found on app_user.org_id';
+        END IF;
     ELSE
-        RAISE NOTICE 'No foreign key constraint found on app_user.org_id';
+        RAISE NOTICE 'Table app_user does not exist - skipping foreign key constraint drop';
     END IF;
 END $$;
 
@@ -94,52 +103,70 @@ BEGIN
 END $$;
 
 -- Update app_user to reference sys_org using the mapping
--- Only execute if org_mapping has data
+-- Only execute if org_mapping has data and app_user exists
 DO $$
 DECLARE
     mapping_count INTEGER;
 BEGIN
-    SELECT COUNT(*) INTO mapping_count FROM org_mapping;
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'app_user'
+    ) THEN
+        SELECT COUNT(*) INTO mapping_count FROM org_mapping;
 
-    IF mapping_count > 0 THEN
-        UPDATE app_user
-        SET org_id = (
-            SELECT new_org_id
-            FROM org_mapping
-            WHERE old_org_id = app_user.org_id
-            LIMIT 1
-        )
-        WHERE EXISTS (
-            SELECT 1
-            FROM org_mapping
-            WHERE old_org_id = app_user.org_id
-        );
+        IF mapping_count > 0 THEN
+            UPDATE app_user
+            SET org_id = (
+                SELECT new_org_id
+                FROM org_mapping
+                WHERE old_org_id = app_user.org_id
+                LIMIT 1
+            )
+            WHERE EXISTS (
+                SELECT 1
+                FROM org_mapping
+                WHERE old_org_id = app_user.org_id
+            );
 
-        RAISE NOTICE 'Updated % app_user records to reference sys_org', mapping_count;
+            RAISE NOTICE 'Updated % app_user records to reference sys_org', mapping_count;
+        ELSE
+            RAISE NOTICE 'No org mapping data found - skipping app_user update';
+        END IF;
     ELSE
-        RAISE NOTICE 'No org mapping data found - skipping app_user update';
+        RAISE NOTICE 'Table app_user does not exist - skipping app_user update';
     END IF;
 END $$;
 
 -- 3.3: Add new foreign key constraint (only if not exists)
 DO $$
 BEGIN
-    IF NOT EXISTS (
+    IF EXISTS (
         SELECT 1
-        FROM information_schema.table_constraints
+        FROM information_schema.tables
         WHERE table_schema = 'public'
           AND table_name = 'app_user'
-          AND constraint_name = 'fk_app_user_sys_org'
     ) THEN
-        ALTER TABLE app_user
-            ADD CONSTRAINT fk_app_user_sys_org
-            FOREIGN KEY (org_id)
-            REFERENCES sys_org(id)
-            ON DELETE RESTRICT
-            ON UPDATE CASCADE;
-    END IF;
+        IF NOT EXISTS (
+            SELECT 1
+            FROM information_schema.table_constraints
+            WHERE table_schema = 'public'
+              AND table_name = 'app_user'
+              AND constraint_name = 'fk_app_user_sys_org'
+        ) THEN
+            ALTER TABLE app_user
+                ADD CONSTRAINT fk_app_user_sys_org
+                FOREIGN KEY (org_id)
+                REFERENCES sys_org(id)
+                ON DELETE RESTRICT
+                ON UPDATE CASCADE;
+        END IF;
 
-    EXECUTE 'COMMENT ON CONSTRAINT fk_app_user_sys_org ON public.app_user IS ''用户所属组织外键约束''';
+        EXECUTE 'COMMENT ON CONSTRAINT fk_app_user_sys_org ON public.app_user IS ''用户所属组织外键约束''';
+    ELSE
+        RAISE NOTICE 'Table app_user does not exist - skipping foreign key constraint creation';
+    END IF;
 END $$;
 
 -- ============================================
@@ -202,15 +229,24 @@ DO $$
 DECLARE
     invalid_count INTEGER;
 BEGIN
-    SELECT COUNT(*) INTO invalid_count
-    FROM app_user u
-    LEFT JOIN sys_org o ON u.org_id = o.id
-    WHERE o.id IS NULL;
-    
-    IF invalid_count > 0 THEN
-        RAISE EXCEPTION 'Found % app_user records with invalid org_id', invalid_count;
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name = 'app_user'
+    ) THEN
+        SELECT COUNT(*) INTO invalid_count
+        FROM app_user u
+        LEFT JOIN sys_org o ON u.org_id = o.id
+        WHERE o.id IS NULL;
+
+        IF invalid_count > 0 THEN
+            RAISE EXCEPTION 'Found % app_user records with invalid org_id', invalid_count;
+        ELSE
+            RAISE NOTICE 'Verification passed: All app_user records reference valid sys_org';
+        END IF;
     ELSE
-        RAISE NOTICE 'Verification passed: All app_user records reference valid sys_org';
+        RAISE NOTICE 'Table app_user does not exist - skipping verification';
     END IF;
 END $$;
 
