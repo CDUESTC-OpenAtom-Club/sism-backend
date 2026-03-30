@@ -70,6 +70,9 @@ public class PlanResponse {
     @Schema(description = "创建组织ID")
     private Long createdByOrgId;
 
+    @Schema(description = "创建组织名称")
+    private String createdByOrgName;
+
     @Schema(description = "计划层级", example = "STRATEGIC")
     private String planLevel;
 

@@ -22,6 +22,12 @@
         <dependency>
             <groupId>com.sism</groupId>
             <artifactId>sism-shared-kernel</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jul-to-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- All business modules -->

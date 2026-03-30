@@ -6,7 +6,10 @@ import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.repository.IndicatorRepository;
+import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import org.hibernate.Hibernate;
@@ -19,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ public class StrategyApplicationService {
     private final EventStore eventStore;
     private final IndicatorRepository indicatorRepository;
     private final TaskRepository taskRepository;
+    private final PlanRepository planRepository;
     private final BasicTaskWeightValidationService basicTaskWeightValidationService;
 
     @Transactional
@@ -53,8 +58,10 @@ public class StrategyApplicationService {
             Integer progress) {
         Indicator indicator = Indicator.create(indicatorDesc, ownerOrg, targetOrg, indicatorType);
 
-        if (taskId != null) {
-            indicator.setTaskId(taskId);
+        Long resolvedTaskId = resolveFuncToCollegeTaskId(taskId, ownerOrg, targetOrg);
+
+        if (resolvedTaskId != null) {
+            indicator.setTaskId(resolvedTaskId);
         }
         if (parentIndicatorId != null) {
             Indicator parent = indicatorRepository.findById(parentIndicatorId)
@@ -124,6 +131,14 @@ public class StrategyApplicationService {
         if (targetOrg != null) {
             indicator.setTargetOrg(targetOrg);
             indicator.setLevel(indicator.calculateLevel());
+            Long remappedTaskId = resolveFuncToCollegeTaskId(
+                    indicator.getTaskId(),
+                    indicator.getOwnerOrg(),
+                    targetOrg
+            );
+            if (remappedTaskId != null) {
+                indicator.setTaskId(remappedTaskId);
+            }
         }
         if (customDesc != null && !customDesc.trim().isEmpty()) {
             indicator.setIndicatorDesc(customDesc.trim());
@@ -132,6 +147,61 @@ public class StrategyApplicationService {
         indicator = indicatorRepository.save(indicator);
         publishAndSaveEvents(indicator);
         return indicator;
+    }
+
+    private Long resolveFuncToCollegeTaskId(Long sourceTaskId, SysOrg ownerOrg, SysOrg targetOrg) {
+        if (sourceTaskId == null || ownerOrg == null || targetOrg == null) {
+            return sourceTaskId;
+        }
+
+        StrategicTask sourceTask = taskRepository.findById(sourceTaskId).orElse(null);
+        if (sourceTask == null) {
+            return sourceTaskId;
+        }
+
+        Plan targetPlan = planRepository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                sourceTask.getCycleId(),
+                PlanLevel.FUNC_TO_COLLEGE,
+                ownerOrg.getId(),
+                targetOrg.getId()
+        ).orElseGet(() -> planRepository.save(
+                Plan.create(
+                        sourceTask.getCycleId(),
+                        targetOrg.getId(),
+                        ownerOrg.getId(),
+                        PlanLevel.FUNC_TO_COLLEGE
+                )
+        ));
+
+        if (Objects.equals(sourceTask.getPlanId(), targetPlan.getId())) {
+            return sourceTaskId;
+        }
+
+        return taskRepository.findByPlanId(targetPlan.getId()).stream()
+                .filter(task ->
+                        task.getTaskType() == sourceTask.getTaskType()
+                                && normalizeTaskName(task.getName()).equals(normalizeTaskName(sourceTask.getName()))
+                )
+                .findFirst()
+                .map(StrategicTask::getId)
+                .orElseGet(() -> {
+                    StrategicTask createdTask = StrategicTask.create(
+                            sourceTask.getName(),
+                            sourceTask.getTaskType(),
+                            targetPlan.getId(),
+                            sourceTask.getCycleId(),
+                            targetOrg,
+                            ownerOrg
+                    );
+                    createdTask.setDesc(sourceTask.getDesc());
+                    createdTask.setRemark(sourceTask.getRemark());
+                    createdTask.setSortOrder(sourceTask.getSortOrder());
+                    return taskRepository.save(createdTask).getId();
+                });
+    }
+
+    private String normalizeTaskName(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private void validatePlanBasicWeightBeforeDistribution(Indicator indicator, Long targetOrgId) {

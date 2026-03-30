@@ -1,13 +1,17 @@
 package com.sism.iam.application.service;
 
 import com.sism.iam.domain.User;
+import com.sism.iam.domain.Role;
+import com.sism.iam.domain.repository.RoleRepository;
 import com.sism.iam.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * UserService - 用户服务
@@ -18,12 +22,20 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
 
     /**
      * 创建用户
      */
     @Transactional
-    public User createUser(String username, String password, String realName, String email, Long orgId) {
+    public User createUser(
+            String username,
+            String password,
+            String realName,
+            String email,
+            Long orgId,
+            List<String> roleCodes
+    ) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username is required");
         }
@@ -37,6 +49,7 @@ public class UserService {
         user.setRealName(realName);
         user.setOrgId(orgId);
         user.setIsActive(true);
+        user.setRoles(resolveRoles(roleCodes));
 
         return userRepository.save(user);
     }
@@ -45,7 +58,7 @@ public class UserService {
      * 更新用户
      */
     @Transactional
-    public User updateUser(Long userId, String realName, String email, Long orgId) {
+    public User updateUser(Long userId, String realName, String email, Long orgId, List<String> roleCodes) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -54,6 +67,9 @@ public class UserService {
         }
         if (orgId != null) {
             user.setOrgId(orgId);
+        }
+        if (roleCodes != null) {
+            user.setRoles(resolveRoles(roleCodes));
         }
 
         return userRepository.save(user);
@@ -118,5 +134,24 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         user.setIsActive(true);
         userRepository.save(user);
+    }
+
+    private Set<Role> resolveRoles(List<String> roleCodes) {
+        Set<Role> roles = new LinkedHashSet<>();
+        if (roleCodes == null) {
+            return roles;
+        }
+
+        for (String roleCode : roleCodes) {
+            if (roleCode == null || roleCode.isBlank()) {
+                continue;
+            }
+
+            Role role = roleRepository.findByRoleCode(roleCode.trim())
+                    .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleCode));
+            roles.add(role);
+        }
+
+        return roles;
     }
 }

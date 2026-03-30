@@ -42,6 +42,11 @@ public class JpaTaskRepository implements TaskRepository {
     }
 
     @Override
+    public List<StrategicTask> findAllById(List<Long> ids) {
+        return jpaRepository.findAllById(ids);
+    }
+
+    @Override
     public Page<StrategicTask> findAll(Pageable pageable) {
         return jpaRepository.findAll(pageable);
     }

@@ -2,6 +2,8 @@ package com.sism.execution.interfaces.dto;
 
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 public class UpdatePlanReportIndicatorDetailRequest {
 
@@ -20,4 +22,6 @@ public class UpdatePlanReportIndicatorDetailRequest {
     private String nextPlan;
 
     private String milestoneNote;
+
+    private List<Long> attachmentIds;
 }

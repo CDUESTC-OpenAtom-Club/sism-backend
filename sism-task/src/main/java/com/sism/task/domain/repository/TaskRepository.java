@@ -36,6 +36,14 @@ public interface TaskRepository {
     List<StrategicTask> findAll();
 
     /**
+     * 根据ID列表查询任务
+     *
+     * @param ids 任务ID列表
+     * @return 命中的任务列表
+     */
+    List<StrategicTask> findAllById(List<Long> ids);
+
+    /**
      * 分页查找所有任务
      *
      * @param pageable 分页参数

@@ -17,6 +17,7 @@ import com.sism.strategy.interfaces.dto.CreatePlanRequest;
 import com.sism.strategy.interfaces.dto.PlanResponse;
 import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
 import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
+import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
@@ -317,8 +318,8 @@ public class PlanApplicationService {
 
         jdbcTemplate.update("""
                 UPDATE public.audit_instance
-                SET status = 'IN_REVIEW',
-                    completed_at = NULL,
+                SET status = 'WITHDRAWN',
+                    completed_at = CURRENT_TIMESTAMP,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """, workflowInstanceId);
@@ -547,7 +548,9 @@ public class PlanApplicationService {
         details.setYear(planResponse.getYear());
         details.setCycleId(planResponse.getCycleId());
         details.setTargetOrgId(planResponse.getTargetOrgId());
+        details.setTargetOrgName(planResponse.getTargetOrgName());
         details.setCreatedByOrgId(planResponse.getCreatedByOrgId());
+        details.setCreatedByOrgName(planResponse.getCreatedByOrgName());
         details.setPlanLevel(planResponse.getPlanLevel());
         details.setCanEdit(planResponse.getCanEdit());
         details.setCanResubmit(planResponse.getCanResubmit());
@@ -626,6 +629,7 @@ public class PlanApplicationService {
 
     private PlanResponse convertToResponse(Plan plan, String year, Map<Long, String> orgNamesById) {
         String targetOrgName = plan.getTargetOrgId() == null ? null : orgNamesById.get(plan.getTargetOrgId());
+        String createdByOrgName = plan.getCreatedByOrgId() == null ? null : orgNamesById.get(plan.getCreatedByOrgId());
 
         return PlanResponse.builder()
                 .id(plan.getId())
@@ -635,7 +639,7 @@ public class PlanApplicationService {
                 .status(PlanStatus.fromRaw(plan.getStatus()).value())
                 .startDate(plan.getCreatedAt())
                 .endDate(plan.getUpdatedAt())
-                .ownerDepartment(null) // 需要从Plan实体获取或单独存储
+                .ownerDepartment(createdByOrgName)
                 .completionPercentage(0)
                 .indicatorCount(0) // 需要查询关联的指标数量
                 .milestoneCount(0) // 需要查询关联的里程碑数量
@@ -645,6 +649,7 @@ public class PlanApplicationService {
                 .targetOrgId(plan.getTargetOrgId())
                 .targetOrgName(targetOrgName) // 设置目标组织名称
                 .createdByOrgId(plan.getCreatedByOrgId())
+                .createdByOrgName(createdByOrgName)
                 .planLevel(plan.getPlanLevel() != null ? plan.getPlanLevel().name() : null)
                 .canEdit(plan.isEditable())
                 .canResubmit(plan.isEditable())
@@ -755,6 +760,14 @@ public class PlanApplicationService {
         String effectiveStatus = planStatus != null ? planStatus :
                 (indicator.getStatus() != null ? indicator.getStatus().name() : "DRAFT");
         PendingIndicatorState pendingIndicatorState = currentReportContext.getPendingState(indicator.getId());
+        String ownerOrgName = indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getName() : null;
+        String targetOrgName = indicator.getTargetOrg() != null ? indicator.getTargetOrg().getName() : null;
+        String taskName = null;
+        if (indicator.getTaskId() != null) {
+            taskName = taskRepository.findById(indicator.getTaskId())
+                    .map(StrategicTask::getName)
+                    .orElse(null);
+        }
 
         return InternalIndicatorResponse.builder()
                 .id(indicator.getId())
@@ -763,7 +776,12 @@ public class PlanApplicationService {
                 .indicatorDesc(indicator.getDescription())
                 .cycleId(indicator.getTaskId()) // 使用taskId作为cycleId（临时方案）
                 .ownerOrgId(indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getId() : null)
+                .ownerOrgName(ownerOrgName)
+                .ownerDept(ownerOrgName)
                 .targetOrgId(indicator.getTargetOrg() != null ? indicator.getTargetOrg().getId() : null)
+                .targetOrgName(targetOrgName)
+                .responsibleDept(targetOrgName)
+                .taskName(taskName)
                 .weightPercent(indicator.getWeight())
                 .status(effectiveStatus)
                 .progress(indicator.getProgress())
@@ -1066,7 +1084,12 @@ public class PlanApplicationService {
         private String indicatorDesc;
         private Long cycleId;
         private Long ownerOrgId;
+        private String ownerOrgName;
+        private String ownerDept;
         private Long targetOrgId;
+        private String targetOrgName;
+        private String responsibleDept;
+        private String taskName;
         private java.math.BigDecimal weightPercent;
         private String status;
         private Integer progress;

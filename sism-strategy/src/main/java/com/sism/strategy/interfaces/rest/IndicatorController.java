@@ -30,8 +30,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
-import java.time.YearMonth;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +45,12 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 @Tag(name = "指标管理", description = "指标管理相关接口")
 public class IndicatorController {
+
+    private record CurrentMonthIndicatorRoundState(Integer progress, boolean hasCurrentMonthFill) {}
+
+    private static String currentReportMonth() {
+        return java.time.YearMonth.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"));
+    }
 
     private final StrategyApplicationService strategyApplicationService;
     private final MilestoneApplicationService milestoneApplicationService;
@@ -74,17 +80,18 @@ public class IndicatorController {
         }
 
         Map<Long, String> taskNameMap = buildTaskNameMap(indicatorPage.getContent());
+        Map<Long, String> taskTypeMap = buildTaskTypeMap(indicatorPage.getContent());
         Map<Long, List<MilestoneResponse>> milestoneMap = buildMilestoneMap(indicatorPage.getContent());
-        Map<Long, Integer> latestReportProgressMap = buildLatestReportProgressMap(indicatorPage.getContent());
-        Map<Long, Boolean> currentMonthFillMap = buildCurrentMonthFillMap(indicatorPage.getContent());
+        Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap =
+                buildCurrentMonthIndicatorRoundStateMap(indicatorPage.getContent());
         PageResult<IndicatorResponse> result = PageResult.of(
                 indicatorPage.getContent().stream()
                         .map(indicator -> toIndicatorResponse(
                                 indicator,
                                 taskNameMap,
+                                taskTypeMap,
                                 milestoneMap,
-                                latestReportProgressMap,
-                                currentMonthFillMap
+                                currentMonthRoundStateMap
                         ))
                         .toList(),
                 (int) indicatorPage.getTotalElements(),
@@ -487,9 +494,9 @@ public class IndicatorController {
         return toIndicatorResponse(
                 indicator,
                 Map.of(),
+                Map.of(),
                 buildMilestoneMap(List.of(indicator)),
-                buildLatestReportProgressMap(List.of(indicator)),
-                buildCurrentMonthFillMap(List.of(indicator))
+                buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
         );
     }
 
@@ -497,28 +504,37 @@ public class IndicatorController {
         return toIndicatorResponse(
                 indicator,
                 taskNameMap,
+                buildTaskTypeMap(List.of(indicator)),
                 buildMilestoneMap(List.of(indicator)),
-                buildLatestReportProgressMap(List.of(indicator)),
-                buildCurrentMonthFillMap(List.of(indicator))
+                buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
         );
     }
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator,
                                                  Map<Long, String> taskNameMap,
+                                                 Map<Long, String> taskTypeMap,
                                                  Map<Long, List<MilestoneResponse>> milestoneMap,
-                                                 Map<Long, Integer> latestReportProgressMap,
-                                                 Map<Long, Boolean> currentMonthFillMap) {
+                                                 Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap) {
         IndicatorResponse response = new IndicatorResponse();
         response.setId(indicator.getId());
         response.setTaskId(indicator.getTaskId());
         if (indicator.getTaskId() != null) {
             String taskName = taskNameMap.get(indicator.getTaskId());
             if (taskName == null) {
-                taskName = taskRepository.findById(indicator.getTaskId())
-                        .map(com.sism.task.domain.StrategicTask::getName)
-                        .orElse("计划-" + indicator.getTaskId());
+                com.sism.task.domain.StrategicTask task = taskRepository.findById(indicator.getTaskId()).orElse(null);
+                if (task != null) {
+                    taskName = task.getName();
+                    if (task.getTaskType() != null) {
+                        response.setTaskType(task.getTaskType().name());
+                    }
+                } else {
+                    taskName = "计划-" + indicator.getTaskId();
+                }
             }
             response.setTaskName(taskName);
+            if (response.getTaskType() == null) {
+                response.setTaskType(taskTypeMap.get(indicator.getTaskId()));
+            }
         }
         response.setIndicatorDesc(indicator.getIndicatorDesc());
         response.setIndicatorName(indicator.getIndicatorDesc()); // Using desc as name for now
@@ -528,8 +544,9 @@ public class IndicatorController {
         response.setStatus(indicator.getStatus() != null ? indicator.getStatus().toString() : null);
         response.setLevel(indicator.getLevel() != null ? indicator.getLevel().toString() : null);
         response.setProgress(indicator.getProgress());
-        response.setReportProgress(latestReportProgressMap.get(indicator.getId()));
-        response.setHasCurrentMonthFill(currentMonthFillMap.getOrDefault(indicator.getId(), false));
+        CurrentMonthIndicatorRoundState roundState = currentMonthRoundStateMap.get(indicator.getId());
+        response.setReportProgress(roundState != null ? roundState.progress() : null);
+        response.setHasCurrentMonthFill(roundState != null && roundState.hasCurrentMonthFill());
         response.setRemark(indicator.getRemark());
         response.setIndicatorType(indicator.getType());
         response.setCreatedAt(indicator.getCreatedAt());
@@ -593,7 +610,33 @@ public class IndicatorController {
                 ));
     }
 
-    private Map<Long, Integer> buildLatestReportProgressMap(List<Indicator> indicators) {
+    private Map<Long, String> buildTaskTypeMap(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> taskIds = indicators.stream()
+                .map(Indicator::getTaskId)
+                .filter(Objects::nonNull)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new))
+                .stream()
+                .toList();
+
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return taskRepository.findAllById(taskIds).stream()
+                .filter(task -> task.getId() != null)
+                .collect(Collectors.toMap(
+                        com.sism.task.domain.StrategicTask::getId,
+                        task -> task.getTaskType() != null ? task.getTaskType().name() : null,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+    }
+
+    private Map<Long, CurrentMonthIndicatorRoundState> buildCurrentMonthIndicatorRoundStateMap(List<Indicator> indicators) {
         List<Long> indicatorIds = extractIndicatorIds(indicators);
         if (indicatorIds.isEmpty()) {
             return Map.of();
@@ -602,84 +645,58 @@ public class IndicatorController {
         String placeholders = indicatorIds.stream()
                 .map(id -> "?")
                 .collect(Collectors.joining(","));
+        String currentMonth = currentReportMonth();
 
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 """
-                SELECT pri.indicator_id AS indicator_id, pri.progress AS report_progress
-                FROM public.plan_report_indicator pri
-                INNER JOIN (
-                    SELECT pri2.indicator_id, MAX(pr.created_at) AS latest_created_at
-                    FROM public.plan_report_indicator pri2
-                    INNER JOIN public.plan_report pr ON pri2.report_id = pr.id
+                SELECT latest.indicator_id AS indicator_id,
+                       latest.report_progress AS report_progress,
+                       latest.report_status AS report_status
+                FROM (
+                    SELECT pri.indicator_id AS indicator_id,
+                           pri.progress AS report_progress,
+                           pr.status AS report_status,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY pri.indicator_id
+                               ORDER BY pr.created_at DESC, pr.id DESC
+                           ) AS row_no
+                    FROM public.plan_report_indicator pri
+                    INNER JOIN public.plan_report pr ON pri.report_id = pr.id
                     WHERE pr.is_deleted = false
-                      AND pri2.indicator_id IN (%s)
-                    GROUP BY pri2.indicator_id
-                ) latest ON latest.indicator_id = pri.indicator_id
-                INNER JOIN public.plan_report pr ON pri.report_id = pr.id
-                WHERE pr.is_deleted = false
-                  AND pri.indicator_id IN (%s)
-                  AND pr.created_at = latest.latest_created_at
-                """.formatted(placeholders, placeholders),
-                Stream.concat(indicatorIds.stream(), indicatorIds.stream()).toArray()
+                      AND pr.report_month = ?
+                      AND pri.indicator_id IN (%s)
+                ) latest
+                WHERE latest.row_no = 1
+                """.formatted(placeholders),
+                Stream.concat(Stream.of(currentMonth), indicatorIds.stream()).toArray()
         );
 
-        Map<Long, Integer> reportProgressByIndicatorId = new HashMap<>();
+        Map<Long, CurrentMonthIndicatorRoundState> roundStateByIndicatorId = new HashMap<>();
         for (Map<String, Object> row : rows) {
             Object indicatorIdValue = row.get("indicator_id");
             Object reportProgressValue = row.get("report_progress");
+            Object reportStatusValue = row.get("report_status");
             if (!(indicatorIdValue instanceof Number indicatorIdNumber)) {
                 continue;
             }
-            if (!(reportProgressValue instanceof Number reportProgressNumber)) {
-                continue;
-            }
-            reportProgressByIndicatorId.put(indicatorIdNumber.longValue(), reportProgressNumber.intValue());
+            String normalizedStatus = reportStatusValue == null
+                    ? ""
+                    : String.valueOf(reportStatusValue).trim().toUpperCase();
+            boolean hasEditableCurrentRound = !normalizedStatus.isEmpty()
+                    && !"APPROVED".equals(normalizedStatus)
+                    && !"REJECTED".equals(normalizedStatus);
+            Integer reportProgress = reportProgressValue instanceof Number reportProgressNumber
+                    ? reportProgressNumber.intValue()
+                    : null;
+            roundStateByIndicatorId.put(
+                    indicatorIdNumber.longValue(),
+                    new CurrentMonthIndicatorRoundState(
+                            hasEditableCurrentRound ? reportProgress : null,
+                            hasEditableCurrentRound
+                    )
+            );
         }
-        return reportProgressByIndicatorId;
-    }
-
-    private Map<Long, Boolean> buildCurrentMonthFillMap(List<Indicator> indicators) {
-        List<Long> indicatorIds = extractIndicatorIds(indicators);
-        if (indicatorIds.isEmpty()) {
-            return Map.of();
-        }
-
-        String placeholders = indicatorIds.stream()
-                .map(id -> "?")
-                .collect(Collectors.joining(","));
-
-        String currentMonth = YearMonth.now().toString();
-        List<Object> params = new java.util.ArrayList<>(indicatorIds);
-        params.add(currentMonth);
-
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                """
-                SELECT pri.indicator_id AS indicator_id, COUNT(*) AS fill_count
-                FROM public.plan_report_indicator pri
-                INNER JOIN public.plan_report pr ON pri.report_id = pr.id
-                WHERE pri.indicator_id IN (%s)
-                  AND pr.report_month = ?
-                  AND pr.is_deleted = false
-                GROUP BY pri.indicator_id
-                """.formatted(placeholders),
-                params.toArray()
-        );
-
-        Map<Long, Boolean> fillMap = new HashMap<>();
-        for (Long indicatorId : indicatorIds) {
-            fillMap.put(indicatorId, false);
-        }
-        for (Map<String, Object> row : rows) {
-            Object indicatorIdValue = row.get("indicator_id");
-            Object fillCountValue = row.get("fill_count");
-            if (!(indicatorIdValue instanceof Number indicatorIdNumber)) {
-                continue;
-            }
-            boolean hasFill = fillCountValue instanceof Number fillCountNumber
-                    && fillCountNumber.longValue() > 0L;
-            fillMap.put(indicatorIdNumber.longValue(), hasFill);
-        }
-        return fillMap;
+        return roundStateByIndicatorId;
     }
 
     private List<Long> extractIndicatorIds(List<Indicator> indicators) {
@@ -737,23 +754,26 @@ public class IndicatorController {
             return false;
         }
         try {
-            // 获取当前月份 (格式: YYYY-MM)
-            String currentMonth = java.time.YearMonth.now().toString();
-            // 查询当前月份是否有该指标的填报数据
-            Integer count = jdbcTemplate.queryForObject(
+            String currentMonth = currentReportMonth();
+            String latestStatus = jdbcTemplate.queryForObject(
                     """
-                    SELECT COUNT(*)
+                    SELECT pr.status
                     FROM public.plan_report_indicator pri
                     INNER JOIN public.plan_report pr ON pri.report_id = pr.id
                     WHERE pri.indicator_id = ?
-                    AND pr.report_month = ?
-                    AND pr.is_deleted = false
+                      AND pr.report_month = ?
+                      AND pr.is_deleted = false
+                    ORDER BY pr.created_at DESC, pr.id DESC
+                    LIMIT 1
                     """,
-                    Integer.class,
+                    String.class,
                     indicatorId,
                     currentMonth
             );
-            return count != null && count > 0;
+            String normalizedStatus = latestStatus == null ? "" : latestStatus.trim().toUpperCase();
+            return !normalizedStatus.isEmpty()
+                    && !"APPROVED".equals(normalizedStatus)
+                    && !"REJECTED".equals(normalizedStatus);
         } catch (Exception e) {
             return false;
         }
@@ -799,6 +819,7 @@ public class IndicatorController {
         private Long id;
         private Long taskId;
         private String taskName;
+        private String taskType;
         private Long parentIndicatorId;
         private String indicatorName;
         private String indicatorCode;

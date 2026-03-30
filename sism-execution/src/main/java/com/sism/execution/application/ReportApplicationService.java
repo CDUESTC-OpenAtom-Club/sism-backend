@@ -11,6 +11,7 @@ import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +32,7 @@ import java.util.Optional;
  */
 @Service("executionReportApplicationService")
 @RequiredArgsConstructor
+@Slf4j
 public class ReportApplicationService {
 
     private final PlanReportRepository planReportRepository;
@@ -56,6 +58,7 @@ public class ReportApplicationService {
                                    ReportOrgType reportOrgType, Long planId, Long createdBy) {
         Optional<PlanReport> existingReport = planReportRepository.findLatestByMonthlyScope(
                 planId, reportMonth, reportOrgType, reportOrgId);
+        PlanReport previousRound = null;
 
         if (existingReport.isPresent()) {
             PlanReport report = existingReport.get();
@@ -80,12 +83,33 @@ public class ReportApplicationService {
             if (PlanReport.STATUS_SUBMITTED.equals(report.getStatus())) {
                 throw new IllegalStateException("当前月份已有报告正在审批中，请等待审批完成或先撤回");
             }
+
+            previousRound = report;
         }
 
         PlanReport report = PlanReport.createDraft(
                 reportMonth, reportOrgId, reportOrgType, planId, createdBy);
         report.validate();
-        return enrichReportMetadata(planReportRepository.save(report));
+        PlanReport savedReport = enrichReportMetadata(planReportRepository.save(report));
+
+        if (previousRound != null) {
+            String previousStatus = String.valueOf(previousRound.getStatus()).trim().toUpperCase();
+            if ("APPROVED".equals(previousStatus) || "REJECTED".equals(previousStatus)) {
+                log.info(
+                        "Created new monthly report round from historical report: previousReportId={}, previousStatus={}, newReportId={}, planId={}, reportMonth={}, reportOrgId={}, reportOrgType={}, createdBy={}",
+                        previousRound.getId(),
+                        previousStatus,
+                        savedReport.getId(),
+                        planId,
+                        reportMonth,
+                        reportOrgId,
+                        reportOrgType,
+                        createdBy
+                );
+            }
+        }
+
+        return savedReport;
     }
 
     /**
@@ -105,13 +129,15 @@ public class ReportApplicationService {
         }
         PlanReport savedReport = planReportRepository.save(report);
         if (indicatorId != null) {
-            planReportIndicatorRepository.upsertDraftIndicator(
+            Long planReportIndicatorId = planReportIndicatorRepository.upsertDraftIndicator(
                     savedReport.getId(),
                     indicatorId,
                     progress,
                     content,
                     milestoneNote
             );
+            // Single-indicator legacy update path currently has no attachment payload.
+            planReportIndicatorRepository.attachFiles(planReportIndicatorId, List.of(), operatorUserId);
         }
         return enrichReportMetadata(savedReport);
     }
@@ -144,12 +170,17 @@ public class ReportApplicationService {
 
         for (UpdatePlanReportIndicatorDetailRequest detail : normalizedDetails) {
             validatePendingProgress(detail.getIndicatorId(), detail.getProgress());
-            planReportIndicatorRepository.upsertDraftIndicator(
+            Long planReportIndicatorId = planReportIndicatorRepository.upsertDraftIndicator(
                     savedReport.getId(),
                     detail.getIndicatorId(),
                     detail.getProgress(),
                     detail.getContent(),
                     detail.getMilestoneNote()
+            );
+            planReportIndicatorRepository.attachFiles(
+                    planReportIndicatorId,
+                    detail.getAttachmentIds(),
+                    operatorUserId
             );
         }
 

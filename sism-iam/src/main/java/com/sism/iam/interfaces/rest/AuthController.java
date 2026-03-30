@@ -6,7 +6,6 @@ import com.sism.iam.application.dto.CurrentUser;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.User;
-import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,7 +33,6 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
-    private final OrganizationRepository organizationRepository;
 
     /**
      * 用户登录
@@ -190,7 +188,8 @@ public class AuthController {
                 request.getPassword(),
                 request.getRealName(),
                 request.getEmail(),
-                request.getOrgId()
+                request.getOrgId(),
+                request.getRoles()
         );
         return ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user)));
     }
@@ -207,7 +206,8 @@ public class AuthController {
                 id,
                 request.getRealName(),
                 request.getEmail(),
-                request.getOrgId()
+                request.getOrgId(),
+                request.getRoles()
         );
         return ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user)));
     }
@@ -258,6 +258,7 @@ public class AuthController {
         private String realName;
         private String email;
         private Long orgId;
+        private List<String> roles;
     }
 
     @lombok.Data
@@ -265,6 +266,7 @@ public class AuthController {
         private String realName;
         private String email;
         private Long orgId;
+        private List<String> roles;
     }
 
     @lombok.Data
@@ -343,10 +345,6 @@ public class AuthController {
     }
 
     private UserListItemResponse toUserListItemResponse(User user) {
-        String orgName = organizationRepository.findById(user.getOrgId())
-                .map(org -> org.getName() != null && !org.getName().isBlank() ? org.getName() : null)
-                .orElse(null);
-
         List<UserRoleItemResponse> roles = user.getRoles().stream()
                 .map(role -> new UserRoleItemResponse(role.getRoleCode(), role.getRoleName()))
                 .toList();
@@ -358,7 +356,7 @@ public class AuthController {
                 null,
                 null,
                 user.getOrgId(),
-                orgName,
+                null,
                 roles,
                 Boolean.TRUE.equals(user.getIsActive()) ? "active" : "disabled",
                 null,

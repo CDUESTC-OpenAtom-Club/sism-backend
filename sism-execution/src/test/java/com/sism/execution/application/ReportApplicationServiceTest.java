@@ -112,13 +112,42 @@ class ReportApplicationServiceTest {
 
         when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
                 .thenReturn(Optional.of(approvedReport));
-        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> {
+            PlanReport report = invocation.getArgument(0);
+            report.setId(27L);
+            return report;
+        });
 
         PlanReport created = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 7002L);
 
-        assertThat(created.getId()).isNull();
+        assertThat(created.getId()).isEqualTo(27L);
         assertThat(created.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
         assertThat(created.getCreatedBy()).isEqualTo(7002L);
+        assertThat(created).isNotSameAs(approvedReport);
+        verify(planReportRepository).save(any(PlanReport.class));
+    }
+
+    @Test
+    void createReport_createsNewRoundWhenLatestMonthlyReportIsRejected() {
+        PlanReport rejectedReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        rejectedReport.setId(19L);
+        rejectedReport.setStatus(PlanReport.STATUS_REJECTED);
+
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+                .thenReturn(Optional.of(rejectedReport));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> {
+            PlanReport report = invocation.getArgument(0);
+            report.setId(29L);
+            return report;
+        });
+
+        PlanReport created = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 7003L);
+
+        assertThat(created.getId()).isEqualTo(29L);
+        assertThat(created.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
+        assertThat(created.getCreatedBy()).isEqualTo(7003L);
+        assertThat(created).isNotSameAs(rejectedReport);
+        verify(planReportRepository).save(any(PlanReport.class));
     }
 
     @Test

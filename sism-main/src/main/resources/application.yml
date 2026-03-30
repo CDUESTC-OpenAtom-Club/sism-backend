@@ -48,6 +48,11 @@ spring:
     baseline-version: 1
     locations: classpath:db/migration
 
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 30MB
+
 # Spring Boot Actuator Configuration
 management:
   endpoints:
@@ -89,7 +94,7 @@ jwt:
 file:
   upload:
     path: ./uploads
-    max-size: 10485760  # 10MB
+    max-size: 31457280  # 30MB
 
 # Export Configuration
 export:
