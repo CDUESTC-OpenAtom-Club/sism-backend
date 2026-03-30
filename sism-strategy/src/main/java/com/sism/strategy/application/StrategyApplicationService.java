@@ -360,13 +360,13 @@ public class StrategyApplicationService {
         if (indicatorDesc != null) {
             String normalizedDesc = indicatorDesc.trim();
             if (normalizedDesc.isEmpty()) {
-                throw new IllegalArgumentException("Indicator description is required");
+                throw new IllegalArgumentException("指标描述不能为空");
             }
             indicator.setIndicatorDesc(normalizedDesc);
         }
         if (weightPercent != null) {
             if (weightPercent.compareTo(BigDecimal.ZERO) <= 0) {
-                throw new IllegalArgumentException("Weight percent must be positive");
+                throw new IllegalArgumentException("权重必须为正数");
             }
             indicator.setWeightPercent(weightPercent);
         }
@@ -375,7 +375,7 @@ public class StrategyApplicationService {
         }
         if (sortOrder != null) {
             if (sortOrder < 0) {
-                throw new IllegalArgumentException("Sort order must be non-negative");
+                throw new IllegalArgumentException("排序顺序不能为负数");
             }
             indicator.setSortOrder(sortOrder);
         }

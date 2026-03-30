@@ -291,6 +291,7 @@ public class ReportApplicationService {
             }
         }
         syncApprovedIndicatorProgress(report.getId());
+        createNextMonthlyDraftAfterTerminalApproval(report);
         return enrichReportMetadata(report);
     }
 
@@ -336,6 +337,32 @@ public class ReportApplicationService {
         report.setAuditInstanceId(null);
         report.setUpdatedAt(LocalDateTime.now());
         return enrichReportMetadata(planReportRepository.save(report));
+    }
+
+    private void createNextMonthlyDraftAfterTerminalApproval(PlanReport approvedReport) {
+        if (approvedReport == null || !PlanReport.STATUS_APPROVED.equals(approvedReport.getStatus())) {
+            return;
+        }
+
+        Optional<PlanReport> latestReport = planReportRepository.findLatestByMonthlyScope(
+                approvedReport.getPlanId(),
+                approvedReport.getReportMonth(),
+                approvedReport.getReportOrgType(),
+                approvedReport.getReportOrgId()
+        );
+
+        if (latestReport.isPresent()
+                && PlanReport.STATUS_DRAFT.equalsIgnoreCase(String.valueOf(latestReport.get().getStatus()))) {
+            return;
+        }
+
+        createReport(
+                approvedReport.getReportMonth(),
+                approvedReport.getReportOrgId(),
+                approvedReport.getReportOrgType(),
+                approvedReport.getPlanId(),
+                approvedReport.getCreatedBy()
+        );
     }
 
     /**

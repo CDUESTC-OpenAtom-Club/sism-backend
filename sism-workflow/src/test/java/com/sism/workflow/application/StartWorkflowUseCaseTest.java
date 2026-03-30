@@ -1,6 +1,5 @@
 package com.sism.workflow.application;
 
-import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
@@ -21,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -53,7 +53,7 @@ class StartWorkflowUseCaseTest {
     private PlanRepository planRepository;
 
     @Mock
-    private PlanReportRepository planReportRepository;
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void startAuditInstance_shouldAutoCompleteSubmitterStepAndActivateNextApprover() {
@@ -81,7 +81,7 @@ class StartWorkflowUseCaseTest {
         lenient().when(flowDefinitionRepository.findByEntityType(any())).thenReturn(List.of());
 
         FlowResolver flowResolver = new FlowResolver(flowDefinitionRepository);
-        ApproverResolver approverResolver = new ApproverResolver(userRepository, planRepository, planReportRepository);
+        ApproverResolver approverResolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
         SubmissionStepAutoCompletePolicy autoCompletePolicy = new SubmissionStepAutoCompletePolicy();
         StepInstanceFactory stepInstanceFactory = new StepInstanceFactory(approverResolver, autoCompletePolicy);
         WorkflowEventDispatcher workflowEventDispatcher = new WorkflowEventDispatcher(eventPublisher, eventStore);

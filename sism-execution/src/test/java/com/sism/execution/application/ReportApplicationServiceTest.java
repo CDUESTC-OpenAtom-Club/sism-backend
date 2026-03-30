@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -192,6 +193,23 @@ class ReportApplicationServiceTest {
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_REJECTED);
         assertThat(updated.getRejectionReason()).isEqualTo("退回修改");
         verify(planReportRepository).save(report);
+    }
+
+    @Test
+    void markWorkflowApproved_shouldCreateNextDraftRoundWhenLatestRoundWasApproved() {
+        PlanReport approvedReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 8008L);
+        approvedReport.setId(21L);
+        approvedReport.setStatus(PlanReport.STATUS_SUBMITTED);
+
+        when(planReportRepository.findById(21L)).thenReturn(Optional.of(approvedReport));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+                .thenReturn(Optional.of(approvedReport), Optional.of(approvedReport));
+
+        PlanReport updated = reportApplicationService.markWorkflowApproved(21L, 33L);
+
+        assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
+        verify(planReportRepository, times(2)).save(any(PlanReport.class));
     }
 
     @Test

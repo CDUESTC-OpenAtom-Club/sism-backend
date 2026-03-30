@@ -1,8 +1,10 @@
 package com.sism.main;
 
+import com.sism.main.interfaces.rest.AttachmentController;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -32,6 +34,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
                                    "com.sism.exception", "com.sism.common",
                                    "com.sism.main"})
 @EnableAsync
+@Import(AttachmentController.class)
 @EntityScan(basePackages = "com.sism.**.domain")
 @EnableJpaRepositories(basePackages = "com.sism.**.infrastructure.persistence")
 @ComponentScan(basePackages = {"com.sism.iam", "com.sism.organization",

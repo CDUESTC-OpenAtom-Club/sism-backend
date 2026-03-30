@@ -1,7 +1,5 @@
 package com.sism.workflow.application.query;
 
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.domain.plan.Plan;
@@ -21,6 +19,7 @@ import com.sism.workflow.interfaces.dto.WorkflowInstanceDetailResponse;
 import com.sism.workflow.interfaces.dto.WorkflowInstanceResponse;
 import com.sism.workflow.interfaces.dto.WorkflowTaskResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -52,7 +51,7 @@ public class WorkflowReadModelService {
     private final WorkflowReadModelMapper workflowReadModelMapper;
     private final ApproverResolver approverResolver;
     private final PlanRepository planRepository;
-    private final PlanReportRepository planReportRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
 
@@ -384,9 +383,7 @@ public class WorkflowReadModelService {
         }
 
         if (isPlanReportEntityType(instance.getEntityType())) {
-            resolved = planReportRepository.findById(instance.getEntityId())
-                    .map(this::buildPlanReportContext)
-                    .orElseGet(WorkflowBusinessContext::empty);
+            resolved = buildPlanReportContext(instance.getEntityId());
             businessContextCache.put(cacheKey, resolved);
             return resolved;
         }
@@ -410,12 +407,32 @@ public class WorkflowReadModelService {
         );
     }
 
-    private WorkflowBusinessContext buildPlanReportContext(PlanReport report) {
+    private WorkflowBusinessContext buildPlanReportContext(Long reportId) {
         Long sourceOrgId = null;
         String sourceOrgName = null;
         Long targetOrgId = null;
         String targetOrgName = null;
-        Long planId = report.getPlanId();
+        Map<String, Object> reportRow = jdbcTemplate.query(
+                """
+                SELECT plan_id, report_org_id, report_month
+                FROM public.plan_report
+                WHERE id = ?
+                """,
+                rs -> {
+                    if (!rs.next()) {
+                        return null;
+                    }
+                    return Map.of(
+                            "plan_id", rs.getObject("plan_id"),
+                            "report_org_id", rs.getObject("report_org_id"),
+                            "report_month", rs.getString("report_month")
+                    );
+                },
+                reportId
+        );
+        Long planId = reportRow == null ? null : toLong(reportRow.get("plan_id"));
+        Long reportOrgId = reportRow == null ? null : toLong(reportRow.get("report_org_id"));
+        String reportMonth = reportRow == null ? null : (String) reportRow.get("report_month");
         String planName = planId == null ? null : "Plan " + planId;
 
         if (planId != null) {
@@ -428,8 +445,8 @@ public class WorkflowReadModelService {
             }
         }
 
-        String reportOrgName = resolveOrgName(report.getReportOrgId());
-        String displayName = (report.getReportMonth() == null ? "" : report.getReportMonth() + " ")
+        String reportOrgName = resolveOrgName(reportOrgId);
+        String displayName = (reportMonth == null ? "" : reportMonth + " ")
                 + (reportOrgName == null ? "月报" : reportOrgName + "月报");
 
         return new WorkflowBusinessContext(
@@ -554,6 +571,20 @@ public class WorkflowReadModelService {
         target.setCurrentApproverId(source.getCurrentApproverId());
         target.setCurrentApproverName(source.getCurrentApproverName());
         target.setCanWithdraw(source.getCanWithdraw());
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private record WorkflowBusinessContext(

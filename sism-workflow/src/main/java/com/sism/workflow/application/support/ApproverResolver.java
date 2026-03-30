@@ -1,6 +1,5 @@
 package com.sism.workflow.application.support;
 
-import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.strategy.domain.repository.PlanRepository;
@@ -8,6 +7,7 @@ import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.interfaces.dto.ApproverCandidateResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -50,7 +50,7 @@ public class ApproverResolver {
 
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
-    private final PlanReportRepository planReportRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId) {
         return resolveApproverId(stepDef, requesterId, requesterOrgId, null);
@@ -211,9 +211,20 @@ public class ApproverResolver {
         }
 
         if (PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            return planReportRepository.findById(instance.getEntityId())
-                    .map(report -> report.getPlanId())
-                    .flatMap(planRepository::findById)
+            Long planId = jdbcTemplate.query(
+                    """
+                    SELECT plan_id
+                    FROM public.plan_report
+                    WHERE id = ?
+                    """,
+                    rs -> rs.next() ? rs.getLong("plan_id") : null,
+                    instance.getEntityId()
+            );
+            if (planId == null || planId <= 0) {
+                return requesterOrgId;
+            }
+
+            return planRepository.findById(planId)
                     .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
                     .orElse(requesterOrgId);
         }

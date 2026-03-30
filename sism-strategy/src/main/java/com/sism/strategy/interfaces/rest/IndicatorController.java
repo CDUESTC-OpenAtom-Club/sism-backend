@@ -129,19 +129,19 @@ public class IndicatorController {
                 request.getIndicatorType()
         );
         if (description == null || description.isBlank()) {
-            throw new IllegalArgumentException("Indicator description is required");
+            throw new IllegalArgumentException("指标描述不能为空");
         }
 
         Long ownerOrgId = request.getOwnerOrgId() != null ? request.getOwnerOrgId() : request.getDepartmentId();
         if (ownerOrgId == null) {
-            throw new IllegalArgumentException("Owner organization is required");
+            throw new IllegalArgumentException("责任组织不能为空");
         }
         Long targetOrgId = request.getTargetOrgId() != null ? request.getTargetOrgId() : ownerOrgId;
 
         SysOrg ownerOrg = organizationRepository.findById(ownerOrgId)
-                .orElseThrow(() -> new IllegalArgumentException("Owner organization not found: " + ownerOrgId));
+                .orElseThrow(() -> new IllegalArgumentException("责任组织未找到: " + ownerOrgId));
         SysOrg targetOrg = organizationRepository.findById(targetOrgId)
-                .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + targetOrgId));
+                .orElseThrow(() -> new IllegalArgumentException("目标组织未找到: " + targetOrgId));
 
         Indicator created = strategyApplicationService.createIndicator(
                 description,
@@ -165,11 +165,11 @@ public class IndicatorController {
             @RequestBody UpdateIndicatorRequest request) {
         SysOrg ownerOrg = request.getOwnerOrgId() != null
                 ? organizationRepository.findById(request.getOwnerOrgId())
-                    .orElseThrow(() -> new IllegalArgumentException("Owner organization not found: " + request.getOwnerOrgId()))
+                    .orElseThrow(() -> new IllegalArgumentException("责任组织未找到: " + request.getOwnerOrgId()))
                 : null;
         SysOrg targetOrg = request.getTargetOrgId() != null
                 ? organizationRepository.findById(request.getTargetOrgId())
-                    .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + request.getTargetOrgId()))
+                    .orElseThrow(() -> new IllegalArgumentException("目标组织未找到: " + request.getTargetOrgId()))
                 : null;
         String indicatorDesc = request.getIndicatorDesc();
         if ((indicatorDesc == null || indicatorDesc.isBlank()) && request.getIndicatorName() != null) {
@@ -280,7 +280,7 @@ public class IndicatorController {
         final Long finalTargetOrgId = resolvedTargetOrgId;
         SysOrg targetOrg = finalTargetOrgId != null
                 ? organizationRepository.findById(finalTargetOrgId)
-                    .orElseThrow(() -> new IllegalArgumentException("Target organization not found: " + finalTargetOrgId))
+                    .orElseThrow(() -> new IllegalArgumentException("目标组织未找到: " + finalTargetOrgId))
                 : null;
 
         Indicator distributed = strategyApplicationService.distributeIndicator(id, targetOrg, resolvedCustomDesc);
@@ -330,10 +330,10 @@ public class IndicatorController {
                         );
                     } else {
                         if (item.getOwnerOrgId() == null) {
-                            throw new IllegalArgumentException("Owner organization is required");
+                            throw new IllegalArgumentException("责任组织不能为空");
                         }
                         if (item.getTaskId() == null) {
-                            throw new IllegalArgumentException("Task ID is required");
+                            throw new IllegalArgumentException("任务ID不能为空");
                         }
 
                         String indicatorDesc = firstNonBlank(item.getIndicatorDesc(), item.getCustomDesc());
@@ -343,15 +343,15 @@ public class IndicatorController {
                                 item.getIndicatorType()
                         );
                         if (indicatorDesc == null || indicatorDesc.isBlank()) {
-                            throw new IllegalArgumentException("Indicator description is required");
+                            throw new IllegalArgumentException("指标描述不能为空");
                         }
 
                         SysOrg ownerOrg = organizationRepository.findById(item.getOwnerOrgId())
                                 .orElseThrow(() -> new IllegalArgumentException(
-                                        "Owner organization not found: " + item.getOwnerOrgId()));
+                                        "责任组织未找到: " + item.getOwnerOrgId()));
                         SysOrg targetOrg = organizationRepository.findById(item.getTargetOrgId())
                                 .orElseThrow(() -> new IllegalArgumentException(
-                                        "Target organization not found: " + item.getTargetOrgId()));
+                                        "目标组织未找到: " + item.getTargetOrgId()));
 
                         Indicator created = strategyApplicationService.createIndicator(
                                 indicatorDesc,
@@ -797,7 +797,7 @@ public class IndicatorController {
             return null;
         }
         if (!"定量".equals(value) && !"定性".equals(value)) {
-            throw new IllegalArgumentException("Indicator type must be either 定量 or 定性");
+            throw new IllegalArgumentException("指标类型必须是定量或定性");
         }
         return value;
     }
@@ -805,7 +805,7 @@ public class IndicatorController {
     private String requireIndicatorType(String... values) {
         String value = optionalIndicatorType(values);
         if (value == null) {
-            throw new IllegalArgumentException("Indicator type is required");
+            throw new IllegalArgumentException("指标类型不能为空");
         }
         return value;
     }

@@ -1,15 +1,15 @@
 package com.sism.workflow.application;
 
 import com.sism.execution.domain.model.report.ReportOrgType;
-import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportApprovedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportRejectedEvent;
-import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,10 +35,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class ReportWorkflowEventListener {
 
     private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
+    private static final String REPORT_STATUS_APPROVED = "APPROVED";
+    private static final String REPORT_STATUS_REJECTED = "REJECTED";
 
     private final BusinessWorkflowApplicationService businessWorkflowService;
-    private final PlanReportRepository planReportRepository;
     private final AuditInstanceRepository auditInstanceRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     /**
      * 处理"计划报告已提交"事件
@@ -59,12 +61,22 @@ public class ReportWorkflowEventListener {
             log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}",
                     event.getReportId(), event.getReportMonth(), event.getReportOrgId());
 
-            var report = planReportRepository.findById(event.getReportId())
-                    .orElseThrow(() -> new IllegalArgumentException("Report not found: " + event.getReportId()));
+            ReportOrgType reportOrgType = jdbcTemplate.query(
+                    """
+                    SELECT report_org_type
+                    FROM public.plan_report
+                    WHERE id = ?
+                    """,
+                    rs -> rs.next() ? ReportOrgType.valueOf(rs.getString("report_org_type")) : null,
+                    event.getReportId()
+            );
+            if (reportOrgType == null) {
+                throw new IllegalArgumentException("Report not found: " + event.getReportId());
+            }
 
             // 构建工作流启动请求
             StartWorkflowRequest request = new StartWorkflowRequest();
-            request.setWorkflowCode(resolveWorkflowCode(report.getReportOrgType()));
+            request.setWorkflowCode(resolveWorkflowCode(reportOrgType));
             request.setBusinessEntityId(event.getReportId());
             request.setBusinessEntityType(PLAN_REPORT_ENTITY_TYPE);
             request.setVariables(buildWorkflowVariables(event));
@@ -80,8 +92,15 @@ public class ReportWorkflowEventListener {
             log.info("✅ 工作流启动成功 - 工作流实例ID: {}, 报告ID: {}",
                     response.getInstanceId(), event.getReportId());
             if (response.getInstanceId() != null) {
-                report.setAuditInstanceId(Long.parseLong(response.getInstanceId()));
-                planReportRepository.save(report);
+                jdbcTemplate.update(
+                        """
+                        UPDATE public.plan_report
+                        SET audit_instance_id = ?
+                        WHERE id = ?
+                        """,
+                        Long.parseLong(response.getInstanceId()),
+                        event.getReportId()
+                );
             }
 
         } catch (IllegalStateException e) {
@@ -116,10 +135,7 @@ public class ReportWorkflowEventListener {
             log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}, 审批人: {}",
                     event.getReportId(), event.getReportMonth(), event.getReportOrgId(), event.getApproverId());
 
-            var report = planReportRepository.findById(event.getReportId())
-                    .orElseThrow(() -> new IllegalArgumentException("Report not found: " + event.getReportId()));
-
-            if (!report.isApproved()) {
+            if (!hasReportStatus(event.getReportId(), REPORT_STATUS_APPROVED)) {
                 throw new IllegalStateException("Report is not approved yet: " + event.getReportId());
             }
 
@@ -157,10 +173,7 @@ public class ReportWorkflowEventListener {
                     event.getReportId(), event.getReportMonth(), event.getReportOrgId(),
                     event.getApproverId(), event.getReason());
 
-            var report = planReportRepository.findById(event.getReportId())
-                    .orElseThrow(() -> new IllegalArgumentException("Report not found: " + event.getReportId()));
-
-            if (!report.isRejected()) {
+            if (!hasReportStatus(event.getReportId(), REPORT_STATUS_REJECTED)) {
                 throw new IllegalStateException("Report is not rejected yet: " + event.getReportId());
             }
 
@@ -191,8 +204,6 @@ public class ReportWorkflowEventListener {
         variables.put("reportMonth", event.getReportMonth());
         variables.put("reportOrgId", event.getReportOrgId());
         variables.put("submitterId", event.getSubmitterId());
-        variables.put("eventId", event.getEventId());
-        variables.put("occurredOn", event.getOccurredOn());
         return variables;
     }
 
@@ -201,6 +212,19 @@ public class ReportWorkflowEventListener {
             throw new IllegalArgumentException("PlanReportSubmittedEvent missing submitterId: " + event.getReportId());
         }
         return event.getSubmitterId();
+    }
+
+    private boolean hasReportStatus(Long reportId, String expectedStatus) {
+        String currentStatus = jdbcTemplate.query(
+                """
+                SELECT status
+                FROM public.plan_report
+                WHERE id = ?
+                """,
+                rs -> rs.next() ? rs.getString("status") : null,
+                reportId
+        );
+        return expectedStatus.equalsIgnoreCase(String.valueOf(currentStatus));
     }
 
     private int syncWorkflowTerminalStatus(Long reportId, String terminalStatus, Long operatorId, String comment) {

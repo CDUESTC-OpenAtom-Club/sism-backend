@@ -100,9 +100,9 @@ public class Indicator extends AggregateRoot<Long> {
                                     com.sism.organization.domain.SysOrg targetOrg,
                                     String indicatorType) {
         Indicator indicator = new Indicator();
-        indicator.indicatorDesc = Objects.requireNonNull(description, "Indicator description cannot be null");
-        indicator.ownerOrg = Objects.requireNonNull(ownerOrg, "Owner organization cannot be null");
-        indicator.targetOrg = Objects.requireNonNull(targetOrg, "Target organization cannot be null");
+        indicator.indicatorDesc = Objects.requireNonNull(description, "指标描述不能为空");
+        indicator.ownerOrg = Objects.requireNonNull(ownerOrg, "责任组织不能为空");
+        indicator.targetOrg = Objects.requireNonNull(targetOrg, "目标组织不能为空");
         indicator.weightPercent = BigDecimal.valueOf(100);
         indicator.sortOrder = 0;
         indicator.type = normalizeIndicatorType(indicatorType);
@@ -121,22 +121,22 @@ public class Indicator extends AggregateRoot<Long> {
                                     com.sism.organization.domain.SysOrg targetOrg,
                                     String indicatorType) {
         if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Indicator name cannot be null or empty");
+            throw new IllegalArgumentException("指标名称不能为空");
         }
         if (description == null || description.trim().isEmpty()) {
-            throw new IllegalArgumentException("Indicator description cannot be null or empty");
+            throw new IllegalArgumentException("指标描述不能为空");
         }
         if (weight == null) {
-            throw new IllegalArgumentException("Weight cannot be null");
+            throw new IllegalArgumentException("权重不能为空");
         }
         if (weight.compareTo(BigDecimal.ZERO) <= 0 || weight.compareTo(BigDecimal.valueOf(100)) > 0) {
-            throw new IllegalArgumentException("Weight percent must be between 0 and 100");
+            throw new IllegalArgumentException("权重必须在0到100之间");
         }
         if (ownerOrg == null) {
-            throw new IllegalArgumentException("Owner organization cannot be null");
+            throw new IllegalArgumentException("责任组织不能为空");
         }
         if (targetOrg == null) {
-            throw new IllegalArgumentException("Target organization cannot be null");
+            throw new IllegalArgumentException("目标组织不能为空");
         }
 
         Indicator indicator = new Indicator();
@@ -468,14 +468,14 @@ public class Indicator extends AggregateRoot<Long> {
     @Override
     public void validate() {
         if (indicatorDesc == null || indicatorDesc.trim().isEmpty()) {
-            throw new IllegalArgumentException("Indicator description is required");
+            throw new IllegalArgumentException("指标描述不能为空");
         }
         normalizeIndicatorType(type);
         if (weightPercent == null || weightPercent.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Weight percent must be positive");
+            throw new IllegalArgumentException("权重必须为正数");
         }
         if (sortOrder == null || sortOrder < 0) {
-            throw new IllegalArgumentException("Sort order must be non-negative");
+            throw new IllegalArgumentException("排序顺序不能为负数");
         }
     }
 
@@ -491,12 +491,12 @@ public class Indicator extends AggregateRoot<Long> {
 
     private static String normalizeIndicatorType(String rawType) {
         if (rawType == null || rawType.trim().isEmpty()) {
-            throw new IllegalArgumentException("Indicator type is required");
+            throw new IllegalArgumentException("指标类型不能为空");
         }
 
         String normalizedType = rawType.trim();
         if (!"定量".equals(normalizedType) && !"定性".equals(normalizedType)) {
-            throw new IllegalArgumentException("Indicator type must be either 定量 or 定性");
+            throw new IllegalArgumentException("指标类型必须是定量或定性");
         }
 
         return normalizedType;

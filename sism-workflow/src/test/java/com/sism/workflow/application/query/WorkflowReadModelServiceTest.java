@@ -29,6 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -63,6 +64,9 @@ class WorkflowReadModelServiceTest {
     @Mock
     private OrganizationRepository organizationRepository;
 
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+
     private WorkflowReadModelService newService() {
         WorkflowReadModelMapper mapper = new WorkflowReadModelMapper();
         return new WorkflowReadModelService(
@@ -70,9 +74,9 @@ class WorkflowReadModelServiceTest {
                 auditInstanceRepository,
                 workflowQueryRepository,
                 mapper,
-                new ApproverResolver(userRepository, planRepository, planReportRepository),
+                new ApproverResolver(userRepository, planRepository, jdbcTemplate),
                 planRepository,
-                planReportRepository,
+                jdbcTemplate,
                 organizationRepository,
                 userRepository
         );
