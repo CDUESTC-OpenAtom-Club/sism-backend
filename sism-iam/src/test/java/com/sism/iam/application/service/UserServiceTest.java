@@ -1,7 +1,9 @@
 package com.sism.iam.application.service;
 
 import com.sism.iam.domain.User;
+import com.sism.iam.domain.Role;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.repository.RoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,7 +11,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -26,11 +30,14 @@ class UserServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private RoleRepository roleRepository;
+
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository);
+        userService = new UserService(userRepository, roleRepository);
     }
 
     @Test
@@ -45,7 +52,7 @@ class UserServiceTest {
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
 
-        User created = userService.createUser("john_doe", "password", "John Doe", "john@example.com", 10L);
+        User created = userService.createUser("john_doe", "password", "John Doe", "john@example.com", 10L, List.of());
 
         assertNotNull(created);
         assertEquals("john_doe", created.getUsername());
@@ -195,7 +202,8 @@ class UserServiceTest {
                 "password",
                 "John Doe",
                 "john@example.com",
-                10L
+                10L,
+                List.of()
         );
 
         assertNotNull(created);
@@ -220,11 +228,42 @@ class UserServiceTest {
                 "password",
                 "Jane Doe",
                 null,
-                20L
+                20L,
+                List.of()
         );
 
         assertNotNull(created);
         assertEquals("jane_doe", created.getUsername());
+    }
+
+    @Test
+    @DisplayName("Should create user with roles")
+    void shouldCreateUserWithRoles() {
+        User mockUser = new User();
+        mockUser.setId(1L);
+        mockUser.setUsername("admin_user");
+        mockUser.setRealName("Admin User");
+
+        Role adminRole = new Role();
+        adminRole.setId(1L);
+        adminRole.setRoleCode("ADMIN");
+
+        when(roleRepository.findByRoleCode("ADMIN"))
+                .thenReturn(Optional.of(adminRole));
+        when(userRepository.save(any(User.class)))
+                .thenReturn(mockUser);
+
+        User created = userService.createUser(
+                "admin_user",
+                "password",
+                "Admin User",
+                "admin@example.com",
+                10L,
+                List.of("ADMIN")
+        );
+
+        assertNotNull(created);
+        assertEquals("admin_user", created.getUsername());
     }
 
 }

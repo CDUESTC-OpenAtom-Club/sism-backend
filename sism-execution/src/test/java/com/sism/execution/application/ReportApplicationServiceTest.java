@@ -281,7 +281,7 @@ class ReportApplicationServiceTest {
 
         when(planReportRepository.findById(16L)).thenReturn(Optional.of(report));
         when(planReportIndicatorRepository.findByReportId(16L))
-                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2003L, 15, "已填报草稿", "里程碑一")));
+                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2003L, 15, "已填报草稿", "里程碑一", List.of())));
 
         PlanReport hydrated = reportApplicationService.findReportById(16L).orElseThrow();
 
@@ -304,7 +304,7 @@ class ReportApplicationServiceTest {
         when(planReportRepository.findById(13L)).thenReturn(Optional.of(report));
         when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(planReportIndicatorRepository.findByReportId(13L))
-                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2001L, 67, "审批通过备注", null)));
+                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2001L, 67, "审批通过备注", null, List.of())));
         when(indicatorRepository.findById(2001L)).thenReturn(Optional.of(indicator));
         when(indicatorRepository.save(any(Indicator.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -328,7 +328,7 @@ class ReportApplicationServiceTest {
         when(planReportRepository.findById(15L)).thenReturn(Optional.of(report));
         when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(planReportIndicatorRepository.findByReportId(15L))
-                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2002L, 20, "审批完成", null)));
+                .thenReturn(List.of(new PlanReportIndicatorSnapshot(2002L, 20, "审批完成", null, List.of())));
         when(indicatorRepository.findById(2002L)).thenReturn(Optional.of(indicator));
         when(indicatorRepository.save(any(Indicator.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
