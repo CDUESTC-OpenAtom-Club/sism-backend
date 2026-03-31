@@ -54,7 +54,7 @@ class PlanWorkflowSyncServiceTest {
         AuditInstance instance = new AuditInstance();
         instance.setEntityId(99L);
         instance.setEntityType("PLAN");
-        instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setStatus(AuditInstance.STATUS_REJECTED);
 
         AuditStepInstance earlierRejected = new AuditStepInstance();
         earlierRejected.setStatus(AuditInstance.STEP_STATUS_REJECTED);
@@ -85,7 +85,36 @@ class PlanWorkflowSyncServiceTest {
 
         service.syncAfterWorkflowChanged(instance);
 
+        verify(planApplicationService).markWorkflowPending(100L);
+        verify(planApplicationService, org.mockito.Mockito.never()).markWorkflowRejected(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
         verify(planApplicationService, org.mockito.Mockito.never()).markWorkflowWithdrawn(100L);
+    }
+
+    @Test
+    void shouldKeepPlanPendingWhenInReviewInstanceContainsHistoricalRejectedStep() {
+        when(planApplicationServiceProvider.getIfAvailable()).thenReturn(planApplicationService);
+
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
+        AuditInstance instance = new AuditInstance();
+        instance.setEntityId(101L);
+        instance.setEntityType("PLAN");
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance historicalRejected = new AuditStepInstance();
+        historicalRejected.setStatus(AuditInstance.STEP_STATUS_REJECTED);
+        historicalRejected.setComment("old reason");
+        historicalRejected.setStepNo(2);
+        instance.addStepInstance(historicalRejected);
+
+        AuditStepInstance currentPending = new AuditStepInstance();
+        currentPending.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        currentPending.setStepNo(5);
+        instance.addStepInstance(currentPending);
+
+        service.syncAfterWorkflowChanged(instance);
+
+        verify(planApplicationService).markWorkflowPending(101L);
+        verify(planApplicationService, never()).markWorkflowRejected(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -113,7 +142,7 @@ class PlanWorkflowSyncServiceTest {
         instance.setEntityId(201L);
         instance.setEntityType("PLAN_REPORT");
         instance.setRequesterId(267L);
-        instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setStatus(AuditInstance.STATUS_WITHDRAWN);
 
         AuditStepInstance submitStep = new AuditStepInstance();
         submitStep.setStepNo(1);
@@ -130,5 +159,35 @@ class PlanWorkflowSyncServiceTest {
 
         verify(reportApplicationService).markWorkflowWithdrawn(201L);
         verify(reportApplicationService, never()).markWorkflowRejected(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void shouldKeepPlanReportInReviewWhenRejectedFlowReturnsToSubmitStep() {
+        when(reportApplicationServiceProvider.getIfAvailable()).thenReturn(reportApplicationService);
+
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
+        AuditInstance instance = new AuditInstance();
+        instance.setEntityId(202L);
+        instance.setEntityType("PLAN_REPORT");
+        instance.setRequesterId(268L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance rejectedStep = new AuditStepInstance();
+        rejectedStep.setStepNo(2);
+        rejectedStep.setStatus(AuditInstance.STEP_STATUS_REJECTED);
+        rejectedStep.setComment("退回修改");
+        instance.addStepInstance(rejectedStep);
+
+        AuditStepInstance returnedSubmitStep = new AuditStepInstance();
+        returnedSubmitStep.setStepNo(3);
+        returnedSubmitStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        returnedSubmitStep.setComment("驳回后退回填报人重新提交");
+        instance.addStepInstance(returnedSubmitStep);
+
+        service.syncAfterWorkflowChanged(instance);
+
+        verify(reportApplicationService, never()).markWorkflowWithdrawn(202L);
+        verify(reportApplicationService, never()).markWorkflowRejected(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
+        verify(reportApplicationService, never()).markWorkflowApproved(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
     }
 }

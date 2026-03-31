@@ -43,7 +43,7 @@ class RejectWorkflowUseCaseTest {
     private RejectWorkflowUseCase rejectWorkflowUseCase;
 
     @Test
-    void reject_shouldAutoCompleteReturnedSubmitStepAndAppendNextPendingApprovalStep() {
+    void reject_shouldKeepInstanceInReviewWhenReturnedToSubmitStep() {
         AuditFlowDef flowDef = new AuditFlowDef();
 
         AuditStepDef submit = new AuditStepDef();
@@ -58,6 +58,7 @@ class RejectWorkflowUseCaseTest {
         dept.setStepOrder(2);
         dept.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
         dept.setRoleId(2L);
+        dept.setIsTerminal(true);
 
         flowDef.setSteps(List.of(submit, dept));
 
@@ -88,23 +89,56 @@ class RejectWorkflowUseCaseTest {
         instance.addStepInstance(deptInstance);
 
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
-        when(approverResolver.resolveApproverOrgId(dept, 57L, instance)).thenReturn(57L);
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AuditInstance saved = rejectWorkflowUseCase.reject(instance, 300L, "打回");
 
         assertEquals(AuditInstance.STATUS_PENDING, saved.getStatus());
-        assertEquals(4, saved.getStepInstances().size());
+        assertEquals(3, saved.getStepInstances().size());
         assertEquals(AuditInstance.STEP_STATUS_REJECTED, saved.getStepInstances().get(1).getStatus());
-        assertEquals(AuditInstance.STEP_STATUS_APPROVED, saved.getStepInstances().get(2).getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_WITHDRAWN, saved.getStepInstances().get(2).getStatus());
         assertEquals(11L, saved.getStepInstances().get(2).getStepDefId());
         assertEquals(3, saved.getStepInstances().get(2).getStepNo());
         assertEquals(100L, saved.getStepInstances().get(2).getApproverId());
-        assertEquals("系统自动完成提交流程节点", saved.getStepInstances().get(2).getComment());
+        assertEquals("驳回后退回填报人重新提交", saved.getStepInstances().get(2).getComment());
+    }
 
-        assertEquals(AuditInstance.STEP_STATUS_PENDING, saved.getStepInstances().get(3).getStatus());
-        assertEquals(12L, saved.getStepInstances().get(3).getStepDefId());
-        assertEquals(4, saved.getStepInstances().get(3).getStepNo());
-        assertEquals(null, saved.getStepInstances().get(3).getApproverId());
+    @Test
+    void reject_shouldMarkInstanceRejectedWhenRejectingTerminalFirstStep() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+
+        AuditStepDef submit = new AuditStepDef();
+        submit.setId(11L);
+        submit.setStepName("填报人提交");
+        submit.setStepOrder(1);
+        submit.setStepType(AuditStepDef.STEP_TYPE_SUBMIT);
+        submit.setIsTerminal(true);
+
+        flowDef.setSteps(List.of(submit));
+
+        AuditInstance instance = new AuditInstance();
+        instance.setId(2L);
+        instance.setFlowDefId(5L);
+        instance.setRequesterId(100L);
+        instance.setRequesterOrgId(57L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance submitInstance = new AuditStepInstance();
+        submitInstance.setStepNo(1);
+        submitInstance.setStepDefId(11L);
+        submitInstance.setStepName("填报人提交");
+        submitInstance.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        submitInstance.setApproverOrgId(57L);
+
+        instance.addStepInstance(submitInstance);
+
+        when(workflowDefinitionQueryService.getAuditFlowDefById(5L)).thenReturn(flowDef);
+        when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuditInstance saved = rejectWorkflowUseCase.reject(instance, 100L, "终止");
+
+        assertEquals(AuditInstance.STATUS_REJECTED, saved.getStatus());
+        assertEquals(1, saved.getStepInstances().size());
+        assertEquals(AuditInstance.STEP_STATUS_REJECTED, saved.getStepInstances().get(0).getStatus());
     }
 }

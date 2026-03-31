@@ -80,6 +80,15 @@ public class ReportApplicationService {
                 return enrichReportMetadata(planReportRepository.save(report));
             }
 
+            if (PlanReport.STATUS_REJECTED.equals(report.getStatus())) {
+                report.setStatus(PlanReport.STATUS_DRAFT);
+                report.setSubmittedAt(null);
+                report.markCreatedByIfAbsent(createdBy);
+                report.setUpdatedAt(LocalDateTime.now());
+                report.validate();
+                return enrichReportMetadata(planReportRepository.save(report));
+            }
+
             if (PlanReport.STATUS_SUBMITTED.equals(report.getStatus())) {
                 throw new IllegalStateException("当前月份已有报告正在审批中，请等待审批完成或先撤回");
             }

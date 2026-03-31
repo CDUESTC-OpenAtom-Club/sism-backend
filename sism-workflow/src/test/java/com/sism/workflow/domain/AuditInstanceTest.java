@@ -197,6 +197,45 @@ class AuditInstanceTest {
         assertEquals(2, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 
+    @Test
+    @DisplayName("Should reactivate withdrawn submit step from rejected legacy instance")
+    void shouldReactivateWithdrawnStepFromRejectedLegacyInstance() {
+        AuditInstance instance = new AuditInstance();
+        instance.setStatus(AuditInstance.STATUS_REJECTED);
+        instance.setRequesterId(100L);
+
+        AuditStepInstance submitStep = new AuditStepInstance();
+        submitStep.setStepNo(1);
+        submitStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+
+        AuditStepInstance rejectedApproval = new AuditStepInstance();
+        rejectedApproval.setStepNo(2);
+        rejectedApproval.setStatus(AuditInstance.STEP_STATUS_REJECTED);
+
+        AuditStepInstance returnedSubmit = new AuditStepInstance();
+        returnedSubmit.setStepNo(3);
+        returnedSubmit.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        returnedSubmit.setComment("驳回后退回填报人重新提交");
+        returnedSubmit.setApproverId(100L);
+
+        AuditStepInstance waitingApproval = new AuditStepInstance();
+        waitingApproval.setStepNo(4);
+        waitingApproval.setStatus(AuditInstance.STEP_STATUS_WAITING);
+
+        instance.addStepInstance(submitStep);
+        instance.addStepInstance(rejectedApproval);
+        instance.addStepInstance(returnedSubmit);
+        instance.addStepInstance(waitingApproval);
+
+        instance.reactivateWithdrawnStep();
+
+        assertEquals(AuditInstance.STATUS_PENDING, instance.getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_APPROVED, returnedSubmit.getStatus());
+        assertEquals("系统自动完成提交流程节点", returnedSubmit.getComment());
+        assertEquals(AuditInstance.STEP_STATUS_PENDING, waitingApproval.getStatus());
+        assertEquals(4, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
+    }
+
     private AuditFlowDef buildFlowDef() {
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(1L);

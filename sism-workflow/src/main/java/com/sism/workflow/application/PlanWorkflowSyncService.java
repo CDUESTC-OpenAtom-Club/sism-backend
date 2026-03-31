@@ -44,12 +44,19 @@ public class PlanWorkflowSyncService {
                 return;
             }
 
-            instance.getStepInstances().stream()
-                    .filter(step -> AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus()))
-                    .reduce((first, second) -> second)
-                    .ifPresent(step -> planApplicationService.markWorkflowRejected(
-                            instance.getEntityId(),
-                            step.getComment() == null || step.getComment().isBlank() ? "Rejected" : step.getComment()));
+            if (AuditInstance.STATUS_PENDING.equals(instance.getStatus())) {
+                planApplicationService.markWorkflowPending(instance.getEntityId());
+                return;
+            }
+
+            if (AuditInstance.STATUS_REJECTED.equals(instance.getStatus())) {
+                instance.getStepInstances().stream()
+                        .filter(step -> AuditInstance.STEP_STATUS_REJECTED.equals(step.getStatus()))
+                        .reduce((first, second) -> second)
+                        .ifPresent(step -> planApplicationService.markWorkflowRejected(
+                                instance.getEntityId(),
+                                step.getComment() == null || step.getComment().isBlank() ? "Rejected" : step.getComment()));
+            }
         });
     }
 
@@ -61,9 +68,7 @@ public class PlanWorkflowSyncService {
                 return;
             }
 
-            boolean hasWithdrawnStep = instance.getStepInstances().stream()
-                    .anyMatch(step -> AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus()));
-            if (hasWithdrawnStep) {
+            if (AuditInstance.STATUS_WITHDRAWN.equals(instance.getStatus())) {
                 log.info("Workflow WITHDRAWN for PlanReport#{}, resetting report status to draft", instance.getEntityId());
                 reportService.markWorkflowWithdrawn(instance.getEntityId());
                 return;

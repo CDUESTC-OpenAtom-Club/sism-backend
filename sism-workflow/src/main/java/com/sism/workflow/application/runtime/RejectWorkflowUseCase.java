@@ -71,10 +71,18 @@ public class RejectWorkflowUseCase {
                 .toList();
 
         int rejectedIndex = findStepIndexByDefinitionId(orderedSteps, rejectedStep.getStepDefId());
+        AuditStepDef rejectedStepDef = rejectedIndex >= 0 ? orderedSteps.get(rejectedIndex) : null;
         if (rejectedIndex <= 0) {
-            log.info("Reject workflow instance {} reached first step, marking as terminal rejected", instance.getId());
-            instance.setStatus(AuditInstance.STATUS_REJECTED);
-            instance.setCompletedAt(java.time.LocalDateTime.now());
+            if (isTerminalStep(rejectedStepDef)) {
+                log.info("Reject workflow instance {} stopped at terminal step, marking as rejected", instance.getId());
+                instance.setStatus(AuditInstance.STATUS_REJECTED);
+                instance.setCompletedAt(java.time.LocalDateTime.now());
+                return;
+            }
+
+            log.info("Reject workflow instance {} has no earlier step but current step is not terminal, keeping in review", instance.getId());
+            instance.setStatus(AuditInstance.STATUS_PENDING);
+            instance.setCompletedAt(null);
             return;
         }
 
@@ -90,24 +98,14 @@ public class RejectWorkflowUseCase {
         returnedStep.setApproverOrgId(returnedStepDef.isSubmitStep()
                 ? instance.getRequesterOrgId()
                 : approverResolver.resolveApproverOrgId(returnedStepDef, contextOrgId, instance));
-        returnedStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        returnedStep.setStatus(returnedStepDef.isSubmitStep()
+                ? AuditInstance.STEP_STATUS_WITHDRAWN
+                : AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(returnedStep);
 
         if (returnedStepDef.isSubmitStep()) {
-            returnedStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
-            returnedStep.setComment("系统自动完成提交流程节点");
-            returnedStep.setApprovedAt(java.time.LocalDateTime.now());
-
-            AuditStepDef nextStepDef = orderedSteps.get(rejectedIndex);
-            AuditStepInstance nextStep = new AuditStepInstance();
-            nextStep.setStepNo(instance.nextStepInstanceNo());
-            nextStep.setStepDefId(nextStepDef.getId());
-            nextStep.setStepName(nextStepDef.getStepName());
-            nextStep.setApproverId(null);
-            nextStep.setApproverOrgId(
-                    approverResolver.resolveApproverOrgId(nextStepDef, instance.getRequesterOrgId(), instance));
-            nextStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
-            instance.addStepInstance(nextStep);
+            returnedStep.setComment("驳回后退回填报人重新提交");
+            returnedStep.setApprovedAt(null);
         }
 
         log.info("Reject workflow instance {} appended returned step defId={}, stepNo={}, approverId={}",
@@ -142,5 +140,9 @@ public class RejectWorkflowUseCase {
             }
         }
         return -1;
+    }
+
+    private boolean isTerminalStep(AuditStepDef stepDef) {
+        return stepDef != null && Boolean.TRUE.equals(stepDef.getIsTerminal());
     }
 }
