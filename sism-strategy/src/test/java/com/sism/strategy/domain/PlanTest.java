@@ -115,6 +115,18 @@ class PlanTest {
     }
 
     @Test
+    @DisplayName("Should withdraw approval Plan back to distributed")
+    void shouldWithdrawApprovalPlanBackToDistributed() {
+        Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
+        plan.submitForApproval();
+
+        plan.withdrawToDistributed();
+
+        assertEquals("DISTRIBUTED", plan.getStatus());
+        assertNotNull(plan.getUpdatedAt());
+    }
+
+    @Test
     @DisplayName("Should validate Plan with valid parameters")
     void shouldValidatePlanWithValidParameters() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);

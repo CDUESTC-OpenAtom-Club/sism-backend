@@ -63,7 +63,32 @@ public class JpaPlanRepository implements PlanRepository {
             Long createdByOrgId,
             Long targetOrgId
     ) {
+        List<Plan> activePlans = findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                cycleId,
+                planLevel,
+                createdByOrgId,
+                targetOrgId
+        );
+        if (!activePlans.isEmpty()) {
+            return Optional.of(activePlans.get(0));
+        }
+
         return jpaRepository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                cycleId,
+                planLevel,
+                createdByOrgId,
+                targetOrgId
+        );
+    }
+
+    @Override
+    public List<Plan> findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+            Long cycleId,
+            PlanLevel planLevel,
+            Long createdByOrgId,
+            Long targetOrgId
+    ) {
+        return jpaRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
                 cycleId,
                 planLevel,
                 createdByOrgId,

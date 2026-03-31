@@ -5,10 +5,8 @@ import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.repository.PlanRepository;
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskType;
-import com.sism.task.domain.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -25,7 +23,7 @@ public class BasicTaskWeightValidationService {
 
     private static final BigDecimal REQUIRED_TOTAL_WEIGHT = BigDecimal.valueOf(100);
 
-    private final TaskRepository taskRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final IndicatorRepository indicatorRepository;
     private final PlanRepository planRepository;
 
@@ -34,19 +32,21 @@ public class BasicTaskWeightValidationService {
             return;
         }
 
-        List<StrategicTask> basicTasks = taskRepository.findByPlanId(planId).stream()
-                .filter(task -> !Boolean.TRUE.equals(task.getIsDeleted()))
-                .filter(task -> task.getTaskType() == TaskType.BASIC)
-                .toList();
+        Set<Long> basicTaskIds = jdbcTemplate.queryForList("""
+                        SELECT t.task_id
+                        FROM public.sys_task t
+                        WHERE t.plan_id = ?
+                          AND COALESCE(t.is_deleted, false) = false
+                          AND t.task_type = 'BASIC'
+                        """,
+                Long.class,
+                planId
+        ).stream().collect(Collectors.toSet());
 
-        if (basicTasks.isEmpty()) {
+        if (basicTaskIds.isEmpty()) {
             validateFuncToCollegeIndicators(planId, targetOrgId);
             return;
         }
-
-        Set<Long> basicTaskIds = basicTasks.stream()
-                .map(StrategicTask::getId)
-                .collect(Collectors.toSet());
 
         BigDecimal totalWeight = indicatorRepository.findAll().stream()
                 .filter(indicator -> !Boolean.TRUE.equals(indicator.getIsDeleted()))

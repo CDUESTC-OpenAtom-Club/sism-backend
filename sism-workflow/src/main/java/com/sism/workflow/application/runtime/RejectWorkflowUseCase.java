@@ -92,6 +92,24 @@ public class RejectWorkflowUseCase {
                 : approverResolver.resolveApproverOrgId(returnedStepDef, contextOrgId, instance));
         returnedStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(returnedStep);
+
+        if (returnedStepDef.isSubmitStep()) {
+            returnedStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+            returnedStep.setComment("系统自动完成提交流程节点");
+            returnedStep.setApprovedAt(java.time.LocalDateTime.now());
+
+            AuditStepDef nextStepDef = orderedSteps.get(rejectedIndex);
+            AuditStepInstance nextStep = new AuditStepInstance();
+            nextStep.setStepNo(instance.nextStepInstanceNo());
+            nextStep.setStepDefId(nextStepDef.getId());
+            nextStep.setStepName(nextStepDef.getStepName());
+            nextStep.setApproverId(null);
+            nextStep.setApproverOrgId(
+                    approverResolver.resolveApproverOrgId(nextStepDef, instance.getRequesterOrgId(), instance));
+            nextStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+            instance.addStepInstance(nextStep);
+        }
+
         log.info("Reject workflow instance {} appended returned step defId={}, stepNo={}, approverId={}",
                 instance.getId(),
                 returnedStep.getStepDefId(),

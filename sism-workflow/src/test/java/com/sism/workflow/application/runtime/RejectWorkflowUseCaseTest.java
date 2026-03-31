@@ -43,7 +43,7 @@ class RejectWorkflowUseCaseTest {
     private RejectWorkflowUseCase rejectWorkflowUseCase;
 
     @Test
-    void reject_shouldAppendReturnedPendingStepInsteadOfReopeningPreviousStep() {
+    void reject_shouldAutoCompleteReturnedSubmitStepAndAppendNextPendingApprovalStep() {
         AuditFlowDef flowDef = new AuditFlowDef();
 
         AuditStepDef submit = new AuditStepDef();
@@ -59,13 +59,7 @@ class RejectWorkflowUseCaseTest {
         dept.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
         dept.setRoleId(2L);
 
-        AuditStepDef leader = new AuditStepDef();
-        leader.setId(13L);
-        leader.setStepName("学院院长审批人审批");
-        leader.setStepOrder(3);
-        leader.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
-        leader.setRoleId(4L);
-        flowDef.setSteps(List.of(submit, dept, leader));
+        flowDef.setSteps(List.of(submit, dept));
 
         AuditInstance instance = new AuditInstance();
         instance.setId(1L);
@@ -86,21 +80,12 @@ class RejectWorkflowUseCaseTest {
         deptInstance.setStepNo(2);
         deptInstance.setStepDefId(12L);
         deptInstance.setStepName("二级学院审批人审批");
-        deptInstance.setStatus(AuditInstance.STEP_STATUS_APPROVED);
-        deptInstance.setApproverId(200L);
+        deptInstance.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        deptInstance.setApproverId(300L);
         deptInstance.setApproverOrgId(57L);
-
-        AuditStepInstance leaderInstance = new AuditStepInstance();
-        leaderInstance.setStepNo(3);
-        leaderInstance.setStepDefId(13L);
-        leaderInstance.setStepName("学院院长审批人审批");
-        leaderInstance.setStatus(AuditInstance.STEP_STATUS_PENDING);
-        leaderInstance.setApproverId(300L);
-        leaderInstance.setApproverOrgId(57L);
 
         instance.addStepInstance(submitInstance);
         instance.addStepInstance(deptInstance);
-        instance.addStepInstance(leaderInstance);
 
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
         when(approverResolver.resolveApproverOrgId(dept, 57L, instance)).thenReturn(57L);
@@ -110,7 +95,13 @@ class RejectWorkflowUseCaseTest {
 
         assertEquals(AuditInstance.STATUS_PENDING, saved.getStatus());
         assertEquals(4, saved.getStepInstances().size());
-        assertEquals(AuditInstance.STEP_STATUS_REJECTED, saved.getStepInstances().get(2).getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_REJECTED, saved.getStepInstances().get(1).getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_APPROVED, saved.getStepInstances().get(2).getStatus());
+        assertEquals(11L, saved.getStepInstances().get(2).getStepDefId());
+        assertEquals(3, saved.getStepInstances().get(2).getStepNo());
+        assertEquals(100L, saved.getStepInstances().get(2).getApproverId());
+        assertEquals("系统自动完成提交流程节点", saved.getStepInstances().get(2).getComment());
+
         assertEquals(AuditInstance.STEP_STATUS_PENDING, saved.getStepInstances().get(3).getStatus());
         assertEquals(12L, saved.getStepInstances().get(3).getStepDefId());
         assertEquals(4, saved.getStepInstances().get(3).getStepNo());

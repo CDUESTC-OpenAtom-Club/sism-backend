@@ -28,6 +28,23 @@ public interface JpaPlanRepositoryInternal extends JpaRepository<Plan, Long> {
             Long targetOrgId
     );
 
+    @Query("""
+            SELECT p
+            FROM Plan p
+            WHERE p.cycleId = :cycleId
+              AND p.planLevel = :planLevel
+              AND p.createdByOrgId = :createdByOrgId
+              AND p.targetOrgId = :targetOrgId
+              AND p.isDeleted = false
+            ORDER BY p.createdAt ASC, p.id ASC
+            """)
+    List<Plan> findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+            @Param("cycleId") Long cycleId,
+            @Param("planLevel") PlanLevel planLevel,
+            @Param("createdByOrgId") Long createdByOrgId,
+            @Param("targetOrgId") Long targetOrgId
+    );
+
     List<Plan> findByStatusIn(List<String> statuses);
 
     @Query("""

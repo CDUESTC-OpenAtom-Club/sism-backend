@@ -12,8 +12,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -75,5 +78,48 @@ class JpaPlanRepositoryTest {
 
         assertEquals(0, result.getTotalElements());
         verify(jpaRepository).findPage(List.of(), true, pageable);
+    }
+
+    @Test
+    @DisplayName("Should prefer active plan list when duplicate rows exist for same business key")
+    void shouldPreferActivePlanListWhenDuplicateRowsExistForSameBusinessKey() {
+        JpaPlanRepository repository = new JpaPlanRepository(jpaRepository);
+        Plan canonicalPlan = Plan.create(4L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+        Plan duplicatePlan = Plan.create(4L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+
+        when(jpaRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L))
+                .thenReturn(List.of(canonicalPlan, duplicatePlan));
+
+        Optional<Plan> result = repository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L);
+
+        assertTrue(result.isPresent());
+        assertSame(canonicalPlan, result.orElseThrow());
+        verify(jpaRepository).findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L);
+        verify(jpaRepository, never()).findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L);
+    }
+
+    @Test
+    @DisplayName("Should fall back to legacy single lookup when no active plan exists")
+    void shouldFallBackToLegacySingleLookupWhenNoActivePlanExists() {
+        JpaPlanRepository repository = new JpaPlanRepository(jpaRepository);
+        Plan legacyPlan = Plan.create(4L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+
+        when(jpaRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L))
+                .thenReturn(List.of());
+        when(jpaRepository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L))
+                .thenReturn(Optional.of(legacyPlan));
+
+        Optional<Plan> result = repository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L);
+
+        assertSame(legacyPlan, result.orElseThrow());
+        verify(jpaRepository).findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L);
     }
 }

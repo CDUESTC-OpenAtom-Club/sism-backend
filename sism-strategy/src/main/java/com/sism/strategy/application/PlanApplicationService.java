@@ -1,5 +1,6 @@
 package com.sism.strategy.application;
 
+import com.sism.exception.ConflictException;
 import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.organization.domain.SysOrg;
@@ -21,6 +22,7 @@ import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -88,6 +90,8 @@ public class PlanApplicationService {
                 ? request.getTargetOrgId()
                 : 1L; // 默认值
 
+        assertNoActivePlanConflict(request.getCycleId(), planLevel, createdByOrgId, targetOrgId, null);
+
         Plan plan = Plan.create(
                 request.getCycleId(),
                 targetOrgId,
@@ -95,7 +99,7 @@ public class PlanApplicationService {
                 planLevel
         );
 
-        Plan saved = planRepository.save(plan);
+        Plan saved = savePlanHandlingConflict(plan);
         return convertToResponse(saved, cycle.getYear().toString());
     }
 
@@ -107,6 +111,10 @@ public class PlanApplicationService {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
 
+        Long nextTargetOrgId = request.getTargetOrgId() != null ? request.getTargetOrgId() : plan.getTargetOrgId();
+        Long nextCreatedByOrgId = request.getCreatedByOrgId() != null ? request.getCreatedByOrgId() : plan.getCreatedByOrgId();
+        assertNoActivePlanConflict(plan.getCycleId(), plan.getPlanLevel(), nextCreatedByOrgId, nextTargetOrgId, plan.getId());
+
         if (request.getTargetOrgId() != null) {
             plan.setTargetOrgId(request.getTargetOrgId());
         }
@@ -115,7 +123,7 @@ public class PlanApplicationService {
             plan.setCreatedByOrgId(request.getCreatedByOrgId());
         }
 
-        Plan updated = planRepository.save(plan);
+        Plan updated = savePlanHandlingConflict(plan);
         return convertToResponse(updated, null);
     }
 
@@ -745,6 +753,44 @@ public class PlanApplicationService {
             log.warn("Failed to batch load workflow snapshots for plans={}, falling back to base plan responses: {}",
                     planIds.size(), ex.getMessage());
             return Map.of();
+        }
+    }
+
+    private void assertNoActivePlanConflict(Long cycleId,
+                                            PlanLevel planLevel,
+                                            Long createdByOrgId,
+                                            Long targetOrgId,
+                                            Long currentPlanId) {
+        List<Plan> activePlans = planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                cycleId,
+                planLevel,
+                createdByOrgId,
+                targetOrgId
+        );
+        boolean hasConflict = activePlans.stream()
+                .anyMatch(plan -> currentPlanId == null || !currentPlanId.equals(plan.getId()));
+        if (hasConflict) {
+            throw new ConflictException(String.format(
+                    "Plan already exists for cycleId=%s, planLevel=%s, createdByOrgId=%s, targetOrgId=%s",
+                    cycleId,
+                    planLevel,
+                    createdByOrgId,
+                    targetOrgId
+            ));
+        }
+    }
+
+    private Plan savePlanHandlingConflict(Plan plan) {
+        try {
+            return planRepository.save(plan);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ConflictException(String.format(
+                    "Plan already exists for cycleId=%s, planLevel=%s, createdByOrgId=%s, targetOrgId=%s",
+                    plan.getCycleId(),
+                    plan.getPlanLevel(),
+                    plan.getCreatedByOrgId(),
+                    plan.getTargetOrgId()
+            ));
         }
     }
 

@@ -1,5 +1,6 @@
 package com.sism.strategy.application;
 
+import com.sism.exception.ConflictException;
 import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
@@ -12,7 +13,9 @@ import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.interfaces.dto.PlanResponse;
+import com.sism.strategy.interfaces.dto.CreatePlanRequest;
 import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
+import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -109,6 +112,51 @@ class PlanApplicationServiceTest {
                 transactionManager,
                 planIntegrityService
         );
+    }
+
+    @Test
+    @DisplayName("Should reject duplicate active plan creation before save")
+    void shouldRejectDuplicateActivePlanCreationBeforeSave() {
+        Cycle cycle = new Cycle();
+        cycle.setId(2026L);
+        cycle.setYear(2026);
+
+        CreatePlanRequest request = new CreatePlanRequest();
+        request.setCycleId(2026L);
+        request.setCreatedByOrgId(35L);
+        request.setTargetOrgId(36L);
+        request.setPlanType("STRATEGY");
+
+        Plan existing = Plan.create(2026L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+        existing.setId(1L);
+
+        when(cycleRepository.findById(2026L)).thenReturn(Optional.of(cycle));
+        when(planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                2026L, PlanLevel.STRAT_TO_FUNC, 35L, 36L))
+                .thenReturn(List.of(existing));
+
+        assertThrows(ConflictException.class, () -> service.createPlan(request));
+        verify(planRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should reject update when business key would collide with another active plan")
+    void shouldRejectUpdateWhenBusinessKeyWouldCollide() {
+        Plan current = Plan.create(2026L, 37L, 35L, PlanLevel.STRAT_TO_FUNC);
+        current.setId(10L);
+        Plan existing = Plan.create(2026L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+        existing.setId(11L);
+
+        UpdatePlanRequest request = new UpdatePlanRequest();
+        request.setTargetOrgId(36L);
+
+        when(planRepository.findById(10L)).thenReturn(Optional.of(current));
+        when(planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                2026L, PlanLevel.STRAT_TO_FUNC, 35L, 36L))
+                .thenReturn(List.of(existing));
+
+        assertThrows(ConflictException.class, () -> service.updatePlan(10L, request));
+        verify(planRepository, never()).save(any());
     }
 
     @Test
@@ -328,8 +376,8 @@ class PlanApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("Should withdraw plan only when workflow snapshot allows it and keep workflow fields in response")
-    void shouldWithdrawPlanUsingWorkflowSnapshot() {
+    @DisplayName("Should withdraw functional-dept approval plan back to distributed and keep workflow fields in response")
+    void shouldWithdrawFunctionalDeptApprovalPlanBackToDistributed() {
         Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
         plan.setId(21L);
         plan.submitForApproval();
@@ -369,14 +417,19 @@ class PlanApplicationServiceTest {
             when(rs.getInt(2)).thenReturn(1);
             return List.of(rowMapper.mapRow(rs, 0));
         });
+        when(jdbcTemplate.query(
+                contains("SELECT d.flow_code"),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                eq(701L)
+        )).thenReturn(List.of("PLAN_APPROVAL_FUNCDEPT"));
 
         PlanResponse response = service.withdrawPlan(21L);
 
-        assertEquals(PlanStatus.DRAFT.value(), plan.getStatus());
-        assertEquals(PlanStatus.DRAFT.value(), response.getStatus());
+        assertEquals(PlanStatus.DISTRIBUTED.value(), plan.getStatus());
+        assertEquals(PlanStatus.DISTRIBUTED.value(), response.getStatus());
         assertEquals("IN_REVIEW", response.getWorkflowStatus());
         assertEquals(701L, response.getWorkflowInstanceId());
-        verify(indicator).setStatus(IndicatorStatus.DRAFT);
+        verify(indicator).setStatus(IndicatorStatus.DISTRIBUTED);
         verify(indicatorRepository).save(indicator);
     }
 

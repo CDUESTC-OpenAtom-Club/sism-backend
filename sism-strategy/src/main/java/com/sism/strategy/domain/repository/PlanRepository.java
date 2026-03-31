@@ -34,6 +34,13 @@ public interface PlanRepository {
             Long targetOrgId
     );
 
+    List<Plan> findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+            Long cycleId,
+            PlanLevel planLevel,
+            Long createdByOrgId,
+            Long targetOrgId
+    );
+
     List<Plan> findByStatuses(List<String> statuses);
 
     Plan save(Plan plan);

@@ -24,6 +24,8 @@ public class PlanIntegrityService {
 
     private static final long SYSTEM_ADMIN_ORG_ID = 35L;
     private static final long ENSURE_INTERVAL_MILLIS = Duration.ofMinutes(10).toMillis();
+    private static final Object STRAT_TO_FUNC_LOCK = new Object();
+    private static final Object FUNC_TO_COLLEGE_LOCK = new Object();
 
     private final PlanRepository planRepository;
     private final CycleRepository cycleRepository;
@@ -85,38 +87,53 @@ public class PlanIntegrityService {
     }
 
     private void ensureStrategyToFunctionalPlans(Cycle cycle, List<SysOrg> functionalOrgs) {
-        for (SysOrg functionalOrg : functionalOrgs) {
-            ensurePlanExists(
-                    cycle.getId(),
-                    PlanLevel.STRAT_TO_FUNC,
-                    SYSTEM_ADMIN_ORG_ID,
-                    functionalOrg.getId()
-            );
-        }
-    }
-
-    private void ensureFunctionalToCollegePlans(Cycle cycle, List<SysOrg> functionalOrgs, List<SysOrg> academicOrgs) {
-        for (SysOrg functionalOrg : functionalOrgs) {
-            for (SysOrg academicOrg : academicOrgs) {
+        synchronized (STRAT_TO_FUNC_LOCK) {
+            for (SysOrg functionalOrg : functionalOrgs) {
                 ensurePlanExists(
                         cycle.getId(),
-                        PlanLevel.FUNC_TO_COLLEGE,
-                        functionalOrg.getId(),
-                        academicOrg.getId()
+                        PlanLevel.STRAT_TO_FUNC,
+                        SYSTEM_ADMIN_ORG_ID,
+                        functionalOrg.getId()
                 );
             }
         }
     }
 
+    private void ensureFunctionalToCollegePlans(Cycle cycle, List<SysOrg> functionalOrgs, List<SysOrg> academicOrgs) {
+        synchronized (FUNC_TO_COLLEGE_LOCK) {
+            for (SysOrg functionalOrg : functionalOrgs) {
+                for (SysOrg academicOrg : academicOrgs) {
+                    ensurePlanExists(
+                            cycle.getId(),
+                            PlanLevel.FUNC_TO_COLLEGE,
+                            functionalOrg.getId(),
+                            academicOrg.getId()
+                    );
+                }
+            }
+        }
+    }
+
     private void ensurePlanExists(Long cycleId, PlanLevel planLevel, Long createdByOrgId, Long targetOrgId) {
-        boolean exists = planRepository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+        List<Plan> activePlans = planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
                 cycleId,
                 planLevel,
                 createdByOrgId,
                 targetOrgId
-        ).isPresent();
+        );
 
-        if (exists) {
+        if (activePlans.size() > 1) {
+            log.error(
+                    "[PlanIntegrityService] Duplicate active plans detected: planIds={}, cycleId={}, planLevel={}, createdByOrgId={}, targetOrgId={}",
+                    activePlans.stream().map(Plan::getId).toList(),
+                    cycleId,
+                    planLevel,
+                    createdByOrgId,
+                    targetOrgId
+            );
+        }
+
+        if (!activePlans.isEmpty()) {
             return;
         }
 

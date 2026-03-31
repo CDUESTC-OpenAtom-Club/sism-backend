@@ -1,11 +1,14 @@
 package com.sism.task.application;
 
 import com.sism.common.PageResult;
+import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import com.sism.task.application.dto.*;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.TaskCategory;
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,12 +35,17 @@ public class TaskApplicationService {
     private final DomainEventPublisher eventPublisher;
     private final EventStore eventStore;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Transactional
     public TaskResponse createTask(CreateTaskRequest request) {
         SysOrg org = organizationRepository.findById(request.getOrgId())
                 .orElseThrow(() -> new IllegalArgumentException("组织不存在: " + request.getOrgId()));
         SysOrg createdByOrg = organizationRepository.findById(request.getCreatedByOrgId())
                 .orElseThrow(() -> new IllegalArgumentException("创建组织不存在: " + request.getCreatedByOrgId()));
+
+        validatePlanBinding(request.getPlanId(), request.getCycleId(), org, createdByOrg);
 
         StrategicTask task = StrategicTask.create(
                 request.getTaskCategory() != null ? request.getTaskCategory() : TaskCategory.STRATEGIC,
@@ -124,6 +133,8 @@ public class TaskApplicationService {
                     .orElseThrow(() -> new IllegalArgumentException("创建组织不存在: " + request.getCreatedByOrgId()));
             task.setCreatedByOrg(createdByOrg);
         }
+
+        validatePlanBinding(task.getPlanId(), task.getCycleId(), task.getOrg(), task.getCreatedByOrg());
 
         task.validate();
         taskRepository.save(task);
@@ -271,6 +282,56 @@ public class TaskApplicationService {
 
     private TaskResponse toCommandResponse(StrategicTask task) {
         return TaskResponse.fromEntity(task, loadPlanStatus(task.getId()));
+    }
+
+    private void validatePlanBinding(Long planId, Long cycleId, SysOrg org, SysOrg createdByOrg) {
+        if (planId == null) {
+            throw new IllegalArgumentException("计划ID不能为空");
+        }
+        if (cycleId == null) {
+            throw new IllegalArgumentException("考核周期ID不能为空");
+        }
+        if (org == null || org.getId() == null) {
+            throw new IllegalArgumentException("组织不存在");
+        }
+        if (createdByOrg == null || createdByOrg.getId() == null) {
+            throw new IllegalArgumentException("创建组织不存在");
+        }
+
+        Optional<?> planRow = entityManager.createNativeQuery("""
+                SELECT p.cycle_id, p.target_org_id, p.created_by_org_id, p.plan_level
+                FROM public.plan p
+                WHERE p.id = :planId
+                  AND COALESCE(p.is_deleted, false) = false
+                """)
+                .setParameter("planId", planId)
+                .getResultStream()
+                .findFirst();
+        if (planRow.isEmpty()) {
+            throw new IllegalArgumentException("计划不存在: " + planId);
+        }
+        Object[] row = (Object[]) planRow.get();
+
+        long planCycleId = ((Number) row[0]).longValue();
+        long planTargetOrgId = ((Number) row[1]).longValue();
+        long planCreatedByOrgId = ((Number) row[2]).longValue();
+        String planLevel = String.valueOf(row[3]).trim().toUpperCase();
+
+        if (planCycleId != cycleId.longValue()) {
+            throw new IllegalArgumentException("任务周期与计划周期不一致");
+        }
+        if (planTargetOrgId != org.getId()) {
+            throw new IllegalArgumentException("任务归属组织与计划目标组织不一致");
+        }
+        if (planCreatedByOrgId != createdByOrg.getId()) {
+            throw new IllegalArgumentException("任务创建组织与计划创建组织不一致");
+        }
+        if ("FUNC_TO_COLLEGE".equals(planLevel) && org.getType() != OrgType.academic) {
+            throw new IllegalArgumentException("FUNC_TO_COLLEGE 计划只能绑定二级学院任务");
+        }
+        if ("STRAT_TO_FUNC".equals(planLevel) && org.getType() != OrgType.functional) {
+            throw new IllegalArgumentException("STRAT_TO_FUNC 计划只能绑定职能部门任务");
+        }
     }
 
     private String loadPlanStatus(Long taskId) {

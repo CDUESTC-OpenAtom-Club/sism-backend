@@ -15,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -62,8 +61,8 @@ class PlanIntegrityServiceTest {
 
         when(cycleRepository.findAll()).thenReturn(List.of(cycle));
         when(organizationRepository.findAll()).thenReturn(List.of(functionalOrg, academicOrg));
-        when(planRepository.findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(any(), any(), any(), any()))
-                .thenReturn(Optional.of(Plan.create(90L, 36L, 35L, PlanLevel.STRAT_TO_FUNC)));
+        when(planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(any(), any(), any(), any()))
+                .thenReturn(List.of(Plan.create(90L, 36L, 35L, PlanLevel.STRAT_TO_FUNC)));
 
         service.ensurePlanMatrix();
         service.ensurePlanMatrix();
