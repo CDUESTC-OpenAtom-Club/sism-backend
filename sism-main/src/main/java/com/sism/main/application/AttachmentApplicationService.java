@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,7 +28,7 @@ public class AttachmentApplicationService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    @Value("${file.upload.path:./uploads}")
+    @Value("${file.upload.path:${user.home}/.sism/uploads}")
     private String uploadPath;
 
     @Transactional
@@ -39,7 +40,7 @@ public class AttachmentApplicationService {
             throw new IllegalArgumentException("uploadedBy 必填");
         }
 
-        Path uploadRoot = Paths.get(uploadPath).toAbsolutePath().normalize();
+        Path uploadRoot = resolveUploadRoot();
         Files.createDirectories(uploadRoot);
 
         String originalName = file.getOriginalFilename() == null ? "unknown" : Paths.get(file.getOriginalFilename()).getFileName().toString();
@@ -130,8 +131,34 @@ public class AttachmentApplicationService {
             throw new IllegalArgumentException("Attachment object key not found: " + id);
         }
 
-        Path uploadRoot = Paths.get(uploadPath).toAbsolutePath().normalize();
-        Path filePath = uploadRoot.resolve(objectKey).normalize();
+        Path filePath = resolveFilePath(objectKey);
         return new UrlResource(filePath.toUri());
+    }
+
+    private Path resolveUploadRoot() {
+        return Paths.get(uploadPath).toAbsolutePath().normalize();
+    }
+
+    private Path resolveFilePath(String objectKey) {
+        List<Path> candidates = new ArrayList<>();
+        Path uploadRoot = resolveUploadRoot();
+        candidates.add(uploadRoot.resolve(objectKey).normalize());
+
+        Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
+        candidates.add(workingDirectory.resolve("uploads").resolve(objectKey).normalize());
+        candidates.add(workingDirectory.resolve("sism-main").resolve("uploads").resolve(objectKey).normalize());
+
+        Path parentDirectory = workingDirectory.getParent();
+        if (parentDirectory != null) {
+            candidates.add(parentDirectory.resolve("uploads").resolve(objectKey).normalize());
+        }
+
+        for (Path candidate : candidates) {
+            if (Files.exists(candidate) && Files.isRegularFile(candidate)) {
+                return candidate;
+            }
+        }
+
+        return candidates.get(0);
     }
 }

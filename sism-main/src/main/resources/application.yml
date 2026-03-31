@@ -93,7 +93,7 @@ jwt:
 # File Upload Configuration
 file:
   upload:
-    path: ./uploads
+    path: ${FILE_UPLOAD_PATH:${user.home}/.sism/uploads}
     max-size: 31457280  # 30MB
 
 # Export Configuration

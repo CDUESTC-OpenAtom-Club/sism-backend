@@ -39,6 +39,8 @@ application-*.properties
 logs/
 *.log
 *.log.*
+/uploads/
+/sism-main/uploads/
 
 # 旧的数据库脚本（已整理到新目录）
 database/add-college-users.sql
