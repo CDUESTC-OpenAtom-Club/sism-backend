@@ -186,6 +186,47 @@ class BusinessWorkflowApplicationServiceTest {
     }
 
     @Test
+    void startWorkflow_shouldResumeRejectedLegacyInstanceWhenReturnedSubmitStepExists() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setId(8L);
+        flowDef.setFlowCode("PLAN_APPROVAL_COLLEGE");
+        flowDef.setEntityType("PLAN_REPORT");
+        flowDef.setIsActive(true);
+
+        AuditInstance resumable = new AuditInstance();
+        resumable.setId(601L);
+        resumable.setFlowDefId(8L);
+        resumable.setEntityType("PLAN_REPORT");
+        resumable.setEntityId(77L);
+        resumable.setStatus(AuditInstance.STATUS_REJECTED);
+
+        var withdrawnStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        withdrawnStep.setId(701L);
+        withdrawnStep.setStepNo(5);
+        withdrawnStep.setStepName("填报人提交");
+        withdrawnStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        resumable.addStepInstance(withdrawnStep);
+
+        StartWorkflowRequest request = new StartWorkflowRequest();
+        request.setWorkflowCode("PLAN_APPROVAL_COLLEGE");
+        request.setBusinessEntityId(77L);
+        request.setBusinessEntityType("PLAN_REPORT");
+
+        when(workflowDefinitionQueryService.getAuditFlowDefByCode("PLAN_APPROVAL_COLLEGE")).thenReturn(flowDef);
+        when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN_REPORT", 77L)).thenReturn(List.of(resumable));
+        when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", 77L)).thenReturn(List.of());
+        when(workflowApplicationService.resumeWithdrawnAuditInstance(resumable)).thenReturn(resumable);
+        when(workflowReadModelMapper.toInstanceResponse(resumable)).thenReturn(
+                WorkflowInstanceResponse.builder().instanceId("601").status("IN_REVIEW").build()
+        );
+
+        WorkflowInstanceResponse response = businessWorkflowApplicationService.startWorkflow(request, 301L, 37L);
+
+        assertEquals("601", response.getInstanceId());
+        verify(workflowApplicationService).resumeWithdrawnAuditInstance(resumable);
+    }
+
+    @Test
     void approveTask_shouldRejectUnauthorizedUser() {
         AuditInstance instance = new AuditInstance();
         instance.setId(1L);

@@ -8,7 +8,6 @@ import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.application.MilestoneApplicationService;
 import com.sism.strategy.application.StrategyApplicationService;
 import com.sism.strategy.domain.Indicator;
-import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
 import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsRequest;
 import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsResponse;
@@ -55,7 +54,6 @@ public class IndicatorController {
     private final StrategyApplicationService strategyApplicationService;
     private final MilestoneApplicationService milestoneApplicationService;
     private final OrganizationRepository organizationRepository;
-    private final TaskRepository taskRepository;
     private final JpaTaskRepositoryInternal jpaTaskRepository;
     private final JdbcTemplate jdbcTemplate;
 
@@ -521,12 +519,10 @@ public class IndicatorController {
         if (indicator.getTaskId() != null) {
             String taskName = taskNameMap.get(indicator.getTaskId());
             if (taskName == null) {
-                com.sism.task.domain.StrategicTask task = taskRepository.findById(indicator.getTaskId()).orElse(null);
+                TaskFallbackSnapshot task = findTaskFallback(indicator.getTaskId());
                 if (task != null) {
-                    taskName = task.getName();
-                    if (task.getTaskType() != null) {
-                        response.setTaskType(task.getTaskType().name());
-                    }
+                    taskName = task.name();
+                    response.setTaskType(task.taskType());
                 } else {
                     taskName = "计划-" + indicator.getTaskId();
                 }
@@ -626,15 +622,31 @@ public class IndicatorController {
             return Map.of();
         }
 
-        return taskRepository.findAllById(taskIds).stream()
+        return jpaTaskRepository.findTaskNameTypesByIds(taskIds).stream()
                 .filter(task -> task.getId() != null)
                 .collect(Collectors.toMap(
-                        com.sism.task.domain.StrategicTask::getId,
-                        task -> task.getTaskType() != null ? task.getTaskType().name() : null,
+                        task -> task.getId(),
+                        task -> task.getTaskType() == null || task.getTaskType().isBlank() ? null : task.getTaskType(),
                         (left, right) -> left,
                         LinkedHashMap::new
                 ));
     }
+
+    private TaskFallbackSnapshot findTaskFallback(Long taskId) {
+        if (taskId == null) {
+            return null;
+        }
+
+        return jpaTaskRepository.findTaskNameTypesByIds(List.of(taskId)).stream()
+                .findFirst()
+                .map(task -> new TaskFallbackSnapshot(
+                        task.getName(),
+                        task.getTaskType() == null || task.getTaskType().isBlank() ? null : task.getTaskType()
+                ))
+                .orElse(null);
+    }
+
+    private record TaskFallbackSnapshot(String name, String taskType) {}
 
     private Map<Long, CurrentMonthIndicatorRoundState> buildCurrentMonthIndicatorRoundStateMap(List<Indicator> indicators) {
         List<Long> indicatorIds = extractIndicatorIds(indicators);

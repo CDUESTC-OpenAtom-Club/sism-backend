@@ -181,6 +181,17 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
             """, nativeQuery = true)
     List<TaskNameView> findTaskNamesByIds(@Param("taskIds") List<Long> taskIds);
 
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.name AS name,
+                t.task_type AS taskType
+            FROM sys_task t
+            WHERE t.task_id IN (:taskIds)
+              AND COALESCE(t.is_deleted, false) = false
+            """, nativeQuery = true)
+    List<TaskNameTypeView> findTaskNameTypesByIds(@Param("taskIds") List<Long> taskIds);
+
     /**
      * 根据计划ID和周期ID查找任务
      *

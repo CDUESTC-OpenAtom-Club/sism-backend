@@ -204,6 +204,7 @@ public class BusinessWorkflowApplicationService {
         return candidates.stream()
                 .filter(instance ->
                         AuditInstance.STATUS_PENDING.equals(instance.getStatus())
+                                || AuditInstance.STATUS_REJECTED.equals(instance.getStatus())
                                 || AuditInstance.STATUS_WITHDRAWN.equals(instance.getStatus()))
                 .filter(instance -> flowDefId == null || flowDefId.equals(instance.getFlowDefId()))
                 .filter(instance -> instance.getStepInstances().stream()

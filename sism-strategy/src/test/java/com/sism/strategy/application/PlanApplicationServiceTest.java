@@ -283,6 +283,9 @@ class PlanApplicationServiceTest {
             ResultSet rs = mock(ResultSet.class);
             when(rs.getLong(1)).thenReturn(37L);
             when(rs.getInt(2)).thenReturn(1);
+            when(rs.getLong(3)).thenReturn(11L);
+            when(rs.getBoolean(4)).thenReturn(true);
+            when(rs.getLong(5)).thenReturn(35L);
             return List.of(rowMapper.mapRow(rs, 0));
         });
 
@@ -297,6 +300,56 @@ class PlanApplicationServiceTest {
         verify(jdbcTemplate).update(contains("SET status = 'APPROVED'"), anyLong());
         verify(jdbcTemplate).update(contains("SET status = 'PENDING'"), eq(18L));
         verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(18L));
+        verify(eventPublisher, never()).publish(any());
+    }
+
+    @Test
+    @DisplayName("Should resume rejected workflow from withdrawn submit step and append next approval step")
+    void shouldResumeRejectedWorkflowFromWithdrawnSubmitStep() {
+        Plan plan = Plan.create(2026L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+        plan.setId(8080L);
+        plan.returnForRevision();
+
+        SubmitPlanApprovalRequest request = new SubmitPlanApprovalRequest();
+        request.setWorkflowCode("PLAN_DISPATCH_FUNCDEPT");
+
+        when(planRepository.findById(8080L)).thenReturn(Optional.of(plan));
+        when(planRepository.save(same(plan))).thenReturn(plan);
+        when(planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(8080L)).thenReturn(
+                PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                        .workflowInstanceId(28L)
+                        .workflowStatus("REJECTED")
+                        .currentStepName("填报人提交")
+                        .build()
+        ).thenReturn(
+                PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
+                        .workflowInstanceId(28L)
+                        .workflowStatus("IN_REVIEW")
+                        .currentStepName("职能部门审批人审批")
+                        .build()
+        );
+        when(jdbcTemplate.query(
+                contains("asi.status = 'WITHDRAWN'"),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                eq(28L)
+        )).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            RowMapper<Object> rowMapper = (RowMapper<Object>) invocation.getArgument(1);
+            ResultSet rs = mock(ResultSet.class);
+            when(rs.getLong(1)).thenReturn(81L);
+            when(rs.getInt(2)).thenReturn(3);
+            when(rs.getLong(3)).thenReturn(4L);
+            when(rs.getBoolean(4)).thenReturn(true);
+            when(rs.getLong(5)).thenReturn(36L);
+            return List.of(rowMapper.mapRow(rs, 0));
+        });
+        PlanResponse response = service.submitPlanForApproval(8080L, request, 191L, 36L);
+
+        assertEquals(PlanStatus.PENDING.value(), plan.getStatus());
+        assertEquals(PlanStatus.PENDING.value(), response.getStatus());
+        verify(jdbcTemplate).update(contains("SET status = 'APPROVED'"), eq(81L));
+        verify(jdbcTemplate).update(contains("INSERT INTO public.audit_step_instance"), eq(4L), eq(28L));
+        verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(28L));
         verify(eventPublisher, never()).publish(any());
     }
 
@@ -359,6 +412,21 @@ class PlanApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("Should mark returned plan back to pending when workflow resumes")
+    void shouldMarkReturnedPlanBackToPendingWhenWorkflowResumes() {
+        Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
+        plan.setId(12L);
+        plan.returnForRevision();
+
+        when(planRepository.findById(12L)).thenReturn(Optional.of(plan));
+
+        service.markWorkflowPending(12L);
+
+        assertEquals(PlanStatus.PENDING.value(), plan.getStatus());
+        verify(planRepository).save(plan);
+    }
+
+    @Test
     @DisplayName("Should reset plan to draft when workflow is withdrawn before first approval")
     void shouldResetPlanToDraftWhenWorkflowIsWithdrawn() {
         Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
@@ -376,8 +444,8 @@ class PlanApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("Should withdraw functional-dept approval plan back to distributed and keep workflow fields in response")
-    void shouldWithdrawFunctionalDeptApprovalPlanBackToDistributed() {
+    @DisplayName("Should withdraw functional-dept approval plan back to draft and keep workflow fields in response")
+    void shouldWithdrawFunctionalDeptApprovalPlanBackToDraft() {
         Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
         plan.setId(21L);
         plan.submitForApproval();
@@ -417,19 +485,13 @@ class PlanApplicationServiceTest {
             when(rs.getInt(2)).thenReturn(1);
             return List.of(rowMapper.mapRow(rs, 0));
         });
-        when(jdbcTemplate.query(
-                contains("SELECT d.flow_code"),
-                any(org.springframework.jdbc.core.RowMapper.class),
-                eq(701L)
-        )).thenReturn(List.of("PLAN_APPROVAL_FUNCDEPT"));
-
         PlanResponse response = service.withdrawPlan(21L);
 
-        assertEquals(PlanStatus.DISTRIBUTED.value(), plan.getStatus());
-        assertEquals(PlanStatus.DISTRIBUTED.value(), response.getStatus());
+        assertEquals(PlanStatus.DRAFT.value(), plan.getStatus());
+        assertEquals(PlanStatus.DRAFT.value(), response.getStatus());
         assertEquals("IN_REVIEW", response.getWorkflowStatus());
         assertEquals(701L, response.getWorkflowInstanceId());
-        verify(indicator).setStatus(IndicatorStatus.DISTRIBUTED);
+        verify(indicator).setStatus(IndicatorStatus.DRAFT);
         verify(indicatorRepository).save(indicator);
     }
 

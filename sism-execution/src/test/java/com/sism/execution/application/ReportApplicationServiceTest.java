@@ -5,6 +5,7 @@ import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
 import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.interfaces.dto.UpdatePlanReportIndicatorDetailRequest;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
@@ -129,26 +130,24 @@ class ReportApplicationServiceTest {
     }
 
     @Test
-    void createReport_createsNewRoundWhenLatestMonthlyReportIsRejected() {
+    void createReport_reusesRejectedRoundInsteadOfCreatingNewOne() {
         PlanReport rejectedReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         rejectedReport.setId(19L);
         rejectedReport.setStatus(PlanReport.STATUS_REJECTED);
+        rejectedReport.setAuditInstanceId(919L);
+        rejectedReport.setSubmittedAt(java.time.LocalDateTime.now());
 
         when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
                 .thenReturn(Optional.of(rejectedReport));
-        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> {
-            PlanReport report = invocation.getArgument(0);
-            report.setId(29L);
-            return report;
-        });
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         PlanReport created = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 7003L);
 
-        assertThat(created.getId()).isEqualTo(29L);
+        assertThat(created.getId()).isEqualTo(19L);
         assertThat(created.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
-        assertThat(created.getCreatedBy()).isEqualTo(7003L);
-        assertThat(created).isNotSameAs(rejectedReport);
-        verify(planReportRepository).save(any(PlanReport.class));
+        assertThat(created.getAuditInstanceId()).isEqualTo(919L);
+        assertThat(created.getSubmittedAt()).isNull();
+        verify(planReportRepository).save(rejectedReport);
     }
 
     @Test
@@ -231,6 +230,24 @@ class ReportApplicationServiceTest {
     }
 
     @Test
+    void markWorkflowReturnedForResubmission_shouldResetDraftStateAndKeepAuditLink() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(20L);
+        report.setStatus(PlanReport.STATUS_SUBMITTED);
+        report.setAuditInstanceId(902L);
+        report.setSubmittedAt(java.time.LocalDateTime.now());
+
+        when(planReportRepository.findById(20L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.markWorkflowReturnedForResubmission(20L, 902L);
+
+        assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
+        assertThat(updated.getAuditInstanceId()).isEqualTo(902L);
+        assertThat(updated.getSubmittedAt()).isNull();
+    }
+
+    @Test
     void updateReport_shouldPersistIndicatorDraftDetailWhenIndicatorIdProvided() {
         PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         report.setId(12L);
@@ -290,6 +307,46 @@ class ReportApplicationServiceTest {
         verify(planReportRepository, never()).save(any(PlanReport.class));
         verify(planReportIndicatorRepository, never())
                 .upsertDraftIndicator(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void updateReportBatch_shouldPassAttachmentIdsToRepository() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(22L);
+
+        Indicator indicator = new Indicator();
+        indicator.setId(2010L);
+        indicator.setProgress(10);
+
+        UpdatePlanReportIndicatorDetailRequest detail = new UpdatePlanReportIndicatorDetailRequest();
+        detail.setIndicatorId(2010L);
+        detail.setContent("带附件的填报");
+        detail.setProgress(45);
+        detail.setMilestoneNote("里程碑-A");
+        detail.setAttachmentIds(List.of(301L, 302L));
+
+        when(planReportRepository.findById(22L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(indicatorRepository.findById(2010L)).thenReturn(Optional.of(indicator));
+        when(planReportIndicatorRepository.upsertDraftIndicator(22L, 2010L, 45, "带附件的填报", "里程碑-A"))
+                .thenReturn(7001L);
+
+        PlanReport updated = reportApplicationService.updateReportBatch(
+                22L,
+                "标题",
+                "内容",
+                "摘要",
+                45,
+                "问题",
+                "计划",
+                8002L,
+                List.of(detail)
+        );
+
+        assertThat(updated.getId()).isEqualTo(22L);
+        assertThat(updated.getCreatedBy()).isEqualTo(8002L);
+        verify(planReportIndicatorRepository)
+                .attachFiles(7001L, List.of(301L, 302L), 8002L);
     }
 
     @Test

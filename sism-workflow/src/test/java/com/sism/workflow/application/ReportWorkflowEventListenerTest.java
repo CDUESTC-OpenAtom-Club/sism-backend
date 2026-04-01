@@ -24,6 +24,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,20 +36,21 @@ class ReportWorkflowEventListenerTest {
     private BusinessWorkflowApplicationService businessWorkflowApplicationService;
 
     @Mock
-    private PlanReportRepository planReportRepository;
+    private WorkflowApplicationService workflowApplicationService;
 
     @Mock
     private AuditInstanceRepository auditInstanceRepository;
+
+    @Mock
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @InjectMocks
     private ReportWorkflowEventListener listener;
 
     @Test
     void handlePlanReportSubmitted_shouldUseSubmitterIdFromEvent() {
-        PlanReport report = PlanReport.createDraft("2026-03", 200L, ReportOrgType.FUNC_DEPT, 300L);
-        report.setId(100L);
-
-        when(planReportRepository.findById(100L)).thenReturn(Optional.of(report));
+        when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.ResultSetExtractor.class), eq(100L)))
+                .thenReturn(ReportOrgType.FUNC_DEPT, null);
         when(businessWorkflowApplicationService.startWorkflow(any(), any(), any()))
                 .thenReturn(WorkflowInstanceResponse.builder().instanceId("88").build());
 
@@ -59,23 +62,44 @@ class ReportWorkflowEventListenerTest {
         assertEquals(100L, requestCaptor.getValue().getBusinessEntityId());
         assertEquals("PLAN_REPORT", requestCaptor.getValue().getBusinessEntityType());
         assertEquals(66L, requestCaptor.getValue().getVariables().get("submitterId"));
-        assertEquals(88L, report.getAuditInstanceId());
-        verify(planReportRepository).save(report);
+        verify(jdbcTemplate).update(any(String.class), eq(88L), eq(100L));
+    }
+
+    @Test
+    void handlePlanReportSubmitted_shouldResumeExistingResumableInstanceBeforeStartingNewOne() {
+        AuditInstance resumable = new AuditInstance();
+        resumable.setId(77L);
+        resumable.setStatus(AuditInstance.STATUS_REJECTED);
+
+        AuditStepInstance returnedSubmit = new AuditStepInstance();
+        returnedSubmit.setStepNo(3);
+        returnedSubmit.setStepName("填报人提交");
+        returnedSubmit.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        returnedSubmit.setApproverId(66L);
+        resumable.addStepInstance(returnedSubmit);
+
+        when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.ResultSetExtractor.class), eq(100L)))
+                .thenReturn(ReportOrgType.FUNC_DEPT, 77L);
+        when(auditInstanceRepository.findById(77L)).thenReturn(Optional.of(resumable));
+        when(workflowApplicationService.resumeWithdrawnAuditInstance(resumable)).thenReturn(resumable);
+
+        listener.handlePlanReportSubmitted(new PlanReportSubmittedEvent(100L, "2026-03", 200L, 66L));
+
+        verify(workflowApplicationService).resumeWithdrawnAuditInstance(resumable);
+        verify(businessWorkflowApplicationService, never()).startWorkflow(any(), any(), any());
+        verify(jdbcTemplate).update(any(String.class), eq(77L), eq(100L));
     }
 
     @Test
     void handlePlanReportApproved_shouldSyncActiveWorkflowInstance() {
-        PlanReport report = PlanReport.createDraft("2026-03", 200L, ReportOrgType.FUNC_DEPT, 300L);
-        report.setId(100L);
-        report.setStatus(PlanReport.STATUS_APPROVED);
-
         AuditInstance instance = new AuditInstance();
         instance.setStatus(AuditInstance.STATUS_PENDING);
         AuditStepInstance step = new AuditStepInstance();
         step.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(step);
 
-        when(planReportRepository.findById(100L)).thenReturn(Optional.of(report));
+        when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.ResultSetExtractor.class), eq(100L)))
+                .thenReturn("APPROVED");
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN_REPORT", 100L))
                 .thenReturn(List.of());
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", 100L))
@@ -91,17 +115,14 @@ class ReportWorkflowEventListenerTest {
 
     @Test
     void handlePlanReportRejected_shouldSyncActiveWorkflowInstance() {
-        PlanReport report = PlanReport.createDraft("2026-03", 200L, ReportOrgType.FUNC_DEPT, 300L);
-        report.setId(100L);
-        report.setStatus(PlanReport.STATUS_REJECTED);
-
         AuditInstance instance = new AuditInstance();
         instance.setStatus(AuditInstance.STATUS_PENDING);
         AuditStepInstance step = new AuditStepInstance();
         step.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(step);
 
-        when(planReportRepository.findById(100L)).thenReturn(Optional.of(report));
+        when(jdbcTemplate.query(any(String.class), any(org.springframework.jdbc.core.ResultSetExtractor.class), eq(100L)))
+                .thenReturn("REJECTED");
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN_REPORT", 100L))
                 .thenReturn(List.of());
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", 100L))

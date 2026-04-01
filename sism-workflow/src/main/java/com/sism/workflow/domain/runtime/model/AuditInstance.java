@@ -204,7 +204,7 @@ public class AuditInstance extends AggregateRoot<Long> {
     }
 
     public void reactivateWithdrawnStep() {
-        if (!STATUS_PENDING.equals(status) && !STATUS_WITHDRAWN.equals(status)) {
+        if (!STATUS_PENDING.equals(status) && !STATUS_WITHDRAWN.equals(status) && !STATUS_REJECTED.equals(status)) {
             throw new IllegalStateException("Cannot reactivate: workflow is not in a resumable state");
         }
         AuditStepInstance withdrawnStep = stepInstances.stream()
@@ -214,7 +214,7 @@ public class AuditInstance extends AggregateRoot<Long> {
                         .thenComparing(step -> step.getCreatedAt() == null ? LocalDateTime.MIN : step.getCreatedAt()))
                 .orElseThrow(() -> new IllegalStateException("Cannot reactivate: no withdrawn step available"));
 
-        if (Integer.valueOf(1).equals(withdrawnStep.getStepNo())) {
+        if (isRequesterSubmitStep(withdrawnStep)) {
             withdrawnStep.setStatus(STEP_STATUS_APPROVED);
             withdrawnStep.setComment("系统自动完成提交流程节点");
             withdrawnStep.setApprovedAt(LocalDateTime.now());
@@ -237,6 +237,23 @@ public class AuditInstance extends AggregateRoot<Long> {
 
         this.status = STATUS_PENDING;
         this.completedAt = null;
+    }
+
+    private boolean isRequesterSubmitStep(AuditStepInstance step) {
+        if (step == null) {
+            return false;
+        }
+
+        if (Integer.valueOf(1).equals(step.getStepNo())) {
+            return true;
+        }
+
+        if (requesterId != null && requesterId.equals(step.getApproverId())) {
+            return true;
+        }
+
+        String stepName = step.getStepName();
+        return stepName != null && stepName.contains("提交");
     }
 
     public void start(Long requesterId, Long requesterOrgId) {
