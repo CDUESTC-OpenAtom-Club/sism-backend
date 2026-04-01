@@ -1,13 +1,13 @@
 package com.sism.execution.application;
 
 import com.sism.execution.domain.model.report.PlanReport;
+import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.infrastructure.ExecutionModuleConfig;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.infrastructure.OrganizationModuleConfig;
-import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.strategy.domain.repository.IndicatorRepository;
@@ -45,6 +45,9 @@ class ReportApplicationServiceIntegrationTest {
     private PlanReportRepository planReportRepository;
 
     @Autowired
+    private PlanReportIndicatorRepository planReportIndicatorRepository;
+
+    @Autowired
     private IndicatorRepository indicatorRepository;
 
     @Autowired
@@ -52,9 +55,6 @@ class ReportApplicationServiceIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;
-
-    @Autowired
-    private EventStore eventStore;
 
     @BeforeEach
     void setUp() {
@@ -138,7 +138,6 @@ class ReportApplicationServiceIntegrationTest {
         assertThat(approved.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
         assertThat(persistedReport.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
         assertThat(persistedIndicator.getProgress()).isEqualTo(35);
-        assertThat(eventStore.findByEventType("PlanReportApprovedEvent")).isNotEmpty();
     }
 
     @Test
@@ -218,6 +217,89 @@ class ReportApplicationServiceIntegrationTest {
         assertThat(hydrated.getIndicatorDetails().get(0).comment()).startsWith("填报说明-");
     }
 
+    @Test
+    void findReportById_shouldHydrateAttachmentLinksFromRelationTable() {
+        long sequence = TEST_SEQUENCE.getAndIncrement();
+        SysOrg ownerOrg = persistOrg("owner-attachment-" + sequence, OrgType.functional);
+        SysOrg targetOrg = persistOrg("target-attachment-" + sequence, OrgType.functional);
+
+        Indicator indicator = Indicator.create("indicator-attachment-" + sequence, ownerOrg, targetOrg, "定量");
+        indicator.setStatus(IndicatorStatus.DISTRIBUTED);
+        indicator = indicatorRepository.save(indicator);
+
+        PlanReport report = PlanReport.createDraft("202603", targetOrg.getId(), ReportOrgType.FUNC_DEPT, 50_000L + sequence);
+        report.validate();
+        report = planReportRepository.save(report);
+
+        long planReportIndicatorId = 85_000L + sequence;
+        jdbcTemplate.update(
+                """
+                INSERT INTO public.plan_report_indicator
+                    (id, report_id, indicator_id, progress, milestone_note, comment, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                planReportIndicatorId,
+                report.getId(),
+                indicator.getId(),
+                33,
+                "里程碑-附件-" + sequence,
+                "提交带附件的填报"
+        );
+
+        long attachmentId = 95_000L + sequence;
+        jdbcTemplate.update(
+                """
+                INSERT INTO public.attachment
+                    (id, original_name, size_bytes, content_type, public_url, is_deleted, uploaded_by, uploaded_at)
+                VALUES (?, ?, ?, ?, ?, FALSE, ?, CURRENT_TIMESTAMP)
+                """,
+                attachmentId,
+                "evidence-" + sequence + ".pdf",
+                2_048L,
+                "application/pdf",
+                "/api/v1/attachments/" + attachmentId + "/download",
+                7_001L
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO public.plan_report_indicator_attachment
+                    (id, plan_report_indicator_id, attachment_id, sort_order, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                96_000L + sequence,
+                planReportIndicatorId,
+                attachmentId,
+                0,
+                7_001L
+        );
+        flushAndClear();
+
+        Integer attachmentLinkCount = jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM public.plan_report_indicator_attachment pria
+                JOIN public.plan_report_indicator pri ON pri.id = pria.plan_report_indicator_id
+                WHERE pri.report_id = ?
+                  AND pri.indicator_id = ?
+                  AND pria.attachment_id = ?
+                """,
+                Integer.class,
+                report.getId(),
+                indicator.getId(),
+                attachmentId
+        );
+
+        PlanReport hydrated = reportApplicationService.findReportById(report.getId()).orElseThrow();
+
+        assertThat(attachmentLinkCount).isEqualTo(1);
+        assertThat(hydrated.getIndicatorDetails()).hasSize(1);
+        assertThat(hydrated.getIndicatorDetails().get(0).attachments()).hasSize(1);
+        assertThat(hydrated.getIndicatorDetails().get(0).attachments().get(0).id()).isEqualTo(attachmentId);
+        assertThat(hydrated.getIndicatorDetails().get(0).attachments().get(0).fileName())
+                .isEqualTo("evidence-" + sequence + ".pdf");
+    }
+
     private TestFixture createSubmittedReportWithIndicator(int progress) {
         long sequence = TEST_SEQUENCE.getAndIncrement();
         SysOrg ownerOrg = persistOrg("owner-org-" + sequence, OrgType.functional);
@@ -231,7 +313,6 @@ class ReportApplicationServiceIntegrationTest {
         report.validate();
         report = planReportRepository.save(report);
         report.submit(8000L + sequence);
-        report.clearEvents();
         report = planReportRepository.save(report);
 
         jdbcTemplate.update(

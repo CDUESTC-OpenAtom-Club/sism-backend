@@ -180,14 +180,81 @@ class PlanWorkflowSyncServiceTest {
 
         AuditStepInstance returnedSubmitStep = new AuditStepInstance();
         returnedSubmitStep.setStepNo(3);
+        returnedSubmitStep.setStepName("填报人提交");
         returnedSubmitStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
         returnedSubmitStep.setComment("驳回后退回填报人重新提交");
+        returnedSubmitStep.setApproverId(268L);
         instance.addStepInstance(returnedSubmitStep);
 
         service.syncAfterWorkflowChanged(instance);
 
+        verify(reportApplicationService).markWorkflowReturnedForResubmission(202L, null);
         verify(reportApplicationService, never()).markWorkflowWithdrawn(202L);
         verify(reportApplicationService, never()).markWorkflowRejected(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
         verify(reportApplicationService, never()).markWorkflowApproved(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong());
+    }
+
+    @Test
+    void shouldResetPlanReportToDraftWhenCurrentInstanceReturnsToSubmitStep() {
+        when(reportApplicationServiceProvider.getIfAvailable()).thenReturn(reportApplicationService);
+
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
+        AuditInstance instance = new AuditInstance();
+        instance.setId(303L);
+        instance.setEntityId(203L);
+        instance.setEntityType("PLAN_REPORT");
+        instance.setRequesterId(191L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance rejectedStep = new AuditStepInstance();
+        rejectedStep.setStepNo(2);
+        rejectedStep.setStatus(AuditInstance.STEP_STATUS_REJECTED);
+        instance.addStepInstance(rejectedStep);
+
+        AuditStepInstance returnedSubmitStep = new AuditStepInstance();
+        returnedSubmitStep.setStepNo(3);
+        returnedSubmitStep.setStepName("填报人提交");
+        returnedSubmitStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        returnedSubmitStep.setApproverId(191L);
+        instance.addStepInstance(returnedSubmitStep);
+
+        service.syncAfterWorkflowChanged(instance);
+
+        verify(reportApplicationService).markWorkflowReturnedForResubmission(203L, 303L);
+    }
+
+    @Test
+    void shouldResetPlanReportToDraftWhenReturnedSubmitStepIsFollowedByWaitingReplayStep() {
+        when(reportApplicationServiceProvider.getIfAvailable()).thenReturn(reportApplicationService);
+
+        PlanWorkflowSyncService service = new PlanWorkflowSyncService(planApplicationServiceProvider, reportApplicationServiceProvider);
+        AuditInstance instance = new AuditInstance();
+        instance.setId(404L);
+        instance.setEntityId(204L);
+        instance.setEntityType("PLAN_REPORT");
+        instance.setRequesterId(191L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance rejectedStep = new AuditStepInstance();
+        rejectedStep.setStepNo(2);
+        rejectedStep.setStatus(AuditInstance.STEP_STATUS_REJECTED);
+        instance.addStepInstance(rejectedStep);
+
+        AuditStepInstance returnedSubmitStep = new AuditStepInstance();
+        returnedSubmitStep.setStepNo(3);
+        returnedSubmitStep.setStepName("填报人提交");
+        returnedSubmitStep.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        returnedSubmitStep.setApproverId(191L);
+        instance.addStepInstance(returnedSubmitStep);
+
+        AuditStepInstance waitingReplayStep = new AuditStepInstance();
+        waitingReplayStep.setStepNo(4);
+        waitingReplayStep.setStepName("职能部门审批人审批");
+        waitingReplayStep.setStatus(AuditInstance.STEP_STATUS_WAITING);
+        instance.addStepInstance(waitingReplayStep);
+
+        service.syncAfterWorkflowChanged(instance);
+
+        verify(reportApplicationService).markWorkflowReturnedForResubmission(204L, 404L);
     }
 }

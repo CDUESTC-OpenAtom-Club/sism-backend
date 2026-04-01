@@ -271,6 +271,16 @@ public class PlanApplicationService {
     }
 
     @Transactional
+    public void markWorkflowPending(Long planId) {
+        planRepository.findById(planId).ifPresent(plan -> {
+            if (!PlanStatus.PENDING.value().equals(plan.getStatus())) {
+                plan.submitForApproval(true);
+                planRepository.save(plan);
+            }
+        });
+    }
+
+    @Transactional
     public void markWorkflowRejected(Long planId, String reason) {
         planRepository.findById(planId).ifPresent(plan -> {
             plan.returnForRevision();
@@ -302,7 +312,7 @@ public class PlanApplicationService {
                 ORDER BY asi.approved_at DESC NULLS LAST, asi.id DESC
                 LIMIT 1
                 """,
-                (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2)),
+                (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2), null, true, null),
                 workflowInstanceId
         );
 
@@ -340,14 +350,26 @@ public class PlanApplicationService {
 
         List<WorkflowStepRow> withdrawnSteps = jdbcTemplate.query(
                 """
-                SELECT asi.id, asi.step_no
+                SELECT asi.id,
+                       asi.step_no,
+                       asi.step_def_id,
+                       COALESCE(UPPER(asd.step_type), '') = 'SUBMIT' AS is_submit,
+                       ai.requester_org_id
                 FROM public.audit_step_instance asi
+                JOIN public.audit_instance ai ON ai.id = asi.instance_id
+                LEFT JOIN public.audit_step_def asd ON asd.id = asi.step_def_id
                 WHERE asi.instance_id = ?
                   AND asi.status = 'WITHDRAWN'
                 ORDER BY asi.step_no DESC NULLS LAST, asi.id DESC
                 LIMIT 1
                 """,
-                (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2)),
+                (rs, _rowNum) -> new WorkflowStepRow(
+                        rs.getLong(1),
+                        rs.getInt(2),
+                        rs.getLong(3),
+                        rs.getBoolean(4),
+                        rs.getLong(5)
+                ),
                 workflowInstanceId
         );
 
@@ -356,7 +378,7 @@ public class PlanApplicationService {
         }
 
         WorkflowStepRow withdrawnStep = withdrawnSteps.get(0);
-        if (withdrawnStep.stepNo() == 1) {
+        if (withdrawnStep.isSubmitStep()) {
             jdbcTemplate.update("""
                     UPDATE public.audit_step_instance
                     SET status = 'APPROVED',
@@ -364,7 +386,8 @@ public class PlanApplicationService {
                         comment = '系统自动完成提交流程节点'
                     WHERE id = ?
                     """, withdrawnStep.id());
-            jdbcTemplate.update("""
+
+            int restoredWaitingRows = jdbcTemplate.update("""
                     UPDATE public.audit_step_instance
                     SET status = 'PENDING'
                     WHERE id = (
@@ -377,6 +400,47 @@ public class PlanApplicationService {
                         LIMIT 1
                     )
                     """, workflowInstanceId);
+
+            if (restoredWaitingRows == 0) {
+                jdbcTemplate.update("""
+                        INSERT INTO public.audit_step_instance (
+                            instance_id,
+                            step_no,
+                            step_name,
+                            step_def_id,
+                            status,
+                            approver_id,
+                            approver_org_id,
+                            comment,
+                            approved_at,
+                            created_at
+                        )
+                        SELECT
+                            ai.id,
+                            COALESCE((
+                                SELECT MAX(existing.step_no)
+                                FROM public.audit_step_instance existing
+                                WHERE existing.instance_id = ai.id
+                            ), 0) + 1,
+                            next_def.step_name,
+                            next_def.id,
+                            'PENDING',
+                            NULL,
+                            ai.requester_org_id,
+                            NULL,
+                            NULL,
+                            CURRENT_TIMESTAMP
+                        FROM public.audit_instance ai
+                        JOIN public.audit_step_def current_def ON current_def.id = ?
+                        JOIN public.audit_step_def next_def
+                          ON next_def.flow_id = ai.flow_def_id
+                         AND next_def.step_no = current_def.step_no + 1
+                        WHERE ai.id = ?
+                        """,
+                        withdrawnStep.stepDefId(),
+                        workflowInstanceId
+                );
+            }
         } else {
             jdbcTemplate.update("""
                     UPDATE public.audit_step_instance
@@ -396,7 +460,7 @@ public class PlanApplicationService {
         return true;
     }
 
-    private record WorkflowStepRow(Long id, Integer stepNo) {}
+    private record WorkflowStepRow(Long id, Integer stepNo, Long stepDefId, boolean isSubmitStep, Long requesterOrgId) {}
 
     /**
      * 归档计划

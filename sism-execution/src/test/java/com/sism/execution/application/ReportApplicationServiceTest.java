@@ -230,6 +230,24 @@ class ReportApplicationServiceTest {
     }
 
     @Test
+    void markWorkflowReturnedForResubmission_shouldResetDraftStateAndKeepAuditLink() {
+        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
+        report.setId(20L);
+        report.setStatus(PlanReport.STATUS_SUBMITTED);
+        report.setAuditInstanceId(902L);
+        report.setSubmittedAt(java.time.LocalDateTime.now());
+
+        when(planReportRepository.findById(20L)).thenReturn(Optional.of(report));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlanReport updated = reportApplicationService.markWorkflowReturnedForResubmission(20L, 902L);
+
+        assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
+        assertThat(updated.getAuditInstanceId()).isEqualTo(902L);
+        assertThat(updated.getSubmittedAt()).isNull();
+    }
+
+    @Test
     void updateReport_shouldPersistIndicatorDraftDetailWhenIndicatorIdProvided() {
         PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         report.setId(12L);

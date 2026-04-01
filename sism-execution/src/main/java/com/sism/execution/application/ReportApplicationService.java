@@ -348,6 +348,19 @@ public class ReportApplicationService {
         return enrichReportMetadata(planReportRepository.save(report));
     }
 
+    @Transactional
+    public PlanReport markWorkflowReturnedForResubmission(Long reportId, Long auditInstanceId) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+        report.setStatus(PlanReport.STATUS_DRAFT);
+        report.setSubmittedAt(null);
+        if (auditInstanceId != null && auditInstanceId > 0) {
+            report.setAuditInstanceId(auditInstanceId);
+        }
+        report.setUpdatedAt(LocalDateTime.now());
+        return enrichReportMetadata(planReportRepository.save(report));
+    }
+
     private void createNextMonthlyDraftAfterTerminalApproval(PlanReport approvedReport) {
         if (approvedReport == null || !PlanReport.STATUS_APPROVED.equals(approvedReport.getStatus())) {
             return;

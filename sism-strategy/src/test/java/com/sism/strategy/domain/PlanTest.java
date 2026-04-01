@@ -120,7 +120,7 @@ class PlanTest {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
         plan.submitForApproval();
 
-        plan.withdrawToDistributed();
+        plan.withdraw();
 
         assertEquals("DISTRIBUTED", plan.getStatus());
         assertNotNull(plan.getUpdatedAt());

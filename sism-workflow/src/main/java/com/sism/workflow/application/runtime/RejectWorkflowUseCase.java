@@ -106,6 +106,7 @@ public class RejectWorkflowUseCase {
         if (returnedStepDef.isSubmitStep()) {
             returnedStep.setComment("驳回后退回填报人重新提交");
             returnedStep.setApprovedAt(null);
+            appendWaitingReplayStep(instance, rejectedStepDef);
         }
 
         log.info("Reject workflow instance {} appended returned step defId={}, stepNo={}, approverId={}",
@@ -144,5 +145,22 @@ public class RejectWorkflowUseCase {
 
     private boolean isTerminalStep(AuditStepDef stepDef) {
         return stepDef != null && Boolean.TRUE.equals(stepDef.getIsTerminal());
+    }
+
+    private void appendWaitingReplayStep(AuditInstance instance, AuditStepDef rejectedStepDef) {
+        if (instance == null || rejectedStepDef == null || rejectedStepDef.isSubmitStep()) {
+            return;
+        }
+
+        AuditStepInstance replayStep = new AuditStepInstance();
+        replayStep.setStepNo(instance.nextStepInstanceNo());
+        replayStep.setStepDefId(rejectedStepDef.getId());
+        replayStep.setStepName(rejectedStepDef.getStepName());
+        replayStep.setApproverId(null);
+        replayStep.setApproverOrgId(
+                approverResolver.resolveApproverOrgId(rejectedStepDef, instance.getRequesterOrgId(), instance)
+        );
+        replayStep.setStatus(AuditInstance.STEP_STATUS_WAITING);
+        instance.addStepInstance(replayStep);
     }
 }

@@ -5,6 +5,7 @@ import com.sism.execution.domain.model.report.event.PlanReportApprovedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportRejectedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.model.AuditStepInstance;
 import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * ReportWorkflowEventListener - 报告相关事件的工作流监听器
@@ -39,6 +43,7 @@ public class ReportWorkflowEventListener {
     private static final String REPORT_STATUS_REJECTED = "REJECTED";
 
     private final BusinessWorkflowApplicationService businessWorkflowService;
+    private final WorkflowApplicationService workflowApplicationService;
     private final AuditInstanceRepository auditInstanceRepository;
     private final JdbcTemplate jdbcTemplate;
 
@@ -72,6 +77,33 @@ public class ReportWorkflowEventListener {
             );
             if (reportOrgType == null) {
                 throw new IllegalArgumentException("Report not found: " + event.getReportId());
+            }
+
+            Long auditInstanceId = jdbcTemplate.query(
+                    """
+                    SELECT audit_instance_id
+                    FROM public.plan_report
+                    WHERE id = ?
+                    """,
+                    rs -> rs.next() ? rs.getObject("audit_instance_id", Long.class) : null,
+                    event.getReportId()
+            );
+
+            AuditInstance resumableInstance = findResumableReportInstance(event.getReportId(), auditInstanceId);
+            if (resumableInstance != null) {
+                AuditInstance resumed = workflowApplicationService.resumeWithdrawnAuditInstance(resumableInstance);
+                jdbcTemplate.update(
+                        """
+                        UPDATE public.plan_report
+                        SET audit_instance_id = ?
+                        WHERE id = ?
+                        """,
+                        resumed.getId(),
+                        event.getReportId()
+                );
+                log.info("✅ 已恢复既有报告审批实例 - instanceId: {}, reportId: {}",
+                        resumed.getId(), event.getReportId());
+                return;
             }
 
             // 构建工作流启动请求
@@ -253,5 +285,58 @@ public class ReportWorkflowEventListener {
             return "PLAN_APPROVAL_COLLEGE";
         }
         return "PLAN_APPROVAL_FUNCDEPT";
+    }
+
+    private AuditInstance findResumableReportInstance(Long reportId, Long boundAuditInstanceId) {
+        if (boundAuditInstanceId != null && boundAuditInstanceId > 0) {
+            AuditInstance boundInstance = auditInstanceRepository.findById(boundAuditInstanceId).orElse(null);
+            if (isResumableReportInstance(boundInstance)) {
+                return boundInstance;
+            }
+        }
+
+        List<AuditInstance> candidates = java.util.stream.Stream.concat(
+                        auditInstanceRepository.findByBusinessTypeAndBusinessId(PLAN_REPORT_ENTITY_TYPE, reportId).stream(),
+                        auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", reportId).stream())
+                .distinct()
+                .toList();
+
+        return candidates.stream()
+                .filter(this::isResumableReportInstance)
+                .max(Comparator
+                        .comparing(AuditInstance::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(AuditInstance::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .orElse(null);
+    }
+
+    private boolean isResumableReportInstance(AuditInstance instance) {
+        if (instance == null) {
+            return false;
+        }
+
+        String status = String.valueOf(instance.getStatus()).trim().toUpperCase();
+        if (!AuditInstance.STATUS_PENDING.equals(status)
+                && !AuditInstance.STATUS_REJECTED.equals(status)
+                && !AuditInstance.STATUS_WITHDRAWN.equals(status)) {
+            return false;
+        }
+
+        return instance.getStepInstances().stream()
+                .anyMatch(step -> AuditInstance.STEP_STATUS_WITHDRAWN.equals(step.getStatus())
+                        && isSubmitterReturnStep(step, instance));
+    }
+
+    private boolean isSubmitterReturnStep(AuditStepInstance step, AuditInstance instance) {
+        if (step == null) {
+            return false;
+        }
+
+        if (instance != null && instance.getRequesterId() != null
+                && instance.getRequesterId().equals(step.getApproverId())) {
+            return true;
+        }
+
+        String stepName = step.getStepName();
+        return stepName != null && stepName.contains("提交");
     }
 }
