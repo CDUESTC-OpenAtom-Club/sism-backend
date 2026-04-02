@@ -164,20 +164,17 @@ public class PlanWorkflowSnapshotQueryService {
             snapshot.setCurrentApproverName(resolveUserName(approverId));
         }
 
-        List<?> handledSteps = entityManager.createNativeQuery("""
-                SELECT COUNT(1)
-                FROM audit_step_instance asi
-                WHERE asi.instance_id = :instanceId
-                  AND asi.status IN ('APPROVED', 'REJECTED')
-                """)
-                .setParameter("instanceId", instance.getInstanceId())
-                .getResultList();
-        long handledCount = handledSteps.isEmpty() ? 0L : ((Number) handledSteps.get(0)).longValue();
         boolean hasCurrentPendingStep = !currentSteps.isEmpty()
                 && "PENDING".equalsIgnoreCase(asString(((Object[]) currentSteps.get(0))[2]));
+        Integer currentPendingStepNo = !currentSteps.isEmpty()
+                ? asInteger(fetchCurrentPendingStepNo(instance.getInstanceId()))
+                : null;
+        boolean previousSubmitApproved = currentPendingStepNo != null
+                && currentPendingStepNo > 1
+                && hasApprovedSubmitStep(instance.getInstanceId(), currentPendingStepNo - 1);
         boolean canWithdraw = "IN_REVIEW".equalsIgnoreCase(snapshot.getWorkflowStatus())
                 && hasCurrentPendingStep
-                && handledCount <= 1L;
+                && previousSubmitApproved;
         snapshot.setCanWithdraw(canWithdraw);
         snapshot.setLastRejectReason(findLastRejectReason(instance.getInstanceId()));
         return snapshot;
@@ -236,22 +233,6 @@ public class PlanWorkflowSnapshotQueryService {
             return;
         }
 
-        List<?> handledCounts = entityManager.createNativeQuery("""
-                SELECT asi.instance_id, COUNT(1)
-                FROM audit_step_instance asi
-                WHERE asi.instance_id IN :instanceIds
-                  AND asi.status IN ('APPROVED', 'REJECTED')
-                GROUP BY asi.instance_id
-                """)
-                .setParameter("instanceIds", instanceIds)
-                .getResultList();
-
-        Map<Long, Long> handledCountByInstanceId = new HashMap<>();
-        for (Object row : handledCounts) {
-            Object[] columns = (Object[]) row;
-            handledCountByInstanceId.put(asLong(columns[0]), ((Number) columns[1]).longValue());
-        }
-
         List<?> pendingCounts = entityManager.createNativeQuery("""
                 SELECT asi.instance_id, COUNT(1)
                 FROM audit_step_instance asi
@@ -273,14 +254,47 @@ public class PlanWorkflowSnapshotQueryService {
             if (snapshot == null) {
                 return;
             }
-            long handledCount = handledCountByInstanceId.getOrDefault(instanceId, 0L);
             long pendingStepCount = pendingCountByInstanceId.getOrDefault(instanceId, 0L);
             boolean hasCurrentPendingStep = pendingStepCount > 0L;
+            Integer currentPendingStepNo = asInteger(fetchCurrentPendingStepNo(instanceId));
+            boolean previousSubmitApproved = currentPendingStepNo != null
+                    && currentPendingStepNo > 1
+                    && hasApprovedSubmitStep(instanceId, currentPendingStepNo - 1);
             boolean canWithdraw = "IN_REVIEW".equalsIgnoreCase(snapshot.getWorkflowStatus())
                     && hasCurrentPendingStep
-                    && handledCount <= 1L;
+                    && previousSubmitApproved;
             snapshot.setCanWithdraw(canWithdraw);
         });
+    }
+
+    private Object fetchCurrentPendingStepNo(Long instanceId) {
+        List<?> rows = entityManager.createNativeQuery("""
+                SELECT asi.step_no
+                FROM audit_step_instance asi
+                WHERE asi.instance_id = :instanceId
+                  AND asi.status = 'PENDING'
+                ORDER BY asi.step_no DESC, asi.id DESC
+                LIMIT 1
+                """)
+                .setParameter("instanceId", instanceId)
+                .getResultList();
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private boolean hasApprovedSubmitStep(Long instanceId, int stepNo) {
+        List<?> rows = entityManager.createNativeQuery("""
+                SELECT COUNT(1)
+                FROM audit_step_instance asi
+                WHERE asi.instance_id = :instanceId
+                  AND asi.step_no = :stepNo
+                  AND asi.status = 'APPROVED'
+                  AND asi.step_name LIKE '%提交%'
+                """)
+                .setParameter("instanceId", instanceId)
+                .setParameter("stepNo", stepNo)
+                .getResultList();
+        long count = rows.isEmpty() ? 0L : ((Number) rows.get(0)).longValue();
+        return count > 0L;
     }
 
     private void hydrateLastRejectReasons(List<Long> instanceIds,
@@ -455,6 +469,10 @@ public class PlanWorkflowSnapshotQueryService {
 
     private Long asLong(Object value) {
         return value instanceof Number number ? number.longValue() : null;
+    }
+
+    private Integer asInteger(Object value) {
+        return value instanceof Number number ? number.intValue() : null;
     }
 
     private LocalDateTime asLocalDateTime(Object value) {

@@ -31,21 +31,21 @@ public class AuthService {
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
         if (request.getUsername() == null || request.getUsername().isBlank()) {
-            throw new IllegalArgumentException("Username is required");
+            throw new IllegalArgumentException("请输入用户名");
         }
         if (request.getPassword() == null || request.getPassword().isBlank()) {
-            throw new IllegalArgumentException("Password is required");
+            throw new IllegalArgumentException("请输入密码");
         }
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid username or password"));
+                .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Invalid username or password");
+            throw new IllegalArgumentException("用户名或密码错误");
         }
 
         if (!user.getIsActive()) {
-            throw new IllegalStateException("User account is not active");
+            throw new IllegalStateException("账号已被禁用，请联系管理员");
         }
 
         List<String> roleCodes = userRepository.findRoleCodesByUserId(user.getId());

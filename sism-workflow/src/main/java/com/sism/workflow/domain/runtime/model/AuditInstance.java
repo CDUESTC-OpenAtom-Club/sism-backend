@@ -19,7 +19,7 @@ import java.util.Optional;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "WorkflowAuditInstance")
 @Table(name = "audit_instance")
 @Where(clause = "is_deleted = false")
 @Access(AccessType.FIELD)
@@ -34,6 +34,7 @@ public class AuditInstance extends AggregateRoot<Long> {
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
     public static final String STATUS_WITHDRAWN = "WITHDRAWN";
+    public static final String STATUS_RETURNED = "RETURNED";
     public static final String STEP_STATUS_PENDING = "PENDING";
     public static final String STEP_STATUS_WAITING = "WAITING";
     public static final String STEP_STATUS_APPROVED = "APPROVED";
@@ -182,8 +183,12 @@ public class AuditInstance extends AggregateRoot<Long> {
                 .orElseThrow(() -> new IllegalStateException("Cannot cancel: no pending step available"));
 
         AuditStepInstance submitStep = stepInstances.stream()
-                .filter(step -> Integer.valueOf(1).equals(step.getStepNo()))
-                .findFirst()
+                .filter(step -> STEP_STATUS_APPROVED.equals(step.getStatus()))
+                .filter(this::isRequesterSubmitStep)
+                .max(Comparator
+                        .comparing((AuditStepInstance step) -> step.getStepNo() == null ? Integer.MIN_VALUE : step.getStepNo())
+                        .thenComparing(step -> step.getApprovedAt() == null ? LocalDateTime.MIN : step.getApprovedAt())
+                        .thenComparing(step -> step.getId() == null ? Long.MIN_VALUE : step.getId()))
                 .orElse(current);
 
         submitStep.setStatus(STEP_STATUS_WITHDRAWN);
@@ -219,16 +224,20 @@ public class AuditInstance extends AggregateRoot<Long> {
             withdrawnStep.setComment("系统自动完成提交流程节点");
             withdrawnStep.setApprovedAt(LocalDateTime.now());
 
-            stepInstances.stream()
+            Optional<AuditStepInstance> waitingReplayStep = stepInstances.stream()
                     .filter(step -> !step.equals(withdrawnStep))
                     .filter(step -> STEP_STATUS_WAITING.equals(step.getStatus()))
                     .sorted(Comparator.comparing(step -> step.getStepNo() == null ? Integer.MAX_VALUE : step.getStepNo()))
-                    .findFirst()
-                    .ifPresent(step -> {
-                        step.setStatus(STEP_STATUS_PENDING);
-                        step.setComment(null);
-                        step.setApprovedAt(null);
-                    });
+                    .findFirst();
+
+            if (waitingReplayStep.isPresent()) {
+                AuditStepInstance step = waitingReplayStep.get();
+                step.setStatus(STEP_STATUS_PENDING);
+                step.setComment(null);
+                step.setApprovedAt(null);
+            } else {
+                appendReplayStepFromLatestRejectedStep();
+            }
         } else {
             withdrawnStep.setStatus(STEP_STATUS_PENDING);
             withdrawnStep.setComment(null);
@@ -254,6 +263,31 @@ public class AuditInstance extends AggregateRoot<Long> {
 
         String stepName = step.getStepName();
         return stepName != null && stepName.contains("提交");
+    }
+
+    private void appendReplayStepFromLatestRejectedStep() {
+        AuditStepInstance latestRejectedStep = stepInstances.stream()
+                .filter(step -> STEP_STATUS_REJECTED.equals(step.getStatus()))
+                .filter(step -> !isRequesterSubmitStep(step))
+                .max(Comparator
+                        .comparing((AuditStepInstance step) -> step.getStepNo() == null ? Integer.MIN_VALUE : step.getStepNo())
+                        .thenComparing(step -> step.getCreatedAt() == null ? LocalDateTime.MIN : step.getCreatedAt()))
+                .orElse(null);
+
+        if (latestRejectedStep == null) {
+            return;
+        }
+
+        AuditStepInstance replayStep = new AuditStepInstance();
+        replayStep.setStepNo(nextStepInstanceNo());
+        replayStep.setStepDefId(latestRejectedStep.getStepDefId());
+        replayStep.setStepName(latestRejectedStep.getStepName());
+        replayStep.setApproverId(null);
+        replayStep.setApproverOrgId(latestRejectedStep.getApproverOrgId());
+        replayStep.setStatus(STEP_STATUS_PENDING);
+        replayStep.setComment(null);
+        replayStep.setApprovedAt(null);
+        addStepInstance(replayStep);
     }
 
     public void start(Long requesterId, Long requesterOrgId) {
@@ -334,17 +368,27 @@ public class AuditInstance extends AggregateRoot<Long> {
             return false;
         }
 
-        if (resolveCurrentPendingStep().isEmpty()) {
+        AuditStepInstance currentPendingStep = resolveCurrentPendingStep().orElse(null);
+        if (currentPendingStep == null) {
             return false;
         }
 
-        long approvedCount = stepInstances.stream()
-                .filter(step -> STEP_STATUS_APPROVED.equals(step.getStatus()))
-                .count();
-        boolean hasRejectedStep = stepInstances.stream()
-                .anyMatch(step -> STEP_STATUS_REJECTED.equals(step.getStatus()));
+        Integer currentPendingStepNo = currentPendingStep.getStepNo();
+        if (currentPendingStepNo == null || currentPendingStepNo <= 1) {
+            return false;
+        }
 
-        return !hasRejectedStep && approvedCount <= 1;
+        AuditStepInstance previousStep = stepInstances.stream()
+                .filter(step -> step.getStepNo() != null)
+                .filter(step -> step.getStepNo().equals(currentPendingStepNo - 1))
+                .max(java.util.Comparator.comparing(AuditStepInstance::getId, java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
+                .orElse(null);
+
+        if (previousStep == null) {
+            return false;
+        }
+
+        return STEP_STATUS_APPROVED.equals(previousStep.getStatus()) && isRequesterSubmitStep(previousStep);
     }
 
     @PrePersist

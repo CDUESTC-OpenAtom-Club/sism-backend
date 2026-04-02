@@ -1,6 +1,5 @@
-package com.sism.workflow.domain.runtime.model;
+package com.sism.shared.domain.model.workflow;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -9,11 +8,11 @@ import java.time.LocalDateTime;
 
 /**
  * AuditStepInstance - 审批步骤实例
- * Represents a single step in an approval workflow instance.
+ * Represents a single step in an approval workflow instance
  */
 @Getter
 @Setter
-@Entity(name = "WorkflowAuditStepInstance")
+@Entity
 @Table(name = "audit_step_instance")
 public class AuditStepInstance {
 
@@ -23,26 +22,22 @@ public class AuditStepInstance {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "instance_id", nullable = false)
-    @JsonIgnore
     private AuditInstance instance;
 
-    @Column(name = "step_no", nullable = false)
-    private Integer stepNo;
+    @Column(name = "step_index", nullable = false)
+    private Integer stepIndex;
 
     @Column(name = "step_name", nullable = false)
     private String stepName;
 
-    @Column(name = "step_def_id")
-    private Long stepDefId;
-
     @Column(name = "status")
-    private String status;
+    private String status;  // PENDING, APPROVED, REJECTED, SKIPPED
 
     @Column(name = "approver_id")
     private Long approverId;
 
-    @Column(name = "approver_org_id")
-    private Long approverOrgId;
+    @Column(name = "approver_name")
+    private String approverName;
 
     @Column(name = "comment")
     private String comment;

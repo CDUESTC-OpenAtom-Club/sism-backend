@@ -45,6 +45,18 @@ public class PlanWorkflowSyncService {
                 return;
             }
 
+            if (AuditInstance.STATUS_WITHDRAWN.equals(instance.getStatus())) {
+                planApplicationService.markWorkflowWithdrawn(instance.getEntityId());
+                return;
+            }
+
+            if ((AuditInstance.STATUS_PENDING.equals(instance.getStatus())
+                    || AuditInstance.STATUS_RETURNED.equals(instance.getStatus()))
+                    && hasReturnedSubmitStep(instance)) {
+                planApplicationService.markWorkflowWithdrawn(instance.getEntityId());
+                return;
+            }
+
             if (AuditInstance.STATUS_PENDING.equals(instance.getStatus())) {
                 planApplicationService.markWorkflowPending(instance.getEntityId());
                 return;

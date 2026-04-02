@@ -27,7 +27,6 @@ public class RejectWorkflowUseCase {
     private final PlanWorkflowSyncService planWorkflowSyncService;
     private final WorkflowDefinitionQueryService workflowDefinitionQueryService;
     private final ApproverResolver approverResolver;
-
     @Transactional
     public AuditInstance reject(AuditInstance instance, Long userId, String comment) {
         log.info("Rejecting workflow instance {}, before reject step count: {}", instance.getId(), instance.getStepInstances().size());
@@ -106,7 +105,6 @@ public class RejectWorkflowUseCase {
         if (returnedStepDef.isSubmitStep()) {
             returnedStep.setComment("驳回后退回填报人重新提交");
             returnedStep.setApprovedAt(null);
-            appendWaitingReplayStep(instance, rejectedStepDef);
         }
 
         log.info("Reject workflow instance {} appended returned step defId={}, stepNo={}, approverId={}",
@@ -114,7 +112,11 @@ public class RejectWorkflowUseCase {
                 returnedStep.getStepDefId(),
                 returnedStep.getStepNo(),
                 returnedStep.getApproverId());
-        instance.setStatus(AuditInstance.STATUS_PENDING);
+        if (returnedStepDef.isSubmitStep()) {
+            instance.setStatus(AuditInstance.STATUS_WITHDRAWN);
+        } else {
+            instance.setStatus(AuditInstance.STATUS_PENDING);
+        }
         instance.setCompletedAt(null);
     }
 
@@ -147,20 +149,4 @@ public class RejectWorkflowUseCase {
         return stepDef != null && Boolean.TRUE.equals(stepDef.getIsTerminal());
     }
 
-    private void appendWaitingReplayStep(AuditInstance instance, AuditStepDef rejectedStepDef) {
-        if (instance == null || rejectedStepDef == null || rejectedStepDef.isSubmitStep()) {
-            return;
-        }
-
-        AuditStepInstance replayStep = new AuditStepInstance();
-        replayStep.setStepNo(instance.nextStepInstanceNo());
-        replayStep.setStepDefId(rejectedStepDef.getId());
-        replayStep.setStepName(rejectedStepDef.getStepName());
-        replayStep.setApproverId(null);
-        replayStep.setApproverOrgId(
-                approverResolver.resolveApproverOrgId(rejectedStepDef, instance.getRequesterOrgId(), instance)
-        );
-        replayStep.setStatus(AuditInstance.STEP_STATUS_WAITING);
-        instance.addStepInstance(replayStep);
-    }
 }

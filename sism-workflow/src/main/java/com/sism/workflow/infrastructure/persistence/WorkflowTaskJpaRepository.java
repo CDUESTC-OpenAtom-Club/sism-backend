@@ -14,12 +14,12 @@ import java.util.List;
 @Repository
 public interface WorkflowTaskJpaRepository extends JpaRepository<WorkflowTask, Long> {
 
-    @Query("SELECT t FROM WorkflowTask t WHERE t.status = :status")
+    @Query("SELECT t FROM WorkflowRuntimeTask t WHERE t.status = :status")
     List<WorkflowTask> findByStatus(@Param("status") String status);
 
-    @Query("SELECT t FROM WorkflowTask t WHERE t.assigneeId = :assigneeId")
+    @Query("SELECT t FROM WorkflowRuntimeTask t WHERE t.assigneeId = :assigneeId")
     List<WorkflowTask> findByAssigneeId(@Param("assigneeId") Long assigneeId);
 
-    @Query("SELECT t FROM WorkflowTask t WHERE t.workflowId = :workflowId")
+    @Query("SELECT t FROM WorkflowRuntimeTask t WHERE t.workflowId = :workflowId")
     List<WorkflowTask> findByWorkflowId(@Param("workflowId") String workflowId);
 }

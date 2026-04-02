@@ -345,7 +345,9 @@ public class ReportApplicationService {
         report.setSubmittedAt(null);
         report.setAuditInstanceId(null);
         report.setUpdatedAt(LocalDateTime.now());
-        return enrichReportMetadata(planReportRepository.save(report));
+        PlanReport saved = enrichReportMetadata(planReportRepository.save(report));
+        syncPlanStatusToDraft(saved.getPlanId());
+        return saved;
     }
 
     @Transactional
@@ -358,7 +360,30 @@ public class ReportApplicationService {
             report.setAuditInstanceId(auditInstanceId);
         }
         report.setUpdatedAt(LocalDateTime.now());
-        return enrichReportMetadata(planReportRepository.save(report));
+        PlanReport saved = enrichReportMetadata(planReportRepository.save(report));
+        syncPlanStatusToDraft(saved.getPlanId());
+        return saved;
+    }
+
+    private void syncPlanStatusToDraft(Long planId) {
+        if (planId == null || planId <= 0) {
+            return;
+        }
+
+        try {
+            jdbcTemplate.update(
+                    """
+                    UPDATE public.plan
+                    SET status = 'DRAFT',
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    planId
+            );
+        } catch (Exception e) {
+            log.warn("[ReportApplicationService] Failed to sync plan status back to DRAFT for planId={}: {}",
+                    planId, e.getMessage());
+        }
     }
 
     private void createNextMonthlyDraftAfterTerminalApproval(PlanReport approvedReport) {

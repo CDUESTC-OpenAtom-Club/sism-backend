@@ -11,7 +11,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-@Entity
+@Entity(name = "WorkflowAuditStepDef")
 @Table(name = "audit_step_def", schema = "public")
 public class AuditStepDef {
 

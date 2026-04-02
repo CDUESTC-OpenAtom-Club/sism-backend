@@ -236,6 +236,56 @@ class AuditInstanceTest {
         assertEquals(4, instance.resolveCurrentPendingStep().orElseThrow().getStepNo());
     }
 
+    @Test
+    @DisplayName("Should create replay approval step on resubmit when reject flow did not precreate waiting step")
+    void shouldCreateReplayApprovalStepOnResubmitWithoutWaitingStep() {
+        AuditInstance instance = new AuditInstance();
+        instance.setStatus(AuditInstance.STATUS_REJECTED);
+        instance.setRequesterId(100L);
+        instance.setRequesterOrgId(57L);
+
+        AuditStepInstance submitStep = new AuditStepInstance();
+        submitStep.setStepNo(1);
+        submitStep.setStepDefId(11L);
+        submitStep.setStepName("填报人提交");
+        submitStep.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+        submitStep.setApproverId(100L);
+        submitStep.setApproverOrgId(57L);
+
+        AuditStepInstance rejectedApproval = new AuditStepInstance();
+        rejectedApproval.setStepNo(2);
+        rejectedApproval.setStepDefId(12L);
+        rejectedApproval.setStepName("职能部门审批人审批");
+        rejectedApproval.setStatus(AuditInstance.STEP_STATUS_REJECTED);
+        rejectedApproval.setApproverOrgId(88L);
+
+        AuditStepInstance returnedSubmit = new AuditStepInstance();
+        returnedSubmit.setStepNo(3);
+        returnedSubmit.setStepDefId(11L);
+        returnedSubmit.setStepName("填报人提交");
+        returnedSubmit.setStatus(AuditInstance.STEP_STATUS_WITHDRAWN);
+        returnedSubmit.setComment("驳回后退回填报人重新提交");
+        returnedSubmit.setApproverId(100L);
+        returnedSubmit.setApproverOrgId(57L);
+
+        instance.addStepInstance(submitStep);
+        instance.addStepInstance(rejectedApproval);
+        instance.addStepInstance(returnedSubmit);
+
+        instance.reactivateWithdrawnStep();
+
+        assertEquals(AuditInstance.STATUS_PENDING, instance.getStatus());
+        assertEquals(AuditInstance.STEP_STATUS_APPROVED, returnedSubmit.getStatus());
+        assertEquals(4, instance.getStepInstances().size());
+
+        AuditStepInstance replayStep = instance.getStepInstances().get(3);
+        assertEquals(AuditInstance.STEP_STATUS_PENDING, replayStep.getStatus());
+        assertEquals(12L, replayStep.getStepDefId());
+        assertEquals("职能部门审批人审批", replayStep.getStepName());
+        assertEquals(88L, replayStep.getApproverOrgId());
+        assertNull(replayStep.getApproverId());
+    }
+
     private AuditFlowDef buildFlowDef() {
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(1L);
