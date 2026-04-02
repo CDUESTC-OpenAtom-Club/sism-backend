@@ -306,10 +306,16 @@ public class PlanApplicationService {
                 """
                 SELECT asi.id, asi.step_no
                 FROM public.audit_step_instance asi
+                JOIN public.audit_instance ai ON ai.id = asi.instance_id
+                LEFT JOIN public.audit_step_def asd ON asd.id = asi.step_def_id
                 WHERE asi.instance_id = ?
-                  AND asi.step_no = 1
                   AND asi.status = 'APPROVED'
-                ORDER BY asi.approved_at DESC NULLS LAST, asi.id DESC
+                  AND (
+                        COALESCE(UPPER(asd.step_type), '') = 'SUBMIT'
+                        OR asi.step_name LIKE '%提交%'
+                        OR (ai.requester_id IS NOT NULL AND ai.requester_id = asi.approver_id)
+                  )
+                ORDER BY asi.step_no DESC NULLS LAST, asi.approved_at DESC NULLS LAST, asi.id DESC
                 LIMIT 1
                 """,
                 (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2), null, true, null),

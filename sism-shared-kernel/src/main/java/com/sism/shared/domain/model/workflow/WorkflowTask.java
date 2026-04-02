@@ -1,4 +1,4 @@
-package com.sism.workflow.domain.runtime.model;
+package com.sism.shared.domain.model.workflow;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
@@ -10,11 +10,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * WorkflowTask aggregate root - manages workflow task state.
+ * WorkflowTask aggregate root - manages workflow task state
  */
 @Getter
 @Setter
-@Entity(name = "WorkflowRuntimeTask")
+@Entity
 @Table(name = "workflow_task")
 @Access(AccessType.FIELD)
 public class WorkflowTask extends AggregateRoot<Long> {

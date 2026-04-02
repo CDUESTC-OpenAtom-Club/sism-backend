@@ -2,7 +2,6 @@ package com.sism.workflow.application.runtime;
 
 import com.sism.workflow.application.PlanWorkflowSyncService;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
-import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
@@ -35,9 +34,6 @@ class RejectWorkflowUseCaseTest {
 
     @Mock
     private WorkflowDefinitionQueryService workflowDefinitionQueryService;
-
-    @Mock
-    private ApproverResolver approverResolver;
 
     @InjectMocks
     private RejectWorkflowUseCase rejectWorkflowUseCase;
@@ -94,15 +90,13 @@ class RejectWorkflowUseCaseTest {
         AuditInstance saved = rejectWorkflowUseCase.reject(instance, 300L, "打回");
 
         assertEquals(AuditInstance.STATUS_PENDING, saved.getStatus());
-        assertEquals(4, saved.getStepInstances().size());
+        assertEquals(3, saved.getStepInstances().size());
         assertEquals(AuditInstance.STEP_STATUS_REJECTED, saved.getStepInstances().get(1).getStatus());
         assertEquals(AuditInstance.STEP_STATUS_WITHDRAWN, saved.getStepInstances().get(2).getStatus());
         assertEquals(11L, saved.getStepInstances().get(2).getStepDefId());
         assertEquals(3, saved.getStepInstances().get(2).getStepNo());
         assertEquals(100L, saved.getStepInstances().get(2).getApproverId());
         assertEquals("驳回后退回填报人重新提交", saved.getStepInstances().get(2).getComment());
-        assertEquals(AuditInstance.STEP_STATUS_WAITING, saved.getStepInstances().get(3).getStatus());
-        assertEquals(12L, saved.getStepInstances().get(3).getStepDefId());
     }
 
     @Test

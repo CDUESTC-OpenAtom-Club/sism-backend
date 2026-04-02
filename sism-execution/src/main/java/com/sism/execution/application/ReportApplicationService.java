@@ -345,7 +345,45 @@ public class ReportApplicationService {
         report.setSubmittedAt(null);
         report.setAuditInstanceId(null);
         report.setUpdatedAt(LocalDateTime.now());
-        return enrichReportMetadata(planReportRepository.save(report));
+        PlanReport saved = enrichReportMetadata(planReportRepository.save(report));
+        syncPlanStatusToDraft(saved.getPlanId());
+        return saved;
+    }
+
+    @Transactional
+    public PlanReport markWorkflowReturnedForResubmission(Long reportId, Long auditInstanceId) {
+        PlanReport report = planReportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+        report.setStatus(PlanReport.STATUS_DRAFT);
+        report.setSubmittedAt(null);
+        if (auditInstanceId != null && auditInstanceId > 0) {
+            report.setAuditInstanceId(auditInstanceId);
+        }
+        report.setUpdatedAt(LocalDateTime.now());
+        PlanReport saved = enrichReportMetadata(planReportRepository.save(report));
+        syncPlanStatusToDraft(saved.getPlanId());
+        return saved;
+    }
+
+    private void syncPlanStatusToDraft(Long planId) {
+        if (planId == null || planId <= 0) {
+            return;
+        }
+
+        try {
+            jdbcTemplate.update(
+                    """
+                    UPDATE public.plan
+                    SET status = 'DRAFT',
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    planId
+            );
+        } catch (Exception e) {
+            log.warn("[ReportApplicationService] Failed to sync plan status back to DRAFT for planId={}: {}",
+                    planId, e.getMessage());
+        }
     }
 
     @Transactional

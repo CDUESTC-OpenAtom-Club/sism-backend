@@ -7,6 +7,9 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Workflow definition repository.
+ */
 public interface FlowDefinitionRepository {
 
     List<AuditFlowDef> findAll();
