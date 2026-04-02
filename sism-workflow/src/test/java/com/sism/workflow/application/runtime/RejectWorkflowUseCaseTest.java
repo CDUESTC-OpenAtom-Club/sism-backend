@@ -89,7 +89,7 @@ class RejectWorkflowUseCaseTest {
 
         AuditInstance saved = rejectWorkflowUseCase.reject(instance, 300L, "打回");
 
-        assertEquals(AuditInstance.STATUS_PENDING, saved.getStatus());
+        assertEquals(AuditInstance.STATUS_WITHDRAWN, saved.getStatus());
         assertEquals(3, saved.getStepInstances().size());
         assertEquals(AuditInstance.STEP_STATUS_REJECTED, saved.getStepInstances().get(1).getStatus());
         assertEquals(AuditInstance.STEP_STATUS_WITHDRAWN, saved.getStepInstances().get(2).getStatus());
