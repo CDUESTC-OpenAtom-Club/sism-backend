@@ -474,7 +474,7 @@ class PlanApplicationServiceTest {
         when(taskRepository.findByPlanId(21L)).thenReturn(List.of(task));
         when(indicatorRepository.findByTaskId(21001L)).thenReturn(List.of(indicator));
         when(jdbcTemplate.query(
-                contains("asi.step_no = 1"),
+                contains("asi.status = 'APPROVED'"),
                 any(org.springframework.jdbc.core.RowMapper.class),
                 eq(701L)
         )).thenAnswer(invocation -> {

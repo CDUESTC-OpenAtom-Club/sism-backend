@@ -115,14 +115,14 @@ class PlanTest {
     }
 
     @Test
-    @DisplayName("Should withdraw approval Plan back to distributed")
-    void shouldWithdrawApprovalPlanBackToDistributed() {
+    @DisplayName("Should withdraw approval Plan back to draft")
+    void shouldWithdrawApprovalPlanBackToDraft() {
         Plan plan = Plan.create(1L, 1L, 1L, PlanLevel.COMPREHENSIVE);
         plan.submitForApproval();
 
         plan.withdraw();
 
-        assertEquals("DISTRIBUTED", plan.getStatus());
+        assertEquals("DRAFT", plan.getStatus());
         assertNotNull(plan.getUpdatedAt());
     }
 
