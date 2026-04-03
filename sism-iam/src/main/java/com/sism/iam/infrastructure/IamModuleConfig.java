@@ -6,6 +6,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @Configuration
 @EntityScan(basePackages = "com.sism.iam.domain")
-@EnableJpaRepositories(basePackages = "com.sism.iam.infrastructure")
+@EnableJpaRepositories(basePackages = {
+        "com.sism.iam.infrastructure",
+        "com.sism.iam.domain.repository"
+})
 public class IamModuleConfig {
 }
