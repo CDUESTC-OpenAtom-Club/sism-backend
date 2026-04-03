@@ -135,9 +135,6 @@ class WorkflowReadModelServiceTest {
         approver.setRoles(java.util.Set.of(role));
         when(userRepository.findById(101L)).thenReturn(Optional.of(approver));
         when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
-        PlanReport report = PlanReport.createDraft("2026-03", 44L, ReportOrgType.FUNC_DEPT, 501L);
-        report.setId(88L);
-        when(planReportRepository.findById(88L)).thenReturn(Optional.of(report));
         when(userRepository.findRoleIdsByUserId(101L)).thenReturn(List.of(2L));
         when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
@@ -185,10 +182,6 @@ class WorkflowReadModelServiceTest {
         approver.setRoles(java.util.Set.of(role));
         when(userRepository.findById(201L)).thenReturn(Optional.of(approver));
         when(userRepository.findRoleIdsByUserId(201L)).thenReturn(List.of(3L));
-        PlanReport report = PlanReport.createDraft("2026-03", 35L, ReportOrgType.FUNC_DEPT, 999L);
-        report.setId(123L);
-        when(planReportRepository.findById(123L)).thenReturn(Optional.of(report));
-        when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
         when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
 
@@ -227,11 +220,6 @@ class WorkflowReadModelServiceTest {
         approver.setRealName("审批人");
         when(userRepository.findById(11L)).thenReturn(Optional.of(approver));
         when(userRepository.findById(1L)).thenReturn(Optional.of(namedUser(1L, "发起人")));
-        PlanReport report = PlanReport.createDraft("2026-03", 200L, ReportOrgType.FUNC_DEPT, 300L);
-        report.setId(100L);
-        when(planReportRepository.findById(100L)).thenReturn(Optional.of(report));
-        when(organizationRepository.findById(200L)).thenReturn(Optional.of(namedOrg(200L, "教务处")));
-
         when(auditInstanceRepository.findById(9L)).thenReturn(Optional.of(instance));
 
         var detail = newService().getInstanceDetail("9");
@@ -245,7 +233,7 @@ class WorkflowReadModelServiceTest {
     }
 
     @Test
-    void getInstanceDetail_shouldHideCurrentApproverForPendingRoleStep() {
+    void getInstanceDetail_shouldExposeCurrentApproverForPendingRoleStep() {
         AuditInstance instance = new AuditInstance();
         instance.setId(19L);
         instance.setFlowDefId(2L);
@@ -262,6 +250,7 @@ class WorkflowReadModelServiceTest {
         pending.setStepNo(2);
         pending.setStepName("战略发展部负责人审批");
         pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        pending.setApproverId(189L);
         pending.setApproverOrgId(35L);
         pending.setCreatedAt(LocalDateTime.now().minusHours(1));
         instance.addStepInstance(pending);
@@ -271,13 +260,15 @@ class WorkflowReadModelServiceTest {
         when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
         when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
         when(userRepository.findById(1L)).thenReturn(Optional.of(namedUser(1L, "发起人")));
+        when(userRepository.findById(189L)).thenReturn(Optional.of(namedUser(189L, "战略发展部负责人1")));
 
         WorkflowInstanceDetailResponse detail = newService().getInstanceDetail("19");
 
         assertEquals("战略发展部负责人审批", detail.getCurrentStepName());
-        assertNull(detail.getCurrentApproverId());
-        assertNull(detail.getCurrentApproverName());
-        assertNull(detail.getTasks().get(0).getAssigneeName());
+        assertEquals(189L, detail.getCurrentApproverId());
+        assertEquals("战略发展部负责人1", detail.getCurrentApproverName());
+        assertEquals(189L, detail.getTasks().get(0).getAssigneeId());
+        assertEquals("战略发展部负责人1", detail.getTasks().get(0).getAssigneeName());
         assertEquals("战略发展部", detail.getTasks().get(0).getApproverOrgName());
     }
 

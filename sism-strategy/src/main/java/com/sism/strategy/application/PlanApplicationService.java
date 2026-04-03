@@ -55,6 +55,10 @@ import java.util.stream.Stream;
 public class PlanApplicationService {
     private static final String PLAN_APPROVAL_WORKFLOW_CODE_FUNCDEPT = "PLAN_APPROVAL_FUNCDEPT";
     private static final String PLAN_APPROVAL_WORKFLOW_CODE_COLLEGE = "PLAN_APPROVAL_COLLEGE";
+    private static final Long ROLE_APPROVER = 2L;
+    private static final Long ROLE_STRATEGY_DEPT_HEAD = 3L;
+    private static final Long ROLE_VICE_PRESIDENT = 4L;
+    private static final Long STRATEGY_ORG_ID = 35L;
 
 
     private final PlanRepository planRepository;
@@ -318,7 +322,7 @@ public class PlanApplicationService {
                 ORDER BY asi.step_no DESC NULLS LAST, asi.approved_at DESC NULLS LAST, asi.id DESC
                 LIMIT 1
                 """,
-                (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2), null, true, null),
+                (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2), null, true, null, null),
                 workflowInstanceId
         );
 
@@ -360,6 +364,7 @@ public class PlanApplicationService {
                        asi.step_no,
                        asi.step_def_id,
                        COALESCE(UPPER(asd.step_type), '') = 'SUBMIT' AS is_submit,
+                       ai.requester_id,
                        ai.requester_org_id
                 FROM public.audit_step_instance asi
                 JOIN public.audit_instance ai ON ai.id = asi.instance_id
@@ -374,7 +379,8 @@ public class PlanApplicationService {
                         rs.getInt(2),
                         rs.getLong(3),
                         rs.getBoolean(4),
-                        rs.getLong(5)
+                        rs.getLong(5),
+                        rs.getLong(6)
                 ),
                 workflowInstanceId
         );
@@ -384,6 +390,7 @@ public class PlanApplicationService {
         }
 
         WorkflowStepRow withdrawnStep = withdrawnSteps.get(0);
+        WorkflowInstanceContext workflowContext = loadWorkflowInstanceContext(workflowInstanceId);
         if (withdrawnStep.isSubmitStep()) {
             jdbcTemplate.update("""
                     UPDATE public.audit_step_instance
@@ -393,68 +400,71 @@ public class PlanApplicationService {
                     WHERE id = ?
                     """, withdrawnStep.id());
 
-            int restoredWaitingRows = jdbcTemplate.update("""
-                    UPDATE public.audit_step_instance
-                    SET status = 'PENDING'
-                    WHERE id = (
-                        SELECT asi.id
-                        FROM public.audit_step_instance asi
-                        WHERE asi.instance_id = ?
-                          AND asi.status = 'WAITING'
-                          AND asi.step_no > 1
-                        ORDER BY asi.step_no ASC, asi.id ASC
-                        LIMIT 1
-                    )
-                    """, workflowInstanceId);
+            WorkflowStepRow waitingStep = loadFirstWaitingWorkflowStep(workflowInstanceId);
+            int restoredWaitingRows = 0;
+            if (waitingStep != null) {
+                WorkflowStepDefinition waitingStepDef = loadWorkflowStepDefinition(waitingStep.stepDefId());
+                ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(waitingStepDef, workflowContext);
+                restoredWaitingRows = jdbcTemplate.update("""
+                        UPDATE public.audit_step_instance
+                        SET status = 'PENDING',
+                            approver_id = ?,
+                            approver_org_id = ?,
+                            approved_at = NULL,
+                            comment = NULL
+                        WHERE id = ?
+                        """,
+                        resolvedApprover.approverId(),
+                        resolvedApprover.approverOrgId(),
+                        waitingStep.id());
+            }
 
             if (restoredWaitingRows == 0) {
-                jdbcTemplate.update("""
-                        INSERT INTO public.audit_step_instance (
-                            instance_id,
-                            step_no,
-                            step_name,
-                            step_def_id,
-                            status,
-                            approver_id,
-                            approver_org_id,
-                            comment,
-                            approved_at,
-                            created_at
-                        )
-                        SELECT
-                            ai.id,
-                            COALESCE((
-                                SELECT MAX(existing.step_no)
-                                FROM public.audit_step_instance existing
-                                WHERE existing.instance_id = ai.id
-                            ), 0) + 1,
-                            next_def.step_name,
-                            next_def.id,
-                            'PENDING',
-                            NULL,
-                            ai.requester_org_id,
-                            NULL,
-                            NULL,
-                            CURRENT_TIMESTAMP
-                        FROM public.audit_instance ai
-                        JOIN public.audit_step_def current_def ON current_def.id = ?
-                        JOIN public.audit_step_def next_def
-                          ON next_def.flow_id = ai.flow_def_id
-                         AND next_def.step_no = current_def.step_no + 1
-                        WHERE ai.id = ?
-                        """,
-                        withdrawnStep.stepDefId(),
-                        workflowInstanceId
+                WorkflowStepDefinition nextStepDef = loadNextWorkflowStepDefinition(
+                        workflowContext.flowDefId(),
+                        withdrawnStep.stepDefId()
                 );
+                if (nextStepDef != null) {
+                    ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(nextStepDef, workflowContext);
+                    jdbcTemplate.update("""
+                            INSERT INTO public.audit_step_instance (
+                                instance_id,
+                                step_no,
+                                step_name,
+                                step_def_id,
+                                status,
+                                approver_id,
+                                approver_org_id,
+                                comment,
+                                approved_at,
+                                created_at
+                            )
+                            VALUES (?, ?, ?, ?, 'PENDING', ?, ?, NULL, NULL, CURRENT_TIMESTAMP)
+                            """,
+                            workflowInstanceId,
+                            withdrawnStep.stepNo() + 1,
+                            nextStepDef.stepName(),
+                            nextStepDef.id(),
+                            resolvedApprover.approverId(),
+                            resolvedApprover.approverOrgId()
+                    );
+                }
             }
         } else {
+            WorkflowStepDefinition returnedStepDef = loadWorkflowStepDefinition(withdrawnStep.stepDefId());
+            ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(returnedStepDef, workflowContext);
             jdbcTemplate.update("""
                     UPDATE public.audit_step_instance
                     SET status = 'PENDING',
+                        approver_id = ?,
+                        approver_org_id = ?,
                         approved_at = NULL,
                         comment = NULL
                     WHERE id = ?
-                    """, withdrawnStep.id());
+                    """,
+                    resolvedApprover.approverId(),
+                    resolvedApprover.approverOrgId(),
+                    withdrawnStep.id());
         }
         jdbcTemplate.update("""
                 UPDATE public.audit_instance
@@ -466,7 +476,194 @@ public class PlanApplicationService {
         return true;
     }
 
-    private record WorkflowStepRow(Long id, Integer stepNo, Long stepDefId, boolean isSubmitStep, Long requesterOrgId) {}
+    private WorkflowInstanceContext loadWorkflowInstanceContext(Long workflowInstanceId) {
+        List<WorkflowInstanceContext> rows = jdbcTemplate.query(
+                """
+                SELECT id, flow_def_id, requester_id, requester_org_id, entity_type, entity_id
+                FROM public.audit_instance
+                WHERE id = ?
+                """,
+                (rs, _rowNum) -> new WorkflowInstanceContext(
+                        rs.getLong("id"),
+                        rs.getLong("flow_def_id"),
+                        rs.getLong("requester_id"),
+                        rs.getLong("requester_org_id"),
+                        rs.getString("entity_type"),
+                        rs.getLong("entity_id")
+                ),
+                workflowInstanceId
+        );
+        if (rows.isEmpty()) {
+            throw new IllegalStateException("Workflow instance not found: " + workflowInstanceId);
+        }
+        return rows.get(0);
+    }
+
+    private WorkflowStepRow loadFirstWaitingWorkflowStep(Long workflowInstanceId) {
+        List<WorkflowStepRow> rows = jdbcTemplate.query(
+                """
+                SELECT id, step_no, step_def_id
+                FROM public.audit_step_instance
+                WHERE instance_id = ?
+                  AND status = 'WAITING'
+                  AND step_no > 1
+                ORDER BY step_no ASC, id ASC
+                LIMIT 1
+                """,
+                (rs, _rowNum) -> new WorkflowStepRow(
+                        rs.getLong("id"),
+                        rs.getInt("step_no"),
+                        rs.getLong("step_def_id"),
+                        false,
+                        null,
+                        null
+                ),
+                workflowInstanceId
+        );
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private WorkflowStepDefinition loadWorkflowStepDefinition(Long stepDefId) {
+        if (stepDefId == null) {
+            return null;
+        }
+        List<WorkflowStepDefinition> rows = jdbcTemplate.query(
+                """
+                SELECT id, step_name, step_no, step_type, role_id
+                FROM public.audit_step_def
+                WHERE id = ?
+                """,
+                (rs, _rowNum) -> new WorkflowStepDefinition(
+                        rs.getLong("id"),
+                        rs.getString("step_name"),
+                        rs.getInt("step_no"),
+                        rs.getString("step_type"),
+                        rs.getObject("role_id") == null ? null : rs.getLong("role_id")
+                ),
+                stepDefId
+        );
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private WorkflowStepDefinition loadNextWorkflowStepDefinition(Long flowDefId, Long currentStepDefId) {
+        List<WorkflowStepDefinition> rows = jdbcTemplate.query(
+                """
+                SELECT next_def.id, next_def.step_name, next_def.step_no, next_def.step_type, next_def.role_id
+                FROM public.audit_step_def current_def
+                JOIN public.audit_step_def next_def
+                  ON next_def.flow_id = current_def.flow_id
+                 AND next_def.step_no = current_def.step_no + 1
+                WHERE current_def.id = ?
+                  AND current_def.flow_id = ?
+                LIMIT 1
+                """,
+                (rs, _rowNum) -> new WorkflowStepDefinition(
+                        rs.getLong("id"),
+                        rs.getString("step_name"),
+                        rs.getInt("step_no"),
+                        rs.getString("step_type"),
+                        rs.getObject("role_id") == null ? null : rs.getLong("role_id")
+                ),
+                currentStepDefId,
+                flowDefId
+        );
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    private ResolvedWorkflowApprover resolveWorkflowApprover(
+            WorkflowStepDefinition stepDef,
+            WorkflowInstanceContext context
+    ) {
+        if (stepDef == null) {
+            return new ResolvedWorkflowApprover(null, context.requesterOrgId());
+        }
+        if (stepDef.isSubmitStep()) {
+            return new ResolvedWorkflowApprover(context.requesterId(), context.requesterOrgId());
+        }
+
+        Long approverOrgId = resolveWorkflowApproverOrgId(stepDef, context);
+        Long approverId = resolveWorkflowApproverId(stepDef, approverOrgId);
+        return new ResolvedWorkflowApprover(approverId, approverOrgId);
+    }
+
+    private Long resolveWorkflowApproverOrgId(
+            WorkflowStepDefinition stepDef,
+            WorkflowInstanceContext context
+    ) {
+        Long roleId = stepDef.roleId();
+        if (Objects.equals(roleId, ROLE_STRATEGY_DEPT_HEAD)) {
+            return STRATEGY_ORG_ID;
+        }
+        if (Objects.equals(roleId, ROLE_VICE_PRESIDENT)) {
+            if (stepDef.stepName() != null && stepDef.stepName().contains("学院院长")) {
+                return context.requesterOrgId();
+            }
+            return switch (String.valueOf(context.requesterOrgId())) {
+                case "35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54" ->
+                        context.requesterOrgId();
+                default -> context.requesterOrgId();
+            };
+        }
+        if (Objects.equals(roleId, ROLE_APPROVER) && stepDef.stepName() != null && stepDef.stepName().contains("职能部门终审")) {
+            return planRepository.findById(context.entityId())
+                    .map(Plan::getCreatedByOrgId)
+                    .orElse(context.requesterOrgId());
+        }
+        return context.requesterOrgId();
+    }
+
+    private Long resolveWorkflowApproverId(WorkflowStepDefinition stepDef, Long approverOrgId) {
+        if (stepDef.roleId() == null || approverOrgId == null) {
+            return null;
+        }
+        List<Long> approverIds = jdbcTemplate.query(
+                """
+                SELECT u.id
+                FROM public.sys_user u
+                JOIN public.sys_user_role ur ON ur.user_id = u.id
+                WHERE ur.role_id = ?
+                  AND u.org_id = ?
+                  AND COALESCE(u.is_active, false) = true
+                ORDER BY u.id ASC
+                """,
+                (rs, _rowNum) -> rs.getLong(1),
+                stepDef.roleId(),
+                approverOrgId
+        );
+        return approverIds.isEmpty() ? null : approverIds.get(0);
+    }
+
+    private record WorkflowStepRow(
+            Long id,
+            Integer stepNo,
+            Long stepDefId,
+            boolean isSubmitStep,
+            Long requesterId,
+            Long requesterOrgId
+    ) {}
+
+    private record WorkflowInstanceContext(
+            Long id,
+            Long flowDefId,
+            Long requesterId,
+            Long requesterOrgId,
+            String entityType,
+            Long entityId
+    ) {}
+
+    private record ResolvedWorkflowApprover(Long approverId, Long approverOrgId) {}
+
+    private record WorkflowStepDefinition(
+            Long id,
+            String stepName,
+            Integer stepOrder,
+            String stepType,
+            Long roleId
+    ) {
+        private boolean isSubmitStep() {
+            return "SUBMIT".equalsIgnoreCase(String.valueOf(stepType));
+        }
+    }
 
     /**
      * 归档计划

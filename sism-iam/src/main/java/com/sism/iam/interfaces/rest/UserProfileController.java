@@ -1,8 +1,10 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
+import com.sism.iam.domain.PasswordHistory;
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
+import com.sism.iam.domain.repository.PasswordHistoryRepository;
 import com.sism.iam.domain.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,8 +12,8 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,11 +31,13 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/profile")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "用户中心", description = "用户个人资料管理接口")
 public class UserProfileController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PasswordHistoryRepository passwordHistoryRepository;
 
     // ========== 个人资料查询 ==========
 
@@ -101,10 +105,25 @@ public class UserProfileController {
             return ResponseEntity.badRequest().body(ApiResponse.error("New password and confirm password do not match"));
         }
 
+        // 检查密码历史
+        List<PasswordHistory> history = passwordHistoryRepository.findTop5ByUserIdOrderByCreatedAtDesc(user.getId());
+        for (PasswordHistory ph : history) {
+            if (passwordEncoder.matches(request.getNewPassword(), ph.getPasswordHash())) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("不能使用最近使用过的密码"));
+            }
+        }
+
         // 更新密码
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        String encodedPassword = passwordEncoder.encode(request.getNewPassword());
+        user.setPassword(encodedPassword);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
+
+        // 保存密码历史
+        PasswordHistory passwordHistory = new PasswordHistory();
+        passwordHistory.setUserId(user.getId());
+        passwordHistory.setPasswordHash(encodedPassword);
+        passwordHistoryRepository.save(passwordHistory);
 
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -191,7 +210,8 @@ public class UserProfileController {
         private String oldPassword;
 
         @NotBlank(message = "New password is required")
-        @Size(min = 8, message = "Password must be at least 8 characters long")
+        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
+                 message = "密码必须包含大小写字母、数字和特殊字符,至少8个字符")
         private String newPassword;
 
         @NotBlank(message = "Confirm password is required")
