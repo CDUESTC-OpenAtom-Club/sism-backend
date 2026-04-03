@@ -113,13 +113,15 @@ jobs:
           echo "[INFO] Starting health check (max 60 seconds)..."
           MAX_ATTEMPTS=12
           ATTEMPT=0
+          HEALTH_URL="http://localhost:8080/api/users/me"
 
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "[INFO] Health check attempt $ATTEMPT/$MAX_ATTEMPTS..."
 
             # Check if server responds (any valid API endpoint)
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/users/me 2>/dev/null)
+            HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || true)"
+            echo "[INFO] Health check HTTP status: ${HTTP_CODE:-curl_failed}"
             if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
               echo "[SUCCESS] Backend is healthy! (HTTP $HTTP_CODE)"
               exit 0
