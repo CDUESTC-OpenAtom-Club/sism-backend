@@ -227,6 +227,7 @@ public class WorkflowReadModelService {
         response.setTargetOrgId(context.targetOrgId());
         response.setTargetOrgName(context.targetOrgName());
         response.setCurrentStepName(step.getStepName());
+        response.setAssigneeName(resolveUserName(step.getApproverId(), userNameCache));
         response.setApproverOrgName(resolveOrgName(step.getApproverOrgId(), orgNameCache));
         return response;
     }
