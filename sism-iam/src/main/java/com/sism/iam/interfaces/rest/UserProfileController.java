@@ -105,6 +105,13 @@ public class UserProfileController {
             return ResponseEntity.badRequest().body(ApiResponse.error("New password and confirm password do not match"));
         }
 
+        // 验证密码复杂度（手动验证，确保生效）
+        String newPassword = request.getNewPassword();
+        String passwordPattern = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
+        if (!newPassword.matches(passwordPattern)) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("密码必须包含大小写字母、数字和特殊字符(@$!%*?&)，至少8个字符"));
+        }
+
         // 检查密码历史
         List<PasswordHistory> history = passwordHistoryRepository.findTop5ByUserIdOrderByCreatedAtDesc(user.getId());
         for (PasswordHistory ph : history) {
