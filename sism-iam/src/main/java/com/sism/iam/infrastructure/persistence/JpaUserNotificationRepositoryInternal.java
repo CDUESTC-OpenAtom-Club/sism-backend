@@ -64,6 +64,23 @@ public interface JpaUserNotificationRepositoryInternal extends JpaRepository<Use
                set n.status = 'READ',
                    n.readAt = :readAt,
                    n.updatedAt = :readAt
+             where n.id = :id
+               and n.recipientUserId = :recipientUserId
+               and n.status <> 'READ'
+            """)
+    int markAsRead(
+            @Param("id") Long id,
+            @Param("recipientUserId") Long recipientUserId,
+            @Param("readAt") LocalDateTime readAt
+    );
+
+    @Modifying
+    @Transactional
+    @Query("""
+            update UserNotification n
+               set n.status = 'READ',
+                   n.readAt = :readAt,
+                   n.updatedAt = :readAt
              where n.recipientUserId = :recipientUserId
                and n.status <> 'READ'
             """)
