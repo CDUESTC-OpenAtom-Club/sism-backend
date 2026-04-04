@@ -45,6 +45,10 @@ public class JpaUserNotificationRepository implements UserNotificationRepository
         return jpaRepository.save(notification);
     }
 
+    public int markAsRead(Long id, Long recipientUserId, LocalDateTime readAt) {
+        return jpaRepository.markAsRead(id, recipientUserId, readAt);
+    }
+
     @Override
     public long markAllAsRead(Long recipientUserId) {
         return jpaRepository.markAllAsRead(recipientUserId, LocalDateTime.now());

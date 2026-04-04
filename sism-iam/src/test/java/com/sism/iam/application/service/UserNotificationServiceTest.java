@@ -116,8 +116,8 @@ class UserNotificationServiceTest {
 
         when(userNotificationRepository.findByIdAndRecipientUserId(21L, 9L))
                 .thenReturn(Optional.of(notification));
-        when(userNotificationRepository.save(any(UserNotification.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(userNotificationRepository.markAsRead(eq(21L), eq(9L), any(LocalDateTime.class)))
+                .thenReturn(1);
 
         Map<String, Object> result = service.markNotificationAsRead(21L, 9L);
 

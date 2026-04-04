@@ -4,6 +4,7 @@ import com.sism.iam.domain.UserNotification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Collection;
@@ -19,6 +20,8 @@ public interface UserNotificationRepository {
     List<UserNotification> saveAll(List<UserNotification> notifications);
 
     UserNotification save(UserNotification notification);
+
+    int markAsRead(Long id, Long recipientUserId, LocalDateTime readAt);
 
     long markAllAsRead(Long recipientUserId);
 

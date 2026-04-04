@@ -170,16 +170,19 @@ public class UserNotificationService {
     public Map<String, Object> markNotificationAsRead(Long id, Long currentUserId) {
         UserNotification notification = userNotificationRepository.findByIdAndRecipientUserId(id, currentUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + id));
-        notification.setStatus(STATUS_READ);
-        notification.setReadAt(LocalDateTime.now());
-        userNotificationRepository.save(notification);
+        LocalDateTime readAt = LocalDateTime.now();
+
+        int updatedRows = userNotificationRepository.markAsRead(id, currentUserId, readAt);
+        if (updatedRows == 0 && !STATUS_READ.equalsIgnoreCase(notification.getStatus())) {
+            throw new IllegalArgumentException("Notification not found: " + id);
+        }
 
         Map<String, Object> result = new HashMap<>();
-        result.put("id", notification.getId());
-        result.put("notificationId", notification.getId());
+        result.put("id", id);
+        result.put("notificationId", id);
         result.put("status", STATUS_READ);
         result.put("isRead", true);
-        result.put("readAt", notification.getReadAt());
+        result.put("readAt", readAt);
         return result;
     }
 
