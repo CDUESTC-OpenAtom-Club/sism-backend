@@ -3,6 +3,7 @@ package com.sism.iam.interfaces.rest;
 import com.sism.common.ApiResponse;
 import com.sism.iam.application.dto.CurrentUser;
 import com.sism.iam.application.service.NotificationService;
+import com.sism.iam.application.service.UserNotificationService;
 import com.sism.iam.domain.Notification;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,6 +33,7 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final UserNotificationService userNotificationService;
 
     // ==================== User Notification Operations ====================
 
@@ -46,7 +48,7 @@ public class NotificationController {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
         Long userId = currentUser.getId();
-        Page<Map<String, Object>> notifications = notificationService.getMyNotifications(userId, page, size, status);
+        Page<Map<String, Object>> notifications = userNotificationService.getMyNotifications(userId, page, size, status);
 
         Map<String, Object> response = new HashMap<>();
         response.put("content", notifications.getContent());
@@ -60,14 +62,27 @@ public class NotificationController {
 
     @PostMapping("/read-all")
     @Operation(summary = "全部标记已读", description = "将所有通知标记为已读")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> markAllNotificationsAsRead() {
-        return ResponseEntity.ok(ApiResponse.success(notificationService.markAllNotificationsAsRead()));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> markAllNotificationsAsRead(
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(userNotificationService.markAllNotificationsAsRead(currentUser.getId())));
     }
 
     @PostMapping("/{id}/read")
     @Operation(summary = "标记单条已读", description = "将通知标记为已读")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> markNotificationAsRead(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(notificationService.markNotificationAsRead(id)));
+    public ResponseEntity<ApiResponse<Map<String, Object>>> markNotificationAsRead(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        try {
+            return ResponseEntity.ok(ApiResponse.success(userNotificationService.markNotificationAsRead(id, currentUser.getId())));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, ex.getMessage()));
+        }
     }
 
     // ==================== Alert Event Operations ====================

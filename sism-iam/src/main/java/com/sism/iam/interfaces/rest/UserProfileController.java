@@ -1,10 +1,8 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.domain.PasswordHistory;
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.PasswordHistoryRepository;
 import com.sism.iam.domain.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,7 +43,6 @@ public class UserProfileController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final PasswordHistoryRepository passwordHistoryRepository;
 
     // ========== 个人资料查询 ==========
 
@@ -164,25 +161,11 @@ public class UserProfileController {
             return ResponseEntity.badRequest().body(ApiResponse.error("密码必须包含大小写字母、数字和特殊字符(@$!%*?&)，至少8个字符"));
         }
 
-        // 检查密码历史
-        List<PasswordHistory> history = passwordHistoryRepository.findTop5ByUserIdOrderByCreatedAtDesc(user.getId());
-        for (PasswordHistory ph : history) {
-            if (passwordEncoder.matches(request.getNewPassword(), ph.getPasswordHash())) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("不能使用最近使用过的密码"));
-            }
-        }
-
         // 更新密码
         String encodedPassword = passwordEncoder.encode(request.getNewPassword());
         user.setPassword(encodedPassword);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
-
-        // 保存密码历史
-        PasswordHistory passwordHistory = new PasswordHistory();
-        passwordHistory.setUserId(user.getId());
-        passwordHistory.setPasswordHash(encodedPassword);
-        passwordHistoryRepository.save(passwordHistory);
 
         return ResponseEntity.ok(ApiResponse.success(null));
     }
