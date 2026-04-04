@@ -82,8 +82,7 @@ public class IndicatorController {
             indicatorPage = strategyApplicationService.getIndicators(pageable);
         }
 
-        Map<Long, String> taskNameMap = buildTaskNameMap(indicatorPage.getContent());
-        Map<Long, String> taskTypeMap = buildTaskTypeMap(indicatorPage.getContent());
+        Map<Long, TaskMetaSnapshot> taskMetaMap = buildTaskMetaMap(indicatorPage.getContent());
         Map<Long, List<MilestoneResponse>> milestoneMap = buildMilestoneMap(indicatorPage.getContent());
         Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap =
                 buildCurrentMonthIndicatorRoundStateMap(indicatorPage.getContent());
@@ -91,8 +90,7 @@ public class IndicatorController {
                 indicatorPage.getContent().stream()
                         .map(indicator -> toIndicatorResponse(
                                 indicator,
-                                taskNameMap,
-                                taskTypeMap,
+                                taskMetaMap,
                                 milestoneMap,
                                 currentMonthRoundStateMap
                         ))
@@ -578,33 +576,22 @@ public class IndicatorController {
     private IndicatorResponse toIndicatorResponse(Indicator indicator) {
         return toIndicatorResponse(
                 indicator,
-                Map.of(),
-                Map.of(),
-                buildMilestoneMap(List.of(indicator)),
-                buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
-        );
-    }
-
-    private IndicatorResponse toIndicatorResponse(Indicator indicator, Map<Long, String> taskNameMap) {
-        return toIndicatorResponse(
-                indicator,
-                taskNameMap,
-                buildTaskTypeMap(List.of(indicator)),
+                buildTaskMetaMap(List.of(indicator)),
                 buildMilestoneMap(List.of(indicator)),
                 buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
         );
     }
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator,
-                                                 Map<Long, String> taskNameMap,
-                                                 Map<Long, String> taskTypeMap,
+                                                 Map<Long, TaskMetaSnapshot> taskMetaMap,
                                                  Map<Long, List<MilestoneResponse>> milestoneMap,
                                                  Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap) {
         IndicatorResponse response = new IndicatorResponse();
         response.setId(indicator.getId());
         response.setTaskId(indicator.getTaskId());
         if (indicator.getTaskId() != null) {
-            String taskName = taskNameMap.get(indicator.getTaskId());
+            TaskMetaSnapshot taskMeta = taskMetaMap.get(indicator.getTaskId());
+            String taskName = taskMeta != null ? taskMeta.name() : null;
             if (taskName == null) {
                 TaskFallbackSnapshot task = findTaskFallback(indicator.getTaskId());
                 if (task != null) {
@@ -616,8 +603,10 @@ public class IndicatorController {
             }
             response.setTaskName(taskName);
             if (response.getTaskType() == null) {
-                response.setTaskType(taskTypeMap.get(indicator.getTaskId()));
+                response.setTaskType(taskMeta != null ? taskMeta.taskType() : null);
             }
+            response.setCycleId(taskMeta != null ? taskMeta.cycleId() : null);
+            response.setYear(taskMeta != null ? taskMeta.year() : null);
         }
         response.setIndicatorDesc(indicator.getIndicatorDesc());
         response.setIndicatorName(indicator.getIndicatorDesc()); // Using desc as name for now
@@ -646,7 +635,7 @@ public class IndicatorController {
         return response;
     }
 
-    private Map<Long, String> buildTaskNameMap(List<Indicator> indicators) {
+    private Map<Long, TaskMetaSnapshot> buildTaskMetaMap(List<Indicator> indicators) {
         if (indicators == null || indicators.isEmpty()) {
             return Map.of();
         }
@@ -662,10 +651,42 @@ public class IndicatorController {
             return Map.of();
         }
 
-        Map<Long, String> taskNameMap = new HashMap<>();
-        jpaTaskRepository.findTaskNamesByIds(taskIds)
-                .forEach(task -> taskNameMap.put(task.getId(), task.getName()));
-        return taskNameMap;
+        String placeholders = taskIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT t.task_id AS task_id,
+                       t.name AS task_name,
+                       t.task_type AS task_type,
+                       p.cycle_id AS cycle_id,
+                       c.year AS year
+                FROM public.sys_task t
+                LEFT JOIN public.plan p ON p.id = t.plan_id
+                LEFT JOIN public.cycle c ON c.id = p.cycle_id
+                WHERE t.task_id IN (%s)
+                """.formatted(placeholders),
+                taskIds.toArray()
+        );
+
+        Map<Long, TaskMetaSnapshot> taskMetaMap = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object taskIdValue = row.get("task_id");
+            Object taskNameValue = row.get("task_name");
+            Object taskTypeValue = row.get("task_type");
+            Object cycleIdValue = row.get("cycle_id");
+            Object yearValue = row.get("year");
+            if (taskIdValue instanceof Number taskIdNumber) {
+                taskMetaMap.put(
+                        taskIdNumber.longValue(),
+                        new TaskMetaSnapshot(
+                                taskNameValue != null ? String.valueOf(taskNameValue) : null,
+                                taskTypeValue != null ? String.valueOf(taskTypeValue) : null,
+                                cycleIdValue instanceof Number cycleIdNumber ? cycleIdNumber.longValue() : null,
+                                yearValue instanceof Number yearNumber ? yearNumber.intValue() : null
+                        )
+                );
+            }
+        }
+        return taskMetaMap;
     }
 
     private Map<Long, List<MilestoneResponse>> buildMilestoneMap(List<Indicator> indicators) {
@@ -734,6 +755,8 @@ public class IndicatorController {
     }
 
     private record TaskFallbackSnapshot(String name, String taskType) {}
+
+    private record TaskMetaSnapshot(String name, String taskType, Long cycleId, Integer year) {}
 
     private Map<Long, CurrentMonthIndicatorRoundState> buildCurrentMonthIndicatorRoundStateMap(List<Indicator> indicators) {
         List<Long> indicatorIds = extractIndicatorIds(indicators);
@@ -919,6 +942,7 @@ public class IndicatorController {
         private Long taskId;
         private String taskName;
         private String taskType;
+        private Integer year;
         private Long parentIndicatorId;
         private String indicatorName;
         private String indicatorCode;

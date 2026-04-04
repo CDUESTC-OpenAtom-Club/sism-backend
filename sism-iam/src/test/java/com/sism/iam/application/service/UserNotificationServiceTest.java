@@ -105,4 +105,26 @@ class UserNotificationServiceTest {
         assertTrue(statuses.get(11L).canRemind());
         assertEquals(2L, statuses.get(10L).remindCount());
     }
+
+    @Test
+    @DisplayName("markNotificationAsRead should return id and isRead")
+    void shouldReturnIdAndIsReadWhenMarkingNotificationAsRead() {
+        UserNotification notification = new UserNotification();
+        notification.setId(21L);
+        notification.setRecipientUserId(9L);
+        notification.setStatus("UNREAD");
+
+        when(userNotificationRepository.findByIdAndRecipientUserId(21L, 9L))
+                .thenReturn(Optional.of(notification));
+        when(userNotificationRepository.save(any(UserNotification.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Map<String, Object> result = service.markNotificationAsRead(21L, 9L);
+
+        assertEquals(21L, result.get("id"));
+        assertEquals(21L, result.get("notificationId"));
+        assertEquals("READ", result.get("status"));
+        assertEquals(true, result.get("isRead"));
+        assertNotNull(result.get("readAt"));
+    }
 }
