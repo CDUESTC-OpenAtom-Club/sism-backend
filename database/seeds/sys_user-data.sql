@@ -17,22 +17,23 @@ INSERT INTO public.sys_user (
     real_name,
     sso_id,
     username,
-    org_id
+    org_id,
+    avatar_url
 )
 VALUES
-    (124, NOW(), NOW(), true, '$2b$10$D6/ksnZaAwCkuD13HaTHTOrTKNnlawU5eThyDlK7t.rZx5PrRpgLy', '系统管理员', NULL, 'admin', 35),
-    (188, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略部管理员', NULL, 'zlb_admin', 35),
-    (189, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部负责人1', NULL, 'zlb_final1', 35),
-    (190, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部负责人2', NULL, 'zlb_final2', 35),
-    (191, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办填报人', NULL, 'dangban_report', 36),
-    (192, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办审核人1', NULL, 'dangban_audit1', 36),
-    (193, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办审核人2', NULL, 'dangban_audit2', 36),
-    (215, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '保卫处填报人', NULL, 'baowei_report', 42),
-    (216, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '保卫处审核人1', NULL, 'baowei_audit1', 42),
-    (217, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '保卫处审核人2', NULL, 'baowei_audit2', 42),
-    (223, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '教务处填报人', NULL, 'jiaowu_report', 44),
-    (224, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '教务处审核人1', NULL, 'jiaowu_audit1', 44),
-    (225, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '教务处预留账号', NULL, 'jiaowu_reserve', 44),
+    (124, NOW(), NOW(), true, '$2b$10$D6/ksnZaAwCkuD13HaTHTOrTKNnlawU5eThyDlK7t.rZx5PrRpgLy', '系统管理员', NULL, 'admin', 35, NULL),
+    (188, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略部管理员', NULL, 'zlb_admin', 35, NULL),
+    (189, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部负责人1', NULL, 'zlb_final1', 35, NULL),
+    (190, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '战略发展部负责人2', NULL, 'zlb_final2', 35, NULL),
+    (191, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办填报人', NULL, 'dangban_report', 36, NULL),
+    (192, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办审核人1', NULL, 'dangban_audit1', 36, NULL),
+    (193, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '党委办审核人2', NULL, 'dangban_audit2', 36, NULL),
+    (215, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '保卫处填报人', NULL, 'baowei_report', 42, NULL),
+    (216, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '保卫处审核人1', NULL, 'baowei_audit1', 42, NULL),
+    (217, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '保卫处审核人2', NULL, 'baowei_audit2', 42, NULL),
+    (223, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '教务处填报人', NULL, 'jiaowu_report', 44, NULL),
+    (224, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '教务处审核人1', NULL, 'jiaowu_audit1', 44, NULL),
+    (225, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '教务处预留账号', NULL, 'jiaowu_reserve', 44, NULL),
     (267, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '马院填报人', NULL, 'makesi_report', 55),
     (268, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '马院审核人1', NULL, 'makesi_audit1', 55),
     (269, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '马院审核人2', NULL, 'makesi_audit2', 55),
@@ -123,7 +124,7 @@ VALUES
     (384, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '航空学院领导', NULL, 'hangkong_leader', 61),
     (385, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '国际教育学院填报人', NULL, 'guojijiaoyu_report', 62),
     (386, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '国际教育学院审核人1', NULL, 'guojijiaoyu_audit1', 62),
-    (387, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '国际教育学院领导', NULL, 'guojijiaoyu_leader', 62)
+    (387, NOW(), NOW(), true, '$2a$10$uS55dBSn9Rhp/OTJZK2iuu2r5B3gwL/WJygS8oudo2deLaMU6m/0.', '国际教育学院领导', NULL, 'guojijiaoyu_leader', 62, NULL)
 ON CONFLICT (id) DO UPDATE
 SET
     updated_at = EXCLUDED.updated_at,
@@ -132,6 +133,7 @@ SET
     real_name = EXCLUDED.real_name,
     sso_id = EXCLUDED.sso_id,
     username = EXCLUDED.username,
-    org_id = EXCLUDED.org_id;
+    org_id = EXCLUDED.org_id,
+    avatar_url = EXCLUDED.avatar_url;
 
 COMMIT;

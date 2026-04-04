@@ -175,8 +175,10 @@ public class UserNotificationService {
         userNotificationRepository.save(notification);
 
         Map<String, Object> result = new HashMap<>();
-        result.put("notificationId", id);
+        result.put("id", notification.getId());
+        result.put("notificationId", notification.getId());
         result.put("status", STATUS_READ);
+        result.put("isRead", true);
         result.put("readAt", notification.getReadAt());
         return result;
     }

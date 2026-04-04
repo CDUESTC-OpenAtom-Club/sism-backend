@@ -1,39 +1,39 @@
 -- progress_report clean seed
 -- Scope:
--- - progress_report is an output/reporting table owned by analytics runtime flows.
+-- - progress_report is an execution-side progress submission table.
 -- - Clean seed baseline keeps this table empty.
 
 BEGIN;
 
 INSERT INTO public.progress_report (
-    id,
-    report_name,
-    report_type,
-    report_format,
+    report_id,
+    achieved_milestone,
+    is_final,
+    narrative,
+    percent_complete,
+    reported_at,
     status,
-    file_path,
-    file_size,
-    creator_id,
-    generation_time,
-    report_params,
-    description,
-    is_deleted,
+    version_no,
+    adhoc_task_id,
+    indicator_id,
+    milestone_id,
+    reporter_id,
     created_at,
     updated_at
 )
 SELECT
     NULL::bigint,
-    NULL::varchar,
-    NULL::varchar,
-    NULL::varchar,
-    NULL::varchar,
-    NULL::varchar,
-    NULL::bigint,
-    NULL::bigint,
-    NULL::timestamp,
-    NULL::jsonb,
-    NULL::text,
     NULL::boolean,
+    NULL::boolean,
+    NULL::text,
+    NULL::numeric,
+    NULL::timestamp,
+    NULL::varchar,
+    NULL::bigint,
+    NULL::bigint,
+    NULL::bigint,
+    NULL::bigint,
+    NULL::bigint,
     NULL::timestamp,
     NULL::timestamp
 WHERE FALSE;
