@@ -114,19 +114,40 @@ END $$;
 DO $$
 DECLARE
     org_count INTEGER;
+    owner_constraint_exists BOOLEAN;
+    target_constraint_exists BOOLEAN;
 BEGIN
     SELECT COUNT(*) INTO org_count FROM sys_org;
 
     IF org_count > 0 THEN
-        ALTER TABLE indicator
-        ADD CONSTRAINT IF NOT EXISTS fk_indicator_owner_org
-            FOREIGN KEY (owner_org_id)
-            REFERENCES sys_org(id)
-            ON DELETE RESTRICT,
-        ADD CONSTRAINT IF NOT EXISTS fk_indicator_target_org
-            FOREIGN KEY (target_org_id)
-            REFERENCES sys_org(id)
-            ON DELETE RESTRICT;
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'fk_indicator_owner_org'
+        ) INTO owner_constraint_exists;
+
+        IF NOT owner_constraint_exists THEN
+            ALTER TABLE indicator
+            ADD CONSTRAINT fk_indicator_owner_org
+                FOREIGN KEY (owner_org_id)
+                REFERENCES sys_org(id)
+                ON DELETE RESTRICT;
+        END IF;
+
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_constraint
+            WHERE conname = 'fk_indicator_target_org'
+        ) INTO target_constraint_exists;
+
+        IF NOT target_constraint_exists THEN
+            ALTER TABLE indicator
+            ADD CONSTRAINT fk_indicator_target_org
+                FOREIGN KEY (target_org_id)
+                REFERENCES sys_org(id)
+                ON DELETE RESTRICT;
+        END IF;
+
         RAISE NOTICE '已添加外键约束';
     ELSE
         RAISE NOTICE '没有组织数据，跳过外键约束';
