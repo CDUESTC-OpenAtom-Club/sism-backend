@@ -1,8 +1,6 @@
 package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
-import com.sism.iam.application.service.UserNotificationService;
 import com.sism.common.PageResult;
 import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
@@ -27,12 +25,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -60,7 +56,6 @@ public class IndicatorController {
     private final OrganizationRepository organizationRepository;
     private final JpaTaskRepositoryInternal jpaTaskRepository;
     private final JdbcTemplate jdbcTemplate;
-    private final UserNotificationService userNotificationService;
 
     @GetMapping
     @Operation(summary = "分页获取所有指标")
@@ -112,88 +107,6 @@ public class IndicatorController {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(indicator)));
-    }
-
-    @PostMapping("/{id}/reminders")
-    @Operation(summary = "发送指标催办", description = "对滞后指标发送站内催办通知")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> sendIndicatorReminder(
-            @PathVariable Long id,
-            @RequestBody(required = false) ReminderRequest request,
-            @AuthenticationPrincipal CurrentUser currentUser) {
-        if (currentUser == null) {
-            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
-        }
-
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(404, "Indicator not found"));
-        }
-        if (indicator.getOwnerOrg() == null || indicator.getTargetOrg() == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "指标缺少组织信息，无法催办"));
-        }
-        if (!Objects.equals(indicator.getOwnerOrg().getId(), currentUser.getOrgId())) {
-            return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权催办该指标"));
-        }
-        Integer progress = indicator.getProgress() != null ? indicator.getProgress() : 0;
-        if (progress >= 50) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, "当前指标未滞后，无需催办"));
-        }
-
-        try {
-            UserNotificationService.ReminderResult result = userNotificationService.createReminderNotification(
-                    indicator.getId(),
-                    indicator.getIndicatorDesc(),
-                    indicator.getTargetOrg().getId(),
-                    indicator.getTargetOrg().getName(),
-                    currentUser.getId(),
-                    currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername(),
-                    currentUser.getOrgId(),
-                    request != null ? request.getSource() : "DASHBOARD",
-                    request != null ? request.getReason() : null
-            );
-
-            Map<String, Object> response = new LinkedHashMap<>();
-            response.put("reminderId", result.reminderId());
-            response.put("indicatorId", result.indicatorId());
-            response.put("sentCount", result.sentCount());
-            response.put("lastRemindedAt", result.lastRemindedAt());
-            response.put("remindCount", result.remindCount());
-            response.put("cooldownUntil", result.cooldownUntil());
-            return ResponseEntity.ok(ApiResponse.success("催办通知发送成功", response));
-        } catch (IllegalStateException ex) {
-            return ResponseEntity.status(409).body(ApiResponse.error(409, ex.getMessage()));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, ex.getMessage()));
-        }
-    }
-
-    @PostMapping("/reminders/statuses")
-    @Operation(summary = "批量查询指标催办状态", description = "按当前用户维度查询指标最近一次催办状态")
-    public ResponseEntity<ApiResponse<List<ReminderStatusResponse>>> getIndicatorReminderStatuses(
-            @RequestBody ReminderStatusQueryRequest request,
-            @AuthenticationPrincipal CurrentUser currentUser) {
-        if (currentUser == null) {
-            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
-        }
-        if (request == null || request.getIndicatorIds() == null || request.getIndicatorIds().isEmpty()) {
-            return ResponseEntity.ok(ApiResponse.success(List.of()));
-        }
-
-        Map<Long, UserNotificationService.ReminderStatus> statuses =
-                userNotificationService.getReminderStatuses(request.getIndicatorIds(), currentUser.getId());
-        List<ReminderStatusResponse> response = request.getIndicatorIds().stream()
-                .map(indicatorId -> {
-                    UserNotificationService.ReminderStatus status = statuses.get(indicatorId);
-                    return new ReminderStatusResponse(
-                            indicatorId,
-                            status == null || status.canRemind(),
-                            status != null ? status.lastRemindedAt() : null,
-                            status != null ? status.remindCount() : 0,
-                            status != null ? status.cooldownUntil() : null
-                    );
-                })
-                .toList();
-        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping
@@ -1049,31 +962,5 @@ public class IndicatorController {
     public static class DistributionTargetOrgResponse {
         private Long orgId;
         private String orgName;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ReminderRequest {
-        private String reason;
-        private String source = "DASHBOARD";
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ReminderStatusQueryRequest {
-        private List<Long> indicatorIds;
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ReminderStatusResponse {
-        private Long indicatorId;
-        private boolean canRemind;
-        private LocalDateTime lastRemindedAt;
-        private long remindCount;
-        private LocalDateTime cooldownUntil;
     }
 }

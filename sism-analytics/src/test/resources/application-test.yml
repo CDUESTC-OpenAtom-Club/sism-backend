@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:sism_execution_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=YEAR;INIT=CREATE SCHEMA IF NOT EXISTS public\;SET SCHEMA public\;CREATE TYPE IF NOT EXISTS org_type AS ENUM ('admin','functional','academic')
+    url: jdbc:h2:mem:sism_analytics_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -14,8 +14,8 @@ spring:
       hibernate:
         format_sql: true
 
-  event-store:
-    persistence: in-memory
+  flyway:
+    enabled: false
 
 logging:
   level:

@@ -117,7 +117,6 @@ SET
     owner_org_id = EXCLUDED.owner_org_id,
     target_org_id = EXCLUDED.target_org_id,
     status = EXCLUDED.status,
-    responsible_user_id = EXCLUDED.responsible_user_id,
-    is_enabled = EXCLUDED.is_enabled;
+    responsible_user_id = EXCLUDED.responsible_user_id;
 
 COMMIT;

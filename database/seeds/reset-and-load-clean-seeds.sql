@@ -11,6 +11,11 @@ BEGIN;
 TRUNCATE TABLE
     public.workflow_task_history,
     public.workflow_task,
+    public.sys_user_notification,
+    public.idempotency_records,
+    public.adhoc_task_indicator_map,
+    public.adhoc_task_target,
+    public.adhoc_task,
     public.audit_step_instance,
     public.audit_instance,
     public.alert_event,
@@ -43,6 +48,8 @@ COMMIT;
 
 \i sys_org-data.sql
 \i sys_user-data.sql
+\i sys_user_notification-data.sql
+\i idempotency_records-data.sql
 \i sys_role-data.sql
 \i sys_permission-data.sql
 \i audit_flow_def-data.sql

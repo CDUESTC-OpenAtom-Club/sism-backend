@@ -4,6 +4,7 @@ import com.sism.iam.application.JwtTokenService;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.User;
+import com.sism.iam.domain.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     @Mock
-    private com.sism.iam.domain.repository.UserRepository userRepository;
+    private UserRepository userRepository;
 
     @Mock
     private JwtTokenService jwtTokenService;
@@ -87,7 +88,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("请输入用户名", exception.getMessage());
+        assertEquals("Username is required", exception.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
     }
 
@@ -103,7 +104,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("请输入用户名", exception.getMessage());
+        assertEquals("Username is required", exception.getMessage());
     }
 
     @Test
@@ -118,7 +119,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("请输入密码", exception.getMessage());
+        assertEquals("Password is required", exception.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
     }
 
@@ -137,7 +138,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("用户名或密码错误", exception.getMessage());
+        assertEquals("Invalid username or password", exception.getMessage());
         verify(passwordEncoder, never()).matches(anyString(), anyString());
     }
 
@@ -164,7 +165,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("用户名或密码错误", exception.getMessage());
+        assertEquals("Invalid username or password", exception.getMessage());
         verify(jwtTokenService, never()).generateToken(any());
     }
 
@@ -191,7 +192,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("账号已被禁用，请联系管理员", exception.getMessage());
+        assertEquals("User account is not active", exception.getMessage());
         verify(jwtTokenService, never()).generateToken(any());
     }
 

@@ -5,8 +5,6 @@ server:
   port: 8080
 
 spring:
-  main:
-    allow-bean-definition-overriding: true
   application:
     name: sism-backend
   
@@ -87,8 +85,17 @@ springdoc:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:your-secret-key-here-make-it-long-enough-for-hs256}
+  secret: ${JWT_SECRET}
   expiration: 86400000
+
+auth:
+  login:
+    max-failures: ${AUTH_LOGIN_MAX_FAILURES:5}
+    lock-duration-seconds: ${AUTH_LOGIN_LOCK_DURATION_SECONDS:900}
+
+# WebSocket Configuration
+websocket:
+  allowed-origins: ${WEBSOCKET_ALLOWED_ORIGINS:}
 
 # File Upload Configuration
 file:

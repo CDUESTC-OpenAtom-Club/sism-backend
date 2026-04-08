@@ -18,6 +18,10 @@ SELECT 'sys_org' AS table_name, COUNT(*) AS row_count FROM public.sys_org
 UNION ALL
 SELECT 'sys_user', COUNT(*) FROM public.sys_user
 UNION ALL
+SELECT 'sys_user_notification', COUNT(*) FROM public.sys_user_notification
+UNION ALL
+SELECT 'idempotency_records', COUNT(*) FROM public.idempotency_records
+UNION ALL
 SELECT 'cycle', COUNT(*) FROM public.cycle
 UNION ALL
 SELECT 'plan', COUNT(*) FROM public.plan

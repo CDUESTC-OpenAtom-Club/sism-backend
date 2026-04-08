@@ -10,24 +10,16 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -37,7 +29,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/profile")
 @RequiredArgsConstructor
-@Slf4j
 @Tag(name = "用户中心", description = "用户个人资料管理接口")
 public class UserProfileController {
 
@@ -77,55 +68,11 @@ public class UserProfileController {
         user.setRealName(request.getRealName());
         user.setUpdatedAt(LocalDateTime.now());
 
+        // 注意：新版本的 User 不包含 email 和 phone 字段
+        // TODO: 更新 avatar 需要单独的文件上传接口
+
         user = userRepository.save(user);
         return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
-    }
-
-    // ========== 头像上传 ==========
-
-    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "上传用户头像")
-    public ResponseEntity<ApiResponse<AvatarResponse>> uploadAvatar(
-            @RequestPart("file") MultipartFile file,
-            Authentication authentication
-    ) throws IOException {
-        // 验证文件
-        if (file == null || file.isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("请选择要上传的文件"));
-        }
-
-        // 验证文件类型
-        String contentType = file.getContentType();
-        if (!ALLOWED_AVATAR_TYPES.contains(contentType)) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("头像只能是 JPG/PNG/GIF/WebP 格式的图片"));
-        }
-
-        // 验证文件大小
-        if (file.getSize() > MAX_AVATAR_SIZE) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("头像大小不能超过 2MB"));
-        }
-
-        // 获取当前用户
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        User user = userOpt.get();
-
-        // 保存文件
-        String avatarUrl = saveAvatarFile(file, user.getId());
-
-        // 更新用户头像URL
-        user.setAvatarUrl(avatarUrl);
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        log.info("User {} uploaded avatar: {}", username, avatarUrl);
-
-        return ResponseEntity.ok(ApiResponse.success(new AvatarResponse(avatarUrl)));
     }
 
     // ========== 密码修改 ==========
@@ -154,16 +101,8 @@ public class UserProfileController {
             return ResponseEntity.badRequest().body(ApiResponse.error("New password and confirm password do not match"));
         }
 
-        // 验证密码复杂度（手动验证，确保生效）
-        String newPassword = request.getNewPassword();
-        String passwordPattern = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
-        if (!newPassword.matches(passwordPattern)) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("密码必须包含大小写字母、数字和特殊字符(@$!%*?&)，至少8个字符"));
-        }
-
         // 更新密码
-        String encodedPassword = passwordEncoder.encode(request.getNewPassword());
-        user.setPassword(encodedPassword);
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
@@ -203,11 +142,6 @@ public class UserProfileController {
 
     // ========== 内部辅助方法 ==========
 
-    private static final List<String> ALLOWED_AVATAR_TYPES = List.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp"
-    );
-    private static final long MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
-
     private UserProfileResponse convertToProfileResponse(User user) {
         UserProfileResponse response = new UserProfileResponse();
         response.setId(user.getId());
@@ -215,33 +149,11 @@ public class UserProfileController {
         response.setRealName(user.getRealName());
         response.setOrgId(user.getOrgId());
         response.setIsActive(user.getIsActive());
-        response.setAvatarUrl(user.getAvatarUrl());
         response.setRoles(user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
         response.setCreatedAt(user.getCreatedAt());
         response.setLastLoginTime(null); // TODO: 需要记录最后登录时间
 
         return response;
-    }
-
-    private String saveAvatarFile(MultipartFile file, Long userId) throws IOException {
-        // 创建上传目录
-        Path uploadDir = Paths.get("uploads", "avatars");
-        Files.createDirectories(uploadDir);
-
-        // 生成文件名
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-        String filename = "user_" + userId + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
-
-        // 保存文件
-        Path targetPath = uploadDir.resolve(filename);
-        Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-
-        // 返回访问 URL
-        return "/uploads/avatars/" + filename;
     }
 
     // ========== 请求和响应 DTO ==========
@@ -254,16 +166,9 @@ public class UserProfileController {
         private Long orgId;
         private Boolean isActive;  // 新版本改为 isActive 布尔字段
         private List<String> roles;
-        private String avatarUrl;
+        private String avatar;
         private LocalDateTime createdAt;
         private LocalDateTime lastLoginTime;
-    }
-
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    @lombok.NoArgsConstructor
-    public static class AvatarResponse {
-        private String avatarUrl;
     }
 
     @lombok.Data
@@ -286,8 +191,7 @@ public class UserProfileController {
         private String oldPassword;
 
         @NotBlank(message = "New password is required")
-        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-                 message = "密码必须包含大小写字母、数字和特殊字符,至少8个字符")
+        @Size(min = 8, message = "Password must be at least 8 characters long")
         private String newPassword;
 
         @NotBlank(message = "Confirm password is required")

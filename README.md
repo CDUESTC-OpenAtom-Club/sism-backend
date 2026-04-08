@@ -44,8 +44,9 @@ sism-backend/
 
 - 当前数据库结构已经冻结为新的 Flyway `V1` 基线
 - 活跃 Flyway 目录是 `sism-main/src/main/resources/db/migration/`
+- 当前以该目录为唯一权威迁移链
 - 尽量不要改数据库结构，除非客户需求明确要求
-- 如必须改表结构，只能新增新的 `V2__*.sql`、`V3__*.sql` 迁移，不要改 `V1__baseline_current_schema.sql`
+- 如必须改表结构，不要修改 `V1__baseline_current_schema.sql`，应在活跃目录新增一个全局唯一版本号的迁移文件
 
 ### 环境要求
 
@@ -113,14 +114,14 @@ GRANT ALL PRIVILEGES ON DATABASE sism_dev TO sism_user;
 \q
 ```
 
-**方法 B: 使用 Node.js 脚本 (推荐)**
+**方法 B: 手动创建数据库后使用 Flyway（推荐）**
 
 ```bash
-# 安装依赖
-npm install pg dotenv
+# 查看迁移状态
+./mvnw flyway:info
 
-# 运行初始化脚本
-node database/scripts/db-setup.js
+# 应用所有迁移
+./mvnw flyway:migrate
 ```
 
 #### 4. 运行数据库迁移
@@ -141,12 +142,14 @@ node database/scripts/db-setup.js
 #### 5. 加载种子数据 (可选)
 
 ```bash
-# 加载基础数据
-psql -U your_username -d sism_dev -f database/seeds/seed-data.sql
-
-# 审核新版种子草案（仅审阅，不会落库）
-psql -U your_username -d sism_dev -f database/seeds/seed_data_v3_review.sql
+# 使用当前受支持的 clean seed 流程前，请先确认目标环境是本地开发库
+./database/scripts/reset-clean-seeds.sh
 ```
+
+说明：
+
+- 当前仓库仅保留最小化的本地 seed 重置脚本
+- 如果要执行约束型迁移或重置种子，请先阅读 [DATABASE-SAFETY-CONFIG.md](/Users/blackevil/Documents/前端架构测试/sism-backend/DATABASE-SAFETY-CONFIG.md)
 
 #### 6. 构建项目
 
@@ -411,12 +414,11 @@ copy .env.example .env
 ### 初始化数据库
 
 ```bash
-# 使用 Node.js 脚本初始化
-node database/scripts/db-setup.js
+# 使用 Flyway 初始化结构
+./mvnw flyway:migrate
 
-# 或手动执行 SQL
-psql -U postgres -d sism_dev -f database/migrations/V1.0__init.sql
-psql -U postgres -d sism_dev -f database/seeds/seed-data.sql
+# 如需本地重置并加载 clean seeds
+./database/scripts/reset-clean-seeds.sh
 ```
 
 ### 数据同步
@@ -1199,7 +1201,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/migrations:/docker-entrypoint-initdb.d
+      - ./sism-main/src/main/resources/db/migration:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
