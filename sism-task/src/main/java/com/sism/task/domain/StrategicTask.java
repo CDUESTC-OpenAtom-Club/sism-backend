@@ -4,9 +4,12 @@ import com.sism.organization.domain.SysOrg;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import com.sism.task.domain.event.TaskCreatedEvent;
 import com.sism.task.domain.event.TaskStatusChangedEvent;
+import com.sism.task.domain.TaskType;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
@@ -23,10 +26,10 @@ import java.util.Objects;
 @Access(AccessType.FIELD)
 public class StrategicTask extends AggregateRoot<Long> {
 
-    public static final String STATUS_DRAFT = "DRAFT";
-    public static final String STATUS_ACTIVE = "ACTIVE";
-    public static final String STATUS_COMPLETED = "COMPLETED";
-    public static final String STATUS_CANCELLED = "CANCELLED";
+    public static final String STATUS_DRAFT = TaskStatus.DRAFT.value();
+    public static final String STATUS_ACTIVE = TaskStatus.ACTIVE.value();
+    public static final String STATUS_COMPLETED = TaskStatus.COMPLETED.value();
+    public static final String STATUS_CANCELLED = TaskStatus.CANCELLED.value();
 
     @Id
     @SequenceGenerator(name="Task_IdSeq", sequenceName="strategic_task_task_id_seq", allocationSize=1)
@@ -75,12 +78,33 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="is_deleted", nullable=false)
     private Boolean isDeleted = false;
 
-    @Transient
+    @Enumerated(EnumType.STRING)
+    @Column(name = "task_category", nullable = false)
     private TaskCategory taskCategory = TaskCategory.STRATEGIC;
 
-    // 当前战略任务的 taskStatus 仍为任务域内部状态，不映射数据库列。
-    @Transient
+    @Column(name = "status", nullable = false, length = 64)
     private String status = STATUS_DRAFT;
+
+    @Setter(AccessLevel.NONE)
+    @Formula("(SELECT COALESCE(p.status, 'DRAFT') FROM plan p WHERE p.id = plan_id)")
+    private String planStatus;
+
+    public String getPlanStatus() {
+        return planStatus != null ? planStatus : TaskStatus.DRAFT.value();
+    }
+
+    public void setStatus(String status) {
+        this.status = TaskStatus.normalize(status);
+    }
+
+    public void setStatus(TaskStatus status) {
+        this.status = status == null ? null : status.value();
+    }
+
+    @Transient
+    public TaskStatus getStatusEnum() {
+        return TaskStatus.from(status);
+    }
 
     public static StrategicTask create(String name, TaskType taskType, Long planId, Long cycleId,
                                         SysOrg org, SysOrg createdByOrg) {
@@ -117,40 +141,40 @@ public class StrategicTask extends AggregateRoot<Long> {
         task.createdByOrg = createdByOrg;
         task.taskCategory = taskCategory != null ? taskCategory : TaskCategory.STRATEGIC;
         task.sortOrder = 0;
-        task.status = STATUS_DRAFT;
+        task.setStatus(TaskStatus.DRAFT);
         task.createdAt = LocalDateTime.now();
         task.updatedAt = LocalDateTime.now();
         task.isDeleted = false;
-        task.addEvent(new TaskCreatedEvent(task.id, name, org.getId()));
         return task;
     }
 
     public void activate() {
-        if (!STATUS_DRAFT.equals(this.status)) {
+        if (getStatusEnum() != TaskStatus.DRAFT) {
             throw new IllegalStateException("Cannot activate task: not in DRAFT state");
         }
         String oldStatus = this.status;
-        this.status = STATUS_ACTIVE;
+        this.setStatus(TaskStatus.ACTIVE);
         this.updatedAt = LocalDateTime.now();
         this.addEvent(new TaskStatusChangedEvent(this.id, oldStatus, STATUS_ACTIVE));
     }
 
     public void complete() {
-        if (!STATUS_ACTIVE.equals(this.status)) {
+        if (getStatusEnum() != TaskStatus.ACTIVE) {
             throw new IllegalStateException("Cannot complete task: not in ACTIVE state");
         }
         String oldStatus = this.status;
-        this.status = STATUS_COMPLETED;
+        this.setStatus(TaskStatus.COMPLETED);
         this.updatedAt = LocalDateTime.now();
         this.addEvent(new TaskStatusChangedEvent(this.id, oldStatus, STATUS_COMPLETED));
     }
 
     public void cancel() {
-        if (!STATUS_DRAFT.equals(this.status) && !STATUS_ACTIVE.equals(this.status)) {
+        TaskStatus currentStatus = getStatusEnum();
+        if (currentStatus != TaskStatus.DRAFT && currentStatus != TaskStatus.ACTIVE) {
             throw new IllegalStateException("Cannot cancel task: not in DRAFT or ACTIVE state");
         }
         String oldStatus = this.status;
-        this.status = STATUS_CANCELLED;
+        this.setStatus(TaskStatus.CANCELLED);
         this.updatedAt = LocalDateTime.now();
         this.addEvent(new TaskStatusChangedEvent(this.id, oldStatus, STATUS_CANCELLED));
     }
@@ -201,10 +225,17 @@ public class StrategicTask extends AggregateRoot<Long> {
             taskCategory = TaskCategory.STRATEGIC;
         }
         if (status == null) {
-            status = STATUS_DRAFT;
+            setStatus(TaskStatus.DRAFT);
         }
         if (isDeleted == null) {
             isDeleted = false;
+        }
+    }
+
+    @PostPersist
+    protected void onCreated() {
+        if (id != null) {
+            addEvent(new TaskCreatedEvent(id, name, org != null ? org.getId() : null));
         }
     }
 
@@ -214,7 +245,7 @@ public class StrategicTask extends AggregateRoot<Long> {
             taskCategory = TaskCategory.STRATEGIC;
         }
         if (status == null) {
-            status = STATUS_DRAFT;
+            setStatus(TaskStatus.DRAFT);
         }
     }
 

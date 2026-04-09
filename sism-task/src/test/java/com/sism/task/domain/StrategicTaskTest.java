@@ -1,6 +1,8 @@
 package com.sism.task.domain;
 
 import com.sism.organization.domain.SysOrg;
+import com.sism.task.domain.event.TaskCreatedEvent;
+import com.sism.task.domain.TaskType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,6 +37,36 @@ class StrategicTaskTest {
         assertFalse(task.getIsDeleted());
         assertNotNull(task.getCreatedAt());
         assertNotNull(task.getUpdatedAt());
+    }
+
+    @Test
+    @DisplayName("Should queue TaskCreatedEvent only after ID is assigned")
+    void shouldQueueTaskCreatedEventOnlyAfterIdIsAssigned() {
+        org.setId(10L);
+        createdByOrg.setId(11L);
+
+        StrategicTask task = StrategicTask.create("测试任务", TaskType.BASIC, 1L, 1L, org, createdByOrg);
+
+        assertTrue(task.getDomainEvents().isEmpty());
+
+        task.setId(99L);
+        task.onCreated();
+
+        assertEquals(1, task.getDomainEvents().size());
+        TaskCreatedEvent createdEvent = (TaskCreatedEvent) task.getDomainEvents().get(0);
+        assertEquals(99L, createdEvent.getTaskId());
+        assertEquals("测试任务", createdEvent.getTaskName());
+        assertEquals(10L, createdEvent.getOrgId());
+    }
+
+    @Test
+    @DisplayName("Should expose strongly typed task status")
+    void shouldExposeStronglyTypedTaskStatus() {
+        StrategicTask task = StrategicTask.create("测试任务", TaskType.BASIC, 1L, 1L, org, createdByOrg);
+
+        assertEquals(TaskStatus.DRAFT, task.getStatusEnum());
+        task.activate();
+        assertEquals(TaskStatus.ACTIVE, task.getStatusEnum());
     }
 
     @Test
