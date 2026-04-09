@@ -1,29 +1,33 @@
 package com.sism.task.application;
 
 import com.sism.common.PageResult;
+import com.sism.iam.application.dto.CurrentUser;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.shared.domain.exception.AuthorizationException;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import com.sism.task.application.dto.*;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.TaskCategory;
 import com.sism.task.domain.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
+import com.sism.task.infrastructure.persistence.PlanBindingRepository;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -34,16 +38,14 @@ public class TaskApplicationService {
     private final OrganizationRepository organizationRepository;
     private final DomainEventPublisher eventPublisher;
     private final EventStore eventStore;
-
-    @PersistenceContext
-    private EntityManager entityManager;
+    private final PlanBindingRepository planBindingRepository;
 
     @Transactional
-    public TaskResponse createTask(CreateTaskRequest request) {
-        SysOrg org = organizationRepository.findById(request.getOrgId())
-                .orElseThrow(() -> new IllegalArgumentException("组织不存在: " + request.getOrgId()));
-        SysOrg createdByOrg = organizationRepository.findById(request.getCreatedByOrgId())
-                .orElseThrow(() -> new IllegalArgumentException("创建组织不存在: " + request.getCreatedByOrgId()));
+    public TaskResponse createTask(CreateTaskRequest request, CurrentUser currentUser, boolean isAdmin) {
+        ensureCanOperateOnOrg(currentUser, isAdmin, request.getOrgId());
+        ensureCanOperateOnOrg(currentUser, isAdmin, request.getCreatedByOrgId());
+        SysOrg org = loadOrganization(request.getOrgId(), "组织不存在");
+        SysOrg createdByOrg = loadOrganization(request.getCreatedByOrgId(), "创建组织不存在");
 
         validatePlanBinding(request.getPlanId(), request.getCycleId(), org, createdByOrg);
 
@@ -74,9 +76,8 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse activateTask(Long id) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse activateTask(Long id, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         task.activate();
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -84,9 +85,8 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse completeTask(Long id) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse completeTask(Long id, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         task.complete();
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -94,9 +94,8 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse cancelTask(Long id) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse cancelTask(Long id, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         task.cancel();
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -104,9 +103,10 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse updateTask(Long id, UpdateTaskRequest request) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse updateTask(Long id, UpdateTaskRequest request, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
+        ensureCanOperateOnOrg(currentUser, isAdmin, request.getOrgId());
+        ensureCanOperateOnOrg(currentUser, isAdmin, request.getCreatedByOrgId());
 
         task.updateName(request.getName());
         task.updateDesc(request.getDesc());
@@ -123,14 +123,12 @@ public class TaskApplicationService {
         }
 
         if (request.getOrgId() != null) {
-            SysOrg org = organizationRepository.findById(request.getOrgId())
-                    .orElseThrow(() -> new IllegalArgumentException("组织不存在: " + request.getOrgId()));
+            SysOrg org = loadOrganization(request.getOrgId(), "组织不存在");
             task.setOrg(org);
         }
 
         if (request.getCreatedByOrgId() != null) {
-            SysOrg createdByOrg = organizationRepository.findById(request.getCreatedByOrgId())
-                    .orElseThrow(() -> new IllegalArgumentException("创建组织不存在: " + request.getCreatedByOrgId()));
+            SysOrg createdByOrg = loadOrganization(request.getCreatedByOrgId(), "创建组织不存在");
             task.setCreatedByOrg(createdByOrg);
         }
 
@@ -143,9 +141,8 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse updateTaskName(Long id, String name) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse updateTaskName(Long id, String name, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         task.updateName(name);
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -153,9 +150,8 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse updateTaskDesc(Long id, String desc) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse updateTaskDesc(Long id, String desc, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         task.updateDesc(desc);
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -163,9 +159,8 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse updateTaskRemark(Long id, String remark) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse updateTaskRemark(Long id, String remark, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         task.setRemark(remark);
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -173,9 +168,8 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public TaskResponse updateSortOrder(Long id, Integer sortOrder) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public TaskResponse updateSortOrder(Long id, Integer sortOrder, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         task.updateSortOrder(sortOrder);
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -183,9 +177,9 @@ public class TaskApplicationService {
     }
 
     @Transactional
-    public void deleteTask(Long id) {
-        StrategicTask task = taskRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+    public void deleteTask(Long id, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
+        ensureTaskDeletable(task);
         task.setIsDeleted(true);
         taskRepository.save(task);
         publishAndSaveEvents(task);
@@ -195,7 +189,7 @@ public class TaskApplicationService {
     public TaskResponse getTaskById(Long id) {
         return jpaTaskRepository.findFlatViewById(id)
                 .map(TaskResponse::fromView)
-                .orElseThrow(() -> new IllegalArgumentException("任务不存在: " + id));
+                .orElseThrow(() -> new IllegalArgumentException("任务不存在"));
     }
 
     @Transactional(readOnly = true)
@@ -206,48 +200,44 @@ public class TaskApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public PageResult<TaskResponse> searchTasks(TaskQueryRequest request) {
-        int page = request.getPage() != null ? request.getPage() : 0;
-        int size = request.getSize() != null ? request.getSize() : 10;
+    public List<TaskResponse> getAccessibleTasksByOrgId(Long orgId) {
+        if (orgId == null) {
+            return List.of();
+        }
+        return jpaTaskRepository.findFlatViewsByAccessibleOrgId(orgId).stream()
+                .map(TaskResponse::fromView)
+                .toList();
+    }
 
-        List<TaskResponse> matches = jpaTaskRepository.findFlatViewsByCriteria(
+    @Transactional(readOnly = true)
+    public PageResult<TaskResponse> searchTasks(TaskQueryRequest request, Long accessibleOrgId) {
+        Page<TaskFlatView> resultPage = jpaTaskRepository.findPagedFlatViewsByCriteria(
                 request.getPlanId(),
                 request.getCycleId(),
                 request.getOrgId(),
                 request.getCreatedByOrgId(),
-                request.getTaskType() != null ? request.getTaskType().name() : "",
-                request.getName() != null ? request.getName() : ""
-        ).stream()
-                .map(TaskResponse::fromView)
-                .filter(response -> request.getPlanStatus() == null || request.getPlanStatus().isBlank()
-                        || request.getPlanStatus().equalsIgnoreCase(response.getPlanStatus()))
-                .filter(response -> request.getTaskStatus() == null || request.getTaskStatus().isBlank()
-                        || request.getTaskStatus().equalsIgnoreCase(response.getTaskStatus()))
-                .toList();
-
-        Comparator<TaskResponse> comparator = buildSearchComparator(request.getSortBy());
-        if (comparator != null) {
-            if ("desc".equalsIgnoreCase(request.getSortDirection())) {
-                comparator = comparator.reversed();
-            }
-            matches = matches.stream().sorted(comparator).toList();
-        }
-
-        int fromIndex = Math.min(page * size, matches.size());
-        int toIndex = Math.min(fromIndex + size, matches.size());
-        List<TaskResponse> items = matches.subList(fromIndex, toIndex);
-
-        return PageResult.of(
-                items,
-                matches.size(),
-                page,
-                size
+                request.getTaskType() != null ? request.getTaskType().name() : null,
+                request.getName(),
+                request.getPlanStatus(),
+                request.getTaskStatus(),
+                accessibleOrgId,
+                buildSearchPageable(request)
         );
+
+        Page<TaskResponse> responsePage = resultPage.map(TaskResponse::fromView);
+        return PageResult.of(responsePage);
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByOrgId(Long orgId) {
         return jpaTaskRepository.findFlatViewsByCriteria(null, null, orgId, null, "", "").stream()
+                .map(TaskResponse::fromView)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> getTasksCreatedByOrgId(Long orgId) {
+        return jpaTaskRepository.findFlatViewsByCriteria(null, null, null, orgId, "", "").stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
@@ -281,7 +271,7 @@ public class TaskApplicationService {
     }
 
     private TaskResponse toCommandResponse(StrategicTask task) {
-        return TaskResponse.fromEntity(task, loadPlanStatus(task.getId()));
+        return TaskResponse.fromEntity(task);
     }
 
     private void validatePlanBinding(Long planId, Long cycleId, SysOrg org, SysOrg createdByOrg) {
@@ -298,32 +288,24 @@ public class TaskApplicationService {
             throw new IllegalArgumentException("创建组织不存在");
         }
 
-        Optional<?> planRow = entityManager.createNativeQuery("""
-                SELECT p.cycle_id, p.target_org_id, p.created_by_org_id, p.plan_level
-                FROM public.plan p
-                WHERE p.id = :planId
-                  AND COALESCE(p.is_deleted, false) = false
-                """)
-                .setParameter("planId", planId)
-                .getResultStream()
-                .findFirst();
+        Optional<PlanBindingRepository.PlanBindingInfo> planRow = planBindingRepository.findByPlanId(planId);
         if (planRow.isEmpty()) {
-            throw new IllegalArgumentException("计划不存在: " + planId);
+            throw new IllegalArgumentException("计划不存在");
         }
-        Object[] row = (Object[]) planRow.get();
+        PlanBindingRepository.PlanBindingInfo binding = planRow.get();
 
-        long planCycleId = ((Number) row[0]).longValue();
-        long planTargetOrgId = ((Number) row[1]).longValue();
-        long planCreatedByOrgId = ((Number) row[2]).longValue();
-        String planLevel = String.valueOf(row[3]).trim().toUpperCase();
+        Long planCycleId = binding.cycleId();
+        Long planTargetOrgId = binding.targetOrgId();
+        Long planCreatedByOrgId = binding.createdByOrgId();
+        String planLevel = binding.planLevel();
 
-        if (planCycleId != cycleId.longValue()) {
+        if (!Objects.equals(planCycleId, cycleId)) {
             throw new IllegalArgumentException("任务周期与计划周期不一致");
         }
-        if (planTargetOrgId != org.getId()) {
+        if (!Objects.equals(planTargetOrgId, org.getId())) {
             throw new IllegalArgumentException("任务归属组织与计划目标组织不一致");
         }
-        if (planCreatedByOrgId != createdByOrg.getId()) {
+        if (!Objects.equals(planCreatedByOrgId, createdByOrg.getId())) {
             throw new IllegalArgumentException("任务创建组织与计划创建组织不一致");
         }
         if ("FUNC_TO_COLLEGE".equals(planLevel) && org.getType() != OrgType.academic) {
@@ -334,10 +316,59 @@ public class TaskApplicationService {
         }
     }
 
-    private String loadPlanStatus(Long taskId) {
-        return jpaTaskRepository.findFlatViewById(taskId)
-                .map(TaskFlatView::getPlanStatus)
-                .orElse(StrategicTask.STATUS_DRAFT);
+    private StrategicTask loadTaskWithAccess(Long id, CurrentUser currentUser, boolean isAdmin) {
+        StrategicTask task = taskRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("任务不存在"));
+        ensureTaskAccessible(task, currentUser, isAdmin);
+        return task;
+    }
+
+    private SysOrg loadOrganization(Long orgId, String errorMessage) {
+        return organizationRepository.findById(orgId)
+                .orElseThrow(() -> new IllegalArgumentException(errorMessage));
+    }
+
+    private void ensureCanOperateOnOrg(CurrentUser currentUser, boolean isAdmin, Long orgId) {
+        if (isAdmin || orgId == null) {
+            return;
+        }
+        if (currentUser == null) {
+            throw new AuthorizationException("无法获取当前用户信息，请联系管理员");
+        }
+        Long currentOrgId = currentUser.getOrgId();
+        if (currentOrgId == null) {
+            throw new AuthorizationException("当前用户缺少组织信息，无法操作任务数据");
+        }
+        if (!Objects.equals(currentOrgId, orgId)) {
+            throw new AuthorizationException("无权操作该组织下的任务");
+        }
+    }
+
+    private void ensureTaskAccessible(StrategicTask task, CurrentUser currentUser, boolean isAdmin) {
+        if (isAdmin) {
+            return;
+        }
+        if (currentUser == null) {
+            throw new AuthorizationException("无法获取当前用户信息，请联系管理员");
+        }
+        Long currentOrgId = currentUser.getOrgId();
+        if (currentOrgId == null) {
+            throw new AuthorizationException("当前用户缺少组织信息，无法访问任务数据");
+        }
+
+        Long taskOrgId = task.getOrg() != null ? task.getOrg().getId() : null;
+        Long createdByOrgId = task.getCreatedByOrg() != null ? task.getCreatedByOrg().getId() : null;
+        if (!Objects.equals(taskOrgId, currentOrgId) && !Objects.equals(createdByOrgId, currentOrgId)) {
+            throw new AuthorizationException("无权操作该任务");
+        }
+    }
+
+    private void ensureTaskDeletable(StrategicTask task) {
+        String status = task.getStatus();
+        if (!Objects.equals(status, TaskStatus.DRAFT.value())
+                && !Objects.equals(status, TaskStatus.CANCELLED.value())) {
+            throw new IllegalStateException("只能删除草稿或已取消的任务");
+        }
     }
 
     private void publishAndSaveEvents(com.sism.shared.domain.model.base.AggregateRoot<?> aggregate) {
@@ -352,28 +383,37 @@ public class TaskApplicationService {
         aggregate.clearEvents();
     }
 
-    private Comparator<TaskResponse> buildSearchComparator(String sortBy) {
+    private Pageable buildSearchPageable(TaskQueryRequest request) {
+        int page = request.getPage() != null ? Math.max(request.getPage(), 0) : 0;
+        int size = request.getSize() != null ? Math.max(request.getSize(), 1) : 10;
+
+        Sort sort = buildSearchSort(request.getSortBy(), request.getSortDirection());
+        return PageRequest.of(page, size, sort);
+    }
+
+    private Sort buildSearchSort(String sortBy, String sortDirection) {
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDirection)
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+
         if (sortBy == null || sortBy.isBlank()) {
-            return null;
+            return Sort.by(Sort.Order.asc("t.sort_order"), Sort.Order.asc("t.task_id"));
         }
 
         return switch (sortBy) {
-            case "id" -> Comparator.comparing(TaskResponse::getId, Comparator.nullsLast(Long::compareTo));
-            case "name" -> Comparator.comparing(TaskResponse::getName, Comparator.nullsLast(String::compareTo));
-            case "taskType" -> Comparator.comparing(
-                    response -> response.getTaskType() != null ? response.getTaskType().name() : null,
-                    Comparator.nullsLast(String::compareTo)
-            );
-            case "planId" -> Comparator.comparing(TaskResponse::getPlanId, Comparator.nullsLast(Long::compareTo));
-            case "cycleId" -> Comparator.comparing(TaskResponse::getCycleId, Comparator.nullsLast(Long::compareTo));
-            case "orgId" -> Comparator.comparing(TaskResponse::getOrgId, Comparator.nullsLast(Long::compareTo));
-            case "createdByOrgId" -> Comparator.comparing(TaskResponse::getCreatedByOrgId, Comparator.nullsLast(Long::compareTo));
-            case "sortOrder" -> Comparator.comparing(TaskResponse::getSortOrder, Comparator.nullsLast(Integer::compareTo));
-            case "planStatus" -> Comparator.comparing(TaskResponse::getPlanStatus, Comparator.nullsLast(String::compareTo));
-            case "taskStatus" -> Comparator.comparing(TaskResponse::getTaskStatus, Comparator.nullsLast(String::compareTo));
-            case "createdAt" -> Comparator.comparing(TaskResponse::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo));
-            case "updatedAt" -> Comparator.comparing(TaskResponse::getUpdatedAt, Comparator.nullsLast(LocalDateTime::compareTo));
-            default -> null;
+            case "id" -> Sort.by(direction, "t.task_id");
+            case "name" -> Sort.by(direction, "t.name");
+            case "taskType" -> Sort.by(direction, "t.task_type");
+            case "planId" -> Sort.by(direction, "t.plan_id");
+            case "cycleId" -> Sort.by(direction, "t.cycle_id");
+            case "orgId" -> Sort.by(direction, "t.org_id");
+            case "createdByOrgId" -> Sort.by(direction, "t.created_by_org_id");
+            case "sortOrder" -> Sort.by(direction, "t.sort_order");
+            case "planStatus" -> Sort.by(direction, "p.status");
+            case "taskStatus" -> Sort.by(direction, "t.status");
+            case "createdAt" -> Sort.by(direction, "t.created_at");
+            case "updatedAt" -> Sort.by(direction, "t.updated_at");
+            default -> Sort.by(Sort.Order.asc("t.sort_order"), Sort.Order.asc("t.task_id"));
         };
     }
 }
