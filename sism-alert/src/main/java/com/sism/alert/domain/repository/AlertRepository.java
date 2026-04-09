@@ -1,7 +1,10 @@
 package com.sism.alert.domain.repository;
 
 import com.sism.alert.domain.Alert;
+import com.sism.alert.domain.enums.AlertSeverity;
+import com.sism.alert.domain.enums.AlertStatus;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,15 +25,31 @@ public interface AlertRepository {
 
     long count();
 
-    List<Alert> findByStatus(String status);
+    List<Alert> findByStatus(AlertStatus status);
 
     List<Alert> findBySeverity(String severity);
 
     List<Alert> findByIndicatorId(Long indicatorId);
 
-    List<Alert> findUnresolvedBySeverity(String severity);
+    List<Alert> findBySeverityAndStatusNot(String severity, AlertStatus status);
 
-    long countByStatus(String status);
+    default List<Alert> findUnresolvedBySeverity(String severity) {
+        String normalizedSeverity = AlertSeverity.normalize(severity);
+        if (normalizedSeverity == null) {
+            return List.of();
+        }
+        return findBySeverityAndStatusNot(normalizedSeverity, AlertStatus.RESOLVED);
+    }
 
-    long countBySeverityAndStatus(String severity, String status);
+    long countByStatus(AlertStatus status);
+
+    long countBySeverity(String severity);
+
+    long countBySeverityAndStatus(String severity, AlertStatus status);
+
+    long countByIndicatorIdIn(Collection<Long> indicatorIds);
+
+    long countByIndicatorIdInAndStatus(Collection<Long> indicatorIds, AlertStatus status);
+
+    long countByIndicatorIdInAndSeverityAndStatus(Collection<Long> indicatorIds, String severity, AlertStatus status);
 }

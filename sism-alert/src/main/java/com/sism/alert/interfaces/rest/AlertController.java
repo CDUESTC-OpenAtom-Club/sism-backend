@@ -1,8 +1,8 @@
 package com.sism.alert.interfaces.rest;
 
+import com.sism.alert.application.AlertAccessService;
 import com.sism.alert.application.AlertApplicationService;
 import com.sism.alert.domain.Alert;
-import com.sism.alert.domain.repository.AlertRepository;
 import com.sism.alert.interfaces.dto.AlertRequest;
 import com.sism.alert.interfaces.dto.ResolveAlertRequest;
 import com.sism.common.ApiResponse;
@@ -31,7 +31,7 @@ import java.util.Map;
 public class AlertController {
 
     private final AlertApplicationService alertApplicationService;
-    private final AlertRepository alertRepository;
+    private final AlertAccessService alertAccessService;
 
     // ==================== Create ====================
 
@@ -42,6 +42,7 @@ public class AlertController {
             @Valid @RequestBody AlertRequest request,
             Authentication authentication
     ) {
+        alertAccessService.ensureIndicatorAccess(request.getIndicatorId(), authentication);
         Alert alert = alertApplicationService.createAlert(
                 request.getIndicatorId(),
                 request.getRuleId(),
@@ -62,9 +63,7 @@ public class AlertController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        Alert alert = alertRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Alert not found: " + id));
-        checkAlertAccessPermission(alert, authentication);
+        alertAccessService.requireAccessibleAlert(id, authentication);
         Alert triggeredAlert = alertApplicationService.triggerAlert(id);
         return ResponseEntity.ok(ApiResponse.success(triggeredAlert));
     }
@@ -76,7 +75,7 @@ public class AlertController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getAllAlerts(Authentication authentication) {
         List<Alert> alerts = alertApplicationService.getAllAlerts();
-        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        List<Alert> filteredAlerts = alertAccessService.filterAlertsByPermission(alerts, authentication);
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
@@ -89,7 +88,7 @@ public class AlertController {
     ) {
         return alertApplicationService.getAlertById(id)
                 .map(alert -> {
-                    checkAlertAccessPermission(alert, authentication);
+                    alertAccessService.validateAlertAccess(alert, authentication);
                     return ResponseEntity.ok(ApiResponse.success(alert));
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -103,7 +102,7 @@ public class AlertController {
             Authentication authentication
     ) {
         List<Alert> alerts = alertApplicationService.getAlertsByStatus(status);
-        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        List<Alert> filteredAlerts = alertAccessService.filterAlertsByPermission(alerts, authentication);
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
@@ -115,7 +114,7 @@ public class AlertController {
             Authentication authentication
     ) {
         List<Alert> alerts = alertApplicationService.getAlertsBySeverity(severity);
-        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        List<Alert> filteredAlerts = alertAccessService.filterAlertsByPermission(alerts, authentication);
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
@@ -127,7 +126,7 @@ public class AlertController {
             Authentication authentication
     ) {
         List<Alert> alerts = alertApplicationService.getAlertsByIndicatorId(indicatorId);
-        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        List<Alert> filteredAlerts = alertAccessService.filterAlertsByPermission(alerts, authentication);
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
@@ -136,7 +135,7 @@ public class AlertController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<Alert>>> getUnresolvedAlerts(Authentication authentication) {
         List<Alert> alerts = alertApplicationService.getUnresolvedAlerts();
-        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        List<Alert> filteredAlerts = alertAccessService.filterAlertsByPermission(alerts, authentication);
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
@@ -146,7 +145,7 @@ public class AlertController {
     public ResponseEntity<ApiResponse<List<Alert>>> getUnclosedAlertEvents(Authentication authentication) {
         // Alias for /unresolved to match frontend API expectations
         List<Alert> alerts = alertApplicationService.getUnresolvedAlerts();
-        List<Alert> filteredAlerts = filterAlertsByPermission(alerts, authentication);
+        List<Alert> filteredAlerts = alertAccessService.filterAlertsByPermission(alerts, authentication);
         return ResponseEntity.ok(ApiResponse.success(filteredAlerts));
     }
 
@@ -160,9 +159,7 @@ public class AlertController {
             @Valid @RequestBody ResolveAlertRequest request,
             Authentication authentication
     ) {
-        Alert alert = alertRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Alert not found: " + id));
-        checkAlertAccessPermission(alert, authentication);
+        alertAccessService.requireAccessibleAlert(id, authentication);
 
         Long handledBy = extractUserId(authentication);
         Alert resolvedAlert = alertApplicationService.resolveAlert(
@@ -171,21 +168,36 @@ public class AlertController {
         return ResponseEntity.ok(ApiResponse.success(resolvedAlert));
     }
 
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除预警", description = "删除指定预警记录")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> deleteAlert(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        alertAccessService.requireAccessibleAlert(id, authentication);
+        alertApplicationService.deleteAlert(id);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     // ==================== Statistics ====================
 
     @GetMapping("/count")
     @Operation(summary = "统计预警数量", description = "获取预警总数")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Long>>> countAlerts(Authentication authentication) {
-        long total = alertApplicationService.countAlerts();
-        long pending = alertApplicationService.countByStatus(Alert.STATUS_PENDING);
-        long triggered = alertApplicationService.countByStatus(Alert.STATUS_TRIGGERED);
-        long resolved = alertApplicationService.countByStatus(Alert.STATUS_RESOLVED);
+        Map<String, Long> counts = isAdmin(authentication)
+                ? Map.of(
+                "total", alertApplicationService.countAlerts(),
+                "pending", alertApplicationService.countByStatus(Alert.STATUS_OPEN),
+                "triggered", alertApplicationService.countByStatus(Alert.STATUS_IN_PROGRESS),
+                "resolved", alertApplicationService.countByStatus(Alert.STATUS_RESOLVED))
+                : alertAccessService.countAlertsForCurrentOrg(authentication);
         return ResponseEntity.ok(ApiResponse.success(Map.of(
-                "total", total,
-                "pending", pending,
-                "triggered", triggered,
-                "resolved", resolved
+                "total", counts.getOrDefault("total", 0L),
+                "pending", counts.getOrDefault("pending", 0L),
+                "triggered", counts.getOrDefault("triggered", 0L),
+                "resolved", counts.getOrDefault("resolved", 0L)
         )));
     }
 
@@ -193,28 +205,13 @@ public class AlertController {
     @Operation(summary = "获取预警统计", description = "获取预警统计数据(按严重程度细分)")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getAlertStats(Authentication authentication) {
-        Map<String, Object> stats = alertApplicationService.getAlertStats();
+        Map<String, Object> stats = isAdmin(authentication)
+                ? alertApplicationService.getAlertStats()
+                : alertAccessService.buildAlertStatsForCurrentOrg(authentication);
         return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
     // ==================== 权限检查辅助方法 ====================
-
-    private void checkAlertAccessPermission(Alert alert, Authentication authentication) {
-        if (isAdmin(authentication)) {
-            return;
-        }
-        // All authenticated users can access alerts for now
-        // Future: check indicator ownership via indicatorId
-    }
-
-    private List<Alert> filterAlertsByPermission(List<Alert> alerts, Authentication authentication) {
-        if (isAdmin(authentication)) {
-            return alerts;
-        }
-        // All authenticated users can view alerts for now
-        // Future: filter by indicator ownership
-        return alerts;
-    }
 
     private boolean isAdmin(Authentication authentication) {
         return authentication != null && authentication.getAuthorities().stream()

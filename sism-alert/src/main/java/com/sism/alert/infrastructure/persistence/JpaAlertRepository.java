@@ -1,11 +1,12 @@
 package com.sism.alert.infrastructure.persistence;
 
 import com.sism.alert.domain.Alert;
+import com.sism.alert.domain.enums.AlertStatus;
 import com.sism.alert.domain.repository.AlertRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -17,7 +18,7 @@ import java.util.List;
 public interface JpaAlertRepository extends JpaRepository<Alert, Long>, AlertRepository {
 
     @Override
-    List<Alert> findByStatus(String status);
+    List<Alert> findByStatus(AlertStatus status);
 
     @Override
     List<Alert> findBySeverity(String severity);
@@ -26,12 +27,23 @@ public interface JpaAlertRepository extends JpaRepository<Alert, Long>, AlertRep
     List<Alert> findByIndicatorId(Long indicatorId);
 
     @Override
-    @Query("SELECT a FROM Alert a WHERE a.severity = :severity AND a.status != 'RESOLVED'")
-    List<Alert> findUnresolvedBySeverity(String severity);
+    List<Alert> findBySeverityAndStatusNot(String severity, AlertStatus status);
 
     @Override
-    long countByStatus(String status);
+    long countByStatus(AlertStatus status);
 
     @Override
-    long countBySeverityAndStatus(String severity, String status);
+    long countBySeverity(String severity);
+
+    @Override
+    long countBySeverityAndStatus(String severity, AlertStatus status);
+
+    @Override
+    long countByIndicatorIdIn(Collection<Long> indicatorIds);
+
+    @Override
+    long countByIndicatorIdInAndStatus(Collection<Long> indicatorIds, AlertStatus status);
+
+    @Override
+    long countByIndicatorIdInAndSeverityAndStatus(Collection<Long> indicatorIds, String severity, AlertStatus status);
 }
