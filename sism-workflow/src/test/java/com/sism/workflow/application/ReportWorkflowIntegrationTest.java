@@ -483,10 +483,18 @@ class ReportWorkflowIntegrationTest {
                 public List<SysOrg> findAll() { return List.of(); }
 
                 @Override
+                public org.springframework.data.domain.Page<SysOrg> findAll(org.springframework.data.domain.Pageable pageable) {
+                    return org.springframework.data.domain.Page.empty(pageable);
+                }
+
+                @Override
                 public List<SysOrg> findByParentOrgId(Long parentOrgId) { return List.of(); }
 
                 @Override
                 public List<SysOrg> findByType(com.sism.enums.OrgType type) { return List.of(); }
+
+                @Override
+                public List<SysOrg> findByTypes(List<com.sism.enums.OrgType> types) { return List.of(); }
 
                 @Override
                 public List<SysOrg> findByIsActive(Boolean isActive) { return List.of(); }
@@ -571,6 +579,9 @@ class ReportWorkflowIntegrationTest {
 
                 @Override
                 public Plan save(Plan plan) { return plan; }
+
+                @Override
+                public Plan saveAndFlush(Plan plan) { return plan; }
 
                 @Override
                 public void delete(Plan plan) {}

@@ -108,8 +108,8 @@ class StrategyApplicationServiceTest {
         StrategicTask sourceTask = StrategicTask.create(
                 "既有任务",
                 TaskType.BASIC,
-                7001L,
-                2026L,
+                Long.valueOf(7001L),
+                Long.valueOf(2026L),
                 sourceTargetOrg,
                 ownerOrg
         );

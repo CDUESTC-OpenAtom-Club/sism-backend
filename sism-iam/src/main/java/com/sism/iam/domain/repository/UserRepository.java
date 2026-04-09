@@ -3,7 +3,9 @@ package com.sism.iam.domain.repository;
 import com.sism.iam.domain.User;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * UserRepository - 用户仓储接口
@@ -51,6 +53,13 @@ public interface UserRepository {
      */
     default List<String> findPermissionCodesByUserId(Long userId) {
         return List.of();
+    }
+
+    /**
+     * 批量统计角色关联用户数
+     */
+    default Map<Long, Long> countUsersByRoleIds(Set<Long> roleIds) {
+        return Map.of();
     }
 
     /**
