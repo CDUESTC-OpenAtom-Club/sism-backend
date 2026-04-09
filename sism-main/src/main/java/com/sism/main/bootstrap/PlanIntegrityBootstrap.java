@@ -17,6 +17,11 @@ public class PlanIntegrityBootstrap implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         log.info("[PlanIntegrityBootstrap] Ensuring baseline plan matrix");
-        planIntegrityService.ensurePlanMatrix();
+        try {
+            planIntegrityService.ensurePlanMatrix();
+        } catch (Exception e) {
+            log.error("[PlanIntegrityBootstrap] Failed to ensure plan matrix", e);
+            throw new IllegalStateException("Failed to ensure baseline plan matrix", e);
+        }
     }
 }
