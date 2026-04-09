@@ -1,34 +1,71 @@
 package com.sism.config;
 
 import io.github.cdimascio.dotenv.Dotenv;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 
-public class EnvConfig {
-    private static Dotenv dotenv;
+public final class EnvConfig {
+    private static final Logger log = LoggerFactory.getLogger(EnvConfig.class);
+    private static final Object LOCK = new Object();
+    private static volatile Dotenv dotenv;
 
-    static {
-        try {
-            File projectDir = new File(System.getProperty("user.dir"));
-            dotenv = Dotenv.configure()
-                    .directory(projectDir.getAbsolutePath())
-                    .ignoreIfMissing()
-                    .load();
-        } catch (Exception e) {
-            System.err.println("Failed to load .env file: " + e.getMessage());
+    private EnvConfig() {
+    }
+
+    public static void setDotenv(Dotenv override) {
+        synchronized (LOCK) {
+            dotenv = override;
         }
     }
 
     public static String get(String key) {
-        return dotenv != null ? dotenv.get(key) : System.getenv(key);
+        String value = lookup(key);
+        return value != null && !value.isBlank() ? value : null;
     }
 
     public static String get(String key, String defaultValue) {
-        return dotenv != null ? dotenv.get(key, defaultValue) : System.getenv(key) != null ? System.getenv(key) : defaultValue;
+        String value = get(key);
+        return value != null ? value : defaultValue;
     }
 
     public static boolean getBoolean(String key, boolean defaultValue) {
         String value = get(key);
-        return value != null && !value.equalsIgnoreCase("false");
+        if (value == null) {
+            return defaultValue;
+        }
+        return !value.equalsIgnoreCase("false");
+    }
+
+    private static String lookup(String key) {
+        Dotenv loader = getDotenv();
+        return loader != null ? loader.get(key) : System.getenv(key);
+    }
+
+    private static Dotenv getDotenv() {
+        Dotenv current = dotenv;
+        if (current == null) {
+            synchronized (LOCK) {
+                if (dotenv == null) {
+                    dotenv = loadDotenv();
+                }
+                current = dotenv;
+            }
+        }
+        return current;
+    }
+
+    private static Dotenv loadDotenv() {
+        try {
+            File projectDir = new File(System.getProperty("user.dir"));
+            return Dotenv.configure()
+                    .directory(projectDir.getAbsolutePath())
+                    .ignoreIfMissing()
+                    .load();
+        } catch (Exception e) {
+            log.warn("Failed to load .env file, falling back to system environment: {}", e.getMessage());
+            return null;
+        }
     }
 }
