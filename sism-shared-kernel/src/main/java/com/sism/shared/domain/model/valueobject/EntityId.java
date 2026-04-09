@@ -34,7 +34,11 @@ public class EntityId<T> {
     }
 
     public Long getLongValue() {
-        return Long.parseLong(value);
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("EntityId value is not numeric: " + value, e);
+        }
     }
 
     public Class<T> getEntityType() {

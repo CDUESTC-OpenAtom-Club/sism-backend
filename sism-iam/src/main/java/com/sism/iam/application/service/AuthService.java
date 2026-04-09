@@ -68,14 +68,14 @@ public class AuthService {
     @Transactional
     public User register(String username, String password, String realName) {
         if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required");
+            throw new IllegalArgumentException("请输入用户名");
         }
         if (password == null || password.isBlank()) {
-            throw new IllegalArgumentException("Password is required");
+            throw new IllegalArgumentException("请输入密码");
         }
 
         if (userRepository.findByUsername(username).isPresent()) {
-            throw new IllegalArgumentException("Username already exists");
+            throw new IllegalArgumentException("用户名已存在");
         }
 
         User user = new User();

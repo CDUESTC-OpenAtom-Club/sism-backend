@@ -88,7 +88,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("Username is required", exception.getMessage());
+        assertEquals("请输入用户名", exception.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
     }
 
@@ -104,7 +104,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("Username is required", exception.getMessage());
+        assertEquals("请输入用户名", exception.getMessage());
     }
 
     @Test
@@ -119,7 +119,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("Password is required", exception.getMessage());
+        assertEquals("请输入密码", exception.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
     }
 
@@ -138,7 +138,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("Invalid username or password", exception.getMessage());
+        assertEquals("用户名或密码错误", exception.getMessage());
         verify(passwordEncoder, never()).matches(anyString(), anyString());
     }
 
@@ -165,7 +165,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("Invalid username or password", exception.getMessage());
+        assertEquals("用户名或密码错误", exception.getMessage());
         verify(jwtTokenService, never()).generateToken(any());
     }
 
@@ -192,7 +192,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("User account is not active", exception.getMessage());
+        assertEquals("账号已被禁用，请联系管理员", exception.getMessage());
         verify(jwtTokenService, never()).generateToken(any());
     }
 
@@ -236,7 +236,7 @@ class AuthServiceTest {
                 () -> authService.register("", "password123", "Test User")
         );
 
-        assertEquals("Username is required", exception.getMessage());
+        assertEquals("请输入用户名", exception.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -248,7 +248,7 @@ class AuthServiceTest {
                 () -> authService.register("testuser", "", "Test User")
         );
 
-        assertEquals("Password is required", exception.getMessage());
+        assertEquals("请输入密码", exception.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -268,7 +268,7 @@ class AuthServiceTest {
                 () -> authService.register(username, "password123", "Test User")
         );
 
-        assertEquals("Username already exists", exception.getMessage());
+        assertEquals("用户名已存在", exception.getMessage());
         verify(passwordEncoder, never()).encode(anyString());
         verify(userRepository, never()).save(any(User.class));
     }
