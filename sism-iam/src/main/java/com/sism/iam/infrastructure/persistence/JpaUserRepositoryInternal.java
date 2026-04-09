@@ -46,6 +46,15 @@ public interface JpaUserRepositoryInternal extends JpaRepository<User, Long> {
             """, nativeQuery = true)
     List<String> findPermissionCodesByUserId(Long userId);
 
+    @Query("""
+            SELECT r.id, COUNT(DISTINCT u.id)
+            FROM User u
+            JOIN u.roles r
+            WHERE r.id IN :roleIds
+            GROUP BY r.id
+            """)
+    List<Object[]> countUsersByRoleIds(List<Long> roleIds);
+
     List<User> findByIsActive(Boolean isActive);
     boolean existsByUsername(String username);
 }

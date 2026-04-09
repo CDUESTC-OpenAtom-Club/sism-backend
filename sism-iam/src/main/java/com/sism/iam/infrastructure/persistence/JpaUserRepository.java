@@ -5,8 +5,11 @@ import com.sism.iam.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
@@ -52,6 +55,19 @@ public class JpaUserRepository implements UserRepository {
     @Override
     public List<String> findPermissionCodesByUserId(Long userId) {
         return jpaRepository.findPermissionCodesByUserId(userId);
+    }
+
+    @Override
+    public Map<Long, Long> countUsersByRoleIds(Set<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Long> counts = new LinkedHashMap<>();
+        for (Object[] row : jpaRepository.countUsersByRoleIds(List.copyOf(roleIds))) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
     @Override

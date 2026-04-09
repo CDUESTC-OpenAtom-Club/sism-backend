@@ -1,7 +1,10 @@
 package com.sism.workflow.infrastructure;
 
+import com.sism.workflow.application.support.WorkflowApproverProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 /**
@@ -9,6 +12,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * 配置JPA实体扫描和仓储扫描
  */
 @Configuration
+@PropertySource("classpath:workflow-approver.properties")
+@EnableConfigurationProperties(WorkflowApproverProperties.class)
 @EntityScan(basePackages = {"com.sism.workflow.domain"})
 @EnableJpaRepositories(basePackages = "com.sism.workflow.infrastructure")
 public class WorkflowModuleConfig {

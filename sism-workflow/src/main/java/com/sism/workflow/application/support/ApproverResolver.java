@@ -6,51 +6,47 @@ import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.interfaces.dto.ApproverCandidateResponse;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
-@RequiredArgsConstructor
 public class ApproverResolver {
 
-    private static final Long ROLE_APPROVER = 2L;
-    private static final Long ROLE_STRATEGY_DEPT_HEAD = 3L;
-    private static final Long ROLE_VICE_PRESIDENT = 4L;
-    private static final Long STRATEGY_ORG_ID = 35L;
     private static final String PLAN_ENTITY_TYPE = "PLAN";
     private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
     private static final String COLLEGE_FINAL_APPROVAL_STEP_NAME = "职能部门终审";
-    private static final Map<Long, Long> FUNCTIONAL_VICE_PRESIDENT_SCOPE_BY_ORG = Map.ofEntries(
-            Map.entry(35L, 35L),
-            Map.entry(36L, 36L),
-            Map.entry(37L, 37L),
-            Map.entry(38L, 38L),
-            Map.entry(39L, 39L),
-            Map.entry(40L, 40L),
-            Map.entry(41L, 41L),
-            Map.entry(42L, 42L),
-            Map.entry(43L, 43L),
-            Map.entry(44L, 44L),
-            Map.entry(45L, 45L),
-            Map.entry(46L, 46L),
-            Map.entry(47L, 47L),
-            Map.entry(48L, 48L),
-            Map.entry(49L, 49L),
-            Map.entry(50L, 50L),
-            Map.entry(51L, 51L),
-            Map.entry(52L, 52L),
-            Map.entry(53L, 53L),
-            Map.entry(54L, 54L)
-    );
 
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final WorkflowApproverProperties workflowApproverProperties;
+
+    @Autowired
+    public ApproverResolver(
+            UserRepository userRepository,
+            PlanRepository planRepository,
+            JdbcTemplate jdbcTemplate,
+            WorkflowApproverProperties workflowApproverProperties
+    ) {
+        this.userRepository = userRepository;
+        this.planRepository = planRepository;
+        this.jdbcTemplate = jdbcTemplate;
+        this.workflowApproverProperties = workflowApproverProperties;
+    }
+
+    public ApproverResolver(
+            UserRepository userRepository,
+            PlanRepository planRepository,
+            JdbcTemplate jdbcTemplate
+    ) {
+        this(userRepository, planRepository, jdbcTemplate, defaultWorkflowApproverProperties());
+    }
 
     public Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId) {
         return resolveApproverId(stepDef, requesterId, requesterOrgId, null);
@@ -115,10 +111,10 @@ public class ApproverResolver {
 
         Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
         Long roleId = stepDef.getRoleId();
-        if (ROLE_STRATEGY_DEPT_HEAD.equals(roleId)) {
-            return STRATEGY_ORG_ID;
+        if (getStrategyDeptHeadRoleId().equals(roleId)) {
+            return getStrategyOrgId();
         }
-        if (ROLE_VICE_PRESIDENT.equals(roleId)) {
+        if (getVicePresidentRoleId().equals(roleId)) {
             return resolveVicePresidentScopeOrgId(stepDef.getStepName(), scopeOrgId);
         }
         return scopeOrgId;
@@ -247,13 +243,13 @@ public class ApproverResolver {
     private boolean matchesRoleScope(User user, Long roleId, Long requesterOrgId, String stepName) {
         Long userOrgId = user.getOrgId();
 
-        if (ROLE_APPROVER.equals(roleId)) {
+        if (getApproverRoleId().equals(roleId)) {
             return requesterOrgId != null && requesterOrgId.equals(userOrgId);
         }
-        if (ROLE_STRATEGY_DEPT_HEAD.equals(roleId)) {
+        if (getStrategyDeptHeadRoleId().equals(roleId)) {
             return isStrategyOrg(userOrgId);
         }
-        if (ROLE_VICE_PRESIDENT.equals(roleId)) {
+        if (getVicePresidentRoleId().equals(roleId)) {
             Long scopeOrgId = resolveVicePresidentScopeOrgId(stepName, requesterOrgId);
             return scopeOrgId != null && scopeOrgId.equals(userOrgId);
         }
@@ -265,10 +261,71 @@ public class ApproverResolver {
         if (stepName != null && stepName.contains("学院院长")) {
             return requesterOrgId;
         }
-        return FUNCTIONAL_VICE_PRESIDENT_SCOPE_BY_ORG.getOrDefault(requesterOrgId, requesterOrgId);
+        Map<Long, Long> scopeByOrg = workflowApproverProperties.getFunctionalVicePresidentScopeByOrg();
+        if (scopeByOrg == null || scopeByOrg.isEmpty()) {
+            return requesterOrgId;
+        }
+        return scopeByOrg.getOrDefault(requesterOrgId, requesterOrgId);
     }
 
     private boolean isStrategyOrg(Long orgId) {
-        return orgId != null && orgId.equals(STRATEGY_ORG_ID);
+        return orgId != null && orgId.equals(getStrategyOrgId());
+    }
+
+    private Long getApproverRoleId() {
+        return requireConfigured(workflowApproverProperties.getApproverRoleId(), "workflow.approver.approver-role-id");
+    }
+
+    private Long getStrategyDeptHeadRoleId() {
+        return requireConfigured(
+                workflowApproverProperties.getStrategyDeptHeadRoleId(),
+                "workflow.approver.strategy-dept-head-role-id"
+        );
+    }
+
+    private Long getVicePresidentRoleId() {
+        return requireConfigured(
+                workflowApproverProperties.getVicePresidentRoleId(),
+                "workflow.approver.vice-president-role-id"
+        );
+    }
+
+    private Long getStrategyOrgId() {
+        return requireConfigured(workflowApproverProperties.getStrategyOrgId(), "workflow.approver.strategy-org-id");
+    }
+
+    private Long requireConfigured(Long value, String propertyName) {
+        return Objects.requireNonNull(value, propertyName + " is not configured");
+    }
+
+    private static WorkflowApproverProperties defaultWorkflowApproverProperties() {
+        WorkflowApproverProperties properties = new WorkflowApproverProperties();
+        properties.setApproverRoleId(2L);
+        properties.setStrategyDeptHeadRoleId(3L);
+        properties.setVicePresidentRoleId(4L);
+        properties.setStrategyOrgId(35L);
+        properties.setFunctionalVicePresidentScopeByOrg(Map.ofEntries(
+                Map.entry(35L, 35L),
+                Map.entry(36L, 36L),
+                Map.entry(37L, 37L),
+                Map.entry(38L, 38L),
+                Map.entry(39L, 39L),
+                Map.entry(40L, 40L),
+                Map.entry(41L, 41L),
+                Map.entry(42L, 42L),
+                Map.entry(43L, 43L),
+                Map.entry(44L, 44L),
+                Map.entry(45L, 45L),
+                Map.entry(46L, 46L),
+                Map.entry(47L, 47L),
+                Map.entry(48L, 48L),
+                Map.entry(49L, 49L),
+                Map.entry(50L, 50L),
+                Map.entry(51L, 51L),
+                Map.entry(52L, 52L),
+                Map.entry(53L, 53L),
+                Map.entry(54L, 54L)
+        ));
+        return properties;
     }
 }
