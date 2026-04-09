@@ -36,13 +36,26 @@ public class Milestone {
     @Column(name = "status")
     private String status;
 
+    public void setStatus(String status) {
+        this.status = MilestoneStatus.normalize(status);
+    }
+
+    public void setStatus(MilestoneStatus status) {
+        this.status = status == null ? null : status.name();
+    }
+
+    @Transient
+    public MilestoneStatus getStatusEnum() {
+        return MilestoneStatus.from(status);
+    }
+
     @Column(name = "sort_order")
     private Integer sortOrder;
 
     @Column(name = "is_paired")
     private Boolean isPaired;
 
-    @Transient
+    @Column(name = "inherited_from")
     private Long inheritedFrom;
 
     @Column(name = "created_at")

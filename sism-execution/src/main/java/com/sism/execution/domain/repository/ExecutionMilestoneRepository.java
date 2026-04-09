@@ -1,6 +1,9 @@
 package com.sism.execution.domain.repository;
 
 import com.sism.execution.domain.model.milestone.Milestone;
+import com.sism.execution.domain.model.milestone.MilestoneStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,9 +18,13 @@ public interface ExecutionMilestoneRepository {
 
     List<Milestone> findAll();
 
+    Page<Milestone> findAll(Pageable pageable);
+
     List<Milestone> findByIndicatorId(Long indicatorId);
 
-    List<Milestone> findByStatus(String status);
+    List<Milestone> findByStatus(MilestoneStatus status);
+
+    Page<Milestone> findByStatus(MilestoneStatus status, Pageable pageable);
 
     Milestone save(Milestone milestone);
 

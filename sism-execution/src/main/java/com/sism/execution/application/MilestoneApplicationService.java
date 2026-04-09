@@ -1,6 +1,8 @@
 package com.sism.execution.application;
 
+import com.sism.exception.ResourceNotFoundException;
 import com.sism.execution.domain.model.milestone.Milestone;
+import com.sism.execution.domain.model.milestone.MilestoneStatus;
 import com.sism.execution.domain.repository.ExecutionMilestoneRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,6 +27,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MilestoneApplicationService {
 
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
+
     private final ExecutionMilestoneRepository milestoneRepository;
 
     /**
@@ -33,7 +37,7 @@ public class MilestoneApplicationService {
     @Transactional
     public Milestone createMilestone(Long indicatorId, String milestoneName,
                                      String description, LocalDateTime dueDate,
-                                     Integer targetProgress, String status,
+                                     Integer targetProgress, MilestoneStatus status,
                                      Integer sortOrder, Boolean isPaired,
                                      Long inheritedFrom) {
         Milestone milestone = new Milestone();
@@ -58,11 +62,11 @@ public class MilestoneApplicationService {
     @Transactional
     public Milestone updateMilestone(Long milestoneId, Long indicatorId, String milestoneName,
                                      String description, LocalDateTime dueDate,
-                                     Integer targetProgress, String status,
+                                     Integer targetProgress, MilestoneStatus status,
                                      Integer sortOrder, Boolean isPaired,
                                      Long inheritedFrom) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
-                .orElseThrow(() -> new IllegalArgumentException("Milestone not found: " + milestoneId));
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone", milestoneId));
 
         if (indicatorId != null) {
             milestone.setIndicatorId(indicatorId);
@@ -90,7 +94,7 @@ public class MilestoneApplicationService {
     @Transactional
     public void deleteMilestone(Long milestoneId) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
-                .orElseThrow(() -> new IllegalArgumentException("Milestone not found: " + milestoneId));
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone", milestoneId));
 
         milestoneRepository.delete(milestone);
     }
@@ -113,8 +117,8 @@ public class MilestoneApplicationService {
      * 分页查询所有里程碑
      */
     public Page<Milestone> findAllMilestones(int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return convertListToPage(milestoneRepository.findAll(), pageable);
+        Pageable pageable = createPageable(page, size);
+        return milestoneRepository.findAll(pageable);
     }
 
     /**
@@ -127,16 +131,16 @@ public class MilestoneApplicationService {
     /**
      * 根据状态查询里程碑
      */
-    public List<Milestone> findMilestonesByStatus(String status) {
+    public List<Milestone> findMilestonesByStatus(MilestoneStatus status) {
         return milestoneRepository.findByStatus(status);
     }
 
     /**
      * 根据状态分页查询里程碑
      */
-    public Page<Milestone> findMilestonesByStatus(String status, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return convertListToPage(milestoneRepository.findByStatus(status), pageable);
+    public Page<Milestone> findMilestonesByStatus(MilestoneStatus status, int page, int size) {
+        Pageable pageable = createPageable(page, size);
+        return milestoneRepository.findByStatus(status, pageable);
     }
 
     /**
@@ -207,21 +211,16 @@ public class MilestoneApplicationService {
         return result;
     }
 
-    /**
-     * 将List转换为Page（用于支持分页查询的Repository接口）
-     */
-    private Page<Milestone> convertListToPage(List<Milestone> list, Pageable pageable) {
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), list.size());
-
-        if (start >= list.size()) {
-            return new org.springframework.data.domain.PageImpl<>(List.of(), pageable, list.size());
-        }
-
-        return new org.springframework.data.domain.PageImpl<>(
-                list.subList(start, end),
-                pageable,
-                list.size()
-        );
+    private Pageable createPageable(int page, int size) {
+        return PageRequest.of(normalizePageNumber(page), normalizePageSize(size), DEFAULT_SORT);
     }
+
+    private int normalizePageNumber(int page) {
+        return Math.max(page, 1) - 1;
+    }
+
+    private int normalizePageSize(int size) {
+        return Math.max(size, 1);
+    }
+
 }

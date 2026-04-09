@@ -24,7 +24,8 @@ import java.util.List;
 public class PlanReport extends AggregateRoot<Long> {
 
     public static final String STATUS_DRAFT = "DRAFT";
-    public static final String STATUS_SUBMITTED = "IN_REVIEW";  // Database uses IN_REVIEW, not SUBMITTED
+    public static final String STATUS_SUBMITTED = "SUBMITTED";
+    public static final String STATUS_SUBMITTED_LEGACY = "IN_REVIEW";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
 
@@ -56,38 +57,37 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "created_by")
     private Long createdBy;
 
-    // Fields not in database - marked as transient for future use or removed if not needed
-    @Transient
+    @Column(name = "title", length = 255)
     private String title;
 
-    @Transient
+    @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
-    @Transient
+    @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Transient
+    @Column(name = "progress")
     private Integer progress;
 
-    @Transient
+    @Column(name = "issues", columnDefinition = "TEXT")
     private String issues;
 
-    @Transient
+    @Column(name = "next_plan", columnDefinition = "TEXT")
     private String nextPlan;
 
-    @Transient
+    @Column(name = "submitted_by")
     private Long submittedBy;
 
-    @Transient
+    @Column(name = "approved_by")
     private Long approvedBy;
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
 
-    @Transient
+    @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
-    @Transient
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
     @Transient
@@ -101,7 +101,7 @@ public class PlanReport extends AggregateRoot<Long> {
      * @param reportMonth 报告月份 (格式: yyyy-MM)
      * @param reportOrgId 报告组织ID
      * @param reportOrgType 报告组织类型 (FUNC_DEPT 或 COLLEGE)
-     * @param planId 计划ID (可选，可为null)
+     * @param planId 计划ID
      */
     public static PlanReport createDraft(String reportMonth, Long reportOrgId,
                                           ReportOrgType reportOrgType, Long planId) {
@@ -119,12 +119,15 @@ public class PlanReport extends AggregateRoot<Long> {
         if (reportOrgType == null) {
             throw new IllegalArgumentException("Report organization type cannot be null");
         }
+        if (planId == null) {
+            throw new IllegalArgumentException("Plan ID is required");
+        }
 
         PlanReport report = new PlanReport();
         report.reportMonth = reportMonth;
         report.reportOrgId = reportOrgId;
         report.reportOrgType = reportOrgType;
-        report.planId = planId != null ? planId : 1L;  // Default to 1 if null
+        report.planId = planId;
         report.status = STATUS_DRAFT;
         report.isDeleted = false;
         report.createdBy = createdBy;
@@ -149,10 +152,12 @@ public class PlanReport extends AggregateRoot<Long> {
      * 审批通过
      */
     public void approve(Long userId) {
-        if (!STATUS_SUBMITTED.equals(this.status)) {
+        if (!isSubmitted()) {
             throw new IllegalStateException("Cannot approve report: not in SUBMITTED status");
         }
         this.status = STATUS_APPROVED;
+        this.approvedBy = userId;
+        this.approvedAt = LocalDateTime.now();
         setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportApprovedEvent(this.id, this.reportMonth, this.reportOrgId, userId));
     }
@@ -161,13 +166,14 @@ public class PlanReport extends AggregateRoot<Long> {
      * 审批驳回
      */
     public void reject(Long userId, String reason) {
-        if (!STATUS_SUBMITTED.equals(this.status)) {
+        if (!isSubmitted()) {
             throw new IllegalStateException("Cannot reject report: not in SUBMITTED status");
         }
         if (reason == null || reason.trim().isEmpty()) {
             throw new IllegalArgumentException("Rejection reason cannot be null or empty");
         }
         this.status = STATUS_REJECTED;
+        this.approvedBy = userId;
         this.rejectionReason = reason;
         setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportRejectedEvent(this.id, this.reportMonth, this.reportOrgId, userId, reason));
@@ -184,6 +190,11 @@ public class PlanReport extends AggregateRoot<Long> {
             throw new IllegalStateException("Cannot update report: not in DRAFT status");
         }
         // These fields are transient - store in remark field instead if needed
+        this.content = content;
+        this.summary = summary;
+        this.progress = progress;
+        this.issues = issues;
+        this.nextPlan = nextPlan;
         setUpdatedAt(LocalDateTime.now());
     }
 
@@ -197,7 +208,7 @@ public class PlanReport extends AggregateRoot<Long> {
      * 判断是否已提交
      */
     public boolean isSubmitted() {
-        return STATUS_SUBMITTED.equals(this.status);
+        return STATUS_SUBMITTED.equals(this.status) || STATUS_SUBMITTED_LEGACY.equals(this.status);
     }
 
     /**
@@ -225,7 +236,9 @@ public class PlanReport extends AggregateRoot<Long> {
         if (reportOrgType == null) {
             throw new IllegalArgumentException("Report organization type is required");
         }
-        // planId is nullable - removed check
+        if (planId == null) {
+            throw new IllegalArgumentException("Plan ID is required");
+        }
     }
 
     @Override
