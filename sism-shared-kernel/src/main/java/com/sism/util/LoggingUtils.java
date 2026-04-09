@@ -3,6 +3,7 @@ package com.sism.util;
 import org.slf4j.Logger;
 import org.slf4j.MDC;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
 
@@ -17,11 +18,24 @@ import java.util.StringJoiner;
  * - 15.5: Request context in error logs
  */
 public final class LoggingUtils {
-    
+    private static final String REDACTED_VALUE = "[REDACTED]";
+    private static final int MAX_DETAIL_VALUE_LENGTH = 200;
+    private static final String[] SENSITIVE_KEYWORDS = {
+            "password",
+            "passwd",
+            "pwd",
+            "token",
+            "secret",
+            "credential",
+            "apikey",
+            "api_key",
+            "auth"
+    };
+
     private LoggingUtils() {
         // Utility class - prevent instantiation
     }
-    
+
     /**
      * Log an error with full context and stack trace.
      * 
@@ -33,7 +47,7 @@ public final class LoggingUtils {
         String context = buildContextString();
         logger.error("{} [context={}]", message, context, exception);
     }
-    
+
     /**
      * Log an error with additional details and stack trace.
      * 
@@ -47,7 +61,7 @@ public final class LoggingUtils {
         String detailsStr = formatDetails(details);
         logger.error("{} [details={}, context={}]", message, detailsStr, context, exception);
     }
-    
+
     /**
      * Log a warning with context.
      * 
@@ -58,7 +72,7 @@ public final class LoggingUtils {
         String context = buildContextString();
         logger.warn("{} [context={}]", message, context);
     }
-    
+
     /**
      * Log a warning with additional details.
      * 
@@ -71,7 +85,7 @@ public final class LoggingUtils {
         String detailsStr = formatDetails(details);
         logger.warn("{} [details={}, context={}]", message, detailsStr, context);
     }
-    
+
     /**
      * Log an info message with context (useful for audit logging).
      * 
@@ -84,7 +98,7 @@ public final class LoggingUtils {
         String detailsStr = formatDetails(details);
         logger.info("{} [details={}, context={}]", message, detailsStr, context);
     }
-    
+
     /**
      * Build a context string from MDC values.
      * 
@@ -92,16 +106,16 @@ public final class LoggingUtils {
      */
     public static String buildContextString() {
         StringJoiner joiner = new StringJoiner(", ");
-        
+
         addMdcValue(joiner, "requestId");
         addMdcValue(joiner, "userId");
         addMdcValue(joiner, "clientIp");
         addMdcValue(joiner, "requestMethod");
         addMdcValue(joiner, "requestUri");
-        
+
         return joiner.toString();
     }
-    
+
     /**
      * Get the current request ID from MDC.
      * 
@@ -111,7 +125,7 @@ public final class LoggingUtils {
         String requestId = MDC.get("requestId");
         return requestId != null ? requestId : "N/A";
     }
-    
+
     /**
      * Get the current user ID from MDC.
      * 
@@ -121,7 +135,7 @@ public final class LoggingUtils {
         String userId = MDC.get("userId");
         return userId != null ? userId : "anonymous";
     }
-    
+
     /**
      * Add MDC value to joiner if present.
      */
@@ -131,7 +145,7 @@ public final class LoggingUtils {
             joiner.add(key + "=" + value);
         }
     }
-    
+
     /**
      * Format details map as string.
      */
@@ -139,17 +153,38 @@ public final class LoggingUtils {
         if (details == null || details.isEmpty()) {
             return "{}";
         }
-        
+
         StringJoiner joiner = new StringJoiner(", ", "{", "}");
         details.forEach((key, value) -> {
-            String valueStr = value != null ? value.toString() : "null";
-            // Truncate long values
-            if (valueStr.length() > 200) {
-                valueStr = valueStr.substring(0, 200) + "...";
-            }
-            joiner.add(key + "=" + valueStr);
+            joiner.add(key + "=" + formatDetailValue(key, value));
         });
-        
+
         return joiner.toString();
+    }
+
+    private static String formatDetailValue(String key, Object value) {
+        if (isSensitiveKey(key)) {
+            return REDACTED_VALUE;
+        }
+
+        String valueStr = value != null ? value.toString() : "null";
+        if (valueStr.length() > MAX_DETAIL_VALUE_LENGTH) {
+            valueStr = valueStr.substring(0, MAX_DETAIL_VALUE_LENGTH) + "...";
+        }
+        return valueStr;
+    }
+
+    private static boolean isSensitiveKey(String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+
+        String normalizedKey = key.toLowerCase(Locale.ROOT);
+        for (String keyword : SENSITIVE_KEYWORDS) {
+            if (normalizedKey.contains(keyword)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

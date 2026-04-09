@@ -14,7 +14,9 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Utility class for HTTP caching support
@@ -30,9 +32,33 @@ import java.util.HexFormat;
 @Slf4j
 public class CacheUtils {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final DateTimeFormatter HTTP_DATE_FORMATTER = 
+    private static final ObjectMapper DEFAULT_OBJECT_MAPPER = new ObjectMapper();
+    private static volatile ObjectMapper objectMapper = DEFAULT_OBJECT_MAPPER;
+    private static final AtomicBoolean OBJECT_MAPPER_INITIALIZED = new AtomicBoolean(false);
+    private static final DateTimeFormatter HTTP_DATE_FORMATTER =
         DateTimeFormatter.RFC_1123_DATE_TIME;
+
+    /**
+     * Override the ObjectMapper used by the static cache helpers.
+     * Spring configuration can wire the shared application ObjectMapper here
+     * without changing the public static API.
+     */
+    public static synchronized void setObjectMapper(ObjectMapper mapper) {
+        ObjectMapper next = mapper != null ? mapper : DEFAULT_OBJECT_MAPPER;
+        if (OBJECT_MAPPER_INITIALIZED.get()) {
+            if (objectMapper != next) {
+                log.warn("CacheUtils ObjectMapper already initialized, ignoring subsequent update");
+            }
+            return;
+        }
+        objectMapper = next;
+        OBJECT_MAPPER_INITIALIZED.set(true);
+    }
+
+    static synchronized void resetObjectMapperForTests() {
+        objectMapper = DEFAULT_OBJECT_MAPPER;
+        OBJECT_MAPPER_INITIALIZED.set(false);
+    }
 
     /**
      * Generate ETag from object content using SHA-256 hash
@@ -82,7 +108,7 @@ public class CacheUtils {
      * @return HTTP date string
      */
     public static String formatHttpDate(long timestamp) {
-        ZonedDateTime dateTime = Instant.ofEpochMilli(timestamp)
+        ZonedDateTime dateTime = truncateToHttpSecondPrecision(Instant.ofEpochMilli(timestamp))
             .atZone(ZoneId.of("GMT"));
         return HTTP_DATE_FORMATTER.format(dateTime);
     }
@@ -97,7 +123,7 @@ public class CacheUtils {
         if (instant == null) {
             return null;
         }
-        ZonedDateTime dateTime = instant.atZone(ZoneId.of("GMT"));
+        ZonedDateTime dateTime = truncateToHttpSecondPrecision(instant).atZone(ZoneId.of("GMT"));
         return HTTP_DATE_FORMATTER.format(dateTime);
     }
 
@@ -135,8 +161,8 @@ public class CacheUtils {
         if (clientDate == null) {
             return true;
         }
-        // Resource is modified if lastModified is after clientDate
-        return lastModified.isAfter(clientDate);
+        // HTTP dates are second precision, so compare at the same granularity.
+        return truncateToHttpSecondPrecision(lastModified).isAfter(clientDate);
     }
 
     /**
@@ -148,24 +174,24 @@ public class CacheUtils {
      * @return ResponseEntity with appropriate status and headers
      */
     public static <T> ResponseEntity<T> buildETagResponse(
-            T data, 
+            T data,
             String ifNoneMatch) {
         String etag = generateETag(data);
-        
+
         if (etag != null && etagMatches(ifNoneMatch, etag)) {
             log.debug("ETag match, returning 304 Not Modified");
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
                 .eTag(etag)
                 .build();
         }
-        
+
         HttpHeaders headers = new HttpHeaders();
         if (etag != null) {
             headers.setETag(etag);
         }
         // Cache-Control: max-age=300 (5 minutes)
         headers.setCacheControl("max-age=300, must-revalidate");
-        
+
         return ResponseEntity.ok()
             .headers(headers)
             .body(data);
@@ -184,7 +210,7 @@ public class CacheUtils {
             T data,
             Instant lastModified,
             String ifModifiedSince) {
-        
+
         if (!isModifiedSince(ifModifiedSince, lastModified)) {
             log.debug("Resource not modified since {}, returning 304", ifModifiedSince);
             HttpHeaders headers = new HttpHeaders();
@@ -195,14 +221,14 @@ public class CacheUtils {
                 .headers(headers)
                 .build();
         }
-        
+
         HttpHeaders headers = new HttpHeaders();
         if (lastModified != null) {
             headers.setLastModified(lastModified);
         }
         // Cache-Control: max-age=120 (2 minutes)
         headers.setCacheControl("max-age=120, must-revalidate");
-        
+
         return ResponseEntity.ok()
             .headers(headers)
             .body(data);
@@ -223,9 +249,9 @@ public class CacheUtils {
             Instant lastModified,
             String ifNoneMatch,
             String ifModifiedSince) {
-        
+
         String etag = generateETag(data);
-        
+
         // Check ETag first (stronger validation)
         if (etag != null && etagMatches(ifNoneMatch, etag)) {
             log.debug("ETag match, returning 304 Not Modified");
@@ -238,7 +264,7 @@ public class CacheUtils {
                 .headers(headers)
                 .build();
         }
-        
+
         // Check Last-Modified as fallback
         if (ifNoneMatch == null && !isModifiedSince(ifModifiedSince, lastModified)) {
             log.debug("Resource not modified, returning 304");
@@ -253,7 +279,7 @@ public class CacheUtils {
                 .headers(headers)
                 .build();
         }
-        
+
         // Return fresh data with cache headers
         HttpHeaders headers = new HttpHeaders();
         if (etag != null) {
@@ -263,9 +289,13 @@ public class CacheUtils {
             headers.setLastModified(lastModified);
         }
         headers.setCacheControl("max-age=300, must-revalidate");
-        
+
         return ResponseEntity.ok()
             .headers(headers)
             .body(data);
+    }
+
+    private static Instant truncateToHttpSecondPrecision(Instant instant) {
+        return instant.truncatedTo(ChronoUnit.SECONDS);
     }
 }
