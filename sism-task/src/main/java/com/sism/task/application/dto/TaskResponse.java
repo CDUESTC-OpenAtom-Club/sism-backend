@@ -15,6 +15,9 @@ import java.util.Locale;
 @Data
 public class TaskResponse {
 
+    private static final String DEFAULT_STATUS = "DRAFT";
+    private static final String DEFAULT_PLAN_STATUS = "DRAFT";
+
     private Long id;
     private String name;
     private String desc;
@@ -31,20 +34,20 @@ public class TaskResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    public static TaskResponse fromEntity(StrategicTask task, String planStatus) {
+    public static TaskResponse fromEntity(StrategicTask task) {
         TaskResponse response = new TaskResponse();
         response.setId(task.getId());
         response.setName(task.getName());
         response.setDesc(task.getDesc());
-        response.setTaskCategory(task.getTaskCategory());
+        response.setTaskCategory(task.getTaskCategory() != null ? task.getTaskCategory() : TaskCategory.STRATEGIC);
         response.setTaskType(task.getTaskType());
         response.setPlanId(task.getPlanId());
         response.setCycleId(task.getCycleId());
         response.setOrgId(task.getOrg() != null ? task.getOrg().getId() : null);
         response.setCreatedByOrgId(task.getCreatedByOrg() != null ? task.getCreatedByOrg().getId() : null);
         response.setSortOrder(task.getSortOrder());
-        response.setPlanStatus(planStatus);
-        response.setTaskStatus(task.getStatus());
+        response.setPlanStatus(DEFAULT_PLAN_STATUS);
+        response.setTaskStatus(defaultStatus(task.getStatus()));
         response.setRemark(task.getRemark());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
@@ -56,19 +59,30 @@ public class TaskResponse {
         response.setId(task.getId());
         response.setName(task.getName());
         response.setDesc(task.getDesc());
-        response.setTaskCategory(TaskCategory.STRATEGIC);
+        response.setTaskCategory(parseTaskCategory(task.getTaskCategory()));
         response.setTaskType(parseTaskType(task.getTaskType()));
         response.setPlanId(task.getPlanId());
         response.setCycleId(task.getCycleId());
         response.setOrgId(task.getOrgId());
         response.setCreatedByOrgId(task.getCreatedByOrgId());
         response.setSortOrder(task.getSortOrder());
-        response.setPlanStatus(task.getPlanStatus());
-        response.setTaskStatus(task.getTaskStatus());
+        response.setPlanStatus(defaultPlanStatus(task.getPlanStatus()));
+        response.setTaskStatus(defaultStatus(task.getTaskStatus()));
         response.setRemark(task.getRemark());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
         return response;
+    }
+
+    static TaskCategory parseTaskCategory(String rawTaskCategory) {
+        if (rawTaskCategory == null || rawTaskCategory.isBlank()) {
+            return TaskCategory.STRATEGIC;
+        }
+        try {
+            return TaskCategory.valueOf(rawTaskCategory.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            return TaskCategory.STRATEGIC;
+        }
     }
 
     static TaskType parseTaskType(String rawTaskType) {
@@ -88,5 +102,13 @@ public class TaskResponse {
             case "DEVELOPMENT", "发展", "发展性" -> TaskType.DEVELOPMENT;
             default -> null;
         };
+    }
+
+    private static String defaultStatus(String rawStatus) {
+        return rawStatus == null || rawStatus.isBlank() ? DEFAULT_STATUS : rawStatus;
+    }
+
+    private static String defaultPlanStatus(String rawPlanStatus) {
+        return rawPlanStatus == null || rawPlanStatus.isBlank() ? DEFAULT_PLAN_STATUS : rawPlanStatus;
     }
 }

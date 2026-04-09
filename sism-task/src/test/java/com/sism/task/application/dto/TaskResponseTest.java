@@ -1,5 +1,6 @@
 package com.sism.task.application.dto;
 
+import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.TaskType;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +17,7 @@ class TaskResponseTest {
     @Test
     @DisplayName("Should map Chinese development task type from flat view")
     void shouldMapChineseDevelopmentTaskTypeFromFlatView() {
-        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("发展性"));
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("发展性", "STRATEGIC", "DRAFT"));
 
         assertEquals(TaskType.DEVELOPMENT, response.getTaskType());
         assertEquals("DISTRIBUTED", response.getPlanStatus());
@@ -26,7 +27,7 @@ class TaskResponseTest {
     @Test
     @DisplayName("Should keep blank task type as null")
     void shouldKeepBlankTaskTypeAsNull() {
-        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView(" "));
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView(" ", "STRATEGIC", "DRAFT"));
 
         assertNull(response.getTaskType());
     }
@@ -34,12 +35,53 @@ class TaskResponseTest {
     @Test
     @DisplayName("Should keep unknown task type as null")
     void shouldKeepUnknownTaskTypeAsNull() {
-        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("mystery"));
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("mystery", "STRATEGIC", "DRAFT"));
 
         assertNull(response.getTaskType());
     }
 
-    private record StubTaskFlatView(String taskType) implements TaskFlatView {
+    @Test
+    @DisplayName("Should default missing flat view task status to draft")
+    void shouldDefaultMissingFlatViewTaskStatusToDraft() {
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("BASIC", "STRATEGIC", null));
+
+        assertEquals("DRAFT", response.getTaskStatus());
+    }
+
+    @Test
+    @DisplayName("Should default blank flat view task status to draft")
+    void shouldDefaultBlankFlatViewTaskStatusToDraft() {
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("BASIC", "STRATEGIC", " "));
+
+        assertEquals("DRAFT", response.getTaskStatus());
+    }
+
+    @Test
+    @DisplayName("Should default unknown flat view task category to strategic")
+    void shouldDefaultUnknownFlatViewTaskCategoryToStrategic() {
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("BASIC", "legacy", "DRAFT"));
+
+        assertEquals(com.sism.task.domain.TaskCategory.STRATEGIC, response.getTaskCategory());
+    }
+
+    @Test
+    @DisplayName("Should default missing entity task category and status")
+    void shouldDefaultMissingEntityTaskCategoryAndStatus() {
+        StrategicTask task = new StrategicTask();
+        task.setName("示例任务");
+        task.setTaskType(TaskType.BASIC);
+        task.setPlanId(10L);
+        task.setCycleId(90L);
+        task.setStatus((String) null);
+        task.setTaskCategory(null);
+
+        TaskResponse response = TaskResponse.fromEntity(task);
+
+        assertEquals("DRAFT", response.getTaskStatus());
+        assertEquals(com.sism.task.domain.TaskCategory.STRATEGIC, response.getTaskCategory());
+    }
+
+    private record StubTaskFlatView(String taskType, String taskCategory, String taskStatus) implements TaskFlatView {
 
         @Override
         public Long getId() {
@@ -93,7 +135,7 @@ class TaskResponseTest {
 
         @Override
         public String getTaskStatus() {
-            return "DRAFT";
+            return taskStatus;
         }
 
         @Override
@@ -109,6 +151,11 @@ class TaskResponseTest {
         @Override
         public LocalDateTime getUpdatedAt() {
             return LocalDateTime.of(2026, 1, 2, 0, 0);
+        }
+
+        @Override
+        public String getTaskCategory() {
+            return taskCategory;
         }
     }
 }
