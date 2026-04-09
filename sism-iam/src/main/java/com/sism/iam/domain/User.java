@@ -42,7 +42,10 @@ public class User extends AggregateRoot<Long> {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
+
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "sys_user_role",
         joinColumns = @JoinColumn(name = "user_id"),

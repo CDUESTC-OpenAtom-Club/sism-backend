@@ -14,6 +14,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class JwtTokenService {
@@ -26,6 +28,8 @@ public class JwtTokenService {
 
     @Value("${jwt.refresh-expiration:604800000}")
     private Long refreshExpiration;
+
+    private final Set<String> blacklistedTokens = ConcurrentHashMap.newKeySet();
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -57,7 +61,7 @@ public class JwtTokenService {
 
     public boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token);
+            return !isTokenExpired(token) && !blacklistedTokens.contains(token);
         } catch (Exception e) {
             return false;
         }
@@ -142,6 +146,12 @@ public class JwtTokenService {
 
     public long getExpirationSeconds() {
         return expiration / 1000;
+    }
+
+    public void blacklistToken(String token) {
+        if (token != null && !token.isBlank()) {
+            blacklistedTokens.add(token);
+        }
     }
 
     private List<String> extractRoleCodes(Collection<Role> roles) {
