@@ -1,6 +1,7 @@
 package com.sism.exception;
 
 import com.sism.common.ApiResponse;
+import com.sism.shared.domain.exception.BusinessException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -52,7 +53,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void shouldMapSharedBusinessExceptionsToBadRequestResponse() {
-        var response = handler.handleBusinessException(
+        var response = handler.handleSharedBusinessException(
                 new BusinessException("BUSINESS_ERROR", "shared failure"));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
