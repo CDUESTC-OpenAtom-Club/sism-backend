@@ -6,7 +6,10 @@ import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -19,7 +22,7 @@ import java.util.Optional;
  */
 @Service("analyticsReportApplicationService")
 @RequiredArgsConstructor
-public class ReportApplicationService {
+public class ReportApplicationService extends BaseApplicationService {
 
     private final ReportRepository reportRepository;
     private final DomainEventPublisher eventPublisher;
@@ -46,13 +49,29 @@ public class ReportApplicationService {
         return reportRepository.save(report);
     }
 
+    @Transactional
+    public Report generateReport(Long reportId, Long currentUserId, String filePath, Long fileSize) {
+        Report report = findOwnedByCurrentUser(reportId, currentUserId);
+        report.generate(filePath, fileSize);
+        publishAndSaveEvents(report);
+        return reportRepository.save(report);
+    }
+
     /**
      * 报告生成失败
      */
     @Transactional
     public Report failReport(Long reportId, String errorMessage) {
         Report report = findById(reportId);
-        report.fail();
+        report.fail(errorMessage);
+        publishAndSaveEvents(report);
+        return reportRepository.save(report);
+    }
+
+    @Transactional
+    public Report failReport(Long reportId, Long currentUserId, String errorMessage) {
+        Report report = findOwnedByCurrentUser(reportId, currentUserId);
+        report.fail(errorMessage);
         publishAndSaveEvents(report);
         return reportRepository.save(report);
     }
@@ -63,6 +82,14 @@ public class ReportApplicationService {
     @Transactional
     public Report updateReport(Long reportId, String name, String type, String format, String description) {
         Report report = findById(reportId);
+        report.update(name, type, format, description);
+        publishAndSaveEvents(report);
+        return reportRepository.save(report);
+    }
+
+    @Transactional
+    public Report updateReport(Long reportId, Long currentUserId, String name, String type, String format, String description) {
+        Report report = findOwnedByCurrentUser(reportId, currentUserId);
         report.update(name, type, format, description);
         publishAndSaveEvents(report);
         return reportRepository.save(report);
@@ -79,11 +106,25 @@ public class ReportApplicationService {
         reportRepository.save(report);
     }
 
+    @Transactional
+    public void deleteReport(Long reportId, Long currentUserId) {
+        Report report = findOwnedByCurrentUser(reportId, currentUserId);
+        report.delete();
+        publishAndSaveEvents(report);
+        reportRepository.save(report);
+    }
+
     /**
      * 查找报告
      */
     public Optional<Report> findReportById(Long reportId) {
         return reportRepository.findByIdAndNotDeleted(reportId);
+    }
+
+    public Optional<Report> findReportById(Long reportId, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByIdAndNotDeleted(reportId)
+                .filter(report -> currentUserId.equals(report.getGeneratedBy()));
     }
 
     /**
@@ -93,11 +134,28 @@ public class ReportApplicationService {
         return reportRepository.findByGeneratedByAndNotDeleted(generatedBy);
     }
 
+    public List<Report> findReportsByGeneratedBy(Long generatedBy, Long currentUserId) {
+        requireGeneratedByMatchesCurrentUser(generatedBy, currentUserId);
+        return reportRepository.findByGeneratedByAndNotDeleted(currentUserId);
+    }
+
     /**
      * 查找所有已生成的报告
      */
     public List<Report> findAllGeneratedReports() {
         return reportRepository.findAllGeneratedAndNotDeleted();
+    }
+
+    public List<Report> findAllGeneratedReports(Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByGeneratedByAndNotDeleted(currentUserId);
+    }
+
+    public Page<Report> findAllGeneratedReports(Long currentUserId, int pageNum, int pageSize) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByGeneratedByAndNotDeleted(
+                currentUserId,
+                AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
     /**
@@ -107,6 +165,11 @@ public class ReportApplicationService {
         return reportRepository.findByTypeAndNotDeleted(type);
     }
 
+    public List<Report> findReportsByType(String type, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByGeneratedByAndTypeAndNotDeleted(currentUserId, type);
+    }
+
     /**
      * 按状态查找报告
      */
@@ -114,11 +177,31 @@ public class ReportApplicationService {
         return reportRepository.findByStatusAndNotDeleted(status);
     }
 
+    public List<Report> findReportsByStatus(String status, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByGeneratedByAndStatusAndNotDeleted(currentUserId, status);
+    }
+
+    public Page<Report> findReportsByStatus(String status, Long currentUserId, int pageNum, int pageSize) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByGeneratedByAndStatusAndNotDeleted(
+                currentUserId,
+                status,
+                AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
+    }
+
     /**
      * 按日期范围查找报告
      */
     public List<Report> findReportsByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
+        requireValidDateRange(startDate, endDate);
         return reportRepository.findByDateRangeAndNotDeleted(startDate, endDate);
+    }
+
+    public List<Report> findReportsByDateRange(LocalDateTime startDate, LocalDateTime endDate, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        requireValidDateRange(startDate, endDate);
+        return reportRepository.findByGeneratedByAndDateRangeAndNotDeleted(currentUserId, startDate, endDate);
     }
 
     /**
@@ -128,11 +211,29 @@ public class ReportApplicationService {
         return reportRepository.findByNameContainingAndNotDeleted(name);
     }
 
+    public List<Report> searchReportsByName(String name, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByGeneratedByAndNameContainingAndNotDeleted(currentUserId, name);
+    }
+
+    public Page<Report> searchReportsByName(String name, Long currentUserId, int pageNum, int pageSize) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByGeneratedByAndNameContainingAndNotDeleted(
+                currentUserId,
+                name,
+                AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
+    }
+
     /**
      * 统计用户的报告数量
      */
     public long countReportsByGeneratedBy(Long generatedBy) {
         return reportRepository.countByGeneratedByAndNotDeleted(generatedBy);
+    }
+
+    public long countReportsByGeneratedBy(Long generatedBy, Long currentUserId) {
+        requireGeneratedByMatchesCurrentUser(generatedBy, currentUserId);
+        return reportRepository.countByGeneratedByAndNotDeleted(currentUserId);
     }
 
     /**
@@ -142,12 +243,28 @@ public class ReportApplicationService {
         return reportRepository.countByStatusAndNotDeleted(status);
     }
 
+    public long countReportsByStatus(String status, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.countByGeneratedByAndStatusAndNotDeleted(currentUserId, status);
+    }
+
     /**
      * 获取报告详情
      */
     private Report findById(Long reportId) {
         return reportRepository.findByIdAndNotDeleted(reportId)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+    }
+
+    private Report findOwnedByCurrentUser(Long reportId, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return reportRepository.findByIdAndNotDeleted(reportId)
+                .filter(report -> currentUserId.equals(report.getGeneratedBy()))
+                .orElseThrow(() -> new AccessDeniedException("No permission to access report: " + reportId));
+    }
+
+    private void requireGeneratedByMatchesCurrentUser(Long generatedBy, Long currentUserId) {
+        requireUserOwnership(generatedBy, currentUserId, "No permission to access another user's reports");
     }
 
     /**

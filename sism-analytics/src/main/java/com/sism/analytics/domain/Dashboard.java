@@ -21,6 +21,8 @@ import java.util.Objects;
 @Access(AccessType.FIELD)
 public class Dashboard extends AggregateRoot<Long> {
 
+    private static final int MAX_CONFIG_LENGTH = 10_000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -88,6 +90,9 @@ public class Dashboard extends AggregateRoot<Long> {
         if (description != null && description.length() > 1000) {
             throw new IllegalArgumentException("Description cannot exceed 1000 characters");
         }
+        if (config != null && config.length() > MAX_CONFIG_LENGTH) {
+            throw new IllegalArgumentException("Config cannot exceed " + MAX_CONFIG_LENGTH + " characters");
+        }
     }
 
     /**
@@ -114,6 +119,9 @@ public class Dashboard extends AggregateRoot<Long> {
      */
     public void updateConfig(String config) {
         this.config = Objects.requireNonNull(config, "Config cannot be null");
+        if (this.config.length() > MAX_CONFIG_LENGTH) {
+            throw new IllegalArgumentException("Config cannot exceed " + MAX_CONFIG_LENGTH + " characters");
+        }
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -146,6 +154,9 @@ public class Dashboard extends AggregateRoot<Long> {
      */
     public Dashboard copyToUser(Long targetUserId) {
         Objects.requireNonNull(targetUserId, "Target user ID cannot be null");
+        if (targetUserId <= 0) {
+            throw new IllegalArgumentException("Target user ID must be a positive number");
+        }
 
         Dashboard copied = new Dashboard();
         copied.name = this.name + " (副本)";
