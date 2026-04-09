@@ -6,7 +6,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 /**
@@ -24,26 +23,26 @@ import org.springframework.scheduling.annotation.EnableAsync;
  * - sism-task: Task & Execution context
  * - sism-workflow: Workflow & Approval context
  *
- * Note: JPA repositories are scanned from infrastructure.persistence packages
+ * Note: JPA repositories and entities are scanned by each module's own ModuleConfig
+ * (e.g., IamModuleConfig, StrategyModuleConfig). Do not add @EnableJpaRepositories here.
  */
 @SpringBootApplication(scanBasePackages = {"com.sism.iam", "com.sism.organization",
                                    "com.sism.strategy", "com.sism.task",
                                    "com.sism.workflow", "com.sism.execution",
-                                   "com.sism.analytics",
+                                   "com.sism.analytics", "com.sism.alert",
                                    "com.sism.shared", "com.sism.config",
                                    "com.sism.exception", "com.sism.common",
-                                   "com.sism.main"})
+                                   "com.sism.util", "com.sism.main"})
 @EnableAsync
 @Import(AttachmentController.class)
 @EntityScan(basePackages = "com.sism.**.domain")
-@EnableJpaRepositories(basePackages = "com.sism.**.infrastructure.persistence")
 @ComponentScan(basePackages = {"com.sism.iam", "com.sism.organization",
                                "com.sism.strategy", "com.sism.task",
                                "com.sism.workflow", "com.sism.execution",
-                               "com.sism.analytics",
+                               "com.sism.analytics", "com.sism.alert",
                                "com.sism.shared", "com.sism.config",
                                "com.sism.exception", "com.sism.common",
-                               "com.sism.main"})
+                               "com.sism.util", "com.sism.main"})
 public class SismMainApplication {
 
     /**

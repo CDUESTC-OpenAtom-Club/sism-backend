@@ -1,6 +1,7 @@
 package com.sism.main.interfaces.rest;
 
 import com.sism.common.ApiResponse;
+import com.sism.iam.application.dto.CurrentUser;
 import com.sism.main.application.AttachmentApplicationService;
 import com.sism.main.interfaces.dto.AttachmentResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,12 +11,14 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/v1/attachments")
@@ -29,22 +32,47 @@ public class AttachmentController {
     @Operation(summary = "上传附件")
     public ResponseEntity<ApiResponse<AttachmentResponse>> upload(
             @RequestPart("file") MultipartFile file,
-            @RequestParam("uploadedBy") Long uploadedBy
+            @RequestParam("uploadedBy") Long uploadedBy,
+            @AuthenticationPrincipal CurrentUser currentUser
     ) throws IOException {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        if (!canActAsUploader(currentUser, uploadedBy)) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权以该身份上传附件"));
+        }
         // Upload first persists the file into attachment storage, then returns metadata for later association.
         return ResponseEntity.ok(ApiResponse.success(attachmentApplicationService.upload(file, uploadedBy)));
     }
 
     @GetMapping("/{id}/metadata")
     @Operation(summary = "获取附件元数据")
-    public ResponseEntity<ApiResponse<AttachmentResponse>> metadata(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.success(attachmentApplicationService.getMetadata(id)));
+    public ResponseEntity<ApiResponse<AttachmentResponse>> metadata(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+
+        AttachmentResponse metadata = attachmentApplicationService.getMetadata(id);
+        if (!canAccessAttachment(currentUser, metadata)) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权访问该附件"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(metadata));
     }
 
     @GetMapping("/{id}/download")
     @Operation(summary = "下载附件")
-    public ResponseEntity<Resource> download(@PathVariable Long id) throws IOException {
+    public ResponseEntity<?> download(@PathVariable Long id,
+                                      @AuthenticationPrincipal CurrentUser currentUser) throws IOException {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+
         AttachmentResponse metadata = attachmentApplicationService.getMetadata(id);
+        if (!canAccessAttachment(currentUser, metadata)) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权下载该附件"));
+        }
         Resource resource = attachmentApplicationService.loadAsResource(id);
         String encodedFileName = URLEncoder.encode(metadata.getFileName(), StandardCharsets.UTF_8)
                 .replaceAll("\\+", "%20");
@@ -57,5 +85,22 @@ public class AttachmentController {
                                 : metadata.getFileType()
                 ))
                 .body(resource);
+    }
+
+    private boolean canActAsUploader(CurrentUser currentUser, Long uploadedBy) {
+        return isAdmin(currentUser) || Objects.equals(currentUser.getId(), uploadedBy);
+    }
+
+    private boolean canAccessAttachment(CurrentUser currentUser, AttachmentResponse metadata) {
+        if (metadata == null || metadata.getUploadedBy() == null) {
+            return false;
+        }
+        return isAdmin(currentUser) || Objects.equals(currentUser.getId(), metadata.getUploadedBy());
+    }
+
+    private boolean isAdmin(CurrentUser currentUser) {
+        return currentUser.getAuthorities().stream()
+                .map(authority -> authority == null ? null : authority.getAuthority())
+                .anyMatch("ROLE_ADMIN"::equals);
     }
 }
