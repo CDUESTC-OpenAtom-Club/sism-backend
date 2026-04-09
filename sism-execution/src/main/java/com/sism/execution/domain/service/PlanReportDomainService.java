@@ -1,5 +1,6 @@
 package com.sism.execution.domain.service;
 
+import com.sism.exception.ResourceNotFoundException;
 import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportRepository;
@@ -30,7 +31,7 @@ public class PlanReportDomainService {
     @Transactional
     public PlanReport submit(Long reportId, Long userId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         report.submit(userId);
         PlanReport saved = planReportRepository.save(report);
@@ -49,7 +50,7 @@ public class PlanReportDomainService {
     @Transactional
     public PlanReport approve(Long reportId, Long approverId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         report.approve(approverId);
         PlanReport saved = planReportRepository.save(report);
@@ -68,7 +69,7 @@ public class PlanReportDomainService {
     @Transactional
     public PlanReport reject(Long reportId, Long approverId, String reason) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         report.reject(approverId, reason);
         PlanReport saved = planReportRepository.save(report);

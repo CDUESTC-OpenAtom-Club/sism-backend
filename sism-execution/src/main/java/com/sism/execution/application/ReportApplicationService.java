@@ -1,11 +1,20 @@
 package com.sism.execution.application;
 
+import com.sism.exception.ConflictException;
+import com.sism.exception.ResourceNotFoundException;
 import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
+import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.domain.repository.WorkflowApprovalMetadata;
+import com.sism.execution.domain.repository.WorkflowApprovalMetadataQuery;
+import com.sism.execution.domain.repository.PlanStatusSyncGateway;
+import com.sism.execution.domain.repository.WorkflowAuditSyncGateway;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import com.sism.execution.interfaces.dto.UpdatePlanReportIndicatorDetailRequest;
+import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.domain.exception.TechnicalException;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.strategy.domain.Indicator;
@@ -13,18 +22,22 @@ import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
-import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * ReportApplicationService - 计划报告应用服务
@@ -35,11 +48,15 @@ import java.util.Optional;
 @Slf4j
 public class ReportApplicationService {
 
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
+
     private final PlanReportRepository planReportRepository;
     private final PlanReportIndicatorRepository planReportIndicatorRepository;
     private final IndicatorRepository indicatorRepository;
     private final DomainEventPublisher eventPublisher;
-    private final JdbcTemplate jdbcTemplate;
+    private final WorkflowApprovalMetadataQuery workflowApprovalMetadataQuery;
+    private final WorkflowAuditSyncGateway workflowAuditSyncGateway;
+    private final PlanStatusSyncGateway planStatusSyncGateway;
 
     /**
      * 创建报告（草稿）
@@ -90,7 +107,7 @@ public class ReportApplicationService {
             }
 
             if (PlanReport.STATUS_SUBMITTED.equals(report.getStatus())) {
-                throw new IllegalStateException("当前月份已有报告正在审批中，请等待审批完成或先撤回");
+                throw new ConflictException("当前月份已有报告正在审批中，请等待审批完成或先撤回");
             }
 
             previousRound = report;
@@ -128,7 +145,7 @@ public class ReportApplicationService {
     public PlanReport updateReport(Long reportId, String title, Long indicatorId, String content, String summary, Integer progress,
                                    String issues, String nextPlan, String milestoneNote, Long operatorUserId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         validatePendingProgress(indicatorId, progress);
         report.markCreatedByIfAbsent(operatorUserId);
@@ -137,17 +154,7 @@ public class ReportApplicationService {
             report.setTitle(title);
         }
         PlanReport savedReport = planReportRepository.save(report);
-        if (indicatorId != null) {
-            Long planReportIndicatorId = planReportIndicatorRepository.upsertDraftIndicator(
-                    savedReport.getId(),
-                    indicatorId,
-                    progress,
-                    content,
-                    milestoneNote
-            );
-            // Single-indicator legacy update path currently has no attachment payload.
-            planReportIndicatorRepository.attachFiles(planReportIndicatorId, List.of(), operatorUserId);
-        }
+        upsertIndicatorDetail(savedReport.getId(), indicatorId, progress, content, milestoneNote, List.of(), operatorUserId);
         return enrichReportMetadata(savedReport);
     }
 
@@ -162,7 +169,7 @@ public class ReportApplicationService {
                                         Long operatorUserId,
                                         List<UpdatePlanReportIndicatorDetailRequest> indicatorDetails) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         report.markCreatedByIfAbsent(operatorUserId);
         report.updateContent(content, summary, progress, issues, nextPlan);
@@ -178,16 +185,12 @@ public class ReportApplicationService {
                 .toList();
 
         for (UpdatePlanReportIndicatorDetailRequest detail : normalizedDetails) {
-            validatePendingProgress(detail.getIndicatorId(), detail.getProgress());
-            Long planReportIndicatorId = planReportIndicatorRepository.upsertDraftIndicator(
+            upsertIndicatorDetail(
                     savedReport.getId(),
                     detail.getIndicatorId(),
                     detail.getProgress(),
                     detail.getContent(),
-                    detail.getMilestoneNote()
-            );
-            planReportIndicatorRepository.attachFiles(
-                    planReportIndicatorId,
+                    detail.getMilestoneNote(),
                     detail.getAttachmentIds(),
                     operatorUserId
             );
@@ -202,7 +205,7 @@ public class ReportApplicationService {
         }
 
         Indicator indicator = indicatorRepository.findById(indicatorId)
-                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + indicatorId));
+                .orElseThrow(() -> new ResourceNotFoundException("Indicator", indicatorId));
         int currentProgress = indicator.getProgress() == null ? 0 : indicator.getProgress();
         if (progress <= currentProgress) {
             throw new IllegalArgumentException(
@@ -226,7 +229,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport submitReport(Long reportId, Long userId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         report.submit(userId);
         report = planReportRepository.save(report);
@@ -235,9 +238,16 @@ public class ReportApplicationService {
     }
 
     @Transactional
+    public PlanReport submitReport(Long reportId, Long userId, CurrentUser currentUser) {
+        requireAnyRole(currentUser, "ROLE_ADMIN", "ROLE_STRATEGY_DEPT", "ROLE_FUNC_DEPT", "ROLE_APPROVER");
+        Long actorId = resolveUserId(userId, currentUser);
+        return submitReport(reportId, actorId);
+    }
+
+    @Transactional
     public PlanReport attachAuditInstance(Long reportId, Long auditInstanceId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         report.setAuditInstanceId(auditInstanceId);
         report.setUpdatedAt(LocalDateTime.now());
         return enrichReportMetadata(planReportRepository.save(report));
@@ -249,7 +259,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport approveReport(Long reportId, Long userId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         report.approve(userId);
         report = planReportRepository.save(report);
@@ -258,13 +268,20 @@ public class ReportApplicationService {
         return enrichReportMetadata(report);
     }
 
+    @Transactional
+    public PlanReport approveReport(Long reportId, Long userId, CurrentUser currentUser) {
+        requireAnyRole(currentUser, "ROLE_ADMIN", "ROLE_APPROVER");
+        Long actorId = resolveUserId(userId, currentUser);
+        return approveReport(reportId, actorId);
+    }
+
     /**
      * 驳回报告
      */
     @Transactional
     public PlanReport rejectReport(Long reportId, Long userId, String reason) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
 
         report.reject(userId, reason);
         report = planReportRepository.save(report);
@@ -273,32 +290,24 @@ public class ReportApplicationService {
     }
 
     @Transactional
+    public PlanReport rejectReport(Long reportId, Long userId, String reason, CurrentUser currentUser) {
+        requireAnyRole(currentUser, "ROLE_ADMIN", "ROLE_APPROVER");
+        Long actorId = resolveUserId(userId, currentUser);
+        return rejectReport(reportId, actorId, reason);
+    }
+
+    @Transactional
     public PlanReport markWorkflowApproved(Long reportId, Long approverId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         if (!PlanReport.STATUS_APPROVED.equals(report.getStatus())) {
             report.setStatus(PlanReport.STATUS_APPROVED);
             report.setUpdatedAt(LocalDateTime.now());
             report = planReportRepository.save(report);
-
-            // 同步更新关联的 audit_instance 的完成时间和状态
-            if (report.getAuditInstanceId() != null) {
-                try {
-                    jdbcTemplate.update(
-                            """
-                            UPDATE public.audit_instance
-                            SET status = 'APPROVED', completed_at = ?
-                            WHERE id = ?
-                            """,
-                            LocalDateTime.now(),
-                            report.getAuditInstanceId()
-                    );
-                } catch (Exception e) {
-                    // 记录日志但不影响主流程
-                    System.err.println("[ReportApplicationService] Failed to update audit_instance: " + e.getMessage());
-                }
-            }
         }
+        Long auditInstanceId = report.getAuditInstanceId();
+        syncWorkflowAuditState(reportId, auditInstanceId,
+                () -> workflowAuditSyncGateway.markApproved(auditInstanceId));
         syncApprovedIndicatorProgress(report.getId());
         createNextMonthlyDraftAfterTerminalApproval(report);
         return enrichReportMetadata(report);
@@ -307,7 +316,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport markWorkflowRejected(Long reportId, Long approverId, String reason) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         if (PlanReport.STATUS_REJECTED.equals(report.getStatus())
                 && Objects.equals(reason, report.getRejectionReason())) {
             return report;
@@ -316,31 +325,16 @@ public class ReportApplicationService {
         report.setRejectionReason(reason);
         report.setUpdatedAt(LocalDateTime.now());
         report = planReportRepository.save(report);
-
-        // 同步更新关联的 audit_instance 的完成时间和状态
-        if (report.getAuditInstanceId() != null) {
-            try {
-                jdbcTemplate.update(
-                        """
-                        UPDATE public.audit_instance
-                        SET status = 'REJECTED', completed_at = ?
-                        WHERE id = ?
-                        """,
-                        LocalDateTime.now(),
-                        report.getAuditInstanceId()
-                );
-            } catch (Exception e) {
-                // 记录日志但不影响主流程
-                System.err.println("[ReportApplicationService] Failed to update audit_instance: " + e.getMessage());
-            }
-        }
+        Long auditInstanceId = report.getAuditInstanceId();
+        syncWorkflowAuditState(reportId, auditInstanceId,
+                () -> workflowAuditSyncGateway.markRejected(auditInstanceId));
         return enrichReportMetadata(report);
     }
 
     @Transactional
     public PlanReport markWorkflowWithdrawn(Long reportId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
         report.setSubmittedAt(null);
         report.setAuditInstanceId(null);
@@ -353,7 +347,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport markWorkflowReturnedForResubmission(Long reportId, Long auditInstanceId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
         report.setSubmittedAt(null);
         if (auditInstanceId != null && auditInstanceId > 0) {
@@ -370,20 +364,12 @@ public class ReportApplicationService {
             return;
         }
 
-        try {
-            jdbcTemplate.update(
-                    """
-                    UPDATE public.plan
-                    SET status = 'DRAFT',
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
-                    """,
-                    planId
-            );
-        } catch (Exception e) {
-            log.warn("[ReportApplicationService] Failed to sync plan status back to DRAFT for planId={}: {}",
-                    planId, e.getMessage());
-        }
+        bestEffortSync(
+                "sync plan status back to DRAFT",
+                null,
+                planId,
+                () -> planStatusSyncGateway.syncBackToDraft(planId)
+        );
     }
 
     private void createNextMonthlyDraftAfterTerminalApproval(PlanReport approvedReport) {
@@ -423,54 +409,42 @@ public class ReportApplicationService {
      * 根据组织ID查询报告
      */
     public List<PlanReport> findReportsByOrgId(Long reportOrgId) {
-        return planReportRepository.findByReportOrgId(reportOrgId).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findByReportOrgId(reportOrgId));
     }
 
     /**
      * 根据月份查询报告
      */
     public List<PlanReport> findReportsByMonth(String reportMonth) {
-        return planReportRepository.findByReportMonth(reportMonth).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findByReportMonth(reportMonth));
     }
 
     /**
      * 根据状态查询报告
      */
     public List<PlanReport> findReportsByStatus(String status) {
-        return planReportRepository.findByStatus(status).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findByStatus(status));
     }
 
     /**
      * 根据组织和月份范围查询报告
      */
     public List<PlanReport> findReportsByOrgAndMonthRange(Long orgId, String startMonth, String endMonth) {
-        return planReportRepository.findByOrgIdAndMonthRange(orgId, startMonth, endMonth).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findByOrgIdAndMonthRange(orgId, startMonth, endMonth));
     }
 
     /**
      * 查询待审批的报告
      */
     public List<PlanReport> findPendingReports() {
-        return planReportRepository.findByStatus(PlanReport.STATUS_SUBMITTED).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findByStatus(PlanReport.STATUS_SUBMITTED));
     }
 
     /**
      * 根据组织类型查询报告
      */
     public List<PlanReport> findReportsByOrgType(ReportOrgType orgType) {
-        return planReportRepository.findByReportOrgType(orgType).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findByReportOrgType(orgType));
     }
 
     // ==================== 新增查询方法 ====================
@@ -479,17 +453,15 @@ public class ReportApplicationService {
      * 查询所有有效的报告（未删除）
      */
     public List<PlanReport> findAllActiveReports() {
-        return planReportRepository.findAllActive().stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findAllActive());
     }
 
     /**
      * 分页查询所有有效的报告
      */
     public Page<PlanReport> findAllActiveReports(int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return planReportRepository.findAllActive(pageable).map(this::enrichReportMetadata);
+        Pageable pageable = createPageable(page, size);
+        return enrichReportPage(planReportRepository.findAllActive(pageable));
     }
 
     /**
@@ -498,28 +470,102 @@ public class ReportApplicationService {
      * as these fields are transient (not stored in database)
      */
     public Page<PlanReport> findReportsByConditions(PlanReportQueryRequest queryRequest) {
-        Pageable pageable = PageRequest.of(
-                queryRequest.getPage() - 1,
-                queryRequest.getSize(),
-                Sort.by(Sort.Direction.DESC, "createdAt")
-        );
+        Pageable pageable = createPageable(queryRequest.getPage(), queryRequest.getSize());
 
-        return planReportRepository.findByConditions(
+        return enrichReportPage(planReportRepository.findByConditions(
                 queryRequest.getReportMonth(),
                 queryRequest.getReportOrgId(),
                 queryRequest.getReportOrgType(),
                 queryRequest.getPlanId(),
                 queryRequest.getStatus(),
                 pageable
-        ).map(this::enrichReportMetadata);
+        ));
     }
 
     private void syncApprovedIndicatorProgress(Long reportId) {
-        for (var detail : planReportIndicatorRepository.findByReportId(reportId)) {
-            Indicator indicator = indicatorRepository.findById(detail.indicatorId())
-                    .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + detail.indicatorId()));
+        List<PlanReportIndicatorSnapshot> details = planReportIndicatorRepository.findByReportId(reportId);
+        if (details.isEmpty()) {
+            return;
+        }
+        for (PlanReportIndicatorSnapshot detail : details) {
+            Indicator indicator = indicatorRepository.findById(detail.indicatorId()).orElse(null);
+            if (indicator == null) {
+                continue;
+            }
             indicator.setProgress(detail.progress());
             indicatorRepository.save(indicator);
+        }
+    }
+
+    private PlanReport enrichReportMetadata(PlanReport report) {
+        if (report == null) {
+            return null;
+        }
+        assignMetadata(List.of(report));
+        return report;
+    }
+
+    private List<PlanReport> enrichReportList(List<PlanReport> reports) {
+        if (reports == null || reports.isEmpty()) {
+            return reports;
+        }
+        assignMetadata(reports);
+        return reports;
+    }
+
+    private Page<PlanReport> enrichReportPage(Page<PlanReport> page) {
+        if (page == null || page.isEmpty()) {
+            return page;
+        }
+        List<PlanReport> content = new ArrayList<>(page.getContent());
+        assignMetadata(content);
+        return new PageImpl<>(content, page.getPageable(), page.getTotalElements());
+    }
+
+    private void assignMetadata(List<PlanReport> reports) {
+        if (reports == null || reports.isEmpty()) {
+            return;
+        }
+
+        List<PlanReport> nonNullReports = reports.stream()
+                .filter(Objects::nonNull)
+                .toList();
+        List<Long> reportIds = nonNullReports.stream()
+                .map(PlanReport::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        List<Long> auditIds = nonNullReports.stream()
+                .map(PlanReport::getAuditInstanceId)
+                .filter(id -> id != null && id > 0)
+                .distinct()
+                .toList();
+
+        Map<Long, List<PlanReportIndicatorSnapshot>> indicatorDetailsByReportId = reportIds.isEmpty()
+                ? Map.of()
+                : planReportIndicatorRepository.findByReportIds(reportIds);
+        Map<Long, WorkflowApprovalMetadata> workflowMetadata = auditIds.isEmpty()
+                ? Map.of()
+                : workflowApprovalMetadataQuery.findByAuditInstanceIds(auditIds);
+
+        for (PlanReport report : nonNullReports) {
+            Long reportId = report.getId();
+            report.setIndicatorDetails(reportId == null
+                    ? List.of()
+                    : indicatorDetailsByReportId.getOrDefault(reportId, List.of()));
+
+            Long auditInstanceId = report.getAuditInstanceId();
+            WorkflowApprovalMetadata metadata = auditInstanceId == null
+                    ? WorkflowApprovalMetadata.empty()
+                    : workflowMetadata.getOrDefault(auditInstanceId, WorkflowApprovalMetadata.empty());
+            Long submittedBy = metadata.submittedBy();
+            if (submittedBy == null) {
+                submittedBy = report.getCreatedBy();
+            }
+            report.setSubmittedBy(submittedBy);
+
+            report.setApprovedBy(metadata.approvedBy());
+            report.setApprovedAt(metadata.approvedAt());
         }
     }
 
@@ -527,25 +573,23 @@ public class ReportApplicationService {
      * 分页查询组织的报告
      */
     public Page<PlanReport> findReportsByOrgId(Long reportOrgId, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return planReportRepository.findByReportOrgId(reportOrgId, pageable).map(this::enrichReportMetadata);
+        Pageable pageable = createPageable(page, size);
+        return enrichReportPage(planReportRepository.findByReportOrgId(reportOrgId, pageable));
     }
 
     /**
      * 分页查询指定状态的报告
      */
     public Page<PlanReport> findReportsByStatus(String status, int page, int size) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        return planReportRepository.findByStatus(status, pageable).map(this::enrichReportMetadata);
+        Pageable pageable = createPageable(page, size);
+        return enrichReportPage(planReportRepository.findByStatus(status, pageable));
     }
 
     /**
      * 根据计划ID查询报告
      */
     public List<PlanReport> findReportsByPlanId(Long planId) {
-        return planReportRepository.findByPlanId(planId).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
+        return enrichReportList(planReportRepository.findByPlanId(planId));
     }
 
     /**
@@ -559,91 +603,7 @@ public class ReportApplicationService {
      * 根据月份和组织ID查询报告
      */
     public List<PlanReport> findReportsByMonthAndOrgId(String month, Long orgId) {
-        return planReportRepository.findByMonthAndOrgId(month, orgId).stream()
-                .map(this::enrichReportMetadata)
-                .toList();
-    }
-
-    private PlanReport enrichReportMetadata(PlanReport report) {
-        if (report == null) {
-            return null;
-        }
-
-        report.setIndicatorDetails(report.getId() == null
-                ? List.of()
-                : planReportIndicatorRepository.findByReportId(report.getId()));
-        report.setSubmittedBy(resolveSubmittedBy(report));
-
-        ApprovalSnapshot approvalSnapshot = resolveApprovalSnapshot(report.getAuditInstanceId());
-        report.setApprovedBy(approvalSnapshot.approvedBy());
-        report.setApprovedAt(approvalSnapshot.approvedAt());
-        return report;
-    }
-
-    private Long resolveSubmittedBy(PlanReport report) {
-        Long fallbackUserId = report.getCreatedBy();
-        if (report.getAuditInstanceId() == null) {
-            return fallbackUserId;
-        }
-
-        try {
-            Long requesterId = jdbcTemplate.query(
-                    """
-                    SELECT requester_id
-                    FROM public.audit_instance
-                    WHERE id = ?
-                    """,
-                    rs -> rs.next() ? rs.getLong("requester_id") : null,
-                    report.getAuditInstanceId()
-            );
-            return requesterId != null && requesterId > 0 ? requesterId : fallbackUserId;
-        } catch (Exception ignored) {
-            return fallbackUserId;
-        }
-    }
-
-    private ApprovalSnapshot resolveApprovalSnapshot(Long auditInstanceId) {
-        if (auditInstanceId == null || auditInstanceId <= 0) {
-            return ApprovalSnapshot.empty();
-        }
-
-        try {
-            List<ApprovalSnapshot> snapshots = jdbcTemplate.query(
-                    """
-                    SELECT
-                        asi.approver_id AS approved_by,
-                        COALESCE(asi.approved_at, ai.completed_at) AS approved_at
-                    FROM public.audit_instance ai
-                    LEFT JOIN public.audit_step_instance asi
-                        ON asi.instance_id = ai.id
-                       AND asi.status = 'APPROVED'
-                    WHERE ai.id = ?
-                      AND ai.status = 'APPROVED'
-                    ORDER BY
-                        asi.approved_at DESC NULLS LAST,
-                        asi.step_no DESC NULLS LAST,
-                        asi.id DESC NULLS LAST
-                    LIMIT 1
-                    """,
-                    (rs, rowNum) -> mapApprovalSnapshot(rs),
-                    auditInstanceId
-            );
-            return snapshots.isEmpty() ? ApprovalSnapshot.empty() : snapshots.get(0);
-        } catch (Exception ignored) {
-            return ApprovalSnapshot.empty();
-        }
-    }
-
-    private ApprovalSnapshot mapApprovalSnapshot(ResultSet resultSet) throws java.sql.SQLException {
-        Long approvedBy = resultSet.getObject("approved_by", Long.class);
-        LocalDateTime approvedAt = resultSet.getObject("approved_at", LocalDateTime.class);
-        return new ApprovalSnapshot(approvedBy, approvedAt);
-    }
-
-    private record ApprovalSnapshot(Long approvedBy, LocalDateTime approvedAt) {
-        private static ApprovalSnapshot empty() {
-            return new ApprovalSnapshot(null, null);
-        }
+        return enrichReportList(planReportRepository.findByMonthAndOrgId(month, orgId));
     }
 
     /**
@@ -654,5 +614,104 @@ public class ReportApplicationService {
         List<DomainEvent> events = aggregate.getDomainEvents();
         eventPublisher.publishAll(events);
         aggregate.clearEvents();
+    }
+
+    @FunctionalInterface
+    private interface SyncAction {
+        void run();
+    }
+
+    private void syncWorkflowAuditState(Long reportId, Long auditInstanceId, SyncAction action) {
+        if (auditInstanceId == null) {
+            return;
+        }
+
+        bestEffortSync("sync audit_instance state", reportId, auditInstanceId, action);
+    }
+
+    private void bestEffortSync(String operation, Long reportId, Long relatedId, SyncAction action) {
+        try {
+            action.run();
+        } catch (Exception e) {
+            log.error("[ReportApplicationService] Best-effort sync failed. operation={}, reportId={}, relatedId={}",
+                    operation, reportId, relatedId, e);
+            throw new TechnicalException(
+                    "EXECUTION_SYNC_FAILED",
+                    "Failed to " + operation + " for reportId=" + reportId + ", relatedId=" + relatedId,
+                    e
+            );
+        }
+    }
+
+    private void upsertIndicatorDetail(Long reportId,
+                                       Long indicatorId,
+                                       Integer progress,
+                                       String comment,
+                                       String milestoneNote,
+                                       List<Long> attachmentIds,
+                                       Long operatorUserId) {
+        if (reportId == null || indicatorId == null) {
+            return;
+        }
+
+        validatePendingProgress(indicatorId, progress);
+        Long planReportIndicatorId = planReportIndicatorRepository.upsertDraftIndicator(
+                reportId,
+                indicatorId,
+                progress,
+                comment,
+                milestoneNote
+        );
+        // The draft indicator and its attachments must be kept in sync as a unit.
+        planReportIndicatorRepository.attachFiles(
+                planReportIndicatorId,
+                attachmentIds == null ? List.of() : attachmentIds,
+                operatorUserId
+        );
+    }
+
+    private Pageable createPageable(int page, int size) {
+        return PageRequest.of(normalizePageNumber(page), normalizePageSize(size), DEFAULT_SORT);
+    }
+
+    private int normalizePageNumber(int page) {
+        return Math.max(page, 1) - 1;
+    }
+
+    private int normalizePageSize(int size) {
+        return Math.max(size, 1);
+    }
+
+    private Long resolveUserId(Long explicitUserId, CurrentUser currentUser) {
+        if (currentUser == null || currentUser.getId() == null) {
+            throw new IllegalStateException("当前用户未登录或缺少 ID");
+        }
+        if (explicitUserId == null) {
+            return currentUser.getId();
+        }
+        if (!currentUser.getId().equals(explicitUserId)) {
+            throw new IllegalArgumentException("请求中传入的 userId 与当前用户不一致");
+        }
+        return explicitUserId;
+    }
+
+    private void requireAnyRole(CurrentUser currentUser, String... roleNames) {
+        if (!hasAnyRole(currentUser, roleNames)) {
+            throw new AccessDeniedException("当前用户没有执行此操作的权限");
+        }
+    }
+
+    private boolean hasAnyRole(CurrentUser currentUser, String... roleNames) {
+        if (currentUser == null || currentUser.getAuthorities() == null) {
+            return false;
+        }
+        for (String roleName : roleNames) {
+            boolean matched = currentUser.getAuthorities().stream()
+                    .anyMatch(authority -> roleName.equals(authority.getAuthority()));
+            if (matched) {
+                return true;
+            }
+        }
+        return false;
     }
 }
