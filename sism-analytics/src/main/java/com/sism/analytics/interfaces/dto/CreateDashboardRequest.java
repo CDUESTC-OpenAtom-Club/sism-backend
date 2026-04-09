@@ -3,6 +3,8 @@ package com.sism.analytics.interfaces.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -20,13 +22,15 @@ public class CreateDashboardRequest {
     @Schema(description = "仪表板描述")
     private String description;
 
-    @Schema(description = "用户ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "用户ID（前端可传，但服务端会强制使用当前登录用户）", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "用户ID不能为空")
+    @Positive(message = "用户ID必须为正数")
     private Long userId;
 
     @Schema(description = "是否公开")
     private Boolean isPublic;
 
     @Schema(description = "仪表板配置(JSON格式)")
+    @Size(max = 10000, message = "仪表盘配置不能超过10000个字符")
     private String config;
 }

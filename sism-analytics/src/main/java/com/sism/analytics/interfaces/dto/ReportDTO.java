@@ -73,6 +73,11 @@ public class ReportDTO {
     private String description;
 
     /**
+     * 失败原因
+     */
+    private String errorMessage;
+
+    /**
      * 创建时间
      */
     private LocalDateTime createdAt;

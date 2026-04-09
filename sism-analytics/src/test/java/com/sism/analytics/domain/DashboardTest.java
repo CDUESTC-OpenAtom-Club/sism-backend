@@ -169,6 +169,16 @@ class DashboardTest {
     }
 
     @Test
+    @DisplayName("Should reject Dashboard config longer than limit")
+    void shouldRejectDashboardConfigLongerThanLimit() {
+        String oversizedConfig = "{" + "\"a\":\"" + "x".repeat(10001) + "\"}";
+
+        assertThrows(IllegalArgumentException.class, () ->
+                Dashboard.create("配置超长", "描述", 1L, false, oversizedConfig)
+        );
+    }
+
+    @Test
     @DisplayName("Should validate Dashboard equality")
     void shouldValidateDashboardEquality() {
         Dashboard dashboard1 = Dashboard.create(

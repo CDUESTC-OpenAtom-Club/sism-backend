@@ -72,6 +72,9 @@ public class Report extends AggregateRoot<Long> {
     @Column(name = "description", length = 1000)
     private String description;
 
+    @Column(name = "error_message", length = 1000)
+    private String errorMessage;
+
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted = false;
 
@@ -154,8 +157,9 @@ public class Report extends AggregateRoot<Long> {
     /**
      * 生成失败
      */
-    public void fail() {
+    public void fail(String errorMessage) {
         this.status = STATUS_FAILED;
+        this.errorMessage = errorMessage;
         this.updatedAt = LocalDateTime.now();
 
         addEvent(new ReportGenerationFailedEvent(this));
@@ -221,12 +225,13 @@ public class Report extends AggregateRoot<Long> {
                 Objects.equals(type, report.type) &&
                 Objects.equals(format, report.format) &&
                 Objects.equals(status, report.status) &&
-                Objects.equals(generatedBy, report.generatedBy);
+                Objects.equals(generatedBy, report.generatedBy) &&
+                Objects.equals(errorMessage, report.errorMessage);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getId(), name, type, format, status, generatedBy, deleted);
+        return Objects.hash(getId(), name, type, format, status, generatedBy, errorMessage, deleted);
     }
 }
 

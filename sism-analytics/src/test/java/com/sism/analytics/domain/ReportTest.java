@@ -138,9 +138,10 @@ class ReportTest {
                 "测试失败场景"
         );
 
-        report.fail();
+        report.fail("生成失败");
 
         assertEquals(Report.STATUS_FAILED, report.getStatus());
+        assertEquals("生成失败", report.getErrorMessage());
     }
 
     @Test
@@ -156,7 +157,7 @@ class ReportTest {
         );
         report.setId(1L);
 
-        report.fail();
+        report.fail("IO异常");
 
         List<DomainEvent> domainEvents = report.getDomainEvents();
         assertFalse(domainEvents.isEmpty());
@@ -176,7 +177,7 @@ class ReportTest {
                 null
         );
         report.setId(1L);
-        report.fail();
+        report.fail("前置步骤失败");
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
                 report.generate("/path/to/report.pdf", 1024L));

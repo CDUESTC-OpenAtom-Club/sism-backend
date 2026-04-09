@@ -25,7 +25,7 @@ public class CreateReportRequest {
     @NotBlank(message = "报告格式不能为空")
     private String format;
 
-    @Schema(description = "生成者ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "生成者ID（前端可传，但服务端会强制使用当前登录用户）", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "生成者ID不能为空")
     private Long generatedBy;
 

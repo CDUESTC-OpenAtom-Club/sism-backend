@@ -25,7 +25,7 @@ public class CreateDataExportRequest {
     @NotBlank(message = "导出格式不能为空")
     private String format;
 
-    @Schema(description = "请求者ID", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(description = "请求者ID（前端可传，但服务端会强制使用当前登录用户）", requiredMode = Schema.RequiredMode.REQUIRED)
     @NotNull(message = "请求者ID不能为空")
     private Long requestedBy;
 

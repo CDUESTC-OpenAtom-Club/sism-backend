@@ -6,8 +6,10 @@ import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +20,7 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
-public class DashboardApplicationService {
+public class DashboardApplicationService extends BaseApplicationService {
 
     private final DashboardRepository dashboardRepository;
     private final DomainEventPublisher eventPublisher;
@@ -29,6 +31,7 @@ public class DashboardApplicationService {
      */
     @Transactional
     public Dashboard createDashboard(String name, String description, Long userId, boolean isPublic, String config) {
+        requirePositiveUserId(userId, "User ID");
         Dashboard dashboard = Dashboard.create(name, description, userId, isPublic, config);
         publishAndSaveEvents(dashboard);
         return dashboardRepository.save(dashboard);
@@ -38,8 +41,8 @@ public class DashboardApplicationService {
      * 更新仪表板信息
      */
     @Transactional
-    public Dashboard updateDashboard(Long dashboardId, String name, String description, boolean isPublic, String config) {
-        Dashboard dashboard = findById(dashboardId);
+    public Dashboard updateDashboard(Long dashboardId, Long currentUserId, String name, String description, boolean isPublic, String config) {
+        Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.update(name, description, isPublic, config);
         publishAndSaveEvents(dashboard);
         return dashboardRepository.save(dashboard);
@@ -49,8 +52,8 @@ public class DashboardApplicationService {
      * 更新仪表板配置
      */
     @Transactional
-    public Dashboard updateDashboardConfig(Long dashboardId, String config) {
-        Dashboard dashboard = findById(dashboardId);
+    public Dashboard updateDashboardConfig(Long dashboardId, Long currentUserId, String config) {
+        Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.updateConfig(config);
         publishAndSaveEvents(dashboard);
         return dashboardRepository.save(dashboard);
@@ -60,8 +63,8 @@ public class DashboardApplicationService {
      * 设置为公开
      */
     @Transactional
-    public Dashboard makePublic(Long dashboardId) {
-        Dashboard dashboard = findById(dashboardId);
+    public Dashboard makePublic(Long dashboardId, Long currentUserId) {
+        Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.makePublic();
         publishAndSaveEvents(dashboard);
         return dashboardRepository.save(dashboard);
@@ -71,8 +74,8 @@ public class DashboardApplicationService {
      * 设置为私有
      */
     @Transactional
-    public Dashboard makePrivate(Long dashboardId) {
-        Dashboard dashboard = findById(dashboardId);
+    public Dashboard makePrivate(Long dashboardId, Long currentUserId) {
+        Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.makePrivate();
         publishAndSaveEvents(dashboard);
         return dashboardRepository.save(dashboard);
@@ -82,8 +85,8 @@ public class DashboardApplicationService {
      * 删除仪表板
      */
     @Transactional
-    public void deleteDashboard(Long dashboardId) {
-        Dashboard dashboard = findById(dashboardId);
+    public void deleteDashboard(Long dashboardId, Long currentUserId) {
+        Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.delete();
         publishAndSaveEvents(dashboard);
         dashboardRepository.save(dashboard);
@@ -93,8 +96,9 @@ public class DashboardApplicationService {
      * 复制仪表板到新用户
      */
     @Transactional
-    public Dashboard copyDashboardToUser(Long dashboardId, Long targetUserId) {
-        Dashboard original = findById(dashboardId);
+    public Dashboard copyDashboardToUser(Long dashboardId, Long currentUserId, Long targetUserId) {
+        requirePositiveUserId(targetUserId, "Target user ID");
+        Dashboard original = findOwnedByCurrentUser(dashboardId, currentUserId);
         Dashboard copied = original.copyToUser(targetUserId);
         publishAndSaveEvents(copied);
         return dashboardRepository.save(copied);
@@ -103,22 +107,36 @@ public class DashboardApplicationService {
     /**
      * 查找仪表板
      */
-    public Optional<Dashboard> findDashboardById(Long dashboardId) {
-        return dashboardRepository.findByIdAndNotDeleted(dashboardId);
+    public Optional<Dashboard> findDashboardById(Long dashboardId, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
+        return dashboardRepository.findByIdAndNotDeleted(dashboardId)
+                .filter(dashboard -> canAccessDashboard(dashboard, currentUserId));
     }
 
     /**
      * 查找用户的所有仪表板
      */
-    public List<Dashboard> findDashboardsByUserId(Long userId) {
+    public List<Dashboard> findDashboardsByUserId(Long userId, Long currentUserId) {
+        requireUserOwnership(userId, currentUserId);
         return dashboardRepository.findByUserIdAndNotDeleted(userId);
+    }
+
+    public Page<Dashboard> findDashboardsByUserId(Long userId, Long currentUserId, int pageNum, int pageSize) {
+        requireUserOwnership(userId, currentUserId);
+        return dashboardRepository.findByUserIdAndNotDeleted(userId, AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
     /**
      * 查找用户的所有公开仪表板
      */
-    public List<Dashboard> findPublicDashboardsByUserId(Long userId) {
+    public List<Dashboard> findPublicDashboardsByUserId(Long userId, Long currentUserId) {
+        requireUserOwnership(userId, currentUserId);
         return dashboardRepository.findByUserIdAndPublicAndNotDeleted(userId);
+    }
+
+    public Page<Dashboard> findPublicDashboardsByUserId(Long userId, Long currentUserId, int pageNum, int pageSize) {
+        requireUserOwnership(userId, currentUserId);
+        return dashboardRepository.findByUserIdAndPublicAndNotDeleted(userId, AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
     /**
@@ -128,17 +146,31 @@ public class DashboardApplicationService {
         return dashboardRepository.findAllPublicAndNotDeleted();
     }
 
+    public Page<Dashboard> findAllPublicDashboards(int pageNum, int pageSize) {
+        return dashboardRepository.findAllPublicAndNotDeleted(AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
+    }
+
     /**
      * 按名称搜索用户的仪表板
      */
-    public List<Dashboard> searchDashboardsByName(Long userId, String name) {
+    public List<Dashboard> searchDashboardsByName(Long userId, Long currentUserId, String name) {
+        requireUserOwnership(userId, currentUserId);
         return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(userId, name);
+    }
+
+    public Page<Dashboard> searchDashboardsByName(Long userId, Long currentUserId, String name, int pageNum, int pageSize) {
+        requireUserOwnership(userId, currentUserId);
+        return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(
+                userId,
+                name,
+                AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
     /**
      * 统计用户的仪表板数量
      */
-    public long countDashboardsByUserId(Long userId) {
+    public long countDashboardsByUserId(Long userId, Long currentUserId) {
+        requireUserOwnership(userId, currentUserId);
         return dashboardRepository.countByUserIdAndNotDeleted(userId);
     }
 
@@ -152,9 +184,20 @@ public class DashboardApplicationService {
     /**
      * 获取仪表板详情
      */
-    private Dashboard findById(Long dashboardId) {
+    private Dashboard findOwnedByCurrentUser(Long dashboardId, Long currentUserId) {
+        requirePositiveUserId(currentUserId, "Current user ID");
         return dashboardRepository.findByIdAndNotDeleted(dashboardId)
-                .orElseThrow(() -> new IllegalArgumentException("Dashboard not found: " + dashboardId));
+                .filter(dashboard -> currentUserId.equals(dashboard.getUserId()))
+                .orElseThrow(() -> new AccessDeniedException("No permission to access dashboard: " + dashboardId));
+    }
+
+    private boolean canAccessDashboard(Dashboard dashboard, Long currentUserId) {
+        return dashboard.isPublic() || currentUserId.equals(dashboard.getUserId());
+    }
+
+    @Override
+    protected void requireUserOwnership(Long requestedUserId, Long currentUserId) {
+        requireUserOwnership(requestedUserId, currentUserId, "No permission to access another user's dashboards");
     }
 
     /**
