@@ -12,6 +12,8 @@ import java.util.Optional;
 public interface JpaOrganizationRepositoryInternal extends JpaRepository<SysOrg, Long> {
     List<SysOrg> findByParentOrgId(Long parentOrgId);
     List<SysOrg> findByType(OrgType type);
+
+    List<SysOrg> findByTypeIn(List<OrgType> types);
     List<SysOrg> findByIsActive(Boolean isActive);
     List<SysOrg> findByLevel(Integer level);
     List<SysOrg> findByNameContaining(String name);

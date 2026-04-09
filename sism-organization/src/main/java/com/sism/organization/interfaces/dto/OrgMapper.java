@@ -37,7 +37,6 @@ public class OrgMapper {
                 .level(org.getLevel())
                 .createdAt(org.getCreatedAt())
                 .updatedAt(org.getUpdatedAt())
-                .isDeleted(org.getIsDeleted())
                 .children(childrenResponses)
                 .orgCode(org.getOrgCode())
                 .orgType(org.getOrgType())
@@ -65,7 +64,7 @@ public class OrgMapper {
             return null;
         }
         // Convert from shared OrgType to domain OrgType
-        com.sism.organization.domain.OrgType domainType = 
+        com.sism.organization.domain.OrgType domainType =
             com.sism.organization.domain.OrgType.fromSharedOrgType(
                 request.getType()
             );
@@ -84,7 +83,7 @@ public class OrgMapper {
         }
         if (request.getType() != null) {
             // Convert from shared OrgType to domain OrgType
-            com.sism.organization.domain.OrgType domainType = 
+            com.sism.organization.domain.OrgType domainType =
                 com.sism.organization.domain.OrgType.fromSharedOrgType(
                     request.getType()
                 );
@@ -94,5 +93,18 @@ public class OrgMapper {
             org.updateSortOrder(request.getSortOrder());
         }
         // Note: parentOrgId update requires separate handling to fetch parent entity
+    }
+
+    public OrgUserResponse toUserResponse(com.sism.iam.domain.User user) {
+        return OrgUserResponse.fromUser(user);
+    }
+
+    public List<OrgUserResponse> toUserResponseList(List<com.sism.iam.domain.User> users) {
+        if (users == null) {
+            return new ArrayList<>();
+        }
+        return users.stream()
+                .map(this::toUserResponse)
+                .collect(Collectors.toList());
     }
 }
