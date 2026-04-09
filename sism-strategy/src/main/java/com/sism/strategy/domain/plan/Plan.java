@@ -1,7 +1,7 @@
 package com.sism.strategy.domain.plan;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
-import com.sism.strategy.domain.event.PlanCreatedEvent;
+import com.sism.strategy.domain.event.PlanStatusChangedEvent;
 import jakarta.persistence.Access;
 import jakarta.persistence.AccessType;
 import jakarta.persistence.Column;
@@ -82,7 +82,6 @@ public class Plan extends AggregateRoot<Long> {
         plan.updatedAt = LocalDateTime.now();
         plan.isDeleted = false;
         plan.status = PlanStatus.DRAFT.value();
-        plan.addEvent(new PlanCreatedEvent(plan.id, planLevel.name(), targetOrgId));
         return plan;
     }
 
@@ -90,8 +89,10 @@ public class Plan extends AggregateRoot<Long> {
         if (PlanStatus.DISTRIBUTED.value().equals(this.status)) {
             throw new IllegalStateException("Plan is already distributed");
         }
+        String previousStatus = this.status;
         this.status = PlanStatus.DISTRIBUTED.value();
         this.updatedAt = LocalDateTime.now();
+        this.addEvent(new PlanStatusChangedEvent(this.id, previousStatus, this.status));
     }
 
     public void ensureCanSubmitForApproval() {
@@ -108,33 +109,49 @@ public class Plan extends AggregateRoot<Long> {
     }
 
     public void submitForApproval() {
-        ensureCanSubmitForApproval();
-        this.status = PlanStatus.PENDING.value();
-        this.updatedAt = LocalDateTime.now();
+        submitForApproval(false);
     }
 
     public void submitForApproval(boolean allowDistributed) {
+        String previousStatus = this.status;
         ensureCanSubmitForApproval(allowDistributed);
         this.status = PlanStatus.PENDING.value();
         this.updatedAt = LocalDateTime.now();
+        this.addEvent(new PlanStatusChangedEvent(this.id, previousStatus, this.status));
     }
 
     public void approve() {
         if (PlanStatus.DISTRIBUTED.value().equals(this.status)) {
             throw new IllegalStateException("Plan is already distributed");
         }
+        String previousStatus = this.status;
         this.status = PlanStatus.DISTRIBUTED.value();
         this.updatedAt = LocalDateTime.now();
+        this.addEvent(new PlanStatusChangedEvent(this.id, previousStatus, this.status));
     }
 
     public void returnForRevision() {
+        String previousStatus = this.status;
         this.status = PlanStatus.RETURNED.value();
         this.updatedAt = LocalDateTime.now();
+        this.addEvent(new PlanStatusChangedEvent(this.id, previousStatus, this.status));
     }
 
     public void withdraw() {
+        String previousStatus = this.status;
         this.status = PlanStatus.DRAFT.value();
         this.updatedAt = LocalDateTime.now();
+        this.addEvent(new PlanStatusChangedEvent(this.id, previousStatus, this.status));
+    }
+
+    public void archive() {
+        if (Boolean.TRUE.equals(this.isDeleted)) {
+            throw new IllegalStateException("Plan is already archived");
+        }
+        String previousStatus = this.status;
+        this.isDeleted = true;
+        this.updatedAt = LocalDateTime.now();
+        this.addEvent(new PlanStatusChangedEvent(this.id, previousStatus, "ARCHIVED"));
     }
 
     public boolean isEditable() {

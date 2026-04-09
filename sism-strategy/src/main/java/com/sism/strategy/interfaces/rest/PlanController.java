@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -61,6 +62,7 @@ public class PlanController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "创建新规划", description = "战略侧创建规划批次的主要入口点。")
     public ResponseEntity<ApiResponse<PlanResponse>> createPlan(
             @Valid @RequestBody com.sism.strategy.interfaces.dto.CreatePlanRequest request) {
@@ -69,6 +71,7 @@ public class PlanController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "更新规划")
     public ResponseEntity<ApiResponse<PlanResponse>> updatePlan(
             @PathVariable Long id,
@@ -78,6 +81,7 @@ public class PlanController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "删除规划")
     public ResponseEntity<ApiResponse<Void>> deletePlan(@PathVariable Long id) {
         planApplicationService.deletePlan(id);
@@ -85,6 +89,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/publish")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "发布规划")
     public ResponseEntity<ApiResponse<PlanResponse>> publishPlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.publishPlan(id);
@@ -92,6 +97,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/archive")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "归档规划")
     public ResponseEntity<ApiResponse<PlanResponse>> archivePlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.archivePlan(id);
@@ -99,6 +105,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/submit")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "提交规划审批")
     public ResponseEntity<ApiResponse<PlanResponse>> submitPlanForApproval(
             @PathVariable Long id,
@@ -113,6 +120,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/submit-dispatch")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "提交规划分发审批")
     public ResponseEntity<ApiResponse<PlanResponse>> submitPlanForDispatchApproval(
             @PathVariable Long id,
@@ -122,6 +130,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','APPROVER')")
     @Operation(summary = "审批通过规划")
     public ResponseEntity<ApiResponse<PlanResponse>> approvePlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.approvePlan(id);
@@ -129,6 +138,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN','APPROVER')")
     @Operation(summary = "拒绝规划")
     public ResponseEntity<ApiResponse<PlanResponse>> rejectPlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.rejectPlan(id);
@@ -136,6 +146,7 @@ public class PlanController {
     }
 
     @PostMapping("/{id}/withdraw")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "撤回规划至草稿")
     public ResponseEntity<ApiResponse<PlanResponse>> withdrawPlan(@PathVariable Long id) {
         PlanResponse response = planApplicationService.withdrawPlan(id);

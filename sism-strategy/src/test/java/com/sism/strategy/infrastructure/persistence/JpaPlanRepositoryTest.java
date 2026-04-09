@@ -122,4 +122,18 @@ class JpaPlanRepositoryTest {
         verify(jpaRepository).findByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
                 4L, PlanLevel.STRAT_TO_FUNC, 35L, 36L);
     }
+
+    @Test
+    @DisplayName("Should delegate saveAndFlush to JPA repository")
+    void shouldDelegateSaveAndFlush() {
+        JpaPlanRepository repository = new JpaPlanRepository(jpaRepository);
+        Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
+
+        when(jpaRepository.saveAndFlush(plan)).thenReturn(plan);
+
+        Plan result = repository.saveAndFlush(plan);
+
+        assertSame(plan, result);
+        verify(jpaRepository).saveAndFlush(plan);
+    }
 }

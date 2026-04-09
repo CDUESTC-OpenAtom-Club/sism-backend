@@ -1,6 +1,8 @@
 package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
+import com.sism.iam.application.dto.CurrentUser;
+import com.sism.iam.application.service.UserNotificationService;
 import com.sism.common.PageResult;
 import com.sism.strategy.domain.enums.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
@@ -25,10 +27,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -56,6 +61,7 @@ public class IndicatorController {
     private final OrganizationRepository organizationRepository;
     private final JpaTaskRepositoryInternal jpaTaskRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final UserNotificationService userNotificationService;
 
     @GetMapping
     @Operation(summary = "分页获取所有指标")
@@ -77,8 +83,7 @@ public class IndicatorController {
             indicatorPage = strategyApplicationService.getIndicators(pageable);
         }
 
-        Map<Long, String> taskNameMap = buildTaskNameMap(indicatorPage.getContent());
-        Map<Long, String> taskTypeMap = buildTaskTypeMap(indicatorPage.getContent());
+        Map<Long, TaskMetaSnapshot> taskMetaMap = buildTaskMetaMap(indicatorPage.getContent());
         Map<Long, List<MilestoneResponse>> milestoneMap = buildMilestoneMap(indicatorPage.getContent());
         Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap =
                 buildCurrentMonthIndicatorRoundStateMap(indicatorPage.getContent());
@@ -86,8 +91,7 @@ public class IndicatorController {
                 indicatorPage.getContent().stream()
                         .map(indicator -> toIndicatorResponse(
                                 indicator,
-                                taskNameMap,
-                                taskTypeMap,
+                                taskMetaMap,
                                 milestoneMap,
                                 currentMonthRoundStateMap
                         ))
@@ -109,7 +113,88 @@ public class IndicatorController {
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(indicator)));
     }
 
+    @PostMapping("/{id}/reminders")
+    @Operation(summary = "发送指标催办", description = "对滞后指标发送站内催办通知")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendIndicatorReminder(
+            @PathVariable Long id,
+            @RequestBody(required = false) ReminderRequest request,
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+
+        Indicator indicator = strategyApplicationService.getIndicatorByIdAndOwnerOrgId(id, currentUser.getOrgId());
+        if (indicator == null) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权催办该指标"));
+        }
+        if (indicator.getOwnerOrg() == null || indicator.getTargetOrg() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "指标缺少组织信息，无法催办"));
+        }
+        Integer progress = indicator.getProgress() != null ? indicator.getProgress() : 0;
+        if (progress >= 50) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "当前指标未滞后，无需催办"));
+        }
+
+        try {
+            UserNotificationService.ReminderResult result = userNotificationService.createReminderNotification(
+                    indicator.getId(),
+                    indicator.getIndicatorDesc(),
+                    indicator.getTargetOrg().getId(),
+                    indicator.getTargetOrg().getName(),
+                    currentUser.getId(),
+                    currentUser.getRealName() != null ? currentUser.getRealName() : currentUser.getUsername(),
+                    currentUser.getOrgId(),
+                    request != null ? request.getSource() : "DASHBOARD",
+                    request != null ? request.getReason() : null
+            );
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("reminderId", result.reminderId());
+            response.put("indicatorId", result.indicatorId());
+            response.put("sentCount", result.sentCount());
+            response.put("lastRemindedAt", result.lastRemindedAt());
+            response.put("remindCount", result.remindCount());
+            response.put("cooldownUntil", result.cooldownUntil());
+            return ResponseEntity.ok(ApiResponse.success("催办通知发送成功", response));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(409).body(ApiResponse.error(409, ex.getMessage()));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/reminders/statuses")
+    @Operation(summary = "批量查询指标催办状态", description = "按当前用户维度查询指标最近一次催办状态")
+    public ResponseEntity<ApiResponse<List<ReminderStatusResponse>>> getIndicatorReminderStatuses(
+            @RequestBody ReminderStatusQueryRequest request,
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        if (request == null || request.getIndicatorIds() == null || request.getIndicatorIds().isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(List.of()));
+        }
+
+        Map<Long, UserNotificationService.ReminderStatus> statuses =
+                userNotificationService.getReminderStatuses(request.getIndicatorIds(), currentUser.getId());
+        List<ReminderStatusResponse> response = request.getIndicatorIds().stream()
+                .map(indicatorId -> {
+                    UserNotificationService.ReminderStatus status = statuses.get(indicatorId);
+                    return new ReminderStatusResponse(
+                            indicatorId,
+                            status == null || status.canRemind(),
+                            status != null ? status.lastRemindedAt() : null,
+                            status != null ? status.remindCount() : 0,
+                            status != null ? status.cooldownUntil() : null
+                    );
+                })
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "创建新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> createIndicator(
             @Valid @RequestBody CreateIndicatorRequest request) {
@@ -157,6 +242,7 @@ public class IndicatorController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "更新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> updateIndicator(
             @PathVariable Long id,
@@ -188,6 +274,7 @@ public class IndicatorController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "删除指标")
     public ResponseEntity<ApiResponse<Void>> deleteIndicator(@PathVariable Long id) {
         strategyApplicationService.deleteIndicator(id);
@@ -195,6 +282,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/submit")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "提交指标审核")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReview(@PathVariable Long id) {
         Indicator indicator = strategyApplicationService.getIndicatorById(id);
@@ -206,12 +294,14 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/submit-review")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "提交指标审核(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReviewAlias(@PathVariable Long id) {
         return submitForReview(id);
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "审核通过指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicator(@PathVariable Long id) {
         Indicator indicator = strategyApplicationService.getIndicatorById(id);
@@ -223,12 +313,14 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/approve-review")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "审核通过指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicatorAlias(@PathVariable Long id) {
         return approveIndicator(id);
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "拒绝指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicator(
             @PathVariable Long id,
@@ -243,6 +335,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/reject-review")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "拒绝指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicatorAlias(
             @PathVariable Long id,
@@ -251,6 +344,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/distribute")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "分发指标到目标组织")
     public ResponseEntity<ApiResponse<IndicatorResponse>> distributeIndicator(
             @PathVariable Long id,
@@ -286,6 +380,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/withdraw")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "撤回已分发的指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> withdrawIndicator(
             @PathVariable Long id,
@@ -298,6 +393,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/batch-withdraw")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "批量撤回指标(按所属和目标组织)")
     public ResponseEntity<ApiResponse<BatchWithdrawResponse>> batchWithdrawIndicators(
             @RequestBody @Valid BatchWithdrawRequest request) {
@@ -310,6 +406,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/actions/batch-distribute")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "批量分发指标(分发页面专用)")
     public ResponseEntity<ApiResponse<BatchDistributeIndicatorsResponse>> batchDistributeIndicators(
             @RequestBody @Valid BatchDistributeIndicatorsRequest request) {
@@ -387,9 +484,7 @@ public class IndicatorController {
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> searchIndicators(
             @RequestParam String keyword) {
         List<Indicator> result = strategyApplicationService.searchIndicators(keyword);
-        List<IndicatorResponse> responses = result.stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(result);
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
@@ -397,36 +492,28 @@ public class IndicatorController {
     @Operation(summary = "根据任务ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByTaskId(@PathVariable Long taskId) {
         List<Indicator> indicators = strategyApplicationService.getIndicatorsByTaskId(taskId);
-        List<IndicatorResponse> responses = indicators.stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(indicators);
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/task/{taskId}/root")
     @Operation(summary = "根据任务ID获取根指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getRootIndicatorsByTaskId(@PathVariable Long taskId) {
-        List<IndicatorResponse> responses = strategyApplicationService.getRootIndicatorsByTaskId(taskId).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getRootIndicatorsByTaskId(taskId));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/owner/{orgId}")
     @Operation(summary = "根据所属组织ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByOwnerOrg(@PathVariable Long orgId) {
-        List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByOwnerOrgId(orgId).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getIndicatorsByOwnerOrgId(orgId));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/target/{orgId}")
     @Operation(summary = "根据目标组织ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByTargetOrg(@PathVariable Long orgId) {
-        List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByTargetOrgId(orgId).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getIndicatorsByTargetOrgId(orgId));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
@@ -457,13 +544,12 @@ public class IndicatorController {
     @GetMapping("/{id}/distributed")
     @Operation(summary = "获取已分发的子指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getDistributedIndicators(@PathVariable Long id) {
-        List<IndicatorResponse> responses = strategyApplicationService.getDistributedIndicators(id).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getDistributedIndicators(id));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @PostMapping("/{id}/breakdown")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "分解指标为子指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> breakdownIndicator(@PathVariable Long id) {
         Indicator brokenDown = strategyApplicationService.breakdownIndicator(id);
@@ -471,6 +557,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "激活指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> activateIndicator(@PathVariable Long id) {
         Indicator activated = strategyApplicationService.activateIndicator(id);
@@ -478,6 +565,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/terminate")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "终止指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> terminateIndicator(
             @PathVariable Long id,
@@ -491,33 +579,40 @@ public class IndicatorController {
     private IndicatorResponse toIndicatorResponse(Indicator indicator) {
         return toIndicatorResponse(
                 indicator,
-                Map.of(),
-                Map.of(),
+                buildTaskMetaMap(List.of(indicator)),
                 buildMilestoneMap(List.of(indicator)),
                 buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
         );
     }
 
-    private IndicatorResponse toIndicatorResponse(Indicator indicator, Map<Long, String> taskNameMap) {
-        return toIndicatorResponse(
-                indicator,
-                taskNameMap,
-                buildTaskTypeMap(List.of(indicator)),
-                buildMilestoneMap(List.of(indicator)),
-                buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
-        );
+    private List<IndicatorResponse> toIndicatorResponses(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, TaskMetaSnapshot> taskMetaMap = buildTaskMetaMap(indicators);
+        Map<Long, List<MilestoneResponse>> milestoneMap = buildMilestoneMap(indicators);
+        Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap =
+                buildCurrentMonthIndicatorRoundStateMap(indicators);
+        return indicators.stream()
+                .map(indicator -> toIndicatorResponse(
+                        indicator,
+                        taskMetaMap,
+                        milestoneMap,
+                        currentMonthRoundStateMap))
+                .toList();
     }
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator,
-                                                 Map<Long, String> taskNameMap,
-                                                 Map<Long, String> taskTypeMap,
+                                                 Map<Long, TaskMetaSnapshot> taskMetaMap,
                                                  Map<Long, List<MilestoneResponse>> milestoneMap,
                                                  Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap) {
         IndicatorResponse response = new IndicatorResponse();
         response.setId(indicator.getId());
         response.setTaskId(indicator.getTaskId());
         if (indicator.getTaskId() != null) {
-            String taskName = taskNameMap.get(indicator.getTaskId());
+            TaskMetaSnapshot taskMeta = taskMetaMap.get(indicator.getTaskId());
+            String taskName = taskMeta != null ? taskMeta.name() : null;
             if (taskName == null) {
                 TaskFallbackSnapshot task = findTaskFallback(indicator.getTaskId());
                 if (task != null) {
@@ -529,8 +624,10 @@ public class IndicatorController {
             }
             response.setTaskName(taskName);
             if (response.getTaskType() == null) {
-                response.setTaskType(taskTypeMap.get(indicator.getTaskId()));
+                response.setTaskType(taskMeta != null ? taskMeta.taskType() : null);
             }
+            response.setCycleId(taskMeta != null ? taskMeta.cycleId() : null);
+            response.setYear(taskMeta != null ? taskMeta.year() : null);
         }
         response.setIndicatorDesc(indicator.getIndicatorDesc());
         response.setIndicatorName(indicator.getIndicatorDesc()); // Using desc as name for now
@@ -559,7 +656,7 @@ public class IndicatorController {
         return response;
     }
 
-    private Map<Long, String> buildTaskNameMap(List<Indicator> indicators) {
+    private Map<Long, TaskMetaSnapshot> buildTaskMetaMap(List<Indicator> indicators) {
         if (indicators == null || indicators.isEmpty()) {
             return Map.of();
         }
@@ -575,10 +672,42 @@ public class IndicatorController {
             return Map.of();
         }
 
-        Map<Long, String> taskNameMap = new HashMap<>();
-        jpaTaskRepository.findTaskNamesByIds(taskIds)
-                .forEach(task -> taskNameMap.put(task.getId(), task.getName()));
-        return taskNameMap;
+        String placeholders = taskIds.stream().map(id -> "?").collect(Collectors.joining(","));
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT t.task_id AS task_id,
+                       t.name AS task_name,
+                       t.task_type AS task_type,
+                       p.cycle_id AS cycle_id,
+                       c.year AS year
+                FROM public.sys_task t
+                LEFT JOIN public.plan p ON p.id = t.plan_id
+                LEFT JOIN public.cycle c ON c.id = p.cycle_id
+                WHERE t.task_id IN (%s)
+                """.formatted(placeholders),
+                taskIds.toArray()
+        );
+
+        Map<Long, TaskMetaSnapshot> taskMetaMap = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object taskIdValue = row.get("task_id");
+            Object taskNameValue = row.get("task_name");
+            Object taskTypeValue = row.get("task_type");
+            Object cycleIdValue = row.get("cycle_id");
+            Object yearValue = row.get("year");
+            if (taskIdValue instanceof Number taskIdNumber) {
+                taskMetaMap.put(
+                        taskIdNumber.longValue(),
+                        new TaskMetaSnapshot(
+                                taskNameValue != null ? String.valueOf(taskNameValue) : null,
+                                taskTypeValue != null ? String.valueOf(taskTypeValue) : null,
+                                cycleIdValue instanceof Number cycleIdNumber ? cycleIdNumber.longValue() : null,
+                                yearValue instanceof Number yearNumber ? yearNumber.intValue() : null
+                        )
+                );
+            }
+        }
+        return taskMetaMap;
     }
 
     private Map<Long, List<MilestoneResponse>> buildMilestoneMap(List<Indicator> indicators) {
@@ -597,13 +726,7 @@ public class IndicatorController {
             return Map.of();
         }
 
-        return milestoneApplicationService.getAllMilestones().stream()
-                .filter(milestone -> milestone.getIndicatorId() != null && indicatorIds.contains(milestone.getIndicatorId()))
-                .collect(java.util.stream.Collectors.groupingBy(
-                        MilestoneResponse::getIndicatorId,
-                        java.util.LinkedHashMap::new,
-                        java.util.stream.Collectors.toList()
-                ));
+        return milestoneApplicationService.getMilestonesByIndicatorIds(indicatorIds);
     }
 
     private Map<Long, String> buildTaskTypeMap(List<Indicator> indicators) {
@@ -647,6 +770,8 @@ public class IndicatorController {
     }
 
     private record TaskFallbackSnapshot(String name, String taskType) {}
+
+    private record TaskMetaSnapshot(String name, String taskType, Long cycleId, Integer year) {}
 
     private Map<Long, CurrentMonthIndicatorRoundState> buildCurrentMonthIndicatorRoundStateMap(List<Indicator> indicators) {
         List<Long> indicatorIds = extractIndicatorIds(indicators);
@@ -832,6 +957,7 @@ public class IndicatorController {
         private Long taskId;
         private String taskName;
         private String taskType;
+        private Integer year;
         private Long parentIndicatorId;
         private String indicatorName;
         private String indicatorCode;
@@ -963,4 +1089,31 @@ public class IndicatorController {
         private Long orgId;
         private String orgName;
     }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReminderRequest {
+        private String reason;
+        private String source = "DASHBOARD";
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReminderStatusQueryRequest {
+        private List<Long> indicatorIds;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReminderStatusResponse {
+        private Long indicatorId;
+        private boolean canRemind;
+        private LocalDateTime lastRemindedAt;
+        private long remindCount;
+        private LocalDateTime cooldownUntil;
+    }
+
 }

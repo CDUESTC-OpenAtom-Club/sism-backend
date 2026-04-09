@@ -2,10 +2,13 @@ package com.sism.strategy.application;
 
 import com.sism.exception.ConflictException;
 import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.event.PlanCreatedEvent;
+import com.sism.strategy.domain.event.PlanStatusChangedEvent;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.plan.PlanStatus;
 import com.sism.strategy.domain.repository.PlanRepository;
+import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.domain.Cycle;
@@ -16,6 +19,7 @@ import com.sism.strategy.interfaces.dto.PlanResponse;
 import com.sism.strategy.interfaces.dto.CreatePlanRequest;
 import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
 import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
+import com.sism.strategy.infrastructure.StrategyOrgProperties;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,15 +27,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.sql.ResultSet;
 import java.util.Optional;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -50,6 +58,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.atLeastOnce;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.TransactionDefinition;
@@ -88,10 +97,15 @@ class PlanApplicationServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     @Mock
+    private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+
+    @Mock
     private PlatformTransactionManager transactionManager;
 
     @Mock
     private PlanIntegrityService planIntegrityService;
+
+    private StrategyOrgProperties strategyOrgProperties;
 
     private PlanApplicationService service;
 
@@ -99,6 +113,34 @@ class PlanApplicationServiceTest {
     void setUp() {
         lenient().when(transactionManager.getTransaction(any(TransactionDefinition.class)))
                 .thenReturn(new SimpleTransactionStatus());
+        lenient().when(jdbcTemplate.query(
+                contains("SELECT role_code"),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                any()
+        )).thenAnswer(invocation -> {
+            Object roleId = invocation.getArgument(2);
+            if (Long.valueOf(3L).equals(roleId)) {
+                return List.of("STRATEGY_DEPT_HEAD");
+            }
+            if (Long.valueOf(4L).equals(roleId)) {
+                return List.of("VICE_PRESIDENT");
+            }
+            if (Long.valueOf(2L).equals(roleId)) {
+                return List.of("APPROVER");
+            }
+            return List.of();
+        });
+        lenient().when(jdbcTemplate.query(
+                contains("SELECT u.id"),
+                any(org.springframework.jdbc.core.RowMapper.class),
+                any(),
+                any()
+        )).thenReturn(List.of());
+        lenient().when(namedParameterJdbcTemplate.queryForList(
+                any(String.class),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of());
+        strategyOrgProperties = new StrategyOrgProperties();
         service = new PlanApplicationService(
                 planRepository,
                 cycleRepository,
@@ -109,9 +151,48 @@ class PlanApplicationServiceTest {
                 eventPublisher,
                 planWorkflowSnapshotQueryService,
                 jdbcTemplate,
+                namedParameterJdbcTemplate,
                 transactionManager,
-                planIntegrityService
+                planIntegrityService,
+                strategyOrgProperties
         );
+    }
+
+    @Test
+    @DisplayName("Should publish a deterministic plan created event after saving")
+    void shouldPublishPlanCreatedEventAfterSaving() {
+        Cycle cycle = new Cycle();
+        cycle.setId(2026L);
+        cycle.setYear(2026);
+
+        CreatePlanRequest request = new CreatePlanRequest();
+        request.setCycleId(2026L);
+        request.setCreatedByOrgId(35L);
+        request.setTargetOrgId(36L);
+        request.setPlanType("STRATEGY");
+
+        when(cycleRepository.findById(2026L)).thenReturn(Optional.of(cycle));
+        when(planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                2026L, PlanLevel.STRAT_TO_FUNC, 35L, 36L))
+                .thenReturn(List.of());
+        when(organizationRepository.findAll()).thenReturn(List.of());
+        when(planRepository.save(any(Plan.class))).thenAnswer(invocation -> {
+            Plan saved = invocation.getArgument(0);
+            saved.setId(99L);
+            return saved;
+        });
+
+        PlanResponse response = service.createPlan(request);
+
+        ArgumentCaptor<DomainEvent> eventCaptor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(eventPublisher).publish(eventCaptor.capture());
+        assertTrue(eventCaptor.getValue() instanceof PlanCreatedEvent);
+        PlanCreatedEvent createdEvent = (PlanCreatedEvent) eventCaptor.getValue();
+        assertEquals(99L, createdEvent.getPlanId());
+        assertEquals("STRAT_TO_FUNC", createdEvent.getPlanLevel());
+        assertEquals(36L, createdEvent.getTargetOrgId());
+        assertEquals(PlanStatus.DRAFT.value(), response.getStatus());
+        verify(planRepository).save(any(Plan.class));
     }
 
     @Test
@@ -218,7 +299,11 @@ class PlanApplicationServiceTest {
         assertEquals(PlanStatus.PENDING.value(), plan.getStatus());
         assertEquals(PlanStatus.PENDING.value(), response.getStatus());
         verify(planRepository).save(same(plan));
-        verify(eventPublisher).publish(any());
+        ArgumentCaptor<DomainEvent> eventCaptor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(eventPublisher, times(2)).publish(eventCaptor.capture());
+        List<DomainEvent> events = new ArrayList<>(eventCaptor.getAllValues());
+        assertTrue(events.stream().anyMatch(event -> event instanceof PlanStatusChangedEvent));
+        assertTrue(events.stream().anyMatch(event -> event instanceof com.sism.strategy.domain.event.PlanSubmittedForApprovalEvent));
     }
 
     @Test
@@ -227,6 +312,7 @@ class PlanApplicationServiceTest {
         Plan plan = Plan.create(2026L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
         plan.setId(4036L);
         plan.activate();
+        plan.clearEvents();
 
         SubmitPlanApprovalRequest request = new SubmitPlanApprovalRequest();
         request.setWorkflowCode("PLAN_APPROVAL_FUNCDEPT");
@@ -239,7 +325,11 @@ class PlanApplicationServiceTest {
         assertEquals(PlanStatus.PENDING.value(), plan.getStatus());
         assertEquals(PlanStatus.PENDING.value(), response.getStatus());
         verify(planRepository).save(same(plan));
-        verify(eventPublisher).publish(any());
+        ArgumentCaptor<DomainEvent> eventCaptor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(eventPublisher, times(2)).publish(eventCaptor.capture());
+        List<DomainEvent> events = eventCaptor.getAllValues();
+        assertTrue(events.stream().anyMatch(event -> event instanceof PlanStatusChangedEvent));
+        assertTrue(events.stream().anyMatch(event -> event instanceof com.sism.strategy.domain.event.PlanSubmittedForApprovalEvent));
     }
 
     @Test
@@ -248,6 +338,7 @@ class PlanApplicationServiceTest {
         Plan plan = Plan.create(2026L, 35L, 35L, PlanLevel.STRATEGIC);
         plan.setId(7075L);
         plan.withdraw();
+        plan.clearEvents();
 
         SubmitPlanApprovalRequest request = new SubmitPlanApprovalRequest();
         request.setWorkflowCode("PLAN_DISPATCH_STRATEGY");
@@ -300,7 +391,9 @@ class PlanApplicationServiceTest {
         verify(jdbcTemplate).update(contains("SET status = 'APPROVED'"), anyLong());
         verify(jdbcTemplate).update(contains("SET status = 'PENDING'"), eq(18L));
         verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(18L));
-        verify(eventPublisher, never()).publish(any());
+        ArgumentCaptor<DomainEvent> eventCaptor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(eventPublisher, times(1)).publish(eventCaptor.capture());
+        assertTrue(eventCaptor.getValue() instanceof PlanStatusChangedEvent);
     }
 
     @Test
@@ -309,6 +402,7 @@ class PlanApplicationServiceTest {
         Plan plan = Plan.create(2026L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
         plan.setId(8080L);
         plan.returnForRevision();
+        plan.clearEvents();
 
         SubmitPlanApprovalRequest request = new SubmitPlanApprovalRequest();
         request.setWorkflowCode("PLAN_DISPATCH_FUNCDEPT");
@@ -350,7 +444,9 @@ class PlanApplicationServiceTest {
         verify(jdbcTemplate).update(contains("SET status = 'APPROVED'"), eq(81L));
         verify(jdbcTemplate).update(contains("INSERT INTO public.audit_step_instance"), eq(4L), eq(28L));
         verify(jdbcTemplate).update(contains("UPDATE public.audit_instance"), eq(28L));
-        verify(eventPublisher, never()).publish(any());
+        ArgumentCaptor<DomainEvent> eventCaptor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(eventPublisher, times(1)).publish(eventCaptor.capture());
+        assertTrue(eventCaptor.getValue() instanceof PlanStatusChangedEvent);
     }
 
     @Test
@@ -472,7 +568,7 @@ class PlanApplicationServiceTest {
                         .build()
         );
         when(taskRepository.findByPlanId(21L)).thenReturn(List.of(task));
-        when(indicatorRepository.findByTaskId(21001L)).thenReturn(List.of(indicator));
+        lenient().when(indicatorRepository.findByTaskIds(List.of(21001L))).thenReturn(List.of(indicator));
         when(jdbcTemplate.query(
                 contains("asi.status = 'APPROVED'"),
                 any(org.springframework.jdbc.core.RowMapper.class),
@@ -492,7 +588,7 @@ class PlanApplicationServiceTest {
         assertEquals("IN_REVIEW", response.getWorkflowStatus());
         assertEquals(701L, response.getWorkflowInstanceId());
         verify(indicator).setStatus(IndicatorStatus.DRAFT);
-        verify(indicatorRepository).save(indicator);
+        verify(indicatorRepository).saveAll(List.of(indicator));
     }
 
     @Test
@@ -631,10 +727,12 @@ class PlanApplicationServiceTest {
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
         when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(4L)).thenReturn(List.of(task));
-        when(indicatorRepository.findByTaskId(41001L)).thenReturn(List.of(indicator));
+        lenient().when(indicatorRepository.findByTaskIds(List.of(41001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(4L)).thenReturn(List.of());
-        when(jdbcTemplate.queryForList(contains("MAX(pr.created_at)"), any(Object[].class)))
-                .thenReturn(List.of(Map.of("indicator_id", 2002L, "report_progress", 20)));
+        lenient().when(namedParameterJdbcTemplate.queryForList(
+                contains("FROM public.plan_report_indicator pri"),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of(Map.of("indicator_id", 2002L, "report_progress", 20)));
         when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
                 .thenReturn(List.of());
 
@@ -657,22 +755,26 @@ class PlanApplicationServiceTest {
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
         when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(5L)).thenReturn(List.of(task));
-        when(indicatorRepository.findByTaskId(51001L)).thenReturn(List.of(indicator));
+        lenient().when(indicatorRepository.findByTaskIds(List.of(51001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(5L)).thenReturn(List.of());
+        lenient().when(namedParameterJdbcTemplate.queryForList(
+                contains("FROM public.plan_report_indicator pri"),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of(Map.of(
+                "plan_report_indicator_id", 7001L,
+                "indicator_id", 2002L,
+                "pending_progress", 20,
+                "pending_remark", "任务完成"
+        )));
+        lenient().when(namedParameterJdbcTemplate.queryForList(
+                contains("FROM public.plan_report_indicator_attachment pria"),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of(
+                Map.of("plan_report_indicator_id", 7001L, "attachment_value", "https://files.example.com/a.pdf"),
+                Map.of("plan_report_indicator_id", 7001L, "attachment_value", "推进台账.xlsx")
+        ));
         when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
                 .thenReturn(List.of(Map.of("report_id", 9001L, "report_status", "DRAFT")));
-        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator pri"), any(Object[].class)))
-                .thenReturn(List.of(Map.of(
-                        "plan_report_indicator_id", 7001L,
-                        "indicator_id", 2002L,
-                        "pending_progress", 20,
-                        "pending_remark", "任务完成"
-                )));
-        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator_attachment pria"), any(Object[].class)))
-                .thenReturn(List.of(
-                        Map.of("plan_report_indicator_id", 7001L, "attachment_value", "https://files.example.com/a.pdf"),
-                        Map.of("plan_report_indicator_id", 7001L, "attachment_value", "推进台账.xlsx")
-                ));
 
         PlanApplicationService.PlanDetailsResponse response = service.getPlanDetails(5L);
 
@@ -696,22 +798,26 @@ class PlanApplicationServiceTest {
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
         when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(6L)).thenReturn(List.of(task));
-        when(indicatorRepository.findByTaskId(61001L)).thenReturn(List.of(indicator));
+        lenient().when(indicatorRepository.findByTaskIds(List.of(61001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(6L)).thenReturn(List.of());
+        lenient().when(namedParameterJdbcTemplate.queryForList(
+                contains("FROM public.plan_report_indicator pri"),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of(Map.of(
+                "plan_report_indicator_id", 7101L,
+                "indicator_id", 2001L,
+                "pending_progress", 18,
+                "pending_remark", "退回后待修改"
+        )));
+        lenient().when(namedParameterJdbcTemplate.queryForList(
+                contains("FROM public.plan_report_indicator_attachment pria"),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of());
         when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
                 .thenReturn(List.of(
                         Map.of("report_id", 9102L, "report_status", "REJECTED"),
                         Map.of("report_id", 9101L, "report_status", "DRAFT")
                 ));
-        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator pri"), any(Object[].class)))
-                .thenReturn(List.of(Map.of(
-                        "plan_report_indicator_id", 7101L,
-                        "indicator_id", 2001L,
-                        "pending_progress", 18,
-                        "pending_remark", "退回后待修改"
-                )));
-        when(jdbcTemplate.queryForList(contains("FROM public.plan_report_indicator_attachment pria"), any(Object[].class)))
-                .thenReturn(List.of());
 
         PlanApplicationService.PlanDetailsResponse response = service.getPlanDetails(6L);
 
@@ -733,12 +839,8 @@ class PlanApplicationServiceTest {
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
         when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(7L)).thenReturn(List.of(task));
-        when(indicatorRepository.findByTaskId(71001L)).thenReturn(List.of(indicator));
+        lenient().when(indicatorRepository.findByTaskIds(List.of(71001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(7L)).thenReturn(List.of());
-        when(jdbcTemplate.queryForList(contains("MAX(pr.created_at)"), any(Object[].class)))
-                .thenReturn(List.of());
-        when(jdbcTemplate.queryForList(contains("FROM public.plan_report pr"), any(Object[].class)))
-                .thenReturn(List.of());
 
         PlanApplicationService.PlanDetailsResponse response = service.getPlanDetails(7L);
 
@@ -748,6 +850,28 @@ class PlanApplicationServiceTest {
         assertEquals(null, indicatorResponse.getPendingProgress());
         assertEquals(null, indicatorResponse.getPendingRemark());
         assertEquals(List.of(), indicatorResponse.getPendingAttachments());
+    }
+
+    @Test
+    @DisplayName("Should batch save indicators when syncing plan status to indicators")
+    void shouldBatchSaveIndicatorsWhenSyncingPlanStatus() {
+        Plan plan = createPlanWithCycle(8L, 2026L);
+        plan.setStatus(PlanStatus.DISTRIBUTED.value());
+
+        StrategicTask task = createTask(81001L, 8L);
+        Indicator indicator = new Indicator();
+        indicator.setId(9001L);
+        indicator.setStatus(IndicatorStatus.DRAFT);
+
+        when(taskRepository.findByPlanId(8L)).thenReturn(List.of(task));
+        when(indicatorRepository.findByTaskIds(List.of(81001L))).thenReturn(List.of(indicator));
+        when(indicatorRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.syncIndicatorStatusWithPlan(plan);
+
+        assertEquals(IndicatorStatus.DISTRIBUTED, indicator.getStatus());
+        verify(indicatorRepository).saveAll(List.of(indicator));
+        verify(indicatorRepository, never()).save(any());
     }
 
     private Plan createPlanWithCycle(Long planId, Long cycleId) {

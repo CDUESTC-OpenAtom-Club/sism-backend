@@ -25,6 +25,14 @@ public class JpaIndicatorRepository implements IndicatorRepository {
     }
 
     @Override
+    public Optional<Indicator> findByIdAndOwnerOrgId(Long id, Long ownerOrgId) {
+        if (id == null || ownerOrgId == null) {
+            return Optional.empty();
+        }
+        return jpaRepository.findByIdAndOwnerOrgIdAndIsDeletedFalse(id, ownerOrgId);
+    }
+
+    @Override
     public List<Indicator> findAll() {
         return jpaRepository.findAllByIsDeletedFalse();
     }
@@ -81,8 +89,24 @@ public class JpaIndicatorRepository implements IndicatorRepository {
     }
 
     @Override
+    public List<Indicator> findByTaskIds(List<Long> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByTaskIds(taskIds);
+    }
+
+    @Override
     public Indicator save(Indicator indicator) {
         return jpaRepository.save(indicator);
+    }
+
+    @Override
+    public List<Indicator> saveAll(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.saveAll(indicators);
     }
 
     @Override
@@ -136,5 +160,13 @@ public class JpaIndicatorRepository implements IndicatorRepository {
     @Override
     public List<Indicator> findByOwnerOrgIdAndTargetOrgId(Long ownerOrgId, Long targetOrgId) {
         return jpaRepository.findByOwnerOrgIdAndTargetOrgIdAndIsDeletedFalse(ownerOrgId, targetOrgId);
+    }
+
+    @Override
+    public List<Indicator> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByIdInAndIsDeletedFalse(ids);
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -70,6 +71,7 @@ public class CycleController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "创建新考核周期")
     public ResponseEntity<ApiResponse<Cycle>> createCycle(@RequestBody CreateCycleRequest request) {
         Cycle cycle = cycleApplicationService.createCycle(
@@ -82,6 +84,7 @@ public class CycleController {
     }
 
     @PostMapping("/{id:[0-9]+}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "激活考核周期")
     public ResponseEntity<ApiResponse<Cycle>> activateCycle(@PathVariable Long id) {
         Cycle cycle = cycleApplicationService.activateCycle(id);
@@ -89,6 +92,7 @@ public class CycleController {
     }
 
     @PostMapping("/{id:[0-9]+}/deactivate")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "停用考核周期")
     public ResponseEntity<ApiResponse<Cycle>> deactivateCycle(@PathVariable Long id) {
         Cycle cycle = cycleApplicationService.deactivateCycle(id);
@@ -96,6 +100,7 @@ public class CycleController {
     }
 
     @DeleteMapping("/{id:[0-9]+}")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "删除考核周期")
     public ResponseEntity<ApiResponse<Void>> deleteCycle(@PathVariable Long id) {
         cycleApplicationService.deleteCycle(id);

@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -57,6 +58,7 @@ public class MilestoneController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "创建新里程碑", description = "战略侧里程碑管理的主要入口点。")
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(
             @Valid @RequestBody com.sism.strategy.interfaces.dto.CreateMilestoneRequest request) {
@@ -65,6 +67,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "更新里程碑")
     public ResponseEntity<ApiResponse<MilestoneResponse>> updateMilestone(
             @PathVariable Long id,
@@ -74,6 +77,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/indicator/{indicatorId}/batch")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "为指标批量保存里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> saveMilestones(
             @PathVariable Long indicatorId,
@@ -84,6 +88,7 @@ public class MilestoneController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "删除里程碑")
     public ResponseEntity<ApiResponse<Void>> deleteMilestone(@PathVariable Long id) {
         milestoneApplicationService.deleteMilestone(id);

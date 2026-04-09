@@ -110,6 +110,11 @@ public class JpaPlanRepository implements PlanRepository {
     }
 
     @Override
+    public Plan saveAndFlush(Plan plan) {
+        return jpaRepository.saveAndFlush(plan);
+    }
+
+    @Override
     public void delete(Plan plan) {
         jpaRepository.delete(plan);
     }
