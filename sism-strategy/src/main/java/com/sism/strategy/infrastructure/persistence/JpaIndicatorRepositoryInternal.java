@@ -16,6 +16,10 @@ import org.springframework.data.domain.Pageable;
 public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator, Long> {
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
     Optional<Indicator> findByIdAndIsDeletedFalse(Long id);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    Optional<Indicator> findByIdAndOwnerOrgIdAndIsDeletedFalse(Long id, Long ownerOrgId);
+
     boolean existsByIdAndIsDeletedFalse(Long id);
 
     List<Indicator> findAllByIsDeletedFalse();
@@ -33,6 +37,14 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
 
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
     List<Indicator> findByTaskIdAndIsDeletedFalse(Long taskId);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    @Query("""
+            SELECT i FROM Indicator i
+            WHERE i.taskId IN :taskIds
+              AND i.isDeleted = false
+            """)
+    List<Indicator> findByTaskIds(@Param("taskIds") List<Long> taskIds);
 
     /**
      * 根据任务ID列表分页查询指标
@@ -88,4 +100,6 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
      */
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
     List<Indicator> findByOwnerOrgIdAndTargetOrgIdAndIsDeletedFalse(Long ownerOrgId, Long targetOrgId);
+
+    List<Indicator> findByIdInAndIsDeletedFalse(List<Long> ids);
 }

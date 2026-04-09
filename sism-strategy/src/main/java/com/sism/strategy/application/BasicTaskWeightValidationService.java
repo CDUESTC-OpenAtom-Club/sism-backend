@@ -48,10 +48,9 @@ public class BasicTaskWeightValidationService {
             return;
         }
 
-        BigDecimal totalWeight = indicatorRepository.findAll().stream()
+        BigDecimal totalWeight = indicatorRepository.findByTaskIds(List.copyOf(basicTaskIds)).stream()
                 .filter(indicator -> !Boolean.TRUE.equals(indicator.getIsDeleted()))
                 .filter(indicator -> indicator.getParentIndicatorId() == null)
-                .filter(indicator -> indicator.getTaskId() != null && basicTaskIds.contains(indicator.getTaskId()))
                 .filter(indicator -> indicator.getTargetOrg() != null)
                 .filter(indicator -> targetOrgId.equals(indicator.getTargetOrg().getId()))
                 .map(Indicator::getWeightPercent)

@@ -18,6 +18,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,9 +50,11 @@ class BasicTaskWeightValidationServiceTest {
 
         when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Long.class), org.mockito.ArgumentMatchers.eq(7L)))
                 .thenReturn(List.of(1001L));
-        when(indicatorRepository.findAll()).thenReturn(List.of(indicatorA, indicatorB));
+        when(indicatorRepository.findByTaskIds(List.of(1001L))).thenReturn(List.of(indicatorA, indicatorB));
 
         assertDoesNotThrow(() -> service.validatePlanBasicWeight(7L, 49L));
+        verify(indicatorRepository).findByTaskIds(List.of(1001L));
+        verify(indicatorRepository, never()).findAll();
     }
 
     @Test
@@ -61,7 +65,7 @@ class BasicTaskWeightValidationServiceTest {
 
         when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Long.class), org.mockito.ArgumentMatchers.eq(7L)))
                 .thenReturn(List.of(1001L));
-        when(indicatorRepository.findAll()).thenReturn(List.of(indicatorA, indicatorB));
+        when(indicatorRepository.findByTaskIds(List.of(1001L))).thenReturn(List.of(indicatorA, indicatorB));
 
         IllegalStateException error = assertThrows(
                 IllegalStateException.class,
@@ -69,6 +73,8 @@ class BasicTaskWeightValidationServiceTest {
         );
 
         org.junit.jupiter.api.Assertions.assertTrue(error.getMessage().contains("基础性任务指标权重合计必须为100"));
+        verify(indicatorRepository).findByTaskIds(List.of(1001L));
+        verify(indicatorRepository, never()).findAll();
     }
 
     private Indicator buildIndicator(Long id, Long taskId, Long targetOrgId, BigDecimal weight) {

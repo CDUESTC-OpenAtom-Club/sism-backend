@@ -45,6 +45,8 @@ public interface PlanRepository {
 
     Plan save(Plan plan);
 
+    Plan saveAndFlush(Plan plan);
+
     void delete(Plan plan);
 
     boolean existsById(Long id);

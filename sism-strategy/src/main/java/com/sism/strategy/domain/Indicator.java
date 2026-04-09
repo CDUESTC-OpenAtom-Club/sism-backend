@@ -447,22 +447,24 @@ public class Indicator extends AggregateRoot<Long> {
      * Activate indicator
      */
     public void activate() {
+        String previousStatus = this.status.toString();
         this.status = IndicatorStatus.DISTRIBUTED;
         this.updatedAt = LocalDateTime.now();
-        this.addEvent(new IndicatorStatusChangedEvent(this.id, this.status.toString(), "DISTRIBUTED"));
+        this.addEvent(new IndicatorStatusChangedEvent(this.id, previousStatus, "DISTRIBUTED"));
     }
 
     /**
      * Terminate indicator with a reason
      */
     public void terminate(String reason) {
+        String previousStatus = this.status.toString();
         if (this.status == IndicatorStatus.DISTRIBUTED) {
             throw new IllegalStateException("Cannot terminate indicator: already distributed");
         }
         this.status = IndicatorStatus.DRAFT;
         this.remark = reason;
         this.updatedAt = LocalDateTime.now();
-        this.addEvent(new IndicatorStatusChangedEvent(this.id, this.status.toString(), "TERMINATED"));
+        this.addEvent(new IndicatorStatusChangedEvent(this.id, previousStatus, "TERMINATED"));
     }
 
     @Override

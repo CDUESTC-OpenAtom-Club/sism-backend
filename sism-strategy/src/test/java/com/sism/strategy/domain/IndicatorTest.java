@@ -3,6 +3,7 @@ package com.sism.strategy.domain;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.OrgType;
 import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.event.IndicatorStatusChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,6 +74,33 @@ class IndicatorTest {
 
         assertEquals(IndicatorStatus.PENDING, indicator.getStatus());
         assertNotNull(indicator.getUpdatedAt());
+    }
+
+    @Test
+    @DisplayName("Should emit activate event with original status")
+    void shouldEmitActivateEventWithOriginalStatus() {
+        Indicator indicator = Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg, "定量");
+
+        indicator.activate();
+
+        assertEquals(IndicatorStatus.DISTRIBUTED, indicator.getStatus());
+        assertEquals(2, indicator.getDomainEvents().size());
+        IndicatorStatusChangedEvent event = (IndicatorStatusChangedEvent) indicator.getDomainEvents().get(1);
+        assertEquals("DRAFT", event.getOldStatus());
+        assertEquals("DISTRIBUTED", event.getNewStatus());
+    }
+
+    @Test
+    @DisplayName("Should emit terminate event with original status")
+    void shouldEmitTerminateEventWithOriginalStatus() {
+        Indicator indicator = Indicator.create("测试指标", "指标描述", BigDecimal.valueOf(100), ownerOrg, targetOrg, "定量");
+
+        indicator.terminate("已终止");
+
+        assertEquals(IndicatorStatus.DRAFT, indicator.getStatus());
+        IndicatorStatusChangedEvent event = (IndicatorStatusChangedEvent) indicator.getDomainEvents().get(1);
+        assertEquals("DRAFT", event.getOldStatus());
+        assertEquals("TERMINATED", event.getNewStatus());
     }
 
     @Test

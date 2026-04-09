@@ -214,6 +214,10 @@ public class StrategyApplicationService {
         return indicatorRepository.findById(id).orElse(null);
     }
 
+    public Indicator getIndicatorByIdAndOwnerOrgId(Long id, Long ownerOrgId) {
+        return indicatorRepository.findByIdAndOwnerOrgId(id, ownerOrgId).orElse(null);
+    }
+
     public List<Indicator> getAllIndicators() {
         return indicatorRepository.findAll();
     }
