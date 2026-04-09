@@ -2,6 +2,8 @@ package com.sism.organization.domain.repository;
 
 import com.sism.organization.domain.SysOrg;
 import com.sism.enums.OrgType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +25,11 @@ public interface OrganizationRepository {
     List<SysOrg> findAll();
 
     /**
+     * 分页查询组织
+     */
+    Page<SysOrg> findAll(Pageable pageable);
+
+    /**
      * 根据父组织ID查询子组织
      */
     List<SysOrg> findByParentOrgId(Long parentOrgId);
@@ -31,6 +38,11 @@ public interface OrganizationRepository {
      * 根据组织类型查询
      */
     List<SysOrg> findByType(OrgType type);
+
+    /**
+     * 根据多个组织类型查询
+     */
+    List<SysOrg> findByTypes(List<OrgType> types);
 
     /**
      * 根据激活状态查询

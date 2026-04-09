@@ -4,6 +4,8 @@ import com.sism.organization.domain.SysOrg;
 import com.sism.enums.OrgType;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -36,6 +38,11 @@ public class JpaOrganizationRepository implements OrganizationRepository {
     }
 
     @Override
+    public List<SysOrg> findByTypes(List<OrgType> types) {
+        return jpaRepository.findByTypeIn(types);
+    }
+
+    @Override
     public List<SysOrg> findByIsActive(Boolean isActive) {
         return jpaRepository.findByIsActive(isActive);
     }
@@ -48,6 +55,11 @@ public class JpaOrganizationRepository implements OrganizationRepository {
     @Override
     public List<SysOrg> findByNameContaining(String name) {
         return jpaRepository.findByNameContaining(name);
+    }
+
+    @Override
+    public Page<SysOrg> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable);
     }
 
     @Override
