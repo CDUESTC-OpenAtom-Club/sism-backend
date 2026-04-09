@@ -51,4 +51,12 @@ public class Permission {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public String getPermCode() {
+        return permissionCode;
+    }
+
+    public void setPermCode(String permCode) {
+        this.permissionCode = permCode;
+    }
 }
