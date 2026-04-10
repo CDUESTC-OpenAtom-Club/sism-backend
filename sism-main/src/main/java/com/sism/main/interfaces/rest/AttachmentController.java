@@ -1,7 +1,6 @@
 package com.sism.main.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
 import com.sism.main.application.AttachmentApplicationService;
 import com.sism.main.interfaces.dto.AttachmentResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,13 +10,15 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Objects;
 
 @RestController
@@ -33,8 +34,9 @@ public class AttachmentController {
     public ResponseEntity<ApiResponse<AttachmentResponse>> upload(
             @RequestPart("file") MultipartFile file,
             @RequestParam("uploadedBy") Long uploadedBy,
-            @AuthenticationPrincipal CurrentUser currentUser
+            Authentication authentication
     ) throws IOException {
+        UserIdentity currentUser = resolveCurrentUser(authentication);
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
@@ -49,7 +51,8 @@ public class AttachmentController {
     @Operation(summary = "获取附件元数据")
     public ResponseEntity<ApiResponse<AttachmentResponse>> metadata(
             @PathVariable Long id,
-            @AuthenticationPrincipal CurrentUser currentUser) {
+            Authentication authentication) {
+        UserIdentity currentUser = resolveCurrentUser(authentication);
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
@@ -64,7 +67,8 @@ public class AttachmentController {
     @GetMapping("/{id}/download")
     @Operation(summary = "下载附件")
     public ResponseEntity<?> download(@PathVariable Long id,
-                                      @AuthenticationPrincipal CurrentUser currentUser) throws IOException {
+                                      Authentication authentication) throws IOException {
+        UserIdentity currentUser = resolveCurrentUser(authentication);
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
@@ -87,20 +91,40 @@ public class AttachmentController {
                 .body(resource);
     }
 
-    private boolean canActAsUploader(CurrentUser currentUser, Long uploadedBy) {
-        return isAdmin(currentUser) || Objects.equals(currentUser.getId(), uploadedBy);
+    private boolean canActAsUploader(UserIdentity currentUser, Long uploadedBy) {
+        return isAdmin(currentUser) || Objects.equals(currentUser.id(), uploadedBy);
     }
 
-    private boolean canAccessAttachment(CurrentUser currentUser, AttachmentResponse metadata) {
+    private boolean canAccessAttachment(UserIdentity currentUser, AttachmentResponse metadata) {
         if (metadata == null || metadata.getUploadedBy() == null) {
             return false;
         }
-        return isAdmin(currentUser) || Objects.equals(currentUser.getId(), metadata.getUploadedBy());
+        return isAdmin(currentUser) || Objects.equals(currentUser.id(), metadata.getUploadedBy());
     }
 
-    private boolean isAdmin(CurrentUser currentUser) {
-        return currentUser.getAuthorities().stream()
-                .map(authority -> authority == null ? null : authority.getAuthority())
+    private boolean isAdmin(UserIdentity currentUser) {
+        return currentUser.authorities().stream()
+                .map(GrantedAuthority::getAuthority)
                 .anyMatch("ROLE_ADMIN"::equals);
+    }
+
+    private UserIdentity resolveCurrentUser(Authentication authentication) {
+        if (authentication == null || authentication.getPrincipal() == null) {
+            return null;
+        }
+        Object principal = authentication.getPrincipal();
+        try {
+            Class<?> principalClass = principal.getClass();
+            Long id = (Long) principalClass.getMethod("getId").invoke(principal);
+            @SuppressWarnings("unchecked")
+            Collection<? extends GrantedAuthority> authorities =
+                    (Collection<? extends GrantedAuthority>) principalClass.getMethod("getAuthorities").invoke(principal);
+            return new UserIdentity(id, authorities == null ? java.util.List.of() : authorities);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            return null;
+        }
+    }
+
+    private record UserIdentity(Long id, Collection<? extends GrantedAuthority> authorities) {
     }
 }

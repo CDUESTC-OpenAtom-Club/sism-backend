@@ -12,7 +12,6 @@ import com.sism.task.application.dto.UpdateTaskRequest;
 import com.sism.task.application.dto.TaskQueryRequest;
 import com.sism.task.application.dto.TaskResponse;
 import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskCategory;
 import com.sism.task.domain.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
@@ -90,10 +89,10 @@ class TaskApplicationServiceTest {
                 eq("DRAFT"),
                 eq(35L),
                 any(Pageable.class)))
-                .thenReturn(new PageImpl<>(
+                        .thenReturn(new PageImpl<>(
                         List.of(
-                                new StubTaskFlatView(1L, "任务A", 2, 35L, 35L, "STRATEGIC"),
-                                new StubTaskFlatView(2L, "任务B", 1, 35L, 35L, "STRATEGIC")
+                                new StubTaskFlatView(1L, "任务A", 2, 35L, 35L),
+                                new StubTaskFlatView(2L, "任务B", 1, 35L, 35L)
                         ),
                         org.springframework.data.domain.PageRequest.of(0, 2),
                         3
@@ -220,8 +219,8 @@ class TaskApplicationServiceTest {
     @DisplayName("Should load accessible tasks with a single repository query")
     void shouldLoadAccessibleTasksWithSingleRepositoryQuery() {
         when(jpaTaskRepository.findFlatViewsByAccessibleOrgId(35L)).thenReturn(List.of(
-                new StubTaskFlatView(1L, "任务A", 1, 35L, 99L, "STRATEGIC"),
-                new StubTaskFlatView(2L, "任务B", 2, 99L, 35L, "STRATEGIC")
+                new StubTaskFlatView(1L, "任务A", 1, 35L, 99L),
+                new StubTaskFlatView(2L, "任务B", 2, 99L, 35L)
         ));
 
         List<TaskResponse> result = taskApplicationService.getAccessibleTasksByOrgId(35L);
@@ -241,7 +240,6 @@ class TaskApplicationServiceTest {
         SysOrg createdByOrg = SysOrg.create("战略发展部", OrgType.admin);
         createdByOrg.setId(35L);
         return StrategicTask.create(
-                TaskCategory.STRATEGIC,
                 "测试任务",
                 TaskType.BASIC,
                 100L,
@@ -261,11 +259,10 @@ class TaskApplicationServiceTest {
             Integer sortOrder,
             Long orgId,
             Long createdByOrgId,
-            String taskCategory,
             String taskType) implements TaskFlatView {
 
-        private StubTaskFlatView(Long id, String name, Integer sortOrder, Long orgId, Long createdByOrgId, String taskCategory) {
-            this(id, name, sortOrder, orgId, createdByOrgId, taskCategory, "BASIC");
+        private StubTaskFlatView(Long id, String name, Integer sortOrder, Long orgId, Long createdByOrgId) {
+            this(id, name, sortOrder, orgId, createdByOrgId, "BASIC");
         }
 
         @Override
@@ -336,11 +333,6 @@ class TaskApplicationServiceTest {
         @Override
         public LocalDateTime getUpdatedAt() {
             return LocalDateTime.of(2026, 1, 2, 0, 0);
-        }
-
-        @Override
-        public String getTaskCategory() {
-            return taskCategory;
         }
     }
 }

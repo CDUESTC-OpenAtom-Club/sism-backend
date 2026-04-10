@@ -1,42 +1,10 @@
 package com.sism.task.domain.enums;
 
 /**
- * Strategic task type enumeration
- * Defines the different types of strategic tasks
+ * Legacy enum alias kept for compatibility with historical imports.
+ * 当前仅保留基础性与发展性两种任务性质。
  */
 public enum TaskType {
-    /**
-     * Plan container task
-     */
-    PLAN,
-
-    /**
-     * Basic strategic task
-     */
     BASIC,
-
-    /**
-     * Regular strategic task
-     */
-    REGULAR,
-
-    /**
-     * Key strategic task
-     */
-    KEY,
-
-    /**
-     * Special strategic task
-     */
-    SPECIAL,
-
-    /**
-     * Quantitative task
-     */
-    QUANTITATIVE,
-
-    /**
-     * Development task
-     */
     DEVELOPMENT
 }

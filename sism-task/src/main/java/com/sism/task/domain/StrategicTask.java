@@ -78,11 +78,7 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="is_deleted", nullable=false)
     private Boolean isDeleted = false;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "task_category", nullable = false)
-    private TaskCategory taskCategory = TaskCategory.STRATEGIC;
-
-    @Column(name = "status", nullable = false, length = 64)
+    @Transient
     private String status = STATUS_DRAFT;
 
     @Setter(AccessLevel.NONE)
@@ -108,11 +104,6 @@ public class StrategicTask extends AggregateRoot<Long> {
 
     public static StrategicTask create(String name, TaskType taskType, Long planId, Long cycleId,
                                         SysOrg org, SysOrg createdByOrg) {
-        return create(TaskCategory.STRATEGIC, name, taskType, planId, cycleId, org, createdByOrg);
-    }
-
-    public static StrategicTask create(TaskCategory taskCategory, String name, TaskType taskType, Long planId, Long cycleId,
-                                       SysOrg org, SysOrg createdByOrg) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Task name cannot be null or empty");
         }
@@ -139,7 +130,6 @@ public class StrategicTask extends AggregateRoot<Long> {
         task.cycleId = cycleId;
         task.org = org;
         task.createdByOrg = createdByOrg;
-        task.taskCategory = taskCategory != null ? taskCategory : TaskCategory.STRATEGIC;
         task.sortOrder = 0;
         task.setStatus(TaskStatus.DRAFT);
         task.createdAt = LocalDateTime.now();
@@ -221,9 +211,6 @@ public class StrategicTask extends AggregateRoot<Long> {
 
     @PrePersist
     protected void onCreate() {
-        if (taskCategory == null) {
-            taskCategory = TaskCategory.STRATEGIC;
-        }
         if (status == null) {
             setStatus(TaskStatus.DRAFT);
         }
@@ -241,9 +228,6 @@ public class StrategicTask extends AggregateRoot<Long> {
 
     @PostLoad
     protected void onLoad() {
-        if (taskCategory == null) {
-            taskCategory = TaskCategory.STRATEGIC;
-        }
         if (status == null) {
             setStatus(TaskStatus.DRAFT);
         }

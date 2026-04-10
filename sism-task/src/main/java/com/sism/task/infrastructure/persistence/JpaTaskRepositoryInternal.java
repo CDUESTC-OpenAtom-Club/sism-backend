@@ -101,8 +101,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                COALESCE(t.task_category, 'STRATEGIC') AS taskCategory,
-                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -126,8 +124,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                COALESCE(t.task_category, 'STRATEGIC') AS taskCategory,
-                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -162,8 +158,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                COALESCE(t.task_category, 'STRATEGIC') AS taskCategory,
-                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -190,8 +184,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                COALESCE(t.task_category, 'STRATEGIC') AS taskCategory,
-                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -206,7 +198,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
               AND (COALESCE(:taskType, '') = '' OR t.task_type = :taskType)
               AND (COALESCE(:name, '') = '' OR t.name ILIKE CONCAT('%', :name, '%'))
               AND (COALESCE(:planStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:planStatus))
-              AND (COALESCE(:taskStatus, '') = '' OR LOWER(COALESCE(t.status, 'DRAFT')) = LOWER(:taskStatus))
+              AND (COALESCE(:taskStatus, '') = '' OR LOWER('DRAFT') = LOWER(:taskStatus))
             """,
             countQuery = """
             SELECT COUNT(*)
@@ -221,7 +213,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
               AND (COALESCE(:taskType, '') = '' OR t.task_type = :taskType)
               AND (COALESCE(:name, '') = '' OR t.name ILIKE CONCAT('%', :name, '%'))
               AND (COALESCE(:planStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:planStatus))
-              AND (COALESCE(:taskStatus, '') = '' OR LOWER(COALESCE(t.status, 'DRAFT')) = LOWER(:taskStatus))
+              AND (COALESCE(:taskStatus, '') = '' OR LOWER('DRAFT') = LOWER(:taskStatus))
             """,
             nativeQuery = true)
     Page<TaskFlatView> findPagedFlatViewsByCriteria(
@@ -248,8 +240,6 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                COALESCE(t.task_category, 'STRATEGIC') AS taskCategory,
-                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt

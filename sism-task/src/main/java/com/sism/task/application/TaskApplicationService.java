@@ -11,7 +11,7 @@ import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.task.application.dto.*;
 import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskCategory;
+import com.sism.task.domain.TaskStatus;
 import com.sism.task.domain.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
@@ -50,7 +50,6 @@ public class TaskApplicationService {
         validatePlanBinding(request.getPlanId(), request.getCycleId(), org, createdByOrg);
 
         StrategicTask task = StrategicTask.create(
-                request.getTaskCategory() != null ? request.getTaskCategory() : TaskCategory.STRATEGIC,
                 request.getName(),
                 request.getTaskType(),
                 request.getPlanId(),
@@ -111,7 +110,6 @@ public class TaskApplicationService {
         task.updateName(request.getName());
         task.updateDesc(request.getDesc());
         task.setTaskType(request.getTaskType());
-        task.setTaskCategory(request.getTaskCategory() != null ? request.getTaskCategory() : TaskCategory.STRATEGIC);
         task.setPlanId(request.getPlanId());
         task.setCycleId(request.getCycleId());
 
