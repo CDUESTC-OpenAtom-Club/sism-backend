@@ -1,7 +1,6 @@
 package com.sism.task.application.dto;
 
 import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskCategory;
 import com.sism.task.domain.TaskType;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import lombok.Data;
@@ -21,7 +20,6 @@ public class TaskResponse {
     private Long id;
     private String name;
     private String desc;
-    private TaskCategory taskCategory;
     private TaskType taskType;
     private Long planId;
     private Long cycleId;
@@ -39,7 +37,6 @@ public class TaskResponse {
         response.setId(task.getId());
         response.setName(task.getName());
         response.setDesc(task.getDesc());
-        response.setTaskCategory(task.getTaskCategory() != null ? task.getTaskCategory() : TaskCategory.STRATEGIC);
         response.setTaskType(task.getTaskType());
         response.setPlanId(task.getPlanId());
         response.setCycleId(task.getCycleId());
@@ -59,7 +56,6 @@ public class TaskResponse {
         response.setId(task.getId());
         response.setName(task.getName());
         response.setDesc(task.getDesc());
-        response.setTaskCategory(parseTaskCategory(task.getTaskCategory()));
         response.setTaskType(parseTaskType(task.getTaskType()));
         response.setPlanId(task.getPlanId());
         response.setCycleId(task.getCycleId());
@@ -74,17 +70,6 @@ public class TaskResponse {
         return response;
     }
 
-    static TaskCategory parseTaskCategory(String rawTaskCategory) {
-        if (rawTaskCategory == null || rawTaskCategory.isBlank()) {
-            return TaskCategory.STRATEGIC;
-        }
-        try {
-            return TaskCategory.valueOf(rawTaskCategory.trim().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ex) {
-            return TaskCategory.STRATEGIC;
-        }
-    }
-
     static TaskType parseTaskType(String rawTaskType) {
         if (rawTaskType == null || rawTaskType.isBlank()) {
             return null;
@@ -93,14 +78,9 @@ public class TaskResponse {
         String normalized = rawTaskType.trim().toUpperCase(Locale.ROOT);
 
         return switch (normalized) {
-            case "PLAN", "计划" -> TaskType.PLAN;
             case "BASIC", "基础", "基础性" -> TaskType.BASIC;
-            case "REGULAR", "常规", "常规性" -> TaskType.REGULAR;
-            case "KEY", "重点" -> TaskType.KEY;
-            case "SPECIAL", "专项" -> TaskType.SPECIAL;
-            case "QUANTITATIVE", "量化" -> TaskType.QUANTITATIVE;
             case "DEVELOPMENT", "发展", "发展性" -> TaskType.DEVELOPMENT;
-            default -> null;
+            default -> throw new IllegalStateException("非法任务类型: " + rawTaskType);
         };
     }
 

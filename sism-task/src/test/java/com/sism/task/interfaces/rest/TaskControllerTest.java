@@ -5,7 +5,6 @@ import com.sism.common.PageResult;
 import com.sism.task.application.TaskApplicationService;
 import com.sism.task.application.dto.CreateTaskRequest;
 import com.sism.task.application.dto.TaskResponse;
-import com.sism.task.domain.TaskCategory;
 import com.sism.task.domain.TaskType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,7 +59,6 @@ class TaskControllerTest {
         CreateTaskRequest request = new CreateTaskRequest();
         request.setName("测试任务");
         request.setTaskType(TaskType.BASIC);
-        request.setTaskCategory(TaskCategory.STRATEGIC);
         request.setPlanId(100L);
         request.setCycleId(200L);
         request.setOrgId(99L);

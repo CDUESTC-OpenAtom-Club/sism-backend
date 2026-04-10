@@ -34,6 +34,4 @@ public interface TaskFlatView {
     LocalDateTime getCreatedAt();
 
     LocalDateTime getUpdatedAt();
-
-    String getTaskCategory();
 }
