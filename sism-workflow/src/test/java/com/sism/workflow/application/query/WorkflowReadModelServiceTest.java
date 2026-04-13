@@ -1,17 +1,14 @@
 package com.sism.workflow.application.query;
 
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
-import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.repository.OrganizationRepository;
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.model.report.ReportOrgType;
-import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.repository.PlanRepository;
+import com.sism.execution.application.ReportApplicationService;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
@@ -29,7 +26,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +34,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -59,13 +56,10 @@ class WorkflowReadModelServiceTest {
     private PlanRepository planRepository;
 
     @Mock
-    private PlanReportRepository planReportRepository;
+    private ReportApplicationService reportApplicationService;
 
     @Mock
     private OrganizationRepository organizationRepository;
-
-    @Mock
-    private JdbcTemplate jdbcTemplate;
 
     private WorkflowReadModelService newService() {
         WorkflowReadModelMapper mapper = new WorkflowReadModelMapper();
@@ -74,9 +68,8 @@ class WorkflowReadModelServiceTest {
                 auditInstanceRepository,
                 workflowQueryRepository,
                 mapper,
-                new ApproverResolver(userRepository, planRepository, jdbcTemplate),
                 planRepository,
-                jdbcTemplate,
+                reportApplicationService,
                 organizationRepository,
                 userRepository
         );
@@ -99,6 +92,22 @@ class WorkflowReadModelServiceTest {
     }
 
     @Test
+    void listDefinitions_shouldClampInvalidPaginationValues() {
+        when(workflowDefinitionQueryService.getAllAuditFlowDefs(PageRequest.of(0, 1)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 1), 0));
+
+        PageResult<?> result = newService().listDefinitions(0, 0);
+
+        assertEquals(1, result.getPageSize());
+        assertEquals(0, result.getTotalPages());
+    }
+
+    @Test
+    void listInstances_shouldRejectNonNumericDefinitionId() {
+        assertThrows(IllegalArgumentException.class, () -> newService().listInstances("abc", 1, 10));
+    }
+
+    @Test
     void getMyPendingTasks_shouldReturnStepLevelTaskView() {
         AuditInstance instance = new AuditInstance();
         instance.setId(8L);
@@ -114,6 +123,7 @@ class WorkflowReadModelServiceTest {
         pending.setStepNo(2);
         pending.setStepName("部门负责人审批");
         pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        pending.setApproverId(101L);
         pending.setApproverOrgId(44L);
         pending.setCreatedAt(LocalDateTime.now());
 
@@ -133,10 +143,10 @@ class WorkflowReadModelServiceTest {
         Role role = new Role();
         role.setId(2L);
         approver.setRoles(java.util.Set.of(role));
-        when(userRepository.findById(101L)).thenReturn(Optional.of(approver));
         when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
-        when(userRepository.findRoleIdsByUserId(101L)).thenReturn(List.of(2L));
-        when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
+        when(userRepository.findById(101L)).thenReturn(Optional.of(approver));
+        when(workflowQueryRepository.findPendingAuditInstancesByUserId(101L, PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(instance), PageRequest.of(0, 10), 1));
         when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
 
         PageResult<WorkflowTaskResponse> result = newService().getMyPendingTasks(101L, 1);
@@ -144,7 +154,7 @@ class WorkflowReadModelServiceTest {
         assertEquals(1, result.getTotal());
         assertEquals("88", result.getItems().get(0).getTaskId());
         assertEquals("step_5", result.getItems().get(0).getTaskKey());
-        assertNull(result.getItems().get(0).getAssigneeName());
+        assertEquals("审批人A", result.getItems().get(0).getAssigneeName());
         assertEquals("PLAN_REPORT", result.getItems().get(0).getEntityType());
     }
 
@@ -163,6 +173,7 @@ class WorkflowReadModelServiceTest {
         pending.setStepDefId(2L);
         pending.setStepNo(1);
         pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        pending.setApproverId(201L);
         pending.setCreatedAt(LocalDateTime.now().minusMinutes(10));
         instance.addStepInstance(pending);
 
@@ -181,15 +192,15 @@ class WorkflowReadModelServiceTest {
         role.setId(3L);
         approver.setRoles(java.util.Set.of(role));
         when(userRepository.findById(201L)).thenReturn(Optional.of(approver));
-        when(userRepository.findRoleIdsByUserId(201L)).thenReturn(List.of(3L));
-        when(auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING)).thenReturn(List.of(instance));
+        when(workflowQueryRepository.findPendingAuditInstancesByUserId(201L, PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(instance), PageRequest.of(0, 10), 1));
         when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
 
         PageResult<WorkflowTaskResponse> result = newService().getMyPendingTasks(201L, 1);
 
         assertEquals(1, result.getTotal());
         assertEquals("PLAN_REPORT", result.getItems().get(0).getEntityType());
-        assertNull(result.getItems().get(0).getAssigneeName());
+        assertEquals("approver201", result.getItems().get(0).getAssigneeName());
     }
 
     @Test
@@ -347,7 +358,8 @@ class WorkflowReadModelServiceTest {
         flowDef.setFlowName("Plan审批流程（职能部门）");
         flowDef.setSteps(List.of());
 
-        when(workflowQueryRepository.findApprovedAuditInstancesByUserId(124L)).thenReturn(List.of(instance));
+        when(workflowQueryRepository.findApprovedAuditInstancesByUserId(124L, PageRequest.of(0, 10)))
+                .thenReturn(new PageImpl<>(List.of(instance), PageRequest.of(0, 10), 1));
         when(planRepository.findById(7073L)).thenReturn(Optional.of(plan));
         when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
         when(userRepository.findById(223L)).thenReturn(Optional.of(namedUser(223L, "教务处填报人")));

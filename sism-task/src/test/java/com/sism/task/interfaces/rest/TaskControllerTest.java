@@ -19,6 +19,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -94,6 +95,44 @@ class TaskControllerTest {
         assertEquals(1L, response.getBody().getData().getTotal());
         assertEquals(1, response.getBody().getData().getItems().size());
         verify(taskApplicationService).searchTasks(any(), eq(35L));
+    }
+
+    @Test
+    void getTasksByOrgIdShouldFilterByCurrentUserOrg() {
+        Authentication authentication = authentication(11L, 35L, "ROLE_USER");
+        when(taskApplicationService.getTasksByOrgId(99L)).thenReturn(List.of(
+                taskResponse(1L, 35L, 99L),
+                taskResponse(2L, 99L, 99L)
+        ));
+
+        var response = taskController.getTasksByOrgId(99L, authentication);
+
+        assertEquals(1, response.getBody().getData().size());
+        assertEquals(1L, response.getBody().getData().get(0).getId());
+        verify(taskApplicationService).getTasksByOrgId(99L);
+    }
+
+    @Test
+    void searchTasksShouldRejectUnsupportedTaskType() {
+        Authentication authentication = authentication(11L, 35L, "ROLE_USER");
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
+                taskController.searchTasks(
+                        null,
+                        null,
+                        null,
+                        null,
+                        "mystery",
+                        null,
+                        null,
+                        null,
+                        0,
+                        10,
+                        authentication)
+        );
+
+        assertTrue(error.getMessage().contains("不支持的任务类型"));
+        verify(taskApplicationService, never()).searchTasks(any(), any());
     }
 
     private Authentication authentication(Long userId, Long orgId, String authority) {

@@ -1,25 +1,21 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
+import com.sism.iam.application.service.UserProfileService;
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -32,21 +28,18 @@ import java.util.stream.Collectors;
 @Tag(name = "用户中心", description = "用户个人资料管理接口")
 public class UserProfileController {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserProfileService userProfileService;
 
     // ========== 个人资料查询 ==========
 
     @GetMapping
     @Operation(summary = "获取当前用户个人资料")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(Authentication authentication) {
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
+        User user = userProfileService.findCurrentUser(authentication);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
 
-        User user = userOpt.get();
         return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
     }
 
@@ -58,20 +51,15 @@ public class UserProfileController {
             @Valid @RequestBody UpdateProfileRequest request,
             Authentication authentication
     ) {
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
+        User user = userProfileService.findCurrentUser(authentication);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
 
-        User user = userOpt.get();
-        user.setRealName(request.getRealName());
-        user.setUpdatedAt(LocalDateTime.now());
-
-        // 注意：新版本的 User 不包含 email 和 phone 字段
-        // TODO: 更新 avatar 需要单独的文件上传接口
-
-        user = userRepository.save(user);
+        user = userProfileService.updateProfile(user, request.getRealName());
+        if (request.getAvatar() != null && !request.getAvatar().isBlank()) {
+            user = userProfileService.updateAvatar(user, request.getAvatar());
+        }
         return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
     }
 
@@ -83,28 +71,16 @@ public class UserProfileController {
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication
     ) {
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
+        User user = userProfileService.findCurrentUser(authentication);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
-
-        User user = userOpt.get();
-
-        // 验证旧密码
-        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Current password is incorrect"));
-        }
-
-        // 验证两次输入的新密码一致
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("New password and confirm password do not match"));
-        }
-
-        // 更新密码
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
+        userProfileService.changePassword(
+                user,
+                request.getOldPassword(),
+                request.getNewPassword(),
+                request.getConfirmPassword()
+        );
 
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -149,7 +125,9 @@ public class UserProfileController {
         response.setRealName(user.getRealName());
         response.setOrgId(user.getOrgId());
         response.setIsActive(user.getIsActive());
-        response.setRoles(user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
+        response.setRoles(user.getRoles() == null
+                ? List.of()
+                : user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
         response.setCreatedAt(user.getCreatedAt());
         response.setLastLoginTime(null); // TODO: 需要记录最后登录时间
 
@@ -175,12 +153,6 @@ public class UserProfileController {
     public static class UpdateProfileRequest {
         @NotBlank(message = "Real name is required")
         private String realName;
-
-        @Email(message = "Invalid email format")
-        private String email;
-
-        @Pattern(regexp = "^1[3-9]\\d{9}$", message = "Invalid phone number format")
-        private String phone;
 
         private String avatar;
     }

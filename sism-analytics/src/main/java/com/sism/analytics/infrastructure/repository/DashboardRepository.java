@@ -62,7 +62,7 @@ public interface DashboardRepository extends JpaRepository<Dashboard, Long> {
     /**
      * 根据名称模糊查找用户的仪表板
      */
-    @Query("SELECT d FROM Dashboard d WHERE d.userId = :userId AND d.name LIKE %:name% AND d.deleted = false ORDER BY d.createdAt DESC")
+    @Query("SELECT d FROM Dashboard d WHERE d.userId = :userId AND d.name LIKE CONCAT('%', :name, '%') ESCAPE '\\' AND d.deleted = false ORDER BY d.createdAt DESC")
     Page<Dashboard> findByUserIdAndNameContainingAndNotDeleted(
             @Param("userId") Long userId,
             @Param("name") String name,

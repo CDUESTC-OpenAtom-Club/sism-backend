@@ -37,10 +37,10 @@ public class Report extends AggregateRoot<Long> {
     public static final String STATUS_GENERATED = "GENERATED";
     public static final String STATUS_FAILED = "FAILED";
 
-    public static final String FORMAT_PDF = "PDF";
-    public static final String FORMAT_EXCEL = "EXCEL";
-    public static final String FORMAT_CSV = "CSV";
-    public static final String FORMAT_HTML = "HTML";
+    public static final String FORMAT_PDF = ExportFormat.PDF.getCode();
+    public static final String FORMAT_EXCEL = ExportFormat.EXCEL.getCode();
+    public static final String FORMAT_CSV = ExportFormat.CSV.getCode();
+    public static final String FORMAT_HTML = ExportFormat.HTML.getCode();
 
     @Column(name = "report_name", nullable = false, length = 255)
     private String name;
@@ -142,8 +142,8 @@ public class Report extends AggregateRoot<Long> {
      * 生成报告
      */
     public void generate(String filePath, Long fileSize) {
-        if (status.equals(STATUS_FAILED)) {
-            throw new IllegalStateException("Cannot regenerate a failed report");
+        if (!STATUS_DRAFT.equals(status)) {
+            throw new IllegalStateException("Report must be in DRAFT status to generate");
         }
         this.filePath = Objects.requireNonNull(filePath, "File path cannot be null");
         this.fileSize = Objects.requireNonNull(fileSize, "File size cannot be null");
@@ -158,6 +158,9 @@ public class Report extends AggregateRoot<Long> {
      * 生成失败
      */
     public void fail(String errorMessage) {
+        if (!STATUS_DRAFT.equals(status)) {
+            throw new IllegalStateException("Report must be in DRAFT status to fail");
+        }
         this.status = STATUS_FAILED;
         this.errorMessage = errorMessage;
         this.updatedAt = LocalDateTime.now();
@@ -210,8 +213,7 @@ public class Report extends AggregateRoot<Long> {
      * 验证报告格式
      */
     private boolean isValidFormat(String format) {
-        return FORMAT_PDF.equals(format) || FORMAT_EXCEL.equals(format) ||
-                FORMAT_CSV.equals(format) || FORMAT_HTML.equals(format);
+        return ExportFormat.isValidCode(format);
     }
 
     @Override

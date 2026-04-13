@@ -23,7 +23,7 @@ class StrategyControllerSecurityTest {
 
     @Test
     void cycleControllerMutatingEndpointsShouldRequireRoleChecks() throws Exception {
-        assertPreAuthorize(CycleController.class, "createCycle", CycleController.CreateCycleRequest.class);
+        assertPreAuthorize(CycleController.class, "createCycle", com.sism.strategy.interfaces.dto.CreateCycleRequest.class);
         assertPreAuthorize(CycleController.class, "activateCycle", Long.class);
         assertPreAuthorize(CycleController.class, "deactivateCycle", Long.class);
         assertPreAuthorize(CycleController.class, "deleteCycle", Long.class);

@@ -14,7 +14,6 @@ import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.TaskStatus;
 import com.sism.task.domain.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
-import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
 import com.sism.task.infrastructure.persistence.PlanBindingRepository;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +35,6 @@ import java.util.Objects;
 public class TaskApplicationService {
 
     private final TaskRepository taskRepository;
-    private final JpaTaskRepositoryInternal jpaTaskRepository;
     private final OrganizationRepository organizationRepository;
     private final DomainEventPublisher eventPublisher;
     private final EventStore eventStore;
@@ -42,8 +42,12 @@ public class TaskApplicationService {
 
     @Transactional
     public TaskResponse createTask(CreateTaskRequest request, CurrentUser currentUser, boolean isAdmin) {
-        ensureCanOperateOnOrg(currentUser, isAdmin, request.getOrgId());
-        ensureCanOperateOnOrg(currentUser, isAdmin, request.getCreatedByOrgId());
+        ensureCanOperateOnTaskBoundary(
+                currentUser,
+                isAdmin,
+                request.getOrgId(),
+                request.getCreatedByOrgId()
+        );
         SysOrg org = loadOrganization(request.getOrgId(), "组织不存在");
         SysOrg createdByOrg = loadOrganization(request.getCreatedByOrgId(), "创建组织不存在");
 
@@ -65,7 +69,7 @@ public class TaskApplicationService {
             task.updateDesc(request.getDesc());
         }
         if (request.getRemark() != null) {
-            task.setRemark(request.getRemark());
+            task.updateRemark(request.getRemark());
         }
 
         task.validate();
@@ -104,30 +108,31 @@ public class TaskApplicationService {
     @Transactional
     public TaskResponse updateTask(Long id, UpdateTaskRequest request, CurrentUser currentUser, boolean isAdmin) {
         StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
-        ensureCanOperateOnOrg(currentUser, isAdmin, request.getOrgId());
-        ensureCanOperateOnOrg(currentUser, isAdmin, request.getCreatedByOrgId());
+        ensureCanOperateOnTaskBoundary(
+                currentUser,
+                isAdmin,
+                request.getOrgId(),
+                request.getCreatedByOrgId()
+        );
+
+        SysOrg org = loadOrganization(request.getOrgId(), "组织不存在");
+        SysOrg createdByOrg = loadOrganization(request.getCreatedByOrgId(), "创建组织不存在");
 
         task.updateName(request.getName());
         task.updateDesc(request.getDesc());
-        task.setTaskType(request.getTaskType());
-        task.setPlanId(request.getPlanId());
-        task.setCycleId(request.getCycleId());
+        task.reassign(
+                request.getTaskType(),
+                request.getPlanId(),
+                request.getCycleId(),
+                org,
+                createdByOrg
+        );
 
         if (request.getSortOrder() != null) {
             task.updateSortOrder(request.getSortOrder());
         }
         if (request.getRemark() != null) {
-            task.setRemark(request.getRemark());
-        }
-
-        if (request.getOrgId() != null) {
-            SysOrg org = loadOrganization(request.getOrgId(), "组织不存在");
-            task.setOrg(org);
-        }
-
-        if (request.getCreatedByOrgId() != null) {
-            SysOrg createdByOrg = loadOrganization(request.getCreatedByOrgId(), "创建组织不存在");
-            task.setCreatedByOrg(createdByOrg);
+            task.updateRemark(request.getRemark());
         }
 
         validatePlanBinding(task.getPlanId(), task.getCycleId(), task.getOrg(), task.getCreatedByOrg());
@@ -159,7 +164,7 @@ public class TaskApplicationService {
     @Transactional
     public TaskResponse updateTaskRemark(Long id, String remark, CurrentUser currentUser, boolean isAdmin) {
         StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
-        task.setRemark(remark);
+        task.updateRemark(remark);
         taskRepository.save(task);
         publishAndSaveEvents(task);
         return toCommandResponse(task);
@@ -178,21 +183,21 @@ public class TaskApplicationService {
     public void deleteTask(Long id, CurrentUser currentUser, boolean isAdmin) {
         StrategicTask task = loadTaskWithAccess(id, currentUser, isAdmin);
         ensureTaskDeletable(task);
-        task.setIsDeleted(true);
+        task.markDeleted();
         taskRepository.save(task);
         publishAndSaveEvents(task);
     }
 
     @Transactional(readOnly = true)
     public TaskResponse getTaskById(Long id) {
-        return jpaTaskRepository.findFlatViewById(id)
+        return taskRepository.findFlatViewById(id)
                 .map(TaskResponse::fromView)
                 .orElseThrow(() -> new IllegalArgumentException("任务不存在"));
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getAllTasks() {
-        return jpaTaskRepository.findFlatViewsByCriteria(null, null, null, null, "", "").stream()
+        return taskRepository.findAllFlatViews().stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
@@ -202,14 +207,14 @@ public class TaskApplicationService {
         if (orgId == null) {
             return List.of();
         }
-        return jpaTaskRepository.findFlatViewsByAccessibleOrgId(orgId).stream()
+        return taskRepository.findFlatViewsByAccessibleOrgId(orgId).stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public PageResult<TaskResponse> searchTasks(TaskQueryRequest request, Long accessibleOrgId) {
-        Page<TaskFlatView> resultPage = jpaTaskRepository.findPagedFlatViewsByCriteria(
+        Page<TaskFlatView> resultPage = taskRepository.findPagedFlatViewsByCriteria(
                 request.getPlanId(),
                 request.getCycleId(),
                 request.getOrgId(),
@@ -228,47 +233,52 @@ public class TaskApplicationService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByOrgId(Long orgId) {
-        return jpaTaskRepository.findFlatViewsByCriteria(null, null, orgId, null, "", "").stream()
+        return taskRepository.findFlatViewsByCriteria(null, null, orgId, null, "", "").stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksCreatedByOrgId(Long orgId) {
-        return jpaTaskRepository.findFlatViewsByCriteria(null, null, null, orgId, "", "").stream()
+        return taskRepository.findFlatViewsByCriteria(null, null, null, orgId, "", "").stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByPlanId(Long planId) {
-        return jpaTaskRepository.findFlatViewsByCriteria(planId, null, null, null, "", "").stream()
+        return taskRepository.findFlatViewsByCriteria(planId, null, null, null, "", "").stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByCycleId(Long cycleId) {
-        return jpaTaskRepository.findFlatViewsByCycleId(cycleId).stream()
+        return taskRepository.findFlatViewsByCycleId(cycleId).stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByType(TaskType taskType) {
-        return jpaTaskRepository.findFlatViewsByCriteria(null, null, null, null, taskType.name(), "").stream()
+        return taskRepository.findFlatViewsByCriteria(null, null, null, null, taskType.name(), "").stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<TaskResponse> getTasksByPlanIdAndCycleId(Long planId, Long cycleId) {
-        return jpaTaskRepository.findFlatViewsByCriteria(planId, cycleId, null, null, "", "").stream()
+        return taskRepository.findFlatViewsByCriteria(planId, cycleId, null, null, "", "").stream()
                 .map(TaskResponse::fromView)
                 .toList();
     }
 
     private TaskResponse toCommandResponse(StrategicTask task) {
+        if (task.getId() != null) {
+            return taskRepository.findFlatViewById(task.getId())
+                    .map(TaskResponse::fromView)
+                    .orElseGet(() -> TaskResponse.fromEntity(task));
+        }
         return TaskResponse.fromEntity(task);
     }
 
@@ -326,8 +336,11 @@ public class TaskApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException(errorMessage));
     }
 
-    private void ensureCanOperateOnOrg(CurrentUser currentUser, boolean isAdmin, Long orgId) {
-        if (isAdmin || orgId == null) {
+    private void ensureCanOperateOnTaskBoundary(CurrentUser currentUser,
+                                                boolean isAdmin,
+                                                Long orgId,
+                                                Long createdByOrgId) {
+        if (isAdmin) {
             return;
         }
         if (currentUser == null) {
@@ -337,7 +350,11 @@ public class TaskApplicationService {
         if (currentOrgId == null) {
             throw new AuthorizationException("当前用户缺少组织信息，无法操作任务数据");
         }
-        if (!Objects.equals(currentOrgId, orgId)) {
+
+        boolean canOperateTargetOrg = orgId != null && Objects.equals(currentOrgId, orgId);
+        boolean canOperateCreatorOrg = createdByOrgId != null && Objects.equals(currentOrgId, createdByOrgId);
+
+        if (!canOperateTargetOrg && !canOperateCreatorOrg) {
             throw new AuthorizationException("无权操作该组织下的任务");
         }
     }
@@ -371,12 +388,26 @@ public class TaskApplicationService {
 
     private void publishAndSaveEvents(com.sism.shared.domain.model.base.AggregateRoot<?> aggregate) {
         List<DomainEvent> events = aggregate.getDomainEvents();
+        if (events.isEmpty()) {
+            aggregate.clearEvents();
+            return;
+        }
 
         for (DomainEvent event : events) {
             eventStore.save(event);
         }
 
-        eventPublisher.publishAll(events);
+        List<DomainEvent> eventsToPublish = List.copyOf(events);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    eventPublisher.publishAll(eventsToPublish);
+                }
+            });
+        } else {
+            eventPublisher.publishAll(eventsToPublish);
+        }
 
         aggregate.clearEvents();
     }
@@ -411,7 +442,7 @@ public class TaskApplicationService {
             case "taskStatus" -> Sort.by(direction, "t.status");
             case "createdAt" -> Sort.by(direction, "t.created_at");
             case "updatedAt" -> Sort.by(direction, "t.updated_at");
-            default -> Sort.by(Sort.Order.asc("t.sort_order"), Sort.Order.asc("t.task_id"));
+            default -> throw new IllegalArgumentException("不支持的排序字段: " + sortBy);
         };
     }
 }

@@ -112,7 +112,7 @@ public class Indicator extends AggregateRoot<Long> {
         indicator.createdAt = LocalDateTime.now();
         indicator.updatedAt = LocalDateTime.now();
         indicator.isDeleted = false;
-        indicator.addEvent(new IndicatorCreatedEvent(indicator.id, description, ownerOrg.getId()));
+        indicator.markCreated(ownerOrg.getId());
         return indicator;
     }
 
@@ -151,7 +151,7 @@ public class Indicator extends AggregateRoot<Long> {
         indicator.createdAt = LocalDateTime.now();
         indicator.updatedAt = LocalDateTime.now();
         indicator.isDeleted = false;
-        indicator.addEvent(new IndicatorCreatedEvent(indicator.id, description, ownerOrg.getId()));
+        indicator.markCreated(ownerOrg.getId());
         return indicator;
     }
 
@@ -169,6 +169,10 @@ public class Indicator extends AggregateRoot<Long> {
 
     public void setDescription(String description) {
         this.indicatorDesc = description;
+    }
+
+    public void markCreated(Long ownerOrgId) {
+        this.addEvent(new IndicatorCreatedEvent(this.id, this.getDescription(), ownerOrgId));
     }
 
     public void setType(String type) {

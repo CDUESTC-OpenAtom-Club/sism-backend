@@ -46,7 +46,7 @@ public class MilestoneController {
                 request.getDescription(),
                 request.getDueDate(),
                 request.getTargetProgress(),
-                MilestoneStatus.from(request.getStatus()),
+                resolveStatus(request.getStatus()),
                 request.getSortOrder(),
                 request.getIsPaired(),
                 request.getInheritedFrom()
@@ -67,7 +67,7 @@ public class MilestoneController {
                 request.getDescription(),
                 request.getDueDate(),
                 request.getTargetProgress(),
-                MilestoneStatus.from(request.getStatus()),
+                resolveStatus(request.getStatus()),
                 request.getSortOrder(),
                 request.getIsPaired(),
                 request.getInheritedFrom()
@@ -143,7 +143,7 @@ public class MilestoneController {
     @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
     public ResponseEntity<ApiResponse<List<MilestoneResponse>>> getMilestonesByStatus(
             @Parameter(description = "里程碑状态") @PathVariable String status) {
-        List<Milestone> milestones = milestoneApplicationService.findMilestonesByStatus(MilestoneStatus.from(status));
+        List<Milestone> milestones = milestoneApplicationService.findMilestonesByStatus(resolveStatus(status));
         List<MilestoneResponse> responses = milestones.stream()
                 .map(MilestoneResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -157,7 +157,7 @@ public class MilestoneController {
             @Parameter(description = "里程碑状态") @PathVariable String status,
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size) {
-        Page<Milestone> milestonePage = milestoneApplicationService.findMilestonesByStatus(MilestoneStatus.from(status), page, size);
+        Page<Milestone> milestonePage = milestoneApplicationService.findMilestonesByStatus(resolveStatus(status), page, size);
         List<MilestoneResponse> responses = milestonePage.getContent().stream()
                 .map(MilestoneResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -210,5 +210,9 @@ public class MilestoneController {
         return ResponseEntity.ok(ApiResponse.success(
                 milestoneApplicationService.checkIndicatorMilestoneCanReport(indicatorId, milestoneId)
         ));
+    }
+
+    private MilestoneStatus resolveStatus(String status) {
+        return MilestoneStatus.from(status);
     }
 }

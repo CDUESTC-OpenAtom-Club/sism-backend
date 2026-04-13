@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
@@ -94,5 +95,13 @@ class DataExportApplicationServiceTest {
                 dataExportApplicationService.findDataExportsByDateRange(start, end, 1L)
         );
         verifyNoInteractions(dataExportRepository);
+    }
+
+    @Test
+    @DisplayName("searchDataExportsByName should escape SQL LIKE wildcards")
+    void searchDataExportsByNameShouldEscapeLikeWildcards() {
+        dataExportApplicationService.searchDataExportsByName("100%_done", 1L);
+
+        verify(dataExportRepository).findByRequestedByAndNameContainingAndNotDeleted(1L, "100\\%\\_done");
     }
 }

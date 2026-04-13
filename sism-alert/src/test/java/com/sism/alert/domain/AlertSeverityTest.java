@@ -10,10 +10,10 @@ class AlertSeverityTest {
 
     @Test
     void normalizeShouldMapLegacyAliasesToCanonicalValues() {
-        assertEquals("WARNING", AlertSeverity.normalize("major"));
-        assertEquals("INFO", AlertSeverity.normalize("minor"));
-        assertEquals("CRITICAL", AlertSeverity.normalize("critical"));
-        assertEquals("WARNING", AlertSeverity.normalize("warning"));
+        assertEquals(AlertSeverity.WARNING, AlertSeverity.normalize("major"));
+        assertEquals(AlertSeverity.INFO, AlertSeverity.normalize("minor"));
+        assertEquals(AlertSeverity.CRITICAL, AlertSeverity.normalize("critical"));
+        assertEquals(AlertSeverity.WARNING, AlertSeverity.normalize("warning"));
     }
 
     @Test

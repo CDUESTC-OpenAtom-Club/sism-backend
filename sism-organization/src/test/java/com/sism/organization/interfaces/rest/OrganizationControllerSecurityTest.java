@@ -38,6 +38,7 @@ class OrganizationControllerSecurityTest {
         assertMappingParams("getAllOrganizationsPageAlias", "page", "size");
         assertMethodParameterNames("getAllDepartments", "includeDisabled");
         assertMethodParameterNames("getOrganizationTree", "includeUsers", "includeDisabled");
+        assertMethodParameterNames("renameOrganization", "id", "request");
         assertPaginationBounds("getAllOrganizationsPage");
         assertPaginationBounds("getAllOrganizationsPageAlias");
     }

@@ -6,6 +6,7 @@ import com.sism.execution.domain.model.report.event.PlanReportRejectedEvent;
 import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -48,8 +49,11 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "report_org_type", nullable = false)
     private ReportOrgType reportOrgType;
 
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
+    @Convert(converter = PlanReportStatusConverter.class)
     @Column(name = "status", length = 20, nullable = false)
-    private String status = STATUS_DRAFT;
+    private PlanReportStatus status = PlanReportStatus.DRAFT;
 
     @Column(name = "audit_instance_id")
     private Long auditInstanceId;
@@ -57,7 +61,7 @@ public class PlanReport extends AggregateRoot<Long> {
     @Column(name = "created_by")
     private Long createdBy;
 
-    @Column(name = "title", length = 255)
+    @Column(name = "title", length = 500)
     private String title;
 
     @Column(name = "content", columnDefinition = "TEXT")
@@ -94,7 +98,7 @@ public class PlanReport extends AggregateRoot<Long> {
     private List<PlanReportIndicatorSnapshot> indicatorDetails = List.of();
 
     @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted = false;
+    private boolean isDeleted = false;
 
     /**
      * 创建月度报告（草稿状态）
@@ -110,7 +114,8 @@ public class PlanReport extends AggregateRoot<Long> {
 
     public static PlanReport createDraft(String reportMonth, Long reportOrgId,
                                          ReportOrgType reportOrgType, Long planId, Long createdBy) {
-        if (reportMonth == null || reportMonth.trim().isEmpty()) {
+        String normalizedMonth = normalizeReportMonth(reportMonth);
+        if (normalizedMonth == null) {
             throw new IllegalArgumentException("Report month cannot be null or empty");
         }
         if (reportOrgId == null) {
@@ -124,11 +129,11 @@ public class PlanReport extends AggregateRoot<Long> {
         }
 
         PlanReport report = new PlanReport();
-        report.reportMonth = reportMonth;
+        report.reportMonth = normalizedMonth;
         report.reportOrgId = reportOrgId;
         report.reportOrgType = reportOrgType;
         report.planId = planId;
-        report.status = STATUS_DRAFT;
+        report.status = PlanReportStatus.DRAFT;
         report.isDeleted = false;
         report.createdBy = createdBy;
         return report;
@@ -138,11 +143,14 @@ public class PlanReport extends AggregateRoot<Long> {
      * 提交报告
      */
     public void submit(Long userId) {
-        if (!STATUS_DRAFT.equals(this.status)) {
+        if (!isDraft()) {
             throw new IllegalStateException("Cannot submit report: not in DRAFT status");
         }
-        this.status = STATUS_SUBMITTED;
+        this.status = PlanReportStatus.SUBMITTED;
         this.submittedBy = userId;
+        this.approvedBy = null;
+        this.approvedAt = null;
+        this.rejectionReason = null;
         this.submittedAt = LocalDateTime.now();
         setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportSubmittedEvent(this.id, this.reportMonth, this.reportOrgId, userId));
@@ -155,9 +163,10 @@ public class PlanReport extends AggregateRoot<Long> {
         if (!isSubmitted()) {
             throw new IllegalStateException("Cannot approve report: not in SUBMITTED status");
         }
-        this.status = STATUS_APPROVED;
+        this.status = PlanReportStatus.APPROVED;
         this.approvedBy = userId;
         this.approvedAt = LocalDateTime.now();
+        this.rejectionReason = null;
         setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportApprovedEvent(this.id, this.reportMonth, this.reportOrgId, userId));
     }
@@ -172,8 +181,9 @@ public class PlanReport extends AggregateRoot<Long> {
         if (reason == null || reason.trim().isEmpty()) {
             throw new IllegalArgumentException("Rejection reason cannot be null or empty");
         }
-        this.status = STATUS_REJECTED;
+        this.status = PlanReportStatus.REJECTED;
         this.approvedBy = userId;
+        this.approvedAt = null;
         this.rejectionReason = reason;
         setUpdatedAt(LocalDateTime.now());
         addEvent(new PlanReportRejectedEvent(this.id, this.reportMonth, this.reportOrgId, userId, reason));
@@ -186,10 +196,9 @@ public class PlanReport extends AggregateRoot<Long> {
      */
     public void updateContent(String content, String summary, Integer progress,
                               String issues, String nextPlan) {
-        if (!STATUS_DRAFT.equals(this.status)) {
+        if (!isDraft()) {
             throw new IllegalStateException("Cannot update report: not in DRAFT status");
         }
-        // These fields are transient - store in remark field instead if needed
         this.content = content;
         this.summary = summary;
         this.progress = progress;
@@ -208,26 +217,50 @@ public class PlanReport extends AggregateRoot<Long> {
      * 判断是否已提交
      */
     public boolean isSubmitted() {
-        return STATUS_SUBMITTED.equals(this.status) || STATUS_SUBMITTED_LEGACY.equals(this.status);
+        return this.status == PlanReportStatus.SUBMITTED;
     }
 
     /**
      * 判断是否已审批通过
      */
     public boolean isApproved() {
-        return STATUS_APPROVED.equals(this.status);
+        return this.status == PlanReportStatus.APPROVED;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.isDeleted = deleted;
     }
 
     /**
      * 判断是否被驳回
      */
     public boolean isRejected() {
-        return STATUS_REJECTED.equals(this.status);
+        return this.status == PlanReportStatus.REJECTED;
+    }
+
+    public boolean isDraft() {
+        return this.status == null || this.status == PlanReportStatus.DRAFT;
+    }
+
+    public String getStatus() {
+        return status == null ? null : status.name();
+    }
+
+    public void setStatus(String status) {
+        this.status = PlanReportStatus.from(status);
+    }
+
+    public void setStatus(PlanReportStatus status) {
+        this.status = status;
+    }
+
+    public PlanReportStatus getStatusEnum() {
+        return status;
     }
 
     @Override
     public void validate() {
-        if (reportMonth == null || reportMonth.trim().isEmpty()) {
+        if (normalizeReportMonth(reportMonth) == null) {
             throw new IllegalArgumentException("Report month is required");
         }
         if (reportOrgId == null) {
@@ -249,10 +282,7 @@ public class PlanReport extends AggregateRoot<Long> {
     @PrePersist
     protected void onCreate() {
         if (status == null) {
-            status = STATUS_DRAFT;
-        }
-        if (isDeleted == null) {
-            isDeleted = false;
+            status = PlanReportStatus.DRAFT;
         }
         if (getCreatedAt() == null) {
             setCreatedAt(LocalDateTime.now());
@@ -265,5 +295,36 @@ public class PlanReport extends AggregateRoot<Long> {
     @PreUpdate
     protected void onUpdate() {
         setUpdatedAt(LocalDateTime.now());
+    }
+
+    public static String normalizeReportMonth(String reportMonth) {
+        if (reportMonth == null) {
+            return null;
+        }
+
+        String trimmed = reportMonth.trim();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+
+        if (trimmed.matches("\\d{6}")) {
+            return trimmed;
+        }
+
+        if (trimmed.matches("\\d{4}-\\d{2}")) {
+            return trimmed.substring(0, 4) + trimmed.substring(5, 7);
+        }
+
+        return null;
+    }
+
+    public void resetToDraft(Long createdBy) {
+        this.status = PlanReportStatus.DRAFT;
+        this.submittedAt = null;
+        this.submittedBy = null;
+        this.approvedBy = null;
+        this.approvedAt = null;
+        this.rejectionReason = null;
+        this.createdBy = createdBy != null ? createdBy : this.createdBy;
     }
 }

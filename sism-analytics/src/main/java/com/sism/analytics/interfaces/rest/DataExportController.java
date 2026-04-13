@@ -2,6 +2,7 @@ package com.sism.analytics.interfaces.rest;
 
 import com.sism.analytics.application.DataExportApplicationService;
 import com.sism.analytics.application.ExportService;
+import com.sism.analytics.application.AnalyticsFileStorageService;
 import com.sism.analytics.domain.DataExport;
 import com.sism.analytics.interfaces.dto.CompleteDataExportRequest;
 import com.sism.analytics.interfaces.dto.CreateDataExportRequest;
@@ -13,8 +14,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,6 +45,7 @@ public class DataExportController {
 
     private final DataExportApplicationService dataExportApplicationService;
     private final ExportService exportService;
+    private final AnalyticsFileStorageService analyticsFileStorageService;
 
     // ==================== Data Export Endpoints ====================
 
@@ -78,10 +83,14 @@ public class DataExportController {
             @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id,
             @Valid @RequestBody CompleteDataExportRequest request) {
+        Long currentUserId = requireCurrentUserId(currentUser);
         DataExport dataExport = dataExportApplicationService.completeDataExport(
                 id,
-                requireCurrentUserId(currentUser),
-                request.getFilePath(),
+                currentUserId,
+                analyticsFileStorageService.prepareManagedExportFile(
+                        dataExportApplicationService.findDataExportById(id, currentUserId)
+                                .orElseThrow(() -> new AccessDeniedException("No permission to access export: " + id))
+                ).toString(),
                 request.getFileSize()
         );
         return ResponseEntity.ok(ApiResponse.success(toDataExportDTO(dataExport)));
@@ -312,15 +321,15 @@ public class DataExportController {
     @GetMapping("/{id}/download")
     @Operation(summary = "下载导出文件")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<byte[]> downloadExportedFile(
+    public ResponseEntity<Resource> downloadExportedFile(
             @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id) throws IOException {
         Path filePath = exportService.getExportFilePath(id, requireCurrentUserId(currentUser));
-        byte[] fileContent = Files.readAllBytes(filePath);
-
+        InputStreamResource resource = new InputStreamResource(Files.newInputStream(filePath));
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                .body(fileContent);
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filePath.getFileName() + "\"")
+                .body(resource);
     }
 
     // ==================== Cleanup ====================
@@ -343,17 +352,39 @@ public class DataExportController {
                 .type(dataExport.getType())
                 .format(dataExport.getFormat())
                 .status(dataExport.getStatus())
-                .filePath(dataExport.getFilePath())
+                .filePath(sanitizeFilePath(dataExport.getFilePath()))
                 .fileSize(dataExport.getFileSize())
                 .requestedBy(dataExport.getRequestedBy())
                 .requestedAt(dataExport.getRequestedAt())
                 .startedAt(dataExport.getStartedAt())
                 .completedAt(dataExport.getCompletedAt())
-                .errorMessage(dataExport.getErrorMessage())
+                .errorMessage(sanitizeErrorMessage(dataExport.getErrorMessage()))
                 .parameters(dataExport.getParameters())
                 .createdAt(dataExport.getCreatedAt())
                 .updatedAt(dataExport.getUpdatedAt())
                 .build();
+    }
+
+    private String sanitizeFilePath(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return null;
+        }
+        try {
+            return Path.of(filePath).getFileName().toString();
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String sanitizeErrorMessage(String errorMessage) {
+        if (errorMessage == null || errorMessage.isBlank()) {
+            return null;
+        }
+        String compact = errorMessage.replaceAll("[\\r\\n\\t]+", " ").trim();
+        if (compact.contains("/") || compact.contains("\\") || compact.contains("Exception") || compact.length() > 200) {
+            return "导出失败，请稍后重试或联系管理员";
+        }
+        return compact;
     }
 
     private Long requireCurrentUserId(CurrentUser currentUser) {

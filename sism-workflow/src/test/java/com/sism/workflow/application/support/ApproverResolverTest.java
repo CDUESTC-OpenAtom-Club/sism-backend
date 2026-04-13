@@ -2,6 +2,7 @@ package com.sism.workflow.application.support;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.execution.application.ReportApplicationService;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,14 +29,14 @@ class ApproverResolverTest {
     private PlanRepository planRepository;
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private ReportApplicationService reportApplicationService;
 
     @Test
     void resolveApproverId_shouldRejectWhenRoleMissing() {
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setStepName("战略发展部负责人审批");
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         assertThrows(IllegalStateException.class, () -> resolver.resolveApproverId(stepDef, 1L, 2L));
     }
@@ -54,7 +54,7 @@ class ApproverResolverTest {
 
         when(userRepository.findByRoleId(2L)).thenReturn(List.of(user));
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         assertEquals(202L, resolver.resolveApproverId(stepDef, 1L, 30L));
     }
@@ -77,7 +77,7 @@ class ApproverResolverTest {
 
         when(userRepository.findByRoleId(4L)).thenReturn(List.of(otherCollegeLeader, sameCollegeLeader));
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         assertEquals(369L, resolver.resolveApproverId(stepDef, 188L, 56L));
     }
@@ -88,7 +88,7 @@ class ApproverResolverTest {
         stepDef.setRoleId(4L);
         stepDef.setStepName("分管校领导审批");
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         when(userRepository.findByRoleId(4L)).thenReturn(List.of());
 
@@ -113,7 +113,7 @@ class ApproverResolverTest {
 
         when(userRepository.findByRoleId(4L)).thenReturn(List.of(sameOrgLeader, strategyLeader));
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         assertEquals(300L, resolver.resolveApproverId(stepDef, 223L, 44L));
     }
@@ -136,7 +136,7 @@ class ApproverResolverTest {
 
         when(userRepository.findByRoleId(4L)).thenReturn(List.of(functionalLeader, strategyLeader));
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         assertEquals(124L, resolver.resolveApproverId(stepDef, 188L, 35L));
     }
@@ -148,7 +148,7 @@ class ApproverResolverTest {
         user.setRealName("审批人");
         when(userRepository.findById(300L)).thenReturn(Optional.of(user));
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         assertEquals("审批人", resolver.resolveApproverName(300L));
     }
@@ -180,8 +180,17 @@ class ApproverResolverTest {
         when(planRepository.findById(7057L)).thenReturn(Optional.of(plan));
         when(userRepository.findByRoleId(2L)).thenReturn(List.of(collegeApprover, functionalApprover));
 
-        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 
         assertEquals(267L, resolver.resolveApproverId(stepDef, 188L, 57L, instance));
+    }
+    private WorkflowApproverProperties workflowApproverProperties() {
+        WorkflowApproverProperties properties = new WorkflowApproverProperties();
+        properties.setApproverRoleId(2L);
+        properties.setStrategyDeptHeadRoleId(3L);
+        properties.setVicePresidentRoleId(4L);
+        properties.setStrategyOrgId(35L);
+        properties.setFunctionalVicePresidentScopeByOrg(java.util.Map.of());
+        return properties;
     }
 }

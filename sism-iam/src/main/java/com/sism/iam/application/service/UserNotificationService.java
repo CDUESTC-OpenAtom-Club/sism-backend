@@ -1,5 +1,7 @@
 package com.sism.iam.application.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.UserNotification;
 import com.sism.iam.domain.repository.UserNotificationRepository;
@@ -23,6 +25,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserNotificationService {
 
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String TYPE_REMINDER = "REMINDER";
     private static final String ENTITY_TYPE_INDICATOR = "INDICATOR";
     private static final String STATUS_READ = "READ";
@@ -90,19 +93,14 @@ public class UserNotificationService {
         String batchKey = UUID.randomUUID().toString();
         String title = "滞后任务催办提醒";
         String content = "任务“" + indicatorName + "”当前进度滞后，请尽快处理并更新进展。";
-        String metadataJson = """
-                {"indicatorId":%d,"indicatorName":"%s","targetOrgName":"%s","senderUserName":"%s","source":"%s","reason":"%s"}
-                """
-                .formatted(
-                        indicatorId,
-                        escapeJson(indicatorName),
-                        escapeJson(targetOrgName),
-                        escapeJson(senderUserName),
-                        escapeJson(normalizedSource),
-                        escapeJson(reason)
-                )
-                .replace("\n", "")
-                .trim();
+        String metadataJson = buildMetadataJson(
+                indicatorId,
+                indicatorName,
+                targetOrgName,
+                senderUserName,
+                normalizedSource,
+                reason
+        );
 
         List<UserNotification> notifications = recipients.stream()
                 .map(user -> buildReminderNotification(
@@ -236,10 +234,25 @@ public class UserNotificationService {
         return result;
     }
 
-    private static String escapeJson(String value) {
-        if (value == null) {
-            return "";
+    private static String buildMetadataJson(
+            Long indicatorId,
+            String indicatorName,
+            String targetOrgName,
+            String senderUserName,
+            String source,
+            String reason
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("indicatorId", indicatorId);
+        metadata.put("indicatorName", indicatorName);
+        metadata.put("targetOrgName", targetOrgName);
+        metadata.put("senderUserName", senderUserName);
+        metadata.put("source", source);
+        metadata.put("reason", reason);
+        try {
+            return OBJECT_MAPPER.writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize notification metadata", e);
         }
-        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

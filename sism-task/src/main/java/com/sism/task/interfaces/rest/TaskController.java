@@ -18,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 @RestController
@@ -85,7 +86,7 @@ public class TaskController {
         queryRequest.setCycleId(cycleId);
         queryRequest.setOrgId(orgId);
         queryRequest.setCreatedByOrgId(createdByOrgId);
-        queryRequest.setTaskType(taskType != null ? TaskType.valueOf(taskType) : null);
+        queryRequest.setTaskType(parseTaskType(taskType));
         queryRequest.setPlanStatus(planStatus);
         queryRequest.setTaskStatus(taskStatus);
         queryRequest.setName(name);
@@ -216,7 +217,7 @@ public class TaskController {
     public ResponseEntity<ApiResponse<List<TaskResponse>>> getTasksByOrgId(
             @PathVariable @Parameter(description = "组织ID") Long orgId,
             Authentication authentication) {
-        List<TaskResponse> tasks = taskApplicationService.getTasksByOrgId(orgId);
+        List<TaskResponse> tasks = filterTasksByPermission(taskApplicationService.getTasksByOrgId(orgId), authentication);
         return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 
@@ -295,5 +296,16 @@ public class TaskController {
             throw new AuthorizationException("无法获取当前用户信息，请联系管理员");
         }
         return currentUser;
+    }
+
+    private TaskType parseTaskType(String rawTaskType) {
+        if (rawTaskType == null || rawTaskType.isBlank()) {
+            return null;
+        }
+        try {
+            return TaskType.valueOf(rawTaskType.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("不支持的任务类型: " + rawTaskType);
+        }
     }
 }

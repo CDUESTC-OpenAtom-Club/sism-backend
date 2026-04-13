@@ -1,8 +1,10 @@
 package com.sism.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sism.iam.application.JwtTokenService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.socket.CloseStatus;
@@ -24,9 +26,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SismWebSocketHandler extends TextWebSocketHandler {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final JwtTokenService jwtTokenService;
     private final Map<String, Set<WebSocketSession>> sessionsByUserId = new ConcurrentHashMap<>();
     private final Map<String, String> userIdBySessionId = new ConcurrentHashMap<>();
 
@@ -34,8 +38,8 @@ public class SismWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         String userId = extractUserId(session);
         if (userId == null || userId.isBlank()) {
-            log.warn("Rejecting WebSocket connection without userId: sessionId={}", session.getId());
-            session.close(CloseStatus.BAD_DATA.withReason("Missing userId"));
+            log.warn("Rejecting WebSocket connection without valid token: sessionId={}", session.getId());
+            session.close(CloseStatus.BAD_DATA.withReason("Missing or invalid token"));
             return;
         }
 
@@ -69,13 +73,6 @@ public class SismWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /**
-     * Broadcast message to all connected sessions
-     */
-    public void broadcast(NotificationMessagePayload message) {
-        sessionsByUserId.keySet().forEach(userId -> sendToUser(userId, message));
-    }
-
     public boolean sendToUser(String userId, NotificationMessagePayload message) {
         Set<WebSocketSession> sessions = sessionsByUserId.get(userId);
         if (sessions == null || sessions.isEmpty()) {
@@ -92,9 +89,12 @@ public class SismWebSocketHandler extends TextWebSocketHandler {
                 if (session.isOpen()) {
                     session.sendMessage(textMessage);
                     delivered = true;
+                } else {
+                    unregisterSession(session);
                 }
             } catch (IOException e) {
                 log.error("Error sending WebSocket notification to session {}: {}", session.getId(), e.getMessage());
+                unregisterSession(session);
             }
         }
 
@@ -105,12 +105,28 @@ public class SismWebSocketHandler extends TextWebSocketHandler {
      * Get number of active connections
      */
     public int getActiveConnections() {
+        cleanupClosedSessions();
         return userIdBySessionId.size();
     }
 
     public int getActiveConnections(String userId) {
+        cleanupClosedSessions();
         Set<WebSocketSession> sessions = sessionsByUserId.get(userId);
         return sessions == null ? 0 : sessions.size();
+    }
+
+    @Scheduled(fixedDelayString = "${app.websocket.session-cleanup-interval-ms:300000}")
+    public void cleanupClosedSessions() {
+        sessionsByUserId.values().forEach(sessions -> sessions.removeIf(session -> !session.isOpen()));
+        userIdBySessionId.entrySet().removeIf(entry -> {
+            Set<WebSocketSession> sessions = sessionsByUserId.get(entry.getValue());
+            boolean missing = sessions == null || sessions.stream().noneMatch(session -> session.getId().equals(entry.getKey()));
+            if (missing && sessions != null && sessions.isEmpty()) {
+                sessionsByUserId.remove(entry.getValue(), sessions);
+            }
+            return missing;
+        });
+        sessionsByUserId.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().isEmpty());
     }
 
     private void unregisterSession(WebSocketSession session) {
@@ -135,10 +151,23 @@ public class SismWebSocketHandler extends TextWebSocketHandler {
             return null;
         }
 
-        return UriComponentsBuilder.fromUri(session.getUri())
+        String token = UriComponentsBuilder.fromUri(session.getUri())
                 .build()
                 .getQueryParams()
-                .getFirst("userId");
+                .getFirst("token");
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        try {
+            if (!jwtTokenService.validateToken(token)) {
+                return null;
+            }
+            Long userId = jwtTokenService.getUserIdFromToken(token);
+            return userId == null ? null : String.valueOf(userId);
+        } catch (Exception e) {
+            log.warn("WebSocket token validation failed: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String toJson(NotificationMessagePayload message) {

@@ -11,6 +11,8 @@ import java.util.Collection;
  */
 public class CurrentUser implements UserDetails {
 
+    private static final String PASSWORD_PLACEHOLDER = "[PROTECTED]";
+
     private final Long id;
     private final String username;
     private final String realName;
@@ -51,7 +53,7 @@ public class CurrentUser implements UserDetails {
 
     @Override
     public String getPassword() {
-        return null;
+        return PASSWORD_PLACEHOLDER;
     }
 
     @Override

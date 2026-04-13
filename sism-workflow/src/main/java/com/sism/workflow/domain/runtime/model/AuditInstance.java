@@ -30,7 +30,6 @@ public class AuditInstance extends AggregateRoot<Long> {
     private Long id;
 
     public static final String STATUS_PENDING = "IN_REVIEW";
-    public static final String STATUS_IN_PROGRESS = "IN_REVIEW";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
     public static final String STATUS_WITHDRAWN = "WITHDRAWN";

@@ -29,6 +29,16 @@ import java.util.Optional;
 @Repository
 public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, Long> {
 
+    @Override
+    @Query("""
+            SELECT t FROM StrategicTask t
+            LEFT JOIN FETCH t.org
+            LEFT JOIN FETCH t.createdByOrg
+            WHERE t.id = :id
+              AND t.isDeleted = false
+            """)
+    Optional<StrategicTask> findById(@Param("id") Long id);
+
     /**
      * 根据组织ID查找任务
      *
@@ -101,6 +111,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -124,6 +135,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -158,6 +170,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -184,6 +197,30 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(t.status, 'DRAFT') AS taskStatus,
+                t.remark AS remark,
+                t.created_at AS createdAt,
+                t.updated_at AS updatedAt
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE COALESCE(t.is_deleted, false) = false
+            ORDER BY t.sort_order ASC, t.task_id ASC
+            """, nativeQuery = true)
+    List<TaskFlatView> findAllFlatViews();
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.name AS name,
+                t."desc" AS desc,
+                t.task_type AS taskType,
+                t.plan_id AS planId,
+                t.cycle_id AS cycleId,
+                t.org_id AS orgId,
+                t.created_by_org_id AS createdByOrgId,
+                t.sort_order AS sortOrder,
+                COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -198,7 +235,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
               AND (COALESCE(:taskType, '') = '' OR t.task_type = :taskType)
               AND (COALESCE(:name, '') = '' OR t.name ILIKE CONCAT('%', :name, '%'))
               AND (COALESCE(:planStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:planStatus))
-              AND (COALESCE(:taskStatus, '') = '' OR LOWER('DRAFT') = LOWER(:taskStatus))
+              AND (COALESCE(:taskStatus, '') = '' OR LOWER(COALESCE(t.status, 'DRAFT')) = LOWER(:taskStatus))
             """,
             countQuery = """
             SELECT COUNT(*)
@@ -213,7 +250,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
               AND (COALESCE(:taskType, '') = '' OR t.task_type = :taskType)
               AND (COALESCE(:name, '') = '' OR t.name ILIKE CONCAT('%', :name, '%'))
               AND (COALESCE(:planStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:planStatus))
-              AND (COALESCE(:taskStatus, '') = '' OR LOWER('DRAFT') = LOWER(:taskStatus))
+              AND (COALESCE(:taskStatus, '') = '' OR LOWER(COALESCE(t.status, 'DRAFT')) = LOWER(:taskStatus))
             """,
             nativeQuery = true)
     Page<TaskFlatView> findPagedFlatViewsByCriteria(
@@ -240,6 +277,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(t.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt

@@ -36,11 +36,14 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private LoginAttemptService loginAttemptService;
+
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, jwtTokenService, passwordEncoder);
+        authService = new AuthService(userRepository, jwtTokenService, passwordEncoder, loginAttemptService);
     }
 
     @Test
@@ -74,6 +77,8 @@ class AuthServiceTest {
         verify(userRepository).findByUsername("testuser");
         verify(passwordEncoder).matches("password123", "encodedPassword");
         verify(jwtTokenService).generateToken(eq(user), anyList());
+        verify(loginAttemptService).assertNotBlocked("testuser", "global");
+        verify(loginAttemptService).recordSuccess("testuser", "global");
     }
 
     @Test
@@ -167,6 +172,7 @@ class AuthServiceTest {
 
         assertEquals("用户名或密码错误", exception.getMessage());
         verify(jwtTokenService, never()).generateToken(any());
+        verify(loginAttemptService).recordFailure("testuser", "global");
     }
 
     @Test
@@ -298,6 +304,16 @@ class AuthServiceTest {
         boolean result = authService.validateToken(token);
 
         assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Should blacklist token on logout")
+    void shouldBlacklistTokenOnLogout() {
+        String token = "jwt.token";
+
+        authService.logout(token);
+
+        verify(jwtTokenService).blacklistToken(token);
     }
 
     @Test

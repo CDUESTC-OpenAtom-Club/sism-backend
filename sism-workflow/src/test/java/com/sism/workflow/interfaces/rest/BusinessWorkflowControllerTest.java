@@ -45,6 +45,18 @@ class BusinessWorkflowControllerTest {
     }
 
     @Test
+    @DisplayName("cancelInstance should return 401 when user is missing")
+    void cancelInstanceShouldReturn401WhenUserMissing() {
+        BusinessWorkflowController controller = new BusinessWorkflowController(workflowService);
+
+        var response = controller.cancelInstance("9", null);
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertEquals(401, response.getBody().getCode());
+        assertEquals("未登录或登录已过期", response.getBody().getMessage());
+    }
+
+    @Test
     @DisplayName("startWorkflowInstance should pass authenticated identity to service")
     void startWorkflowInstanceShouldPassAuthenticatedIdentityToService() {
         BusinessWorkflowController controller = new BusinessWorkflowController(workflowService);

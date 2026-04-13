@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
@@ -68,6 +69,19 @@ class DashboardApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("deleteDashboard should publish domain event after state change")
+    void deleteDashboardShouldPublishDomainEventAfterStateChange() {
+        Dashboard dashboard = Dashboard.create("团队看板", "描述", 1L, false, "{}");
+        dashboard.setId(101L);
+        when(dashboardRepository.findByIdAndNotDeleted(101L)).thenReturn(Optional.of(dashboard));
+
+        assertDoesNotThrow(() -> dashboardApplicationService.deleteDashboard(101L, 1L));
+
+        verify(eventStore).save(any());
+        verify(dashboardRepository).save(dashboard);
+    }
+
+    @Test
     @DisplayName("copyDashboardToUser should reject invalid target user id")
     void copyDashboardToUserShouldRejectInvalidTargetUserId() {
         assertThrows(IllegalArgumentException.class, () ->
@@ -106,5 +120,13 @@ class DashboardApplicationServiceTest {
 
         assertEquals("有效看板", dashboard.getName());
         verify(dashboardRepository).save(any(Dashboard.class));
+    }
+
+    @Test
+    @DisplayName("searchDashboardsByName should escape SQL LIKE wildcards")
+    void searchDashboardsByNameShouldEscapeLikeWildcards() {
+        dashboardApplicationService.searchDashboardsByName(1L, 1L, "100%_done");
+
+        verify(dashboardRepository).findByUserIdAndNameContainingAndNotDeleted(1L, "100\\%\\_done");
     }
 }

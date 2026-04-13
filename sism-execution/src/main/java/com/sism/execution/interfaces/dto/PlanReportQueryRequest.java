@@ -1,6 +1,8 @@
 package com.sism.execution.interfaces.dto;
 
 import com.sism.execution.domain.model.report.ReportOrgType;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 
 /**
@@ -18,6 +20,9 @@ public class PlanReportQueryRequest {
     private String title;
     private Integer minProgress;
     private Integer maxProgress;
+    @Min(value = 1, message = "页码必须大于等于1")
     private Integer page = 1;
+    @Min(value = 1, message = "每页大小必须大于等于1")
+    @Max(value = 100, message = "每页大小不能超过100")
     private Integer size = 10;
 }

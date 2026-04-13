@@ -4,11 +4,12 @@ import com.sism.alert.domain.Alert;
 import com.sism.alert.domain.enums.AlertSeverity;
 import com.sism.alert.domain.enums.AlertStatus;
 import com.sism.alert.domain.repository.AlertRepository;
+import com.sism.alert.interfaces.dto.AlertStatsDTO;
 import com.sism.iam.application.dto.CurrentUser;
 import com.sism.shared.domain.exception.AuthorizationException;
-import com.sism.strategy.domain.Indicator;
-import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +29,7 @@ import java.util.Set;
 public class AlertAccessService {
 
     private final AlertRepository alertRepository;
-    private final IndicatorRepository indicatorRepository;
+    private final IndicatorAccessPort indicatorAccessPort;
 
     public Alert requireAccessibleAlert(Long alertId, Authentication authentication) {
         Alert alert = alertRepository.findById(alertId)
@@ -87,24 +88,138 @@ public class AlertAccessService {
         return counts;
     }
 
-    public Map<String, Object> buildAlertStatsForCurrentOrg(Authentication authentication) {
+    public AlertStatsDTO buildAlertStatsForCurrentOrg(Authentication authentication) {
         Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
         if (accessibleIndicatorIds.isEmpty()) {
             return emptyStats();
         }
 
-        long totalOpen = alertRepository.countByIndicatorIdInAndStatus(accessibleIndicatorIds, AlertStatus.IN_PROGRESS)
-                + alertRepository.countByIndicatorIdInAndStatus(accessibleIndicatorIds, AlertStatus.OPEN);
+        Map<String, Long> countBySeverity = toSeverityCountMap(alertRepository.countOpenBySeverityForIndicators(accessibleIndicatorIds));
+        long totalOpen = countBySeverity.values().stream().mapToLong(Long::longValue).sum();
 
-        Map<String, Long> countBySeverity = new LinkedHashMap<>();
-        countBySeverity.put("CRITICAL", countBySeverityAndOpenStatus(accessibleIndicatorIds, "CRITICAL"));
-        countBySeverity.put("WARNING", countBySeverityAndOpenStatus(accessibleIndicatorIds, "WARNING"));
-        countBySeverity.put("INFO", countBySeverityAndOpenStatus(accessibleIndicatorIds, "INFO"));
+        return new AlertStatsDTO(totalOpen, countBySeverity);
+    }
 
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalOpen", totalOpen);
-        stats.put("countBySeverity", countBySeverity);
-        return stats;
+    public List<Alert> getAccessibleAlerts(Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return alertRepository.findAll();
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return List.of();
+        }
+        return alertRepository.findByIndicatorIdIn(accessibleIndicatorIds);
+    }
+
+    public Page<Alert> getAccessibleAlerts(Authentication authentication, Pageable pageable) {
+        if (isAdmin(authentication)) {
+            return alertRepository.findAll(pageable);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return alertRepository.findByIndicatorIdIn(accessibleIndicatorIds, pageable);
+    }
+
+    public List<Alert> getAccessibleAlertsByStatus(String status, Authentication authentication) {
+        AlertStatus normalizedStatus = Alert.normalizeStatus(status);
+        if (normalizedStatus == null) {
+            return List.of();
+        }
+        if (isAdmin(authentication)) {
+            return alertRepository.findByStatus(normalizedStatus);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return List.of();
+        }
+        return alertRepository.findByIndicatorIdInAndStatus(accessibleIndicatorIds, normalizedStatus);
+    }
+
+    public Page<Alert> getAccessibleAlertsByStatus(String status, Authentication authentication, Pageable pageable) {
+        AlertStatus normalizedStatus = Alert.normalizeStatus(status);
+        if (normalizedStatus == null) {
+            return Page.empty(pageable);
+        }
+        if (isAdmin(authentication)) {
+            return alertRepository.findByStatus(normalizedStatus, pageable);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return alertRepository.findByIndicatorIdInAndStatus(accessibleIndicatorIds, normalizedStatus, pageable);
+    }
+
+    public List<Alert> getAccessibleAlertsBySeverity(String severity, Authentication authentication) {
+        AlertSeverity normalizedSeverity = AlertSeverity.normalize(severity);
+        if (normalizedSeverity == null) {
+            return List.of();
+        }
+        if (isAdmin(authentication)) {
+            return alertRepository.findBySeverity(normalizedSeverity);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return List.of();
+        }
+        return alertRepository.findByIndicatorIdInAndSeverity(accessibleIndicatorIds, normalizedSeverity);
+    }
+
+    public Page<Alert> getAccessibleAlertsBySeverity(String severity, Authentication authentication, Pageable pageable) {
+        AlertSeverity normalizedSeverity = AlertSeverity.normalize(severity);
+        if (normalizedSeverity == null) {
+            return Page.empty(pageable);
+        }
+        if (isAdmin(authentication)) {
+            return alertRepository.findBySeverity(normalizedSeverity, pageable);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return alertRepository.findByIndicatorIdInAndSeverity(accessibleIndicatorIds, normalizedSeverity, pageable);
+    }
+
+    public List<Alert> getAccessibleAlertsByIndicator(Long indicatorId, Authentication authentication) {
+        if (isAdmin(authentication)) {
+            return alertRepository.findByIndicatorId(indicatorId);
+        }
+        ensureIndicatorAccess(indicatorId, authentication);
+        return alertRepository.findByIndicatorId(indicatorId);
+    }
+
+    public Page<Alert> getAccessibleAlertsByIndicator(Long indicatorId, Authentication authentication, Pageable pageable) {
+        if (isAdmin(authentication)) {
+            return alertRepository.findByIndicatorId(indicatorId, pageable);
+        }
+        ensureIndicatorAccess(indicatorId, authentication);
+        return alertRepository.findByIndicatorId(indicatorId, pageable);
+    }
+
+    public List<Alert> getAccessibleUnresolvedAlerts(Authentication authentication) {
+        List<AlertStatus> unresolvedStatuses = List.of(AlertStatus.OPEN, AlertStatus.IN_PROGRESS);
+        if (isAdmin(authentication)) {
+            return alertRepository.findByStatusIn(unresolvedStatuses);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return List.of();
+        }
+        return alertRepository.findByIndicatorIdInAndStatusIn(accessibleIndicatorIds, unresolvedStatuses);
+    }
+
+    public Page<Alert> getAccessibleUnresolvedAlerts(Authentication authentication, Pageable pageable) {
+        List<AlertStatus> unresolvedStatuses = List.of(AlertStatus.OPEN, AlertStatus.IN_PROGRESS);
+        if (isAdmin(authentication)) {
+            return alertRepository.findByStatusIn(unresolvedStatuses, pageable);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return alertRepository.findByIndicatorIdInAndStatusIn(accessibleIndicatorIds, unresolvedStatuses, pageable);
     }
 
     private boolean hasIndicatorAccess(Long indicatorId, Authentication authentication) {
@@ -116,15 +231,6 @@ public class AlertAccessService {
         return accessibleIndicatorIds.contains(indicatorId);
     }
 
-    private long countBySeverityAndOpenStatus(Set<Long> indicatorIds, String severity) {
-        String normalizedSeverity = AlertSeverity.normalize(severity);
-        if (normalizedSeverity == null) {
-            return 0L;
-        }
-        return alertRepository.countByIndicatorIdInAndSeverityAndStatus(indicatorIds, normalizedSeverity, AlertStatus.IN_PROGRESS)
-                + alertRepository.countByIndicatorIdInAndSeverityAndStatus(indicatorIds, normalizedSeverity, AlertStatus.OPEN);
-    }
-
     private Set<Long> resolveAccessibleIndicatorIds(Authentication authentication) {
         CurrentUser currentUser = requireCurrentUser(authentication);
         if (currentUser.getOrgId() == null) {
@@ -132,15 +238,14 @@ public class AlertAccessService {
         }
 
         Set<Long> indicatorIds = new LinkedHashSet<>();
-        indicatorRepository.findByOwnerOrgId(currentUser.getOrgId()).stream()
-                .map(Indicator::getId)
-                .filter(Objects::nonNull)
-                .forEach(indicatorIds::add);
-        indicatorRepository.findByTargetOrgId(currentUser.getOrgId()).stream()
-                .map(Indicator::getId)
+        indicatorAccessPort.findAccessibleIndicatorIds(currentUser.getOrgId()).stream()
                 .filter(Objects::nonNull)
                 .forEach(indicatorIds::add);
         return indicatorIds;
+    }
+
+    private Set<Long> resolveAllIndicatorIds() {
+        return indicatorAccessPort.findAllIndicatorIds();
     }
 
     private Map<String, Long> zeroCounts() {
@@ -152,18 +257,28 @@ public class AlertAccessService {
         return counts;
     }
 
-    private Map<String, Object> emptyStats() {
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalOpen", 0L);
-        stats.put("countBySeverity", Map.of(
+    private AlertStatsDTO emptyStats() {
+        return new AlertStatsDTO(0L, Map.of(
                 "CRITICAL", 0L,
                 "WARNING", 0L,
                 "INFO", 0L
         ));
-        return stats;
     }
 
-    private boolean isAdmin(Authentication authentication) {
+    private Map<String, Long> toSeverityCountMap(List<AlertRepository.SeverityCount> counts) {
+        Map<String, Long> countBySeverity = new LinkedHashMap<>();
+        countBySeverity.put(AlertSeverity.CRITICAL.name(), 0L);
+        countBySeverity.put(AlertSeverity.WARNING.name(), 0L);
+        countBySeverity.put(AlertSeverity.INFO.name(), 0L);
+        for (AlertRepository.SeverityCount count : counts) {
+            if (count.getSeverity() != null) {
+                countBySeverity.put(count.getSeverity().name(), count.getCount());
+            }
+        }
+        return countBySeverity;
+    }
+
+    public boolean isAdmin(Authentication authentication) {
         return authentication != null && authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }

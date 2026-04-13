@@ -11,6 +11,7 @@ import com.sism.execution.domain.repository.PlanStatusSyncGateway;
 import com.sism.execution.domain.repository.WorkflowApprovalMetadata;
 import com.sism.execution.domain.repository.WorkflowApprovalMetadataQuery;
 import com.sism.execution.domain.repository.WorkflowAuditSyncGateway;
+import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import com.sism.execution.interfaces.dto.UpdatePlanReportIndicatorDetailRequest;
 import com.sism.shared.domain.exception.TechnicalException;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
@@ -21,9 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,6 +38,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.argThat;
 
 @ExtendWith(MockitoExtension.class)
 class ReportApplicationServiceTest {
@@ -79,7 +83,7 @@ class ReportApplicationServiceTest {
     void createReport_restoresLatestDeletedReportInMonthlyScope() {
         PlanReport deletedReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         deletedReport.setId(6L);
-        deletedReport.setIsDeleted(true);
+        deletedReport.setDeleted(true);
         deletedReport.setStatus(PlanReport.STATUS_REJECTED);
 
         when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
@@ -89,7 +93,7 @@ class ReportApplicationServiceTest {
         PlanReport restored = reportApplicationService.createReport("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 501L);
 
         assertThat(restored.getId()).isEqualTo(6L);
-        assertThat(restored.getIsDeleted()).isFalse();
+        assertThat(restored.isDeleted()).isFalse();
         assertThat(restored.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
         assertThat(restored.getSubmittedAt()).isNull();
         assertThat(restored.getCreatedBy()).isEqualTo(501L);
@@ -100,7 +104,7 @@ class ReportApplicationServiceTest {
     void createReport_reusesLatestDraftReportInMonthlyScope() {
         PlanReport activeReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         activeReport.setId(7L);
-        activeReport.setIsDeleted(false);
+        activeReport.setDeleted(false);
 
         when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
                 .thenReturn(Optional.of(activeReport));
@@ -128,6 +132,30 @@ class ReportApplicationServiceTest {
         assertThatThrownBy(() -> PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Plan ID is required");
+    }
+
+    @Test
+    void findAllActiveReports_shouldCapPageSize() {
+        var pageable = PageRequest.of(1, 100, Sort.by(Sort.Direction.DESC, "createdAt"));
+        when(planReportRepository.findAllActive(pageable)).thenReturn(Page.empty(pageable));
+
+        reportApplicationService.findAllActiveReports(2, 250);
+
+        verify(planReportRepository).findAllActive(pageable);
+    }
+
+    @Test
+    void findReportsByConditions_shouldCapPageSize() {
+        var pageable = PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createdAt"));
+        when(planReportRepository.findByConditions(null, null, null, null, null, pageable))
+                .thenReturn(Page.empty(pageable));
+
+        PlanReportQueryRequest queryRequest = new PlanReportQueryRequest();
+        queryRequest.setSize(500);
+
+        reportApplicationService.findReportsByConditions(queryRequest);
+
+        verify(planReportRepository).findByConditions(null, null, null, null, null, pageable);
     }
 
     @Test
@@ -258,6 +286,36 @@ class ReportApplicationServiceTest {
 
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
         verify(planReportRepository, times(2)).save(any(PlanReport.class));
+    }
+
+    @Test
+    void markWorkflowApproved_shouldBatchSyncIndicatorProgressWithoutNulls() {
+        PlanReport approvedReport = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L, 8008L);
+        approvedReport.setId(41L);
+        approvedReport.setStatus(PlanReport.STATUS_SUBMITTED);
+
+        Indicator first = new Indicator();
+        first.setId(1001L);
+        Indicator second = new Indicator();
+        second.setId(1002L);
+
+        when(planReportRepository.findById(41L)).thenReturn(Optional.of(approvedReport));
+        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(planReportRepository.findLatestByMonthlyScope(111L, "202603", ReportOrgType.FUNC_DEPT, 39L))
+                .thenReturn(Optional.of(approvedReport), Optional.of(approvedReport));
+        when(planReportIndicatorRepository.findByReportId(41L)).thenReturn(List.of(
+                new PlanReportIndicatorSnapshot(1001L, 80, "content", "note", List.of()),
+                new PlanReportIndicatorSnapshot(1002L, null, "content", "note", List.of())
+        ));
+        when(indicatorRepository.findByIds(List.of(1001L, 1002L))).thenReturn(List.of(first, second));
+
+        reportApplicationService.markWorkflowApproved(41L, 33L);
+
+        verify(indicatorRepository).saveAll(argThat(indicators -> {
+            List<Indicator> copied = new ArrayList<>();
+            indicators.forEach(copied::add);
+            return copied.size() == 1 && copied.get(0).getId().equals(1001L) && copied.get(0).getProgress().equals(80);
+        }));
     }
 
     @Test
@@ -493,14 +551,18 @@ class ReportApplicationServiceTest {
                 .thenReturn(List.of(new PlanReportIndicatorSnapshot(2001L, 67, "审批通过备注", null, List.of())));
         when(planReportIndicatorRepository.findByReportIds(List.of(13L)))
                 .thenReturn(Map.of(13L, List.of(new PlanReportIndicatorSnapshot(2001L, 67, "审批通过备注", null, List.of()))));
-        when(indicatorRepository.findById(2001L)).thenReturn(Optional.of(indicator));
-        when(indicatorRepository.save(any(Indicator.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(indicatorRepository.findByIds(List.of(2001L))).thenReturn(List.of(indicator));
+        when(indicatorRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         PlanReport updated = reportApplicationService.markWorkflowApproved(13L, 33L);
 
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
         assertThat(indicator.getProgress()).isEqualTo(67);
-        verify(indicatorRepository).save(indicator);
+        verify(indicatorRepository).saveAll(argThat(indicators -> {
+            List<Indicator> copied = new ArrayList<>();
+            indicators.forEach(copied::add);
+            return copied.size() == 1 && copied.get(0) == indicator;
+        }));
         verify(workflowAuditSyncGateway, never()).markApproved(org.mockito.ArgumentMatchers.anyLong());
         verify(planReportIndicatorRepository).findByReportIds(List.of(13L));
     }
@@ -521,14 +583,18 @@ class ReportApplicationServiceTest {
                 .thenReturn(List.of(new PlanReportIndicatorSnapshot(2002L, 20, "审批完成", null, List.of())));
         when(planReportIndicatorRepository.findByReportIds(List.of(15L)))
                 .thenReturn(Map.of(15L, List.of(new PlanReportIndicatorSnapshot(2002L, 20, "审批完成", null, List.of()))));
-        when(indicatorRepository.findById(2002L)).thenReturn(Optional.of(indicator));
-        when(indicatorRepository.save(any(Indicator.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(indicatorRepository.findByIds(List.of(2002L))).thenReturn(List.of(indicator));
+        when(indicatorRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         PlanReport updated = reportApplicationService.approveReport(15L, 33L);
 
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_APPROVED);
         assertThat(indicator.getProgress()).isEqualTo(20);
-        verify(indicatorRepository).save(indicator);
+        verify(indicatorRepository).saveAll(argThat(indicators -> {
+            List<Indicator> copied = new ArrayList<>();
+            indicators.forEach(copied::add);
+            return copied.size() == 1 && copied.get(0) == indicator;
+        }));
         verify(planReportIndicatorRepository).findByReportIds(List.of(15L));
     }
 

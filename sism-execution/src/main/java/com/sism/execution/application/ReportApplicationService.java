@@ -3,6 +3,7 @@ package com.sism.execution.application;
 import com.sism.exception.ConflictException;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.execution.domain.model.report.PlanReport;
+import com.sism.execution.domain.model.report.PlanReportStatus;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
 import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ReportApplicationService {
 
+    private static final int MAX_PAGE_SIZE = 100;
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
     private final PlanReportRepository planReportRepository;
@@ -73,17 +75,18 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport createReport(String reportMonth, Long reportOrgId,
                                    ReportOrgType reportOrgType, Long planId, Long createdBy) {
+        String normalizedMonth = normalizeReportMonth(reportMonth);
         Optional<PlanReport> existingReport = planReportRepository.findLatestByMonthlyScope(
-                planId, reportMonth, reportOrgType, reportOrgId);
+                planId, normalizedMonth, reportOrgType, reportOrgId);
         PlanReport previousRound = null;
 
         if (existingReport.isPresent()) {
             PlanReport report = existingReport.get();
 
-            if (Boolean.TRUE.equals(report.getIsDeleted())) {
-                report.setIsDeleted(false);
-                report.setStatus(PlanReport.STATUS_DRAFT);
-                report.setSubmittedAt(null);
+            if (report.isDeleted()) {
+                report.setDeleted(false);
+                report.resetToDraft(createdBy);
+                report.setReportMonth(normalizedMonth);
                 report.markCreatedByIfAbsent(createdBy);
                 report.setUpdatedAt(LocalDateTime.now());
                 report.validate();
@@ -92,14 +95,15 @@ public class ReportApplicationService {
 
             if (PlanReport.STATUS_DRAFT.equals(report.getStatus())) {
                 report.markCreatedByIfAbsent(createdBy);
+                report.setReportMonth(normalizedMonth);
                 report.setUpdatedAt(LocalDateTime.now());
                 report.validate();
                 return enrichReportMetadata(planReportRepository.save(report));
             }
 
             if (PlanReport.STATUS_REJECTED.equals(report.getStatus())) {
-                report.setStatus(PlanReport.STATUS_DRAFT);
-                report.setSubmittedAt(null);
+                report.resetToDraft(createdBy);
+                report.setReportMonth(normalizedMonth);
                 report.markCreatedByIfAbsent(createdBy);
                 report.setUpdatedAt(LocalDateTime.now());
                 report.validate();
@@ -114,7 +118,7 @@ public class ReportApplicationService {
         }
 
         PlanReport report = PlanReport.createDraft(
-                reportMonth, reportOrgId, reportOrgType, planId, createdBy);
+                normalizedMonth, reportOrgId, reportOrgType, planId, createdBy);
         report.validate();
         PlanReport savedReport = enrichReportMetadata(planReportRepository.save(report));
 
@@ -229,7 +233,7 @@ public class ReportApplicationService {
     @Transactional
     public PlanReport submitReport(Long reportId, Long userId) {
         PlanReport report = planReportRepository.findById(reportId)
-                .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
+                .orElseThrow(() -> new ResourceNotFoundException("Report not found with id: " + reportId));
 
         report.submit(userId);
         report = planReportRepository.save(report);
@@ -302,6 +306,7 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         if (!PlanReport.STATUS_APPROVED.equals(report.getStatus())) {
             report.setStatus(PlanReport.STATUS_APPROVED);
+            report.setRejectionReason(null);
             report.setUpdatedAt(LocalDateTime.now());
             report = planReportRepository.save(report);
         }
@@ -323,6 +328,7 @@ public class ReportApplicationService {
         }
         report.setStatus(PlanReport.STATUS_REJECTED);
         report.setRejectionReason(reason);
+        report.setApprovedAt(null);
         report.setUpdatedAt(LocalDateTime.now());
         report = planReportRepository.save(report);
         Long auditInstanceId = report.getAuditInstanceId();
@@ -337,6 +343,10 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
         report.setSubmittedAt(null);
+        report.setSubmittedBy(null);
+        report.setApprovedBy(null);
+        report.setApprovedAt(null);
+        report.setRejectionReason(null);
         report.setAuditInstanceId(null);
         report.setUpdatedAt(LocalDateTime.now());
         PlanReport saved = enrichReportMetadata(planReportRepository.save(report));
@@ -350,6 +360,10 @@ public class ReportApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Report", reportId));
         report.setStatus(PlanReport.STATUS_DRAFT);
         report.setSubmittedAt(null);
+        report.setSubmittedBy(null);
+        report.setApprovedBy(null);
+        report.setApprovedAt(null);
+        report.setRejectionReason(null);
         if (auditInstanceId != null && auditInstanceId > 0) {
             report.setAuditInstanceId(auditInstanceId);
         }
@@ -416,28 +430,54 @@ public class ReportApplicationService {
      * 根据月份查询报告
      */
     public List<PlanReport> findReportsByMonth(String reportMonth) {
-        return enrichReportList(planReportRepository.findByReportMonth(reportMonth));
+        return enrichReportList(planReportRepository.findByReportMonth(normalizeReportMonth(reportMonth)));
     }
 
     /**
      * 根据状态查询报告
      */
     public List<PlanReport> findReportsByStatus(String status) {
-        return enrichReportList(planReportRepository.findByStatus(status));
+        return enrichReportList(planReportRepository.findByStatus(normalizeStatusValue(status)));
+    }
+
+    public List<PlanReport> findReportsByStatusForOrg(String status, Long reportOrgId) {
+        return enrichReportList(planReportRepository.findByConditions(
+                null,
+                reportOrgId,
+                null,
+                null,
+                normalizeStatusValue(status),
+                Pageable.unpaged()
+        ).getContent());
     }
 
     /**
      * 根据组织和月份范围查询报告
      */
     public List<PlanReport> findReportsByOrgAndMonthRange(Long orgId, String startMonth, String endMonth) {
-        return enrichReportList(planReportRepository.findByOrgIdAndMonthRange(orgId, startMonth, endMonth));
+        return enrichReportList(planReportRepository.findByOrgIdAndMonthRange(
+                orgId,
+                normalizeReportMonth(startMonth),
+                normalizeReportMonth(endMonth)
+        ));
     }
 
     /**
      * 查询待审批的报告
      */
     public List<PlanReport> findPendingReports() {
-        return enrichReportList(planReportRepository.findByStatus(PlanReport.STATUS_SUBMITTED));
+        return enrichReportList(planReportRepository.findByStatus(PlanReportStatus.SUBMITTED));
+    }
+
+    public List<PlanReport> findPendingReportsForOrg(Long reportOrgId) {
+        return enrichReportList(planReportRepository.findByConditions(
+                null,
+                reportOrgId,
+                null,
+                null,
+                PlanReportStatus.SUBMITTED,
+                Pageable.unpaged()
+        ).getContent());
     }
 
     /**
@@ -445,6 +485,17 @@ public class ReportApplicationService {
      */
     public List<PlanReport> findReportsByOrgType(ReportOrgType orgType) {
         return enrichReportList(planReportRepository.findByReportOrgType(orgType));
+    }
+
+    public List<PlanReport> findReportsByOrgTypeForOrg(ReportOrgType orgType, Long reportOrgId) {
+        return enrichReportList(planReportRepository.findByConditions(
+                null,
+                reportOrgId,
+                orgType,
+                null,
+                (PlanReportStatus) null,
+                Pageable.unpaged()
+        ).getContent());
     }
 
     // ==================== 新增查询方法 ====================
@@ -473,11 +524,24 @@ public class ReportApplicationService {
         Pageable pageable = createPageable(queryRequest.getPage(), queryRequest.getSize());
 
         return enrichReportPage(planReportRepository.findByConditions(
-                queryRequest.getReportMonth(),
+                normalizeReportMonth(queryRequest.getReportMonth()),
                 queryRequest.getReportOrgId(),
                 queryRequest.getReportOrgType(),
                 queryRequest.getPlanId(),
-                queryRequest.getStatus(),
+                normalizeStatusValue(queryRequest.getStatus()),
+                pageable
+        ));
+    }
+
+    public Page<PlanReport> findReportsByConditionsForOrg(PlanReportQueryRequest queryRequest, Long reportOrgId) {
+        Pageable pageable = createPageable(queryRequest.getPage(), queryRequest.getSize());
+
+        return enrichReportPage(planReportRepository.findByConditions(
+                normalizeReportMonth(queryRequest.getReportMonth()),
+                reportOrgId,
+                queryRequest.getReportOrgType(),
+                queryRequest.getPlanId(),
+                normalizeStatusValue(queryRequest.getStatus()),
                 pageable
         ));
     }
@@ -487,13 +551,30 @@ public class ReportApplicationService {
         if (details.isEmpty()) {
             return;
         }
+        List<Long> indicatorIds = details.stream()
+                .map(PlanReportIndicatorSnapshot::indicatorId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, Indicator> indicatorsById = indicatorRepository.findByIds(indicatorIds).stream()
+                .collect(Collectors.toMap(Indicator::getId, indicator -> indicator));
+
+        List<Indicator> updatedIndicators = new ArrayList<>();
         for (PlanReportIndicatorSnapshot detail : details) {
-            Indicator indicator = indicatorRepository.findById(detail.indicatorId()).orElse(null);
+            if (detail.progress() == null) {
+                continue;
+            }
+            Indicator indicator = indicatorsById.get(detail.indicatorId());
             if (indicator == null) {
                 continue;
             }
             indicator.setProgress(detail.progress());
-            indicatorRepository.save(indicator);
+            updatedIndicators.add(indicator);
+        }
+
+        if (!updatedIndicators.isEmpty()) {
+            indicatorRepository.saveAll(updatedIndicators);
         }
     }
 
@@ -560,12 +641,19 @@ public class ReportApplicationService {
                     : workflowMetadata.getOrDefault(auditInstanceId, WorkflowApprovalMetadata.empty());
             Long submittedBy = metadata.submittedBy();
             if (submittedBy == null) {
+                submittedBy = report.getSubmittedBy();
+            }
+            if (submittedBy == null) {
                 submittedBy = report.getCreatedBy();
             }
             report.setSubmittedBy(submittedBy);
 
-            report.setApprovedBy(metadata.approvedBy());
-            report.setApprovedAt(metadata.approvedAt());
+            if (metadata.approvedBy() != null) {
+                report.setApprovedBy(metadata.approvedBy());
+            }
+            if (metadata.approvedAt() != null) {
+                report.setApprovedAt(metadata.approvedAt());
+            }
         }
     }
 
@@ -582,7 +670,19 @@ public class ReportApplicationService {
      */
     public Page<PlanReport> findReportsByStatus(String status, int page, int size) {
         Pageable pageable = createPageable(page, size);
-        return enrichReportPage(planReportRepository.findByStatus(status, pageable));
+        return enrichReportPage(planReportRepository.findByStatus(normalizeStatusValue(status), pageable));
+    }
+
+    public Page<PlanReport> findReportsByStatusForOrg(String status, Long reportOrgId, int page, int size) {
+        Pageable pageable = createPageable(page, size);
+        return enrichReportPage(planReportRepository.findByConditions(
+                null,
+                reportOrgId,
+                null,
+                null,
+                normalizeStatusValue(status),
+                pageable
+        ));
     }
 
     /**
@@ -596,14 +696,29 @@ public class ReportApplicationService {
      * 统计指定状态的报告数量
      */
     public long countReportsByStatus(String status) {
-        return planReportRepository.countByStatus(status);
+        return planReportRepository.countByStatus(resolveStatus(status));
+    }
+
+    public long countReportsByStatusForOrg(String status, Long reportOrgId) {
+        return planReportRepository.countByStatusAndReportOrgId(resolveStatus(status), reportOrgId);
     }
 
     /**
      * 根据月份和组织ID查询报告
      */
     public List<PlanReport> findReportsByMonthAndOrgId(String month, Long orgId) {
-        return enrichReportList(planReportRepository.findByMonthAndOrgId(month, orgId));
+        return enrichReportList(planReportRepository.findByMonthAndOrgId(normalizeReportMonth(month), orgId));
+    }
+
+    public List<PlanReport> findReportsByPlanIdForOrg(Long planId, Long reportOrgId) {
+        return enrichReportList(planReportRepository.findByConditions(
+                null,
+                reportOrgId,
+                null,
+                planId,
+                (PlanReportStatus) null,
+                Pageable.unpaged()
+        ).getContent());
     }
 
     /**
@@ -679,7 +794,33 @@ public class ReportApplicationService {
     }
 
     private int normalizePageSize(int size) {
-        return Math.max(size, 1);
+        return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+    }
+
+    private String normalizeReportMonth(String reportMonth) {
+        String normalized = PlanReport.normalizeReportMonth(reportMonth);
+        if (normalized == null) {
+            if (reportMonth == null || reportMonth.isBlank()) {
+                return null;
+            }
+            throw new IllegalArgumentException("Report month must be provided in yyyyMM or yyyy-MM format");
+        }
+        return normalized;
+    }
+
+    private String normalizeStatusValue(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        return resolveStatus(status).name();
+    }
+
+    private PlanReportStatus resolveStatus(String status) {
+        PlanReportStatus resolved = PlanReportStatus.from(status);
+        if (resolved == null) {
+            throw new IllegalArgumentException("Report status is required");
+        }
+        return resolved;
     }
 
     private Long resolveUserId(Long explicitUserId, CurrentUser currentUser) {

@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,11 +36,14 @@ class UserServiceTest {
     @Mock
     private RoleRepository roleRepository;
 
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository, roleRepository);
+        userService = new UserService(userRepository, roleRepository, passwordEncoder);
     }
 
     @Test
@@ -51,6 +57,7 @@ class UserServiceTest {
 
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         User created = userService.createUser("john_doe", "password", "John Doe", "john@example.com", 10L, List.of());
 
@@ -91,6 +98,22 @@ class UserServiceTest {
 
         assertTrue(found.isPresent());
         assertEquals(username, found.get().getUsername());
+    }
+
+    @Test
+    @DisplayName("Should find users by page without loading all data")
+    void shouldFindUsersByPage() {
+        User user = new User();
+        user.setId(1L);
+        user.setUsername("paged_user");
+
+        when(userRepository.findAll(PageRequest.of(0, 20)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(user), PageRequest.of(0, 20), 1));
+
+        Page<User> page = userService.findPage(0, 20);
+
+        assertEquals(1, page.getTotalElements());
+        assertEquals("paged_user", page.getContent().get(0).getUsername());
     }
 
     @Test
@@ -196,6 +219,7 @@ class UserServiceTest {
 
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         User created = userService.createUser(
                 "john_doe",
@@ -222,6 +246,7 @@ class UserServiceTest {
 
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         User created = userService.createUser(
                 "jane_doe",
@@ -252,6 +277,7 @@ class UserServiceTest {
                 .thenReturn(Optional.of(adminRole));
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         User created = userService.createUser(
                 "admin_user",

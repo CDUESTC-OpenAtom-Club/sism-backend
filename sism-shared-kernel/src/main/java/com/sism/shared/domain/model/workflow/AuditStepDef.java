@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Objects;
+
 /**
  * AuditStepDef - 审批步骤定义
  * Defines a single step in an approval flow
@@ -46,4 +48,27 @@ public class AuditStepDef {
 
     @Column(name = "can_skip")
     private Boolean canSkip = false;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        AuditStepDef that = (AuditStepDef) o;
+        if (id == null || that.id == null) {
+            return false;
+        }
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        if (id == null) {
+            return System.identityHashCode(this);
+        }
+        return Objects.hash(id);
+    }
 }

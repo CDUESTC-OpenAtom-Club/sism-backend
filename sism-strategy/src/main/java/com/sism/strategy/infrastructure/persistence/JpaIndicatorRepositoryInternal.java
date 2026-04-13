@@ -1,6 +1,7 @@
 package com.sism.strategy.infrastructure.persistence;
 
 import com.sism.strategy.domain.Indicator;
+import com.sism.organization.domain.OrgType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
@@ -102,4 +103,23 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
     List<Indicator> findByOwnerOrgIdAndTargetOrgIdAndIsDeletedFalse(Long ownerOrgId, Long targetOrgId);
 
     List<Indicator> findByIdInAndIsDeletedFalse(List<Long> ids);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    @Query("""
+            SELECT i FROM Indicator i
+            WHERE i.isDeleted = false
+              AND i.ownerOrg.type <> :functionalType
+            """)
+    List<Indicator> findFirstLevelIndicators(@Param("functionalType") OrgType functionalType);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    @Query("""
+            SELECT i FROM Indicator i
+            WHERE i.isDeleted = false
+              AND i.ownerOrg.type = :functionalType
+            """)
+    List<Indicator> findSecondLevelIndicators(@Param("functionalType") OrgType functionalType);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    List<Indicator> findByIndicatorDescContainingIgnoreCaseAndIsDeletedFalse(String keyword);
 }

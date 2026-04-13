@@ -176,6 +176,9 @@ public class BusinessWorkflowController {
             @PathVariable String instanceId,
             @AuthenticationPrincipal CurrentUser currentUser
     ) {
+        if (currentUser == null) {
+            return ResponseEntity.ok(ApiResponse.error(401, "未登录或登录已过期"));
+        }
         workflowService.cancelInstance(instanceId, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(null));
     }

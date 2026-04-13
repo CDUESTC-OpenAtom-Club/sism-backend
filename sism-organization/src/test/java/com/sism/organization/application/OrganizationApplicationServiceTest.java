@@ -50,6 +50,9 @@ class OrganizationApplicationServiceTest {
     @Mock
     private OrganizationUserQueryPort organizationUserQueryPort;
 
+    @Mock
+    private OrganizationReferenceCheckService organizationReferenceCheckService;
+
     @InjectMocks
     private OrganizationApplicationService organizationApplicationService;
 
@@ -150,6 +153,7 @@ class OrganizationApplicationServiceTest {
         child.setParentOrgId(1L);
 
         when(organizationRepository.findById(2L)).thenReturn(Optional.of(child));
+        when(organizationRepository.findAll()).thenReturn(List.of(root, child));
 
         ConflictException exception = assertThrows(
                 ConflictException.class,
@@ -233,6 +237,18 @@ class OrganizationApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("Should return optional organization when id exists")
+    void shouldReturnOptionalOrganizationWhenIdExists() {
+        SysOrg org = SysOrg.create("Org", OrgType.functional);
+        org.setId(88L);
+
+        when(organizationRepository.findById(88L)).thenReturn(Optional.of(org));
+
+        assertTrue(organizationApplicationService.getOrganizationById(88L).isPresent());
+        assertEquals(88L, organizationApplicationService.getOrganizationById(88L).orElseThrow().getId());
+    }
+
+    @Test
     @DisplayName("Should return only functional and academic organizations for departments")
     void shouldReturnOnlyFunctionalAndAcademicOrganizationsForDepartments() {
         SysOrg functional = SysOrg.create("Functional Org", OrgType.functional);
@@ -249,10 +265,10 @@ class OrganizationApplicationServiceTest {
         admin.setId(12L);
         admin.setSortOrder(0);
 
-        when(organizationRepository.findByTypes(List.of(
-                com.sism.enums.OrgType.functional,
-                com.sism.enums.OrgType.academic
-        ))).thenReturn(List.of(functional, academic));
+        when(organizationRepository.findByTypesAndIsActive(List.of(
+                OrgType.functional,
+                OrgType.academic
+        ), true)).thenReturn(List.of(functional, academic));
 
         List<SysOrg> departments = organizationApplicationService.getDepartmentOrganizations();
 
@@ -275,9 +291,13 @@ class OrganizationApplicationServiceTest {
         inactiveDepartment.setSortOrder(1);
         inactiveDepartment.setIsActive(false);
 
+        when(organizationRepository.findByTypesAndIsActive(List.of(
+                OrgType.functional,
+                OrgType.academic
+        ), true)).thenReturn(List.of(activeDepartment));
         when(organizationRepository.findByTypes(List.of(
-                com.sism.enums.OrgType.functional,
-                com.sism.enums.OrgType.academic
+                OrgType.functional,
+                OrgType.academic
         ))).thenReturn(List.of(activeDepartment, inactiveDepartment));
 
         List<SysOrg> activeOnly = organizationApplicationService.getDepartmentOrganizations();
@@ -289,18 +309,71 @@ class OrganizationApplicationServiceTest {
     }
 
     @Test
-    @DisplayName("Should keep tree shape unchanged when includeUsers is requested")
-    void shouldKeepTreeShapeUnchangedWhenIncludeUsersIsRequested() {
-        SysOrg root = SysOrg.create("Root Org", OrgType.functional);
-        root.setId(1L);
-        root.setSortOrder(0);
+    @DisplayName("Should reject deactivation when organization still has active children")
+    void shouldRejectDeactivationWhenOrganizationStillHasActiveChildren() {
+        SysOrg parent = SysOrg.create("Parent", OrgType.functional);
+        parent.setId(50L);
 
-        when(organizationRepository.findByIsActive(true)).thenReturn(List.of(root));
+        SysOrg activeChild = SysOrg.create("Child", OrgType.academic);
+        activeChild.setId(51L);
+        activeChild.setParentOrgId(50L);
+        activeChild.setIsActive(true);
+        activeChild.setIsDeleted(false);
 
-        List<SysOrg> treeWithUsersFlag = organizationApplicationService.getOrganizationTree(true, false);
-        List<SysOrg> treeWithoutUsersFlag = organizationApplicationService.getOrganizationTree(false, false);
+        when(organizationRepository.findByParentOrgId(50L)).thenReturn(List.of(activeChild));
+        ConflictException exception = assertThrows(
+                ConflictException.class,
+                () -> organizationApplicationService.deactivateOrganization(parent)
+        );
 
-        assertEquals(treeWithoutUsersFlag, treeWithUsersFlag);
+        assertEquals("Cannot deactivate organization with active child organizations", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should reject deactivation when organization still has assigned users")
+    void shouldRejectDeactivationWhenOrganizationStillHasAssignedUsers() {
+        SysOrg parent = SysOrg.create("Parent", OrgType.functional);
+        parent.setId(50L);
+
+        when(organizationRepository.findByParentOrgId(50L)).thenReturn(List.of());
+        when(organizationUserQueryPort.findUsersByOrgId(50L)).thenReturn(List.of(
+                OrgUserResponse.builder().id(1L).username("alice").build()
+        ));
+        ConflictException exception = assertThrows(
+                ConflictException.class,
+                () -> organizationApplicationService.deactivateOrganization(parent)
+        );
+
+        assertEquals("Cannot deactivate organization with assigned users", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should reject deactivation when organization still has active external references")
+    void shouldRejectDeactivationWhenOrganizationStillHasActiveExternalReferences() {
+        SysOrg org = SysOrg.create("Parent", OrgType.functional);
+        org.setId(50L);
+
+        when(organizationRepository.findByParentOrgId(50L)).thenReturn(List.of());
+        when(organizationUserQueryPort.findUsersByOrgId(50L)).thenReturn(List.of());
+        when(organizationReferenceCheckService.hasActiveReferences(50L)).thenReturn(true);
+
+        ConflictException exception = assertThrows(
+                ConflictException.class,
+                () -> organizationApplicationService.deactivateOrganization(org)
+        );
+
+        assertEquals("Cannot deactivate organization with active plan, indicator, or task references", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should reject unsupported includeUsers tree request")
+    void shouldRejectUnsupportedIncludeUsersTreeRequest() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> organizationApplicationService.getOrganizationTree(true, false)
+        );
+
+        assertEquals("includeUsers is no longer supported for organization tree responses", exception.getMessage());
     }
 
     @Test
@@ -324,5 +397,29 @@ class OrganizationApplicationServiceTest {
 
         assertEquals(1, treeWithoutDisabled.size());
         assertEquals(2, treeWithDisabled.size());
+    }
+
+    @Test
+    @DisplayName("Should reject organization tree deeper than supported limit")
+    void shouldRejectOrganizationTreeDeeperThanSupportedLimit() {
+        List<SysOrg> deepHierarchy = new java.util.ArrayList<>();
+        for (long i = 1; i <= 34; i++) {
+            SysOrg org = SysOrg.create("Org " + i, OrgType.functional);
+            org.setId(i);
+            org.setSortOrder(0);
+            if (i > 1) {
+                org.setParentOrgId(i - 1);
+            }
+            deepHierarchy.add(org);
+        }
+
+        when(organizationRepository.findByIsActive(true)).thenReturn(deepHierarchy);
+
+        ConflictException exception = assertThrows(
+                ConflictException.class,
+                () -> organizationApplicationService.getOrganizationTree(false, false)
+        );
+
+        assertEquals("Organization hierarchy depth exceeds supported limit", exception.getMessage());
     }
 }

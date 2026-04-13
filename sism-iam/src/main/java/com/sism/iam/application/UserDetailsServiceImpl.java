@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,6 +27,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         List<SimpleGrantedAuthority> authorities = userRepository.findRoleCodesByUserId(user.getId()).stream()
                 .map(this::toAuthority)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         return new CurrentUser(
@@ -40,7 +42,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     private SimpleGrantedAuthority toAuthority(String roleCode) {
         if (roleCode == null || roleCode.isBlank()) {
-            return new SimpleGrantedAuthority("ROLE_UNKNOWN");
+            return null;
         }
         return roleCode.startsWith("ROLE_")
                 ? new SimpleGrantedAuthority(roleCode)

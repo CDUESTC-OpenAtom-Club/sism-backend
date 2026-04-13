@@ -3,8 +3,13 @@ package com.sism.alert.interfaces.rest;
 import com.sism.alert.application.AlertAccessService;
 import com.sism.alert.application.AlertApplicationService;
 import com.sism.alert.domain.Alert;
+import com.sism.alert.domain.enums.AlertSeverity;
 import com.sism.alert.domain.enums.AlertStatus;
 import com.sism.alert.interfaces.dto.AlertRequest;
+import com.sism.alert.interfaces.dto.AlertResponse;
+import com.sism.alert.interfaces.dto.AlertStatsDTO;
+import com.sism.alert.interfaces.dto.ResolveAlertRequest;
+import com.sism.common.PageResult;
 import com.sism.iam.application.dto.CurrentUser;
 import com.sism.shared.domain.exception.AuthorizationException;
 import org.junit.jupiter.api.Test;
@@ -15,6 +20,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -44,18 +51,14 @@ class AlertControllerTest {
         Authentication authentication = authentication(11L, 35L, "ROLE_USER");
 
         Alert allowedAlert = alert(1L, 100L, AlertStatus.IN_PROGRESS, "CRITICAL");
-        Alert forbiddenAlert = alert(2L, 200L, AlertStatus.IN_PROGRESS, "WARNING");
 
-        when(alertApplicationService.getAllAlerts()).thenReturn(List.of(allowedAlert, forbiddenAlert));
-        when(alertAccessService.filterAlertsByPermission(List.of(allowedAlert, forbiddenAlert), authentication))
-                .thenReturn(List.of(allowedAlert));
+        when(alertAccessService.getAccessibleAlerts(authentication)).thenReturn(List.of(allowedAlert));
 
         var response = alertController.getAllAlerts(authentication);
 
         assertEquals(1, response.getBody().getData().size());
         assertEquals(100L, response.getBody().getData().get(0).getIndicatorId());
-        verify(alertApplicationService).getAllAlerts();
-        verify(alertAccessService).filterAlertsByPermission(List.of(allowedAlert, forbiddenAlert), authentication);
+        verify(alertAccessService).getAccessibleAlerts(authentication);
     }
 
     @Test
@@ -99,12 +102,21 @@ class AlertControllerTest {
     }
 
     @Test
+    void resolveAlertShouldRejectMissingAuthentication() {
+        ResolveAlertRequest request = new ResolveAlertRequest();
+        request.setResolution("done");
+
+        assertThrows(AuthorizationException.class, () -> alertController.resolveAlert(1L, request, null));
+    }
+
+    @Test
     void getAlertStatsShouldKeepLegacySeverityLabelsWhileCountingCanonicalValues() {
         Authentication authentication = authentication(11L, 35L, "ROLE_ADMIN");
 
-        when(alertApplicationService.getAlertStats()).thenReturn(java.util.Map.of(
-                "totalOpen", 2L,
-                "countBySeverity", java.util.Map.of(
+        when(alertAccessService.isAdmin(authentication)).thenReturn(true);
+        when(alertApplicationService.getAlertStats()).thenReturn(new AlertStatsDTO(
+                2L,
+                java.util.Map.of(
                         "CRITICAL", 0L,
                         "WARNING", 1L,
                         "INFO", 1L
@@ -114,9 +126,8 @@ class AlertControllerTest {
         var response = alertController.getAlertStats(authentication);
         var data = response.getBody().getData();
 
-        assertEquals(2L, data.get("totalOpen"));
-        @SuppressWarnings("unchecked")
-        var countBySeverity = (java.util.Map<String, Long>) data.get("countBySeverity");
+        assertEquals(2L, data.getTotalOpen());
+        var countBySeverity = data.getCountBySeverity();
         assertEquals(0L, countBySeverity.get("CRITICAL"));
         assertEquals(1L, countBySeverity.get("WARNING"));
         assertEquals(1L, countBySeverity.get("INFO"));
@@ -126,9 +137,26 @@ class AlertControllerTest {
     }
 
     @Test
+    void getAllAlertsPageShouldReturnPagedResponses() {
+        Authentication authentication = authentication(11L, 35L, "ROLE_USER");
+        Alert alert = alert(1L, 100L, AlertStatus.OPEN, "WARNING");
+
+        when(alertAccessService.getAccessibleAlerts(authentication, PageRequest.of(0, 20)))
+                .thenReturn(new PageImpl<>(List.of(alert), PageRequest.of(0, 20), 1));
+
+        var response = alertController.getAllAlertsPage(authentication, 0, 20);
+        PageResult<AlertResponse> page = response.getBody().getData();
+
+        assertEquals(1, page.getItems().size());
+        assertEquals(100L, page.getItems().get(0).getIndicatorId());
+        verify(alertAccessService).getAccessibleAlerts(authentication, PageRequest.of(0, 20));
+    }
+
+    @Test
     void countAlertsShouldUseAggregateQueriesForAdmin() {
         Authentication authentication = authentication(11L, 35L, "ROLE_ADMIN");
 
+        when(alertAccessService.isAdmin(authentication)).thenReturn(true);
         when(alertApplicationService.countAlerts()).thenReturn(10L);
         when(alertApplicationService.countByStatus(Alert.STATUS_OPEN)).thenReturn(4L);
         when(alertApplicationService.countByStatus(Alert.STATUS_IN_PROGRESS)).thenReturn(3L);
@@ -170,7 +198,7 @@ class AlertControllerTest {
         alert.setId(id);
         alert.setIndicatorId(indicatorId);
         alert.setStatus(status);
-        alert.setSeverity(severity);
+        alert.setSeverity(AlertSeverity.valueOf(severity));
         alert.setActualPercent(BigDecimal.valueOf(90));
         alert.setExpectedPercent(BigDecimal.valueOf(100));
         alert.setGapPercent(BigDecimal.valueOf(10));

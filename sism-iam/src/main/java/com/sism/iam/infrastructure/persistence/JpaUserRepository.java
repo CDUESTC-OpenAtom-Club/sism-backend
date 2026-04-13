@@ -3,6 +3,8 @@ package com.sism.iam.infrastructure.persistence;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.LinkedHashMap;
@@ -25,6 +27,11 @@ public class JpaUserRepository implements UserRepository {
     @Override
     public List<User> findAll() {
         return jpaRepository.findAll();
+    }
+
+    @Override
+    public Page<User> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable);
     }
 
     @Override

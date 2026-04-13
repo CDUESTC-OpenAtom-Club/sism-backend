@@ -104,6 +104,7 @@ class ApproveWorkflowUseCaseTest {
         instance.addStepInstance(returnedDept);
 
         when(flowDefinitionRepository.findById(4L)).thenReturn(Optional.of(flowDef));
+        when(approverResolver.resolveApproverId(leader, 100L, 57L, instance)).thenReturn(null);
         when(approverResolver.resolveApproverOrgId(leader, 57L, instance)).thenReturn(57L);
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

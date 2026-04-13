@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -50,5 +51,13 @@ public class DashboardSummaryController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getRecentActivities() {
         List<Map<String, Object>> activities = dashboardSummaryService.getRecentActivities();
         return ResponseEntity.ok(ApiResponse.success(activities));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "刷新仪表盘汇总缓存", description = "清空 analytics 模块内的仪表盘汇总缓存")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> refreshDashboardCaches() {
+        dashboardSummaryService.evictCachedSummaries();
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

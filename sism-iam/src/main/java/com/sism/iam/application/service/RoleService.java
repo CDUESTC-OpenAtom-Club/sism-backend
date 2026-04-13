@@ -2,6 +2,7 @@ package com.sism.iam.application.service;
 
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.Permission;
+import com.sism.iam.domain.repository.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class RoleService {
+
+    private final RoleRepository roleRepository;
 
     /**
      * 创建角色
@@ -35,7 +38,7 @@ public class RoleService {
         role.setDescription(description);
         role.setIsEnabled(true);
 
-        return role;
+        return roleRepository.save(role);
     }
 
     /**

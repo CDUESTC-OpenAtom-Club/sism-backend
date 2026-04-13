@@ -1,6 +1,7 @@
 package com.sism.analytics.interfaces.rest;
 
 import com.sism.analytics.application.ReportApplicationService;
+import com.sism.analytics.application.AnalyticsFileStorageService;
 import com.sism.analytics.domain.Report;
 import com.sism.analytics.interfaces.dto.CreateReportRequest;
 import com.sism.analytics.interfaces.dto.GenerateReportRequest;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public class ReportController {
 
     private final ReportApplicationService reportApplicationService;
+    private final AnalyticsFileStorageService analyticsFileStorageService;
 
     // ==================== Report Endpoints ====================
 
@@ -64,10 +66,14 @@ public class ReportController {
             @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id,
             @Valid @RequestBody GenerateReportRequest request) {
+        Long currentUserId = requireCurrentUserId(currentUser);
         Report report = reportApplicationService.generateReport(
                 id,
-                requireCurrentUserId(currentUser),
-                request.getFilePath(),
+                currentUserId,
+                analyticsFileStorageService.prepareManagedReportFile(
+                        reportApplicationService.findReportById(id, currentUserId)
+                                .orElseThrow(() -> new AccessDeniedException("No permission to access report: " + id))
+                ).toString(),
                 request.getFileSize()
         );
         return ResponseEntity.ok(ApiResponse.success(toReportDTO(report)));
@@ -255,16 +261,38 @@ public class ReportController {
                 .type(report.getType())
                 .format(report.getFormat())
                 .status(report.getStatus())
-                .filePath(report.getFilePath())
+                .filePath(sanitizeFilePath(report.getFilePath()))
                 .fileSize(report.getFileSize())
                 .generatedBy(report.getGeneratedBy())
                 .generatedAt(report.getGeneratedAt())
                 .parameters(report.getParameters())
                 .description(report.getDescription())
-                .errorMessage(report.getErrorMessage())
+                .errorMessage(sanitizeErrorMessage(report.getErrorMessage()))
                 .createdAt(report.getCreatedAt())
                 .updatedAt(report.getUpdatedAt())
                 .build();
+    }
+
+    private String sanitizeFilePath(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return null;
+        }
+        try {
+            return java.nio.file.Path.of(filePath).getFileName().toString();
+        } catch (RuntimeException ex) {
+            return null;
+        }
+    }
+
+    private String sanitizeErrorMessage(String errorMessage) {
+        if (errorMessage == null || errorMessage.isBlank()) {
+            return null;
+        }
+        String compact = errorMessage.replaceAll("[\\r\\n\\t]+", " ").trim();
+        if (compact.contains("/") || compact.contains("\\") || compact.contains("Exception") || compact.length() > 200) {
+            return "报告生成失败，请稍后重试或联系管理员";
+        }
+        return compact;
     }
 
     private Long requireCurrentUserId(CurrentUser currentUser) {

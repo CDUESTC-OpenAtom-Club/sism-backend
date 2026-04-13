@@ -169,6 +169,26 @@ class DashboardTest {
     }
 
     @Test
+    @DisplayName("Should reject blank description")
+    void shouldRejectBlankDescription() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                Dashboard.create("验证测试", "   ", 1L, true, "{\"widgets\":[]}")
+        );
+
+        assertTrue(exception.getMessage().contains("Description cannot be blank"));
+    }
+
+    @Test
+    @DisplayName("Should reject blank config")
+    void shouldRejectBlankConfig() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
+                Dashboard.create("验证测试", "验证描述", 1L, true, "   ")
+        );
+
+        assertTrue(exception.getMessage().contains("Config cannot be blank"));
+    }
+
+    @Test
     @DisplayName("Should reject Dashboard config longer than limit")
     void shouldRejectDashboardConfigLongerThanLimit() {
         String oversizedConfig = "{" + "\"a\":\"" + "x".repeat(10001) + "\"}";

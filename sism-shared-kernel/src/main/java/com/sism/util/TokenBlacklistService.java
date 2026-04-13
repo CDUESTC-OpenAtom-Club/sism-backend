@@ -8,9 +8,13 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -28,6 +32,7 @@ public class TokenBlacklistService {
     private static final int REDIS_SCAN_COUNT = 1000;
     private static final int REDIS_DELETE_BATCH_SIZE = 500;
     private static final long LOCAL_PURGE_INTERVAL_MILLIS = Duration.ofMinutes(5).toMillis();
+    private static final int MAX_LOCAL_BLACKLIST_SIZE = 10_000;
 
     private final ConcurrentMap<String, Instant> localBlacklist = new ConcurrentHashMap<>();
     private final AtomicLong lastLocalPurgeAt = new AtomicLong(0L);
@@ -56,13 +61,18 @@ public class TokenBlacklistService {
         Duration effectiveTtl = ttl == null || ttl.isNegative() ? defaultTtl : ttl;
 
         if (redisEnabled) {
-            String key = redisKey(token);
-            redisTemplate.opsForValue().set(key, "1", effectiveTtl);
-            log.debug("Token blacklisted in Redis (key={})", key);
-            return;
+            try {
+                String key = redisKey(token);
+                redisTemplate.opsForValue().set(key, "1", effectiveTtl);
+                log.debug("Token blacklisted in Redis (key={})", key);
+                return;
+            } catch (Exception e) {
+                log.warn("Failed to blacklist token in Redis, falling back to in-memory cache", e);
+            }
         }
 
         Instant expiry = Instant.now().plus(effectiveTtl);
+        evictLocalBlacklistIfNeeded();
         localBlacklist.put(token, expiry);
         log.debug("Token blacklisted in-memory until {}", expiry);
     }
@@ -73,8 +83,12 @@ public class TokenBlacklistService {
         }
 
         if (redisEnabled) {
-            Boolean exists = redisTemplate.hasKey(redisKey(token));
-            return Boolean.TRUE.equals(exists);
+            try {
+                Boolean exists = redisTemplate.hasKey(redisKey(token));
+                return Boolean.TRUE.equals(exists);
+            } catch (Exception e) {
+                log.warn("Failed to query Redis blacklist, falling back to in-memory cache", e);
+            }
         }
 
         purgeExpiredIfNeeded();
@@ -88,10 +102,13 @@ public class TokenBlacklistService {
         }
 
         if (redisEnabled) {
-            redisTemplate.delete(redisKey(token));
-        } else {
-            localBlacklist.remove(token);
+            try {
+                redisTemplate.delete(redisKey(token));
+            } catch (Exception e) {
+                log.warn("Failed to remove token from Redis blacklist", e);
+            }
         }
+        localBlacklist.remove(token);
     }
 
     public void clear() {
@@ -152,7 +169,33 @@ public class TokenBlacklistService {
         });
     }
 
+    private void evictLocalBlacklistIfNeeded() {
+        if (localBlacklist.size() < MAX_LOCAL_BLACKLIST_SIZE) {
+            return;
+        }
+
+        purgeExpired(Instant.now());
+        if (localBlacklist.size() < MAX_LOCAL_BLACKLIST_SIZE) {
+            return;
+        }
+
+        localBlacklist.entrySet().stream()
+                .min(java.util.Map.Entry.comparingByValue())
+                .map(java.util.Map.Entry::getKey)
+                .ifPresent(localBlacklist::remove);
+    }
+
     private String redisKey(String token) {
-        return REDIS_KEY_PREFIX + token;
+        return REDIS_KEY_PREFIX + sha256(token);
+    }
+
+    private String sha256(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hashed);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
     }
 }

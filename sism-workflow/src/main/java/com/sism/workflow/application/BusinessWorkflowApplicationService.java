@@ -121,7 +121,7 @@ public class BusinessWorkflowApplicationService {
         log.info("Starting workflow instance by definitionId: {}, entityId: {}, userId: {}",
                 definitionId, request.getBusinessEntityId(), userId);
 
-        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(Long.parseLong(definitionId));
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(parseRequiredLong(definitionId, "definitionId"));
         if (flowDef == null) {
             throw new IllegalArgumentException("Workflow definition not found: " + definitionId);
         }
@@ -301,7 +301,7 @@ public class BusinessWorkflowApplicationService {
     }
 
     private AuditInstance resolveAuditInstanceForTask(String taskId) {
-        Long numericTaskId = Long.parseLong(taskId);
+        Long numericTaskId = parseRequiredLong(taskId, "taskId");
         return auditInstanceRepository.findByStepInstanceId(numericTaskId)
                 .or(() -> auditInstanceRepository.findById(numericTaskId))
                 .or(() -> workflowTaskRepository.findById(numericTaskId)
@@ -311,8 +311,8 @@ public class BusinessWorkflowApplicationService {
                                 return Optional.empty();
                             }
                             try {
-                                return auditInstanceRepository.findById(Long.parseLong(workflowId));
-                            } catch (NumberFormatException ex) {
+                                return auditInstanceRepository.findById(parseRequiredLong(workflowId, "workflowId"));
+                            } catch (IllegalArgumentException ex) {
                                 log.warn("Workflow task {} has non-numeric workflowId {}", numericTaskId, workflowId);
                                 return Optional.empty();
                             }
@@ -381,7 +381,7 @@ public class BusinessWorkflowApplicationService {
     public void cancelInstance(String instanceId, Long userId) {
         log.info("Cancelling instance: {}, userId: {}", instanceId, userId);
 
-        AuditInstance instance = auditInstanceRepository.findById(Long.parseLong(instanceId))
+        AuditInstance instance = auditInstanceRepository.findById(parseRequiredLong(instanceId, "instanceId"))
                 .orElseThrow(() -> new IllegalArgumentException("Instance not found: " + instanceId));
 
         // 权限检查：只有发起人可以取消
@@ -398,7 +398,7 @@ public class BusinessWorkflowApplicationService {
      * 根据ID获取工作流定义
      */
     public WorkflowDefinitionResponse getDefinitionById(String definitionId) {
-        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(Long.parseLong(definitionId));
+        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(parseRequiredLong(definitionId, "definitionId"));
         if (flowDef == null) {
             throw new IllegalArgumentException("Workflow definition not found: " + definitionId);
         }
@@ -478,4 +478,15 @@ public class BusinessWorkflowApplicationService {
     }
 
     // ==================== 私有方法 ====================
+
+    private long parseRequiredLong(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must be a numeric value");
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(fieldName + " must be a numeric value: " + value, ex);
+        }
+    }
 }

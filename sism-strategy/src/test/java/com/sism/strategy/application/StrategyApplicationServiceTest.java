@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -127,5 +128,21 @@ class StrategyApplicationServiceTest {
         assertEquals(902L, indicatorCaptor.getValue().getTaskId());
         verify(taskRepository, never()).findByPlanId(any());
         verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should throw when indicator is missing instead of returning null")
+    void shouldThrowWhenIndicatorMissing() {
+        StrategyApplicationService service = new StrategyApplicationService(
+                eventPublisher,
+                eventStore,
+                indicatorRepository,
+                taskRepository,
+                basicTaskWeightValidationService
+        );
+
+        when(indicatorRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> service.getIndicatorById(999L));
     }
 }

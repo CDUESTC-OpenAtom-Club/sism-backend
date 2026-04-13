@@ -1,39 +1,32 @@
 package com.sism.exception;
 
-import lombok.Getter;
-
 /**
- * Base business exception class
- * All custom business exceptions should extend this class
+ * Legacy business exception kept for compatibility with older modules.
+ *
+ * <p>It now delegates to the shared-domain exception hierarchy so the shared
+ * kernel only has one active handler path. Callers should migrate to
+ * {@link com.sism.shared.domain.exception.BusinessException} directly.</p>
  */
-@Getter
-public class BusinessException extends RuntimeException {
-    
-    /**
-     * Error code
-     */
-    private final int code;
-    
-    /**
-     * Error message
-     */
-    private final String message;
-    
+@Deprecated
+public class BusinessException extends com.sism.shared.domain.exception.BusinessException {
+
+    private final int legacyCode;
+
     public BusinessException(String message) {
-        super(message);
-        this.code = 400;
-        this.message = message;
+        this(400, message);
     }
-    
+
     public BusinessException(int code, String message) {
-        super(message);
-        this.code = code;
-        this.message = message;
+        super(String.valueOf(code), message);
+        this.legacyCode = code;
     }
-    
+
     public BusinessException(int code, String message, Throwable cause) {
-        super(message, cause);
-        this.code = code;
-        this.message = message;
+        super(String.valueOf(code), message, cause);
+        this.legacyCode = code;
+    }
+
+    public int getLegacyCode() {
+        return legacyCode;
     }
 }

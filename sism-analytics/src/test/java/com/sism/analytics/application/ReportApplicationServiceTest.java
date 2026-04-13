@@ -95,4 +95,12 @@ class ReportApplicationServiceTest {
         );
         verifyNoInteractions(reportRepository);
     }
+
+    @Test
+    @DisplayName("searchReportsByName should escape SQL LIKE wildcards")
+    void searchReportsByNameShouldEscapeLikeWildcards() {
+        reportApplicationService.searchReportsByName("100%_done", 1L);
+
+        verify(reportRepository).findByGeneratedByAndNameContainingAndNotDeleted(1L, "100\\%\\_done");
+    }
 }

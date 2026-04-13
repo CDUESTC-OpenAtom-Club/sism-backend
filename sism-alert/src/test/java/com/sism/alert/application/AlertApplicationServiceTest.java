@@ -1,8 +1,10 @@
 package com.sism.alert.application;
 
 import com.sism.alert.domain.Alert;
+import com.sism.alert.domain.enums.AlertSeverity;
 import com.sism.alert.domain.enums.AlertStatus;
 import com.sism.alert.domain.repository.AlertRepository;
+import com.sism.alert.interfaces.dto.AlertStatsDTO;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,7 +57,7 @@ class AlertApplicationServiceTest {
         verify(alertRepository).save(captor.capture());
 
         assertSame(captor.getValue(), alert);
-        assertEquals("WARNING", alert.getSeverity());
+        assertEquals(AlertSeverity.WARNING, alert.getSeverity());
         assertEquals(AlertStatus.OPEN, alert.getStatus());
         verify(eventPublisher).publishAll(anyList());
     }
@@ -63,22 +65,22 @@ class AlertApplicationServiceTest {
     @Test
     void getAlertsBySeverityShouldUseCanonicalSeverity() {
         Alert alert = new Alert();
-        when(alertRepository.findBySeverity("WARNING")).thenReturn(List.of(alert));
+        when(alertRepository.findBySeverity(AlertSeverity.WARNING)).thenReturn(List.of(alert));
 
         List<Alert> alerts = alertApplicationService.getAlertsBySeverity("major");
 
         assertEquals(List.of(alert), alerts);
-        verify(alertRepository).findBySeverity("WARNING");
+        verify(alertRepository).findBySeverity(AlertSeverity.WARNING);
     }
 
     @Test
     void countBySeverityShouldCountCanonicalSeverityOnly() {
-        when(alertRepository.countBySeverity("CRITICAL")).thenReturn(7L);
+        when(alertRepository.countBySeverity(AlertSeverity.CRITICAL)).thenReturn(7L);
 
         long count = alertApplicationService.countBySeverity("critical");
 
         assertEquals(7L, count);
-        verify(alertRepository).countBySeverity("CRITICAL");
+        verify(alertRepository).countBySeverity(AlertSeverity.CRITICAL);
     }
 
     @Test
@@ -88,7 +90,7 @@ class AlertApplicationServiceTest {
         alert.setIndicatorId(2L);
         alert.setRuleId(3L);
         alert.setWindowId(4L);
-        alert.setSeverity("CRITICAL");
+        alert.setSeverity(AlertSeverity.CRITICAL);
         alert.setActualPercent(BigDecimal.valueOf(90));
         alert.setExpectedPercent(BigDecimal.valueOf(100));
         alert.setGapPercent(BigDecimal.valueOf(10));
@@ -122,20 +124,16 @@ class AlertApplicationServiceTest {
 
     @Test
     void getAlertStatsShouldExposeCanonicalSeverityKeys() {
-        when(alertRepository.countByStatus(AlertStatus.OPEN)).thenReturn(4L);
-        when(alertRepository.countByStatus(AlertStatus.IN_PROGRESS)).thenReturn(2L);
-        when(alertRepository.countBySeverityAndStatus("CRITICAL", AlertStatus.IN_PROGRESS)).thenReturn(1L);
-        when(alertRepository.countBySeverityAndStatus("CRITICAL", AlertStatus.OPEN)).thenReturn(0L);
-        when(alertRepository.countBySeverityAndStatus("WARNING", AlertStatus.IN_PROGRESS)).thenReturn(2L);
-        when(alertRepository.countBySeverityAndStatus("WARNING", AlertStatus.OPEN)).thenReturn(1L);
-        when(alertRepository.countBySeverityAndStatus("INFO", AlertStatus.IN_PROGRESS)).thenReturn(4L);
-        when(alertRepository.countBySeverityAndStatus("INFO", AlertStatus.OPEN)).thenReturn(1L);
+        when(alertRepository.countOpenBySeverity()).thenReturn(List.of(
+                severityCount(AlertSeverity.CRITICAL, 1L),
+                severityCount(AlertSeverity.WARNING, 3L),
+                severityCount(AlertSeverity.INFO, 5L)
+        ));
 
-        Map<String, Object> stats = alertApplicationService.getAlertStats();
+        AlertStatsDTO stats = alertApplicationService.getAlertStats();
 
-        assertEquals(6L, stats.get("totalOpen"));
-        @SuppressWarnings("unchecked")
-        Map<String, Long> countBySeverity = (Map<String, Long>) stats.get("countBySeverity");
+        assertEquals(9L, stats.getTotalOpen());
+        Map<String, Long> countBySeverity = stats.getCountBySeverity();
         assertEquals(1L, countBySeverity.get("CRITICAL"));
         assertEquals(3L, countBySeverity.get("WARNING"));
         assertEquals(5L, countBySeverity.get("INFO"));
@@ -150,5 +148,32 @@ class AlertApplicationServiceTest {
 
         assertEquals(List.of(alert), alerts);
         verify(alertRepository).findByStatus(AlertStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void getUnresolvedAlertsShouldUseSingleStatusInQuery() {
+        Alert open = new Alert();
+        Alert progress = new Alert();
+        when(alertRepository.findByStatusIn(List.of(AlertStatus.OPEN, AlertStatus.IN_PROGRESS)))
+                .thenReturn(List.of(open, progress));
+
+        List<Alert> alerts = alertApplicationService.getUnresolvedAlerts();
+
+        assertEquals(List.of(open, progress), alerts);
+        verify(alertRepository).findByStatusIn(List.of(AlertStatus.OPEN, AlertStatus.IN_PROGRESS));
+    }
+
+    private AlertRepository.SeverityCount severityCount(AlertSeverity severity, long count) {
+        return new AlertRepository.SeverityCount() {
+            @Override
+            public AlertSeverity getSeverity() {
+                return severity;
+            }
+
+            @Override
+            public long getCount() {
+                return count;
+            }
+        };
     }
 }

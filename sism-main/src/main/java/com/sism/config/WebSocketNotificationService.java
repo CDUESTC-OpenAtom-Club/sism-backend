@@ -1,5 +1,6 @@
 package com.sism.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -8,13 +9,10 @@ import java.time.Instant;
  * Minimal service used to push real-time notification payloads to frontend clients.
  */
 @Service
+@RequiredArgsConstructor
 public class WebSocketNotificationService {
 
     private final SismWebSocketHandler webSocketHandler;
-
-    public WebSocketNotificationService(SismWebSocketHandler webSocketHandler) {
-        this.webSocketHandler = webSocketHandler;
-    }
 
     public boolean sendToUser(String userId,
                               String type,

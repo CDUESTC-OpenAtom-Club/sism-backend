@@ -10,7 +10,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.file.Path;
 import java.util.Optional;
@@ -20,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -34,6 +34,9 @@ class ExportServiceTest {
     @Mock
     private DataExportRepository dataExportRepository;
 
+    @Mock
+    private AnalyticsFileStorageService analyticsFileStorageService;
+
     @TempDir
     Path tempDir;
 
@@ -41,8 +44,7 @@ class ExportServiceTest {
 
     @BeforeEach
     void setUp() {
-        exportService = new ExportService(dataExportApplicationService, dataExportRepository);
-        ReflectionTestUtils.setField(exportService, "exportBasePath", tempDir.toString());
+        exportService = new ExportService(dataExportApplicationService, dataExportRepository, analyticsFileStorageService);
     }
 
     @Test
@@ -62,6 +64,8 @@ class ExportServiceTest {
     @Test
     @DisplayName("getExportFilePath should return the owned downloadable file path")
     void getExportFilePathShouldReturnOwnedDownloadableFilePath() {
+        when(analyticsFileStorageService.resolveManagedPath(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(invocation -> Path.of(invocation.<String>getArgument(0)));
         Path filePath = tempDir.resolve("owned.xlsx");
         assertDoesNotThrow(() -> java.nio.file.Files.writeString(filePath, "ok"));
         DataExport export = DataExport.create("导出任务", "INDICATOR_DATA", DataExport.FORMAT_EXCEL, 1L, null);
@@ -86,6 +90,8 @@ class ExportServiceTest {
         export.complete(outsideFile.toString(), 10L);
 
         when(dataExportApplicationService.findDataExportById(12L)).thenReturn(Optional.of(export));
+        when(analyticsFileStorageService.resolveManagedPath(outsideFile.toString()))
+                .thenThrow(new IllegalArgumentException("Resolved file path escapes configured export directory"));
 
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
@@ -126,5 +132,21 @@ class ExportServiceTest {
 
         assertTrue(exception.getMessage().contains("Export data cannot be null"));
         verifyNoInteractions(dataExportApplicationService, dataExportRepository);
+    }
+
+    @Test
+    @DisplayName("cleanupExpiredExports should soft delete expired exports in batch")
+    void cleanupExpiredExportsShouldSoftDeleteExpiredExportsInBatch() {
+        DataExport export = DataExport.create("导出任务", "INDICATOR_DATA", DataExport.FORMAT_EXCEL, 1L, null);
+        export.setId(13L);
+        when(dataExportRepository.findByDateRangeAndNotDeleted(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.List.of(export));
+
+        int cleaned = exportService.cleanupExpiredExports(7);
+
+        assertEquals(1, cleaned);
+        assertTrue(export.isDeleted());
+        verify(dataExportRepository).saveAll(anyList());
+        verifyNoInteractions(dataExportApplicationService);
     }
 }

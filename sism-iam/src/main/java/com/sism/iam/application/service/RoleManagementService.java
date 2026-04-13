@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,13 +43,18 @@ public class RoleManagementService {
 
     @Transactional(readOnly = true)
     public int countPermissionsByRoleId(Long roleId) {
-        Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleId));
-        return role.getPermissions() == null ? 0 : role.getPermissions().size();
+        if (roleRepository.findById(roleId).isEmpty()) {
+            throw new IllegalArgumentException("Role not found: " + roleId);
+        }
+        return countPermissionsByRoleIds(Set.of(roleId)).getOrDefault(roleId, 0L).intValue();
     }
 
     public java.util.Map<Long, Long> countUsersByRoleIds(Set<Long> roleIds) {
         return userRepository.countUsersByRoleIds(roleIds);
+    }
+
+    public Map<Long, Long> countPermissionsByRoleIds(Set<Long> roleIds) {
+        return roleRepository.countPermissionsByRoleIds(roleIds);
     }
 
     public boolean roleCodeExists(String roleCode) {
@@ -107,6 +113,9 @@ public class RoleManagementService {
 
     @Transactional
     public Role assignPermissions(Long id, Set<Long> permissionIds) {
+        if (permissionIds == null || permissionIds.isEmpty()) {
+            throw new IllegalArgumentException("permissionIds is required");
+        }
         Role role = roleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Role not found: " + id));
 

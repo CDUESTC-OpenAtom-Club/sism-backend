@@ -1,5 +1,6 @@
 package com.sism.alert.domain;
 
+import com.sism.alert.domain.enums.AlertSeverity;
 import com.sism.alert.domain.enums.AlertStatus;
 import org.junit.jupiter.api.Test;
 
@@ -8,6 +9,8 @@ import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AlertTest {
 
@@ -51,6 +54,17 @@ class AlertTest {
         assertEquals(AlertStatus.CLOSED, Alert.normalizeStatus("closed"));
     }
 
+    @Test
+    void canPublishShouldReflectPendingDomainEvents() {
+        Alert alert = createValidAlert();
+
+        assertFalse(alert.canPublish());
+
+        alert.recordCreated();
+
+        assertTrue(alert.canPublish());
+    }
+
     private Alert createValidAlert() {
         Alert alert = new Alert();
         alert.setIndicatorId(1L);
@@ -59,7 +73,7 @@ class AlertTest {
         alert.setActualPercent(BigDecimal.valueOf(45.5));
         alert.setExpectedPercent(BigDecimal.valueOf(80.0));
         alert.setGapPercent(BigDecimal.valueOf(-34.5));
-        alert.setSeverity("WARNING");
+        alert.setSeverity(AlertSeverity.WARNING);
         alert.setStatus(AlertStatus.OPEN);
         return alert;
     }

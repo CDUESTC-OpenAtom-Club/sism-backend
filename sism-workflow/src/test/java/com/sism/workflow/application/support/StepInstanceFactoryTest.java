@@ -42,7 +42,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository, jdbcTemplate),
+                new ApproverResolver(userRepository, planRepository, jdbcTemplate, workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -66,7 +66,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository, jdbcTemplate),
+                new ApproverResolver(userRepository, planRepository, jdbcTemplate, workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -88,7 +88,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository, jdbcTemplate),
+                new ApproverResolver(userRepository, planRepository, jdbcTemplate, workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -123,10 +123,9 @@ class StepInstanceFactoryTest {
         approver.setIsActive(true);
 
         when(userRepository.findByRoleId(3L)).thenReturn(List.of(approver));
-        when(userRepository.findById(9L)).thenReturn(Optional.of(approver));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userRepository, planRepository, jdbcTemplate),
+                new ApproverResolver(userRepository, planRepository, jdbcTemplate, workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -139,5 +138,14 @@ class StepInstanceFactoryTest {
         assertEquals(35L, instance.getStepInstances().get(0).getApproverOrgId());
         assertEquals(9L, instance.getStepInstances().get(1).getApproverId());
         assertEquals(35L, instance.getStepInstances().get(1).getApproverOrgId());
+    }
+    private WorkflowApproverProperties workflowApproverProperties() {
+        WorkflowApproverProperties properties = new WorkflowApproverProperties();
+        properties.setApproverRoleId(2L);
+        properties.setStrategyDeptHeadRoleId(3L);
+        properties.setVicePresidentRoleId(4L);
+        properties.setStrategyOrgId(35L);
+        properties.setFunctionalVicePresidentScopeByOrg(java.util.Map.of());
+        return properties;
     }
 }

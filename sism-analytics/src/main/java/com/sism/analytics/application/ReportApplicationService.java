@@ -2,7 +2,6 @@ package com.sism.analytics.application;
 
 import com.sism.analytics.domain.Report;
 import com.sism.analytics.infrastructure.repository.ReportRepository;
-import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +33,7 @@ public class ReportApplicationService extends BaseApplicationService {
     @Transactional
     public Report createReport(String name, String type, String format, Long generatedBy, String parameters, String description) {
         Report report = Report.create(name, type, format, generatedBy, parameters, description);
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         return reportRepository.save(report);
     }
 
@@ -42,10 +41,10 @@ public class ReportApplicationService extends BaseApplicationService {
      * 生成报告
      */
     @Transactional
-    public Report generateReport(Long reportId, String filePath, Long fileSize) {
+    Report generateReport(Long reportId, String filePath, Long fileSize) {
         Report report = findById(reportId);
         report.generate(filePath, fileSize);
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         return reportRepository.save(report);
     }
 
@@ -53,7 +52,7 @@ public class ReportApplicationService extends BaseApplicationService {
     public Report generateReport(Long reportId, Long currentUserId, String filePath, Long fileSize) {
         Report report = findOwnedByCurrentUser(reportId, currentUserId);
         report.generate(filePath, fileSize);
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         return reportRepository.save(report);
     }
 
@@ -61,10 +60,10 @@ public class ReportApplicationService extends BaseApplicationService {
      * 报告生成失败
      */
     @Transactional
-    public Report failReport(Long reportId, String errorMessage) {
+    Report failReport(Long reportId, String errorMessage) {
         Report report = findById(reportId);
         report.fail(errorMessage);
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         return reportRepository.save(report);
     }
 
@@ -72,7 +71,7 @@ public class ReportApplicationService extends BaseApplicationService {
     public Report failReport(Long reportId, Long currentUserId, String errorMessage) {
         Report report = findOwnedByCurrentUser(reportId, currentUserId);
         report.fail(errorMessage);
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         return reportRepository.save(report);
     }
 
@@ -80,10 +79,10 @@ public class ReportApplicationService extends BaseApplicationService {
      * 更新报告信息
      */
     @Transactional
-    public Report updateReport(Long reportId, String name, String type, String format, String description) {
+    Report updateReport(Long reportId, String name, String type, String format, String description) {
         Report report = findById(reportId);
         report.update(name, type, format, description);
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         return reportRepository.save(report);
     }
 
@@ -91,7 +90,7 @@ public class ReportApplicationService extends BaseApplicationService {
     public Report updateReport(Long reportId, Long currentUserId, String name, String type, String format, String description) {
         Report report = findOwnedByCurrentUser(reportId, currentUserId);
         report.update(name, type, format, description);
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         return reportRepository.save(report);
     }
 
@@ -99,10 +98,10 @@ public class ReportApplicationService extends BaseApplicationService {
      * 删除报告
      */
     @Transactional
-    public void deleteReport(Long reportId) {
+    void deleteReport(Long reportId) {
         Report report = findById(reportId);
         report.delete();
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         reportRepository.save(report);
     }
 
@@ -110,7 +109,7 @@ public class ReportApplicationService extends BaseApplicationService {
     public void deleteReport(Long reportId, Long currentUserId) {
         Report report = findOwnedByCurrentUser(reportId, currentUserId);
         report.delete();
-        publishAndSaveEvents(report);
+        publishAndSaveEvents(report, eventStore, eventPublisher);
         reportRepository.save(report);
     }
 
@@ -213,14 +212,17 @@ public class ReportApplicationService extends BaseApplicationService {
 
     public List<Report> searchReportsByName(String name, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
-        return reportRepository.findByGeneratedByAndNameContainingAndNotDeleted(currentUserId, name);
+        return reportRepository.findByGeneratedByAndNameContainingAndNotDeleted(
+                currentUserId,
+                escapeLikePattern(name)
+        );
     }
 
     public Page<Report> searchReportsByName(String name, Long currentUserId, int pageNum, int pageSize) {
         requirePositiveUserId(currentUserId, "Current user ID");
         return reportRepository.findByGeneratedByAndNameContainingAndNotDeleted(
                 currentUserId,
-                name,
+                escapeLikePattern(name),
                 AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
@@ -265,19 +267,5 @@ public class ReportApplicationService extends BaseApplicationService {
 
     private void requireGeneratedByMatchesCurrentUser(Long generatedBy, Long currentUserId) {
         requireUserOwnership(generatedBy, currentUserId, "No permission to access another user's reports");
-    }
-
-    /**
-     * 发布和保存领域事件
-     */
-    private void publishAndSaveEvents(Report report) {
-        List<DomainEvent> events = report.getDomainEvents();
-        if (events != null && !events.isEmpty()) {
-            for (DomainEvent event : events) {
-                eventStore.save(event);
-            }
-            eventPublisher.publishAll(events);
-            report.clearEvents();
-        }
     }
 }

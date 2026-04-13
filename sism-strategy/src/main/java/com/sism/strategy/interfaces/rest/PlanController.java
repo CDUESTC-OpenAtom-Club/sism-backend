@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController("strategyPlanController")
 @RequestMapping("/api/v1/plans")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "规划管理", description = "战略侧规划主要接口。这是规划的权威入口点。")
 public class PlanController {
 

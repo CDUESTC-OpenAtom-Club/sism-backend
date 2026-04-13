@@ -43,6 +43,10 @@ public class PlanWorkflowEventListener {
         } catch (Exception ex) {
             log.error("Failed to start plan workflow for planId={}, workflowCode={}: {}",
                     event.getPlanId(), event.getWorkflowCode(), ex.getMessage(), ex);
+            throw new IllegalStateException(
+                    "Failed to start plan workflow for planId=" + event.getPlanId() + ", workflowCode=" + event.getWorkflowCode(),
+                    ex
+            );
         }
     }
 }

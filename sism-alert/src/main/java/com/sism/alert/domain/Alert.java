@@ -20,6 +20,7 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.Check;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Table(name = "alert_event")
+@Check(constraints = "severity in ('INFO', 'WARNING', 'CRITICAL')")
 @Access(AccessType.FIELD)
 public class Alert extends AggregateRoot<Long> {
 
@@ -78,7 +80,8 @@ public class Alert extends AggregateRoot<Long> {
     private String handledNote;
 
     @Column(name = "severity", nullable = false)
-    private String severity;
+    @Enumerated(EnumType.STRING)
+    private AlertSeverity severity;
 
     @Column(name = "status", nullable = false)
     @Enumerated(EnumType.STRING)
@@ -92,7 +95,7 @@ public class Alert extends AggregateRoot<Long> {
 
     @Override
     public boolean canPublish() {
-        return AlertStatus.RESOLVED.equals(status);
+        return !getDomainEvents().isEmpty();
     }
 
     @Override
@@ -115,10 +118,10 @@ public class Alert extends AggregateRoot<Long> {
         if (gapPercent == null) {
             throw new IllegalArgumentException("Gap percent is required");
         }
-        if (severity == null || severity.trim().isEmpty()) {
+        if (severity == null) {
             throw new IllegalArgumentException("Severity is required");
         }
-        if (AlertSeverity.normalize(severity) == null) {
+        if (severity == null) {
             throw new IllegalArgumentException("Severity must be INFO, WARNING, or CRITICAL");
         }
         if (status == null) {
@@ -132,7 +135,7 @@ public class Alert extends AggregateRoot<Long> {
         }
         this.status = AlertStatus.IN_PROGRESS;
         this.updatedAt = LocalDateTime.now();
-        this.addEvent(new AlertTriggeredEvent(this.id, this.indicatorId, this.severity, this.status.name()));
+        this.addEvent(new AlertTriggeredEvent(this.id, this.indicatorId, this.severity.name(), this.status.name()));
     }
 
     public void resolve(Long handledBy, String handledNote) {
@@ -147,7 +150,7 @@ public class Alert extends AggregateRoot<Long> {
     }
 
     public void recordCreated() {
-        this.addEvent(new AlertCreatedEvent(this.id, this.indicatorId, this.severity, this.status.name()));
+        this.addEvent(new AlertCreatedEvent(this.id, this.indicatorId, this.severity.name(), this.status.name()));
     }
 
     public static AlertStatus normalizeStatus(String status) {

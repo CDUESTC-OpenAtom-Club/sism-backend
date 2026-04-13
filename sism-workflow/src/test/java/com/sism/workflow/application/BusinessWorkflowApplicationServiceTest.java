@@ -146,6 +146,12 @@ class BusinessWorkflowApplicationServiceTest {
     }
 
     @Test
+    void cancelInstance_shouldRejectNonNumericInstanceId() {
+        assertThrows(IllegalArgumentException.class,
+                () -> businessWorkflowApplicationService.cancelInstance("not-a-number", 1L));
+    }
+
+    @Test
     void startWorkflow_shouldResumeWithdrawnInstanceBeforeCreatingNewOne() {
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(7L);

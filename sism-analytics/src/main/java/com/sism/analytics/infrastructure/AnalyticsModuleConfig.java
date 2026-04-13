@@ -16,8 +16,8 @@ import java.time.Duration;
 @EnableJpaRepositories(basePackages = "com.sism.analytics.infrastructure")
 public class AnalyticsModuleConfig {
 
-    @Bean
-    public CacheManager cacheManager() {
+    @Bean("analyticsCacheManager")
+    public CacheManager analyticsCacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(
                 "dashboard-summary",
                 "department-progress",

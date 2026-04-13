@@ -25,14 +25,17 @@ class WebSocketConfigTest {
     private WebSocketHandlerRegistration registration;
 
     @Test
-    @DisplayName("Should apply wildcard allowed origins")
-    void shouldApplyWildcardAllowedOrigins() {
-        WebSocketConfig config = new WebSocketConfig(sismWebSocketHandler);
+    @DisplayName("Should apply configured allowed origins")
+    void shouldApplyConfiguredAllowedOrigins() {
+        WebSocketConfig config = new WebSocketConfig(
+                sismWebSocketHandler,
+                java.util.List.of("http://localhost:3500", "https://sism.example.com")
+        );
 
         doReturn(registration).when(registry).addHandler(sismWebSocketHandler, "/ws/notifications");
 
         config.registerWebSocketHandlers(registry);
 
-        verify(registration).setAllowedOriginPatterns("*");
+        verify(registration).setAllowedOriginPatterns("http://localhost:3500", "https://sism.example.com");
     }
 }

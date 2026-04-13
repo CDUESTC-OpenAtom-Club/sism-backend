@@ -2,8 +2,10 @@ package com.sism.iam.application;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.Role;
+import com.sism.util.TokenBlacklistService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,13 +16,11 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class JwtTokenService {
 
-    @Value("${jwt.secret:SismSecretKeyForJWTTokenGeneration2024VeryLongSecretKey}")
+    @Value("${app.jwt.secret:${jwt.secret:}}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}")
@@ -29,7 +29,25 @@ public class JwtTokenService {
     @Value("${jwt.refresh-expiration:604800000}")
     private Long refreshExpiration;
 
-    private final Set<String> blacklistedTokens = ConcurrentHashMap.newKeySet();
+    private final TokenBlacklistService tokenBlacklistService;
+
+    public JwtTokenService(TokenBlacklistService tokenBlacklistService) {
+        this.tokenBlacklistService = tokenBlacklistService;
+    }
+
+    public JwtTokenService() {
+        this.tokenBlacklistService = null;
+    }
+
+    @PostConstruct
+    void validateConfiguration() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT secret must be configured");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT secret must be at least 256 bits (32 bytes)");
+        }
+    }
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -61,7 +79,7 @@ public class JwtTokenService {
 
     public boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token) && !blacklistedTokens.contains(token);
+            return !isTokenExpired(token) && !isBlacklisted(token);
         } catch (Exception e) {
             return false;
         }
@@ -103,16 +121,24 @@ public class JwtTokenService {
             throw new IllegalArgumentException("Invalid refresh token");
         }
 
+        if (!isRefreshToken(refreshToken)) {
+            throw new IllegalArgumentException("Not a refresh token");
+        }
+
         String username = extractUsername(refreshToken);
         Long userId = getUserIdFromToken(refreshToken);
+        Long orgId = getOrgIdFromToken(refreshToken);
+        List<String> roleCodes = getRolesFromToken(refreshToken);
+
+        blacklistToken(refreshToken);
 
         User user = new User();
         user.setId(userId);
         user.setUsername(username);
-        user.setOrgId(getOrgIdFromToken(refreshToken));
+        user.setOrgId(orgId);
 
-        String newAccessToken = generateToken(user);
-        String newRefreshToken = generateRefreshToken(user);
+        String newAccessToken = generateToken(user, roleCodes);
+        String newRefreshToken = generateRefreshToken(user, roleCodes);
 
         Map<String, Object> result = new HashMap<>();
         result.put("accessToken", newAccessToken);
@@ -150,8 +176,18 @@ public class JwtTokenService {
 
     public void blacklistToken(String token) {
         if (token != null && !token.isBlank()) {
-            blacklistedTokens.add(token);
+            if (tokenBlacklistService != null) {
+                tokenBlacklistService.blacklist(token);
+            }
         }
+    }
+
+    private boolean isBlacklisted(String token) {
+        return tokenBlacklistService != null && tokenBlacklistService.isBlacklisted(token);
+    }
+
+    private boolean isRefreshToken(String token) {
+        return "refresh".equalsIgnoreCase(extractClaims(token).get("type", String.class));
     }
 
     private List<String> extractRoleCodes(Collection<Role> roles) {

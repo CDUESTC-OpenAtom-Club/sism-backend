@@ -14,11 +14,17 @@ public interface CycleRepository {
 
     Optional<Cycle> findById(Long id);
 
+    Optional<Cycle> findByIdAndIsDeletedFalse(Long id);
+
     List<Cycle> findAll();
 
     Page<Cycle> findAll(Pageable pageable);
 
     List<Cycle> findByYear(Integer year);
+
+    List<Cycle> findByStatus(String status);
+
+    List<Cycle> findByYearAndStatus(Integer year, String status);
 
     Cycle save(Cycle cycle);
 

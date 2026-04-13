@@ -19,78 +19,67 @@ public class CycleApplicationService {
     private final CycleRepository cycleRepository;
 
     public Page<Cycle> getAllCycles(Pageable pageable) {
-        Page<Cycle> page = cycleRepository.findAll(pageable);
-        page.forEach(this::normalizeCycle);
-        return page;
+        return cycleRepository.findAll(pageable);
     }
 
     public List<Cycle> getAllCyclesList() {
-        return cycleRepository.findAll().stream()
-                .peek(this::normalizeCycle)
-                .toList();
+        return cycleRepository.findAll();
     }
 
     public Cycle getCycleById(Long id) {
-        Cycle cycle = cycleRepository.findById(id).orElse(null);
-        if (cycle != null) {
-            normalizeCycle(cycle);
-        }
+        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         return cycle;
     }
 
     public List<Cycle> getCyclesByStatus(String status) {
-        return cycleRepository.findAll().stream()
-                .peek(this::normalizeCycle)
-                .filter(cycle -> matchesStatus(cycle, status))
-                .toList();
+        if (status == null || status.isBlank()) {
+            return cycleRepository.findAll();
+        }
+        return cycleRepository.findByStatus(status.trim().toUpperCase(Locale.ROOT));
     }
 
     public List<Cycle> getCyclesByYear(Integer year) {
-        return cycleRepository.findByYear(year).stream()
-                .peek(this::normalizeCycle)
-                .toList();
+        return cycleRepository.findByYear(year);
     }
 
     public List<Cycle> getCyclesByStatusAndYear(String status, Integer year) {
-        return cycleRepository.findByYear(year).stream()
-                .peek(this::normalizeCycle)
-                .filter(cycle -> matchesStatus(cycle, status))
-                .toList();
+        if (status == null || status.isBlank()) {
+            return cycleRepository.findByYear(year);
+        }
+        return cycleRepository.findByYearAndStatus(year, status.trim().toUpperCase(Locale.ROOT));
     }
 
     @Transactional
     public Cycle createCycle(String name, Integer year, LocalDate startDate, LocalDate endDate) {
         Cycle cycle = Cycle.create(name, year, startDate, endDate);
-        Cycle savedCycle = cycleRepository.save(cycle);
-        normalizeCycle(savedCycle);
-        return savedCycle;
+        return cycleRepository.save(cycle);
     }
 
     @Transactional
     public Cycle activateCycle(Long id) {
-        Cycle cycle = cycleRepository.findById(id)
+        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         cycle.activate();
         Cycle savedCycle = cycleRepository.save(cycle);
-        normalizeCycle(savedCycle);
         return savedCycle;
     }
 
     @Transactional
     public Cycle deactivateCycle(Long id) {
-        Cycle cycle = cycleRepository.findById(id)
+        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         cycle.deactivate();
         Cycle savedCycle = cycleRepository.save(cycle);
-        normalizeCycle(savedCycle);
         return savedCycle;
     }
 
     @Transactional
     public void deleteCycle(Long id) {
-        Cycle cycle = cycleRepository.findById(id)
+        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
-        cycleRepository.delete(cycle);
+        cycle.delete();
+        cycleRepository.save(cycle);
     }
 
     /**
@@ -99,13 +88,6 @@ public class CycleApplicationService {
      */
     public List<Integer> getAvailableYears() {
         return cycleRepository.findDistinctYears();
-    }
-
-    private void normalizeCycle(Cycle cycle) {
-        cycle.setStatus(cycle.deriveStatus());
-        if (cycle.getIsDeleted() == null) {
-            cycle.setIsDeleted(false);
-        }
     }
 
     private boolean matchesStatus(Cycle cycle, String expectedStatus) {

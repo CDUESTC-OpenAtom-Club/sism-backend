@@ -38,7 +38,7 @@ class TaskResponseTest {
                 IllegalStateException.class,
                 () -> TaskResponse.fromView(new StubTaskFlatView("mystery", "DRAFT"))
         );
-        assertEquals("非法任务类型: mystery", error.getMessage());
+        assertEquals("不支持的任务类型: mystery", error.getMessage());
     }
 
     @Test

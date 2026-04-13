@@ -1,8 +1,10 @@
 package com.sism.analytics.interfaces.rest;
 
 import com.sism.analytics.application.ReportApplicationService;
+import com.sism.analytics.application.AnalyticsFileStorageService;
 import com.sism.analytics.domain.Report;
 import com.sism.analytics.interfaces.dto.CreateReportRequest;
+import com.sism.analytics.interfaces.dto.GenerateReportRequest;
 import com.sism.iam.application.dto.CurrentUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,13 +33,13 @@ class ReportControllerTest {
     @DisplayName("createReport should ignore spoofed generatedBy and use authenticated user")
     void createReportShouldIgnoreSpoofedGeneratedBy() {
         ReportApplicationService service = mock(ReportApplicationService.class);
-        ReportController controller = new ReportController(service);
+        AnalyticsFileStorageService fileStorageService = mock(AnalyticsFileStorageService.class);
+        ReportController controller = new ReportController(service, fileStorageService);
 
         CreateReportRequest request = new CreateReportRequest();
         request.setName("分析报告");
         request.setType(Report.TYPE_STRATEGIC);
         request.setFormat(Report.FORMAT_PDF);
-        request.setGeneratedBy(2L);
         request.setParameters("{\"foo\":1}");
         request.setDescription("年度总结");
 
@@ -54,7 +56,8 @@ class ReportControllerTest {
     @DisplayName("createReport should use authenticated user id")
     void createReportShouldUseAuthenticatedUserId() {
         ReportApplicationService service = mock(ReportApplicationService.class);
-        ReportController controller = new ReportController(service);
+        AnalyticsFileStorageService fileStorageService = mock(AnalyticsFileStorageService.class);
+        ReportController controller = new ReportController(service, fileStorageService);
 
         Report report = Report.create("分析报告", Report.TYPE_STRATEGIC, Report.FORMAT_PDF, 1L, null, null);
         when(service.createReport("分析报告", Report.TYPE_STRATEGIC, Report.FORMAT_PDF, 1L, "{\"foo\":1}", "年度总结"))
@@ -64,7 +67,6 @@ class ReportControllerTest {
         request.setName("分析报告");
         request.setType(Report.TYPE_STRATEGIC);
         request.setFormat(Report.FORMAT_PDF);
-        request.setGeneratedBy(1L);
         request.setParameters("{\"foo\":1}");
         request.setDescription("年度总结");
 
@@ -78,12 +80,35 @@ class ReportControllerTest {
     @DisplayName("user-scoped endpoints should reject other users")
     void userScopedEndpointsShouldRejectOtherUsers() {
         ReportApplicationService service = mock(ReportApplicationService.class);
-        ReportController controller = new ReportController(service);
+        AnalyticsFileStorageService fileStorageService = mock(AnalyticsFileStorageService.class);
+        ReportController controller = new ReportController(service, fileStorageService);
         CurrentUser currentUser = new CurrentUser(1L, "alice", "Alice", null, 10L, List.of());
 
         assertThrows(AccessDeniedException.class, () -> controller.getReportsByGeneratedBy(currentUser, 2L));
         assertThrows(AccessDeniedException.class, () -> controller.countReportsByGeneratedBy(currentUser, 2L));
         verifyNoInteractions(service);
+    }
+
+    @Test
+    @DisplayName("generateReport should use managed server-side file path")
+    void generateReportShouldUseManagedServerSideFilePath() {
+        ReportApplicationService service = mock(ReportApplicationService.class);
+        AnalyticsFileStorageService fileStorageService = mock(AnalyticsFileStorageService.class);
+        ReportController controller = new ReportController(service, fileStorageService);
+        CurrentUser currentUser = new CurrentUser(1L, "alice", "Alice", null, 10L, List.of());
+        Report report = Report.create("分析报告", Report.TYPE_STRATEGIC, Report.FORMAT_PDF, 1L, null, null);
+        report.setId(8L);
+
+        when(service.findReportById(8L, 1L)).thenReturn(java.util.Optional.of(report));
+        when(fileStorageService.prepareManagedReportFile(report))
+                .thenReturn(java.nio.file.Path.of("/tmp/managed-report.pdf"));
+        when(service.generateReport(8L, 1L, "/tmp/managed-report.pdf", 0L)).thenReturn(report);
+
+        GenerateReportRequest request = new GenerateReportRequest();
+        request.setFileSize(0L);
+
+        assertDoesNotThrow(() -> controller.generateReport(currentUser, 8L, request));
+        verify(service).generateReport(8L, 1L, "/tmp/managed-report.pdf", 0L);
     }
 
     @Test
@@ -103,6 +128,30 @@ class ReportControllerTest {
                     "Missing @PreAuthorize on " + method.getName()
             );
         }
+    }
+
+    @Test
+    @DisplayName("DTO should sanitize report file path and sensitive error details")
+    void dtoShouldSanitizeReportSensitiveFields() {
+        ReportApplicationService service = mock(ReportApplicationService.class);
+        AnalyticsFileStorageService fileStorageService = mock(AnalyticsFileStorageService.class);
+        ReportController controller = new ReportController(service, fileStorageService);
+
+        Report generated = Report.create("分析报告", Report.TYPE_STRATEGIC, Report.FORMAT_PDF, 1L, null, null);
+        generated.setId(8L);
+        generated.generate("/srv/reports/secret/analysis.pdf", 1024L);
+        when(service.findReportById(8L, 1L)).thenReturn(java.util.Optional.of(generated));
+
+        var generatedResponse = controller.getReportById(new CurrentUser(1L, "alice", "Alice", null, 10L, List.of()), 8L);
+        assertEquals("analysis.pdf", generatedResponse.getBody().getData().getFilePath());
+
+        Report failed = Report.create("失败报告", Report.TYPE_STRATEGIC, Report.FORMAT_PDF, 1L, null, null);
+        failed.setId(9L);
+        failed.fail("java.lang.RuntimeException: /srv/reports/secret/analysis.pdf");
+        when(service.findReportById(9L, 1L)).thenReturn(java.util.Optional.of(failed));
+
+        var failedResponse = controller.getReportById(new CurrentUser(1L, "alice", "Alice", null, 10L, List.of()), 9L);
+        assertEquals("报告生成失败，请稍后重试或联系管理员", failedResponse.getBody().getData().getErrorMessage());
     }
 
 }

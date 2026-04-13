@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -46,6 +47,12 @@ public class PlanReportResponse {
      * 从实体转换为响应DTO
      */
     public static PlanReportResponse fromEntity(PlanReport report) {
+        List<PlanReportIndicatorDetailResponse> indicatorDetailResponses = report.getIndicatorDetails() == null
+                ? Collections.emptyList()
+                : report.getIndicatorDetails().stream()
+                .filter(java.util.Objects::nonNull)
+                .map(PlanReportIndicatorDetailResponse::fromSnapshot)
+                .toList();
         return PlanReportResponse.builder()
                 .id(report.getId())
                 .reportMonth(report.getReportMonth())
@@ -67,9 +74,7 @@ public class PlanReportResponse {
                 .rejectionReason(report.getRejectionReason())
                 .createdAt(report.getCreatedAt())
                 .updatedAt(report.getUpdatedAt())
-                .indicatorDetails(report.getIndicatorDetails().stream()
-                        .map(PlanReportIndicatorDetailResponse::fromSnapshot)
-                        .toList())
+                .indicatorDetails(indicatorDetailResponses)
                 .build();
     }
 }

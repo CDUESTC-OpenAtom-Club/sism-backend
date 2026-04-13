@@ -2,12 +2,10 @@ package com.sism.main;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.env.YamlPropertySourceLoader;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -22,18 +20,12 @@ class SismMainApplicationTest {
     @Test
     void springBootApplicationShouldScanRequiredPackagesAndKeepJpaScanningCentralized() {
         SpringBootApplication springBootApplication = SismMainApplication.class.getAnnotation(SpringBootApplication.class);
-        EntityScan entityScan = SismMainApplication.class.getAnnotation(EntityScan.class);
-        ComponentScan componentScan = SismMainApplication.class.getAnnotation(ComponentScan.class);
-        EnableJpaRepositories enableJpaRepositories = SismMainApplication.class.getAnnotation(EnableJpaRepositories.class);
+        EnableScheduling enableScheduling = SismMainApplication.class.getAnnotation(EnableScheduling.class);
 
         assertTrue(Arrays.asList(springBootApplication.scanBasePackages()).contains("com.sism.alert"));
         assertTrue(Arrays.asList(springBootApplication.scanBasePackages()).contains("com.sism.main"));
         assertTrue(Arrays.asList(springBootApplication.scanBasePackages()).contains("com.sism.config"));
-        assertNotNull(entityScan);
-        assertNotNull(componentScan);
-        assertTrue(Arrays.asList(componentScan.basePackages()).contains("com.sism.alert"));
-        assertTrue(Arrays.asList(componentScan.basePackages()).contains("com.sism.main"));
-        assertNull(enableJpaRepositories);
+        assertNotNull(enableScheduling);
     }
 
     @Test

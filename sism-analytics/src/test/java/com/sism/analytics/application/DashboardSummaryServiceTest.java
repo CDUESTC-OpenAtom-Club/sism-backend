@@ -1,6 +1,7 @@
 package com.sism.analytics.application;
 
 import com.sism.analytics.domain.repository.DashboardSummaryQueryRepository;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import java.util.List;
@@ -17,7 +18,7 @@ class DashboardSummaryServiceTest {
     @DisplayName("getDashboardSummary should use canonical alert severities")
     void getDashboardSummaryShouldUseCanonicalAlertSeverities() {
         DashboardSummaryQueryRepository queryRepository = mock(DashboardSummaryQueryRepository.class);
-        DashboardSummaryService service = new DashboardSummaryService(queryRepository);
+        DashboardSummaryService service = new DashboardSummaryService(queryRepository, new ConcurrentMapCacheManager("dashboard-summary", "department-progress", "recent-activities"));
 
         when(queryRepository.fetchDashboardSummaryMetrics()).thenReturn(
                 new DashboardSummaryQueryRepository.DashboardSummaryMetrics(
@@ -39,7 +40,7 @@ class DashboardSummaryServiceTest {
     @DisplayName("getDepartmentProgress should map repository rows into DTOs")
     void getDepartmentProgressShouldMapRows() {
         DashboardSummaryQueryRepository queryRepository = mock(DashboardSummaryQueryRepository.class);
-        DashboardSummaryService service = new DashboardSummaryService(queryRepository);
+        DashboardSummaryService service = new DashboardSummaryService(queryRepository, new ConcurrentMapCacheManager("dashboard-summary", "department-progress", "recent-activities"));
 
         when(queryRepository.fetchDepartmentProgressRows()).thenReturn(List.of(
                 new DashboardSummaryQueryRepository.DepartmentProgressRow("部门A", 82.36, 10, 8, 1),
@@ -58,7 +59,7 @@ class DashboardSummaryServiceTest {
     @DisplayName("getRecentActivities should preserve repository ordering and fields")
     void getRecentActivitiesShouldMapRows() {
         DashboardSummaryQueryRepository queryRepository = mock(DashboardSummaryQueryRepository.class);
-        DashboardSummaryService service = new DashboardSummaryService(queryRepository);
+        DashboardSummaryService service = new DashboardSummaryService(queryRepository, new ConcurrentMapCacheManager("dashboard-summary", "department-progress", "recent-activities"));
 
         when(queryRepository.fetchRecentActivityRows(20)).thenReturn(List.of(
                 new DashboardSummaryQueryRepository.RecentActivityRow(1L, "指标A", "COMPLETED", 88.0, "2026-04-07T01:00:00", "职能部门")

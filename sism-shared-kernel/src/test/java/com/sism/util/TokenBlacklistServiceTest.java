@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.ScanOptions;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,6 +25,8 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TokenBlacklistServiceTest {
+
+    private static final Pattern HASH_KEY_PATTERN = Pattern.compile("token:blacklist:[0-9a-f]{64}");
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -48,6 +51,25 @@ class TokenBlacklistServiceTest {
         verify(redisTemplate).delete(List.of("token:blacklist:one", "token:blacklist:two"));
         verify(redisTemplate, never()).keys(anyString());
         verifyNoMoreInteractions(redisTemplate);
+    }
+
+    @Test
+    void shouldUseHashedRedisKeyAndFallbackToMemoryWhenRedisFails() {
+        @SuppressWarnings("unchecked")
+        org.springframework.data.redis.core.ValueOperations<String, Object> valueOperations =
+                org.mockito.Mockito.mock(org.springframework.data.redis.core.ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redisTemplate.hasKey(anyString())).thenThrow(new RuntimeException("redis down"));
+        org.mockito.Mockito.doThrow(new RuntimeException("redis down"))
+                .when(valueOperations).set(anyString(), any(), any(Duration.class));
+
+        TokenBlacklistService service = new TokenBlacklistService(3600, redisTemplate);
+        service.blacklist("token-1", Duration.ofSeconds(10));
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(valueOperations).set(keyCaptor.capture(), any(), any(Duration.class));
+        assertTrue(HASH_KEY_PATTERN.matcher(keyCaptor.getValue()).matches());
+        assertTrue(service.isBlacklisted("token-1"));
     }
 
     @Test

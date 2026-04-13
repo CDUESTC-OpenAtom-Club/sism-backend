@@ -80,7 +80,7 @@ public class TaskResponse {
         return switch (normalized) {
             case "BASIC", "基础", "基础性" -> TaskType.BASIC;
             case "DEVELOPMENT", "发展", "发展性" -> TaskType.DEVELOPMENT;
-            default -> throw new IllegalStateException("非法任务类型: " + rawTaskType);
+            default -> throw new IllegalStateException("不支持的任务类型: " + rawTaskType);
         };
     }
 

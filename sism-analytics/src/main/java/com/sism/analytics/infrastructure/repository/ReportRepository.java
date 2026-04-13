@@ -128,7 +128,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     /**
      * 根据名称模糊查找所有未删除的报告
      */
-    @Query("SELECT r FROM Report r WHERE r.name LIKE %:name% AND r.deleted = false ORDER BY r.createdAt DESC")
+    @Query("SELECT r FROM Report r WHERE r.name LIKE CONCAT('%', :name, '%') ESCAPE '\\' AND r.deleted = false ORDER BY r.createdAt DESC")
     Page<Report> findByNameContainingAndNotDeleted(@Param("name") String name, Pageable pageable);
 
     default List<Report> findByNameContainingAndNotDeleted(String name) {
@@ -140,7 +140,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     /**
      * 根据生成者ID和名称模糊查找所有未删除的报告
      */
-    @Query("SELECT r FROM Report r WHERE r.generatedBy = :generatedBy AND r.name LIKE %:name% AND r.deleted = false ORDER BY r.createdAt DESC")
+    @Query("SELECT r FROM Report r WHERE r.generatedBy = :generatedBy AND r.name LIKE CONCAT('%', :name, '%') ESCAPE '\\' AND r.deleted = false ORDER BY r.createdAt DESC")
     Page<Report> findByGeneratedByAndNameContainingAndNotDeleted(
             @Param("generatedBy") Long generatedBy,
             @Param("name") String name,

@@ -31,6 +31,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -47,6 +49,7 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping("/api/v1/indicators")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "指标管理", description = "指标管理相关接口")
 public class IndicatorController {
 
@@ -61,6 +64,7 @@ public class IndicatorController {
     private final OrganizationRepository organizationRepository;
     private final JpaTaskRepositoryInternal jpaTaskRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final UserNotificationService userNotificationService;
 
     @GetMapping
@@ -106,8 +110,10 @@ public class IndicatorController {
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> getIndicatorById(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(indicator)));
@@ -124,8 +130,10 @@ public class IndicatorController {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
 
-        Indicator indicator = strategyApplicationService.getIndicatorByIdAndOwnerOrgId(id, currentUser.getOrgId());
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorByIdAndOwnerOrgId(id, currentUser.getOrgId());
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权催办该指标"));
         }
         if (indicator.getOwnerOrg() == null || indicator.getTargetOrg() == null) {
@@ -285,8 +293,10 @@ public class IndicatorController {
     @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "提交指标审核")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReview(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         Indicator submitted = strategyApplicationService.submitIndicatorForReview(indicator);
@@ -304,8 +314,10 @@ public class IndicatorController {
     @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
     @Operation(summary = "审核通过指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicator(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         Indicator approved = strategyApplicationService.approveIndicator(indicator);
@@ -325,8 +337,10 @@ public class IndicatorController {
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicator(
             @PathVariable Long id,
             @RequestBody RejectRequest request) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         // The current service doesn't accept a reason, we'll use a simple version
@@ -520,8 +534,10 @@ public class IndicatorController {
     @GetMapping("/{id}/distribution-eligibility")
     @Operation(summary = "检查指标分发 eligibility")
     public ResponseEntity<ApiResponse<DistributionEligibilityResponse>> getDistributionEligibility(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
 
@@ -577,12 +593,9 @@ public class IndicatorController {
     // ==================== Helper Methods ====================
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator) {
-        return toIndicatorResponse(
-                indicator,
-                buildTaskMetaMap(List.of(indicator)),
-                buildMilestoneMap(List.of(indicator)),
-                buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
-        );
+        return toIndicatorResponses(List.of(indicator)).stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found"));
     }
 
     private List<IndicatorResponse> toIndicatorResponses(List<Indicator> indicators) {
@@ -672,8 +685,7 @@ public class IndicatorController {
             return Map.of();
         }
 
-        String placeholders = taskIds.stream().map(id -> "?").collect(Collectors.joining(","));
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(
                 """
                 SELECT t.task_id AS task_id,
                        t.name AS task_name,
@@ -683,9 +695,9 @@ public class IndicatorController {
                 FROM public.sys_task t
                 LEFT JOIN public.plan p ON p.id = t.plan_id
                 LEFT JOIN public.cycle c ON c.id = p.cycle_id
-                WHERE t.task_id IN (%s)
-                """.formatted(placeholders),
-                taskIds.toArray()
+                WHERE t.task_id IN (:taskIds)
+                """,
+                new MapSqlParameterSource("taskIds", taskIds)
         );
 
         Map<Long, TaskMetaSnapshot> taskMetaMap = new LinkedHashMap<>();
@@ -779,12 +791,9 @@ public class IndicatorController {
             return Map.of();
         }
 
-        String placeholders = indicatorIds.stream()
-                .map(id -> "?")
-                .collect(Collectors.joining(","));
         String currentMonth = currentReportMonth();
 
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(
                 """
                 SELECT latest.indicator_id AS indicator_id,
                        latest.report_progress AS report_progress,
@@ -800,12 +809,14 @@ public class IndicatorController {
                     FROM public.plan_report_indicator pri
                     INNER JOIN public.plan_report pr ON pri.report_id = pr.id
                     WHERE pr.is_deleted = false
-                      AND pr.report_month = ?
-                      AND pri.indicator_id IN (%s)
+                      AND pr.report_month = :reportMonth
+                      AND pri.indicator_id IN (:indicatorIds)
                 ) latest
                 WHERE latest.row_no = 1
-                """.formatted(placeholders),
-                Stream.concat(Stream.of(currentMonth), indicatorIds.stream()).toArray()
+                """,
+                new MapSqlParameterSource()
+                        .addValue("reportMonth", currentMonth)
+                        .addValue("indicatorIds", indicatorIds)
         );
 
         Map<Long, CurrentMonthIndicatorRoundState> roundStateByIndicatorId = new HashMap<>();

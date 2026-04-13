@@ -35,7 +35,12 @@ public final class EnvConfig {
         if (value == null) {
             return defaultValue;
         }
-        return !value.equalsIgnoreCase("false");
+        String normalized = value.trim().toLowerCase();
+        return switch (normalized) {
+            case "true", "1", "yes", "y", "on" -> true;
+            case "false", "0", "no", "n", "off" -> false;
+            default -> defaultValue;
+        };
     }
 
     private static String lookup(String key) {

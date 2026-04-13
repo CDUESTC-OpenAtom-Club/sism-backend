@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
@@ -17,6 +18,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -84,6 +86,21 @@ class MilestoneApplicationServiceTest {
         milestoneApplicationService.findMilestonesByStatus(MilestoneStatus.DELAYED, 2, 20);
 
         verify(milestoneRepository).findByStatus(MilestoneStatus.DELAYED, pageable);
+    }
+
+    @Test
+    void findAllMilestonesPage_shouldCapPageSize() {
+        var pageable = PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createdAt"));
+        when(milestoneRepository.findAll(pageable)).thenReturn(Page.empty(pageable));
+
+        milestoneApplicationService.findAllMilestones(1, 999);
+
+        verify(milestoneRepository).findAll(pageable);
+    }
+
+    @Test
+    void milestoneStatusFrom_shouldReturnNullForNullInput() {
+        assertNull(MilestoneStatus.from(null));
     }
 
     @Test

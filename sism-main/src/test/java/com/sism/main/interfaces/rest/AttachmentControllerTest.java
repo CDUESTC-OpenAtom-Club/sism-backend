@@ -12,7 +12,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -44,9 +47,10 @@ class AttachmentControllerTest {
     @DisplayName("Should reject upload when uploadedBy does not match current user")
     void shouldRejectUploadWhenUploadedByDoesNotMatchCurrentUser() throws Exception {
         CurrentUser currentUser = regularUser(12L);
+        Authentication authentication = authentication(currentUser);
         MultipartFile file = new MockMultipartFile("file", "report.pdf", "application/pdf", "demo".getBytes(StandardCharsets.UTF_8));
 
-        var response = attachmentController.upload(file, 99L, currentUser);
+        ResponseEntity<ApiResponse<AttachmentResponse>> response = attachmentController.upload(file, 99L, authentication);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         verify(attachmentApplicationService, never()).upload(any(MultipartFile.class), anyLong());
@@ -56,6 +60,7 @@ class AttachmentControllerTest {
     @DisplayName("Should allow owner to download attachment")
     void shouldAllowOwnerToDownloadAttachment() throws Exception {
         CurrentUser currentUser = regularUser(12L);
+        Authentication authentication = authentication(currentUser);
         AttachmentResponse metadata = AttachmentResponse.builder()
                 .id(7L)
                 .fileName("report.pdf")
@@ -69,7 +74,7 @@ class AttachmentControllerTest {
         when(attachmentApplicationService.getMetadata(7L)).thenReturn(metadata);
         when(attachmentApplicationService.loadAsResource(7L)).thenReturn(new ByteArrayResource("content".getBytes(StandardCharsets.UTF_8)));
 
-        var response = attachmentController.download(7L, currentUser);
+        ResponseEntity<?> response = attachmentController.download(7L, authentication);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -82,6 +87,7 @@ class AttachmentControllerTest {
     @DisplayName("Should reject metadata access when current user is not owner or admin")
     void shouldRejectMetadataAccessWhenNotOwnerOrAdmin() throws Exception {
         CurrentUser currentUser = regularUser(12L);
+        Authentication authentication = authentication(currentUser);
         AttachmentResponse metadata = AttachmentResponse.builder()
                 .id(7L)
                 .fileName("report.pdf")
@@ -94,7 +100,7 @@ class AttachmentControllerTest {
 
         when(attachmentApplicationService.getMetadata(7L)).thenReturn(metadata);
 
-        var response = attachmentController.metadata(7L, currentUser);
+        ResponseEntity<ApiResponse<AttachmentResponse>> response = attachmentController.metadata(7L, authentication);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
         verify(attachmentApplicationService).getMetadata(7L);
@@ -105,6 +111,7 @@ class AttachmentControllerTest {
     @DisplayName("Should allow admin to upload on behalf of another user")
     void shouldAllowAdminToUploadOnBehalfOfAnotherUser() throws Exception {
         CurrentUser admin = adminUser(1L);
+        Authentication authentication = authentication(admin);
         MultipartFile file = new MockMultipartFile("file", "report.pdf", "application/pdf", "demo".getBytes(StandardCharsets.UTF_8));
         AttachmentResponse attachmentResponse = AttachmentResponse.builder()
                 .id(7L)
@@ -117,11 +124,23 @@ class AttachmentControllerTest {
                 .build();
         when(attachmentApplicationService.upload(file, 99L)).thenReturn(attachmentResponse);
 
-        var response = attachmentController.upload(file, 99L, admin);
+        ResponseEntity<ApiResponse<AttachmentResponse>> response = attachmentController.upload(file, 99L, authentication);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody() instanceof ApiResponse<?>);
         verify(attachmentApplicationService).upload(file, 99L);
+    }
+
+    @Test
+    @DisplayName("Should reject unsupported principal implementations")
+    void shouldRejectUnsupportedPrincipalImplementations() throws Exception {
+        Authentication authentication = new TestingAuthenticationToken("plain-user", null);
+        MultipartFile file = new MockMultipartFile("file", "report.pdf", "application/pdf", "demo".getBytes(StandardCharsets.UTF_8));
+
+        ResponseEntity<ApiResponse<AttachmentResponse>> response = attachmentController.upload(file, 12L, authentication);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        verify(attachmentApplicationService, never()).upload(any(MultipartFile.class), anyLong());
     }
 
     private CurrentUser regularUser(Long id) {
@@ -144,5 +163,9 @@ class AttachmentControllerTest {
                 100L,
                 List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
         );
+    }
+
+    private Authentication authentication(CurrentUser currentUser) {
+        return new TestingAuthenticationToken(currentUser, null, currentUser.getAuthorities());
     }
 }

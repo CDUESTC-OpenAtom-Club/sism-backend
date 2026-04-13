@@ -22,18 +22,33 @@ public class JpaCycleRepository implements CycleRepository {
     }
 
     @Override
+    public Optional<Cycle> findByIdAndIsDeletedFalse(Long id) {
+        return jpaRepository.findByIdAndIsDeletedFalse(id);
+    }
+
+    @Override
     public List<Cycle> findAll() {
-        return jpaRepository.findAll();
+        return jpaRepository.findAllActive();
     }
 
     @Override
     public Page<Cycle> findAll(Pageable pageable) {
-        return jpaRepository.findAll(pageable);
+        return jpaRepository.findAllActive(pageable);
     }
 
     @Override
     public List<Cycle> findByYear(Integer year) {
         return jpaRepository.findByYear(year);
+    }
+
+    @Override
+    public List<Cycle> findByStatus(String status) {
+        return jpaRepository.findByStatus(status);
+    }
+
+    @Override
+    public List<Cycle> findByYearAndStatus(Integer year, String status) {
+        return jpaRepository.findByYearAndStatus(year, status);
     }
 
     @Override

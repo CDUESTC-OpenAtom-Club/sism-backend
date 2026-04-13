@@ -1,9 +1,8 @@
 package com.sism.config;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sism.iam.application.UserDetailsServiceImpl;
 import com.sism.iam.application.JwtTokenService;
+import lombok.extern.slf4j.Slf4j;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -26,10 +26,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Base64;
-import java.util.List;
 import java.util.Collections;
-import java.util.Map;
 
 /**
  * Security Configuration
@@ -40,9 +37,9 @@ import java.util.Map;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
+@Slf4j
 public class SecurityConfig {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
      * Password encoder bean for hashing passwords
@@ -70,10 +67,7 @@ public class SecurityConfig {
                     try {
                         if (jwtTokenService.validateToken(token)) {
                             String username = jwtTokenService.extractUsername(token);
-                            UserDetails userDetails = buildUserDetailsFromToken(jwtTokenService, token, username);
-                            if (userDetails == null) {
-                                userDetails = userDetailsService.loadUserByUsername(username);
-                            }
+                            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                             UsernamePasswordAuthenticationToken auth =
                                     new UsernamePasswordAuthenticationToken(
                                             userDetails,
@@ -84,79 +78,13 @@ public class SecurityConfig {
                                     );
                             SecurityContextHolder.getContext().setAuthentication(auth);
                         }
-                    } catch (Exception ignored) {
-                        // Token validation failed, continue without authentication
+                    } catch (Exception e) {
+                        log.warn("JWT validation failed: {}", e.getMessage());
                     }
                 }
                 filterChain.doFilter(request, response);
             }
 
-            private UserDetails buildUserDetailsFromToken(JwtTokenService jwtTokenService,
-                                                          String token,
-                                                          String username) {
-                Long userId = jwtTokenService.getUserIdFromToken(token);
-                Map<String, Object> claims = decodeTokenPayload(token);
-                Long orgId = parseLongClaim(claims.get("orgId"));
-                List<String> roles = parseRoleClaims(claims.get("roles"));
-
-                if (userId == null || username == null || username.isBlank()) {
-                    return null;
-                }
-
-                List<SimpleGrantedAuthority> authorities = roles.isEmpty()
-                        ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                        : roles.stream()
-                                .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
-                                .map(SimpleGrantedAuthority::new)
-                                .toList();
-
-                return new com.sism.iam.application.dto.CurrentUser(
-                        userId,
-                        username,
-                        username,
-                        null,
-                        orgId,
-                        authorities
-                );
-            }
-
-            private Map<String, Object> decodeTokenPayload(String token) {
-                try {
-                    String[] parts = token.split("\\.");
-                    if (parts.length < 2) {
-                        return Map.of();
-                    }
-
-                    byte[] payloadBytes = Base64.getUrlDecoder().decode(parts[1]);
-                    return OBJECT_MAPPER.readValue(payloadBytes, new TypeReference<>() {});
-                } catch (Exception ignored) {
-                    return Map.of();
-                }
-            }
-
-            private Long parseLongClaim(Object value) {
-                if (value instanceof Number number) {
-                    return number.longValue();
-                }
-                if (value instanceof String text && !text.isBlank()) {
-                    try {
-                        return Long.parseLong(text);
-                    } catch (NumberFormatException ignored) {
-                        return null;
-                    }
-                }
-                return null;
-            }
-
-            private List<String> parseRoleClaims(Object value) {
-                if (value instanceof List<?> roles) {
-                    return roles.stream()
-                            .map(String::valueOf)
-                            .filter(role -> !role.isBlank())
-                            .toList();
-                }
-                return List.of();
-            }
         };
     }
 
@@ -189,7 +117,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**", "/api/v1/actuator/**",
                                  "/health", "/error").permitAll()
                 // Public endpoints - WebSocket
-                .requestMatchers("/ws/**", "/api/v1/ws/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()
                 // Allow OPTIONS for CORS preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // All other requests require authentication

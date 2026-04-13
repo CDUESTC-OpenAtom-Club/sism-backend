@@ -74,7 +74,7 @@ class DashboardSummaryCachingTest {
 
         @Bean
         DashboardSummaryService dashboardSummaryService(DashboardSummaryQueryRepository dashboardSummaryQueryRepository) {
-            return new DashboardSummaryService(dashboardSummaryQueryRepository);
+            return new DashboardSummaryService(dashboardSummaryQueryRepository, cacheManager());
         }
     }
 }

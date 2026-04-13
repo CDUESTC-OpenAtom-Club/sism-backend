@@ -211,11 +211,13 @@ public class StrategyApplicationService {
     }
 
     public Indicator getIndicatorById(Long id) {
-        return indicatorRepository.findById(id).orElse(null);
+        return indicatorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
     }
 
     public Indicator getIndicatorByIdAndOwnerOrgId(Long id, Long ownerOrgId) {
-        return indicatorRepository.findByIdAndOwnerOrgId(id, ownerOrgId).orElse(null);
+        return indicatorRepository.findByIdAndOwnerOrgId(id, ownerOrgId)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found for owner org: " + id));
     }
 
     public List<Indicator> getAllIndicators() {

@@ -2,13 +2,14 @@ package com.sism.organization.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.enums.OrgType;
 import com.sism.organization.application.OrganizationApplicationService;
+import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.interfaces.dto.OrgRequest;
 import com.sism.organization.interfaces.dto.OrgResponse;
 import com.sism.organization.interfaces.dto.OrgMapper;
 import com.sism.organization.interfaces.dto.OrgUserResponse;
+import com.sism.organization.interfaces.dto.RenameOrgRequest;
 import com.sism.shared.domain.exception.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -39,12 +40,9 @@ public class OrganizationController {
     @Operation(summary = "创建新组织")
     public ResponseEntity<ApiResponse<OrgResponse>> createOrganization(
             @Valid @RequestBody OrgRequest request) {
-        // Convert from shared OrgType to domain OrgType
-        com.sism.organization.domain.OrgType domainType =
-            com.sism.organization.domain.OrgType.fromSharedOrgType(request.getType());
         SysOrg created = organizationApplicationService.createOrganization(
                 request.getName(),
-                domainType,
+                request.getType(),
                 request.getParentOrgId(),
                 request.getSortOrder()
         );
@@ -105,9 +103,9 @@ public class OrganizationController {
 
     @GetMapping("/tree")
     @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
-    @Operation(summary = "获取组织树", description = "includeUsers 为兼容保留参数，已停用，当前响应结构不会返回用户详情")
+    @Operation(summary = "获取组织树", description = "includeUsers 参数已不支持，传入 true 将返回 400")
     public ResponseEntity<ApiResponse<List<OrgResponse>>> getOrganizationTree(
-            @Parameter(description = "兼容保留参数，已停用；传入 true 也不会返回用户详情") @RequestParam(defaultValue = "false") boolean includeUsers,
+            @Parameter(description = "兼容保留参数，已不支持；传入 true 将返回 400") @RequestParam(defaultValue = "false") boolean includeUsers,
             @Parameter(description = "是否包含已禁用的组织") @RequestParam(defaultValue = "false") boolean includeDisabled) {
         List<SysOrg> tree = organizationApplicationService.getOrganizationTree(includeUsers, includeDisabled);
         List<OrgResponse> responses = orgMapper.toResponseList(tree);
@@ -151,9 +149,9 @@ public class OrganizationController {
     @Operation(summary = "重命名组织")
     public ResponseEntity<ApiResponse<OrgResponse>> renameOrganization(
             @Parameter(description = "组织ID") @PathVariable Long id,
-            @Parameter(description = "新组织名称") @RequestParam String newName) {
+            @Valid @RequestBody RenameOrgRequest request) {
         SysOrg org = requireOrganization(id);
-        SysOrg renamed = organizationApplicationService.renameOrganization(org, newName);
+        SysOrg renamed = organizationApplicationService.renameOrganization(org, request.getName());
         OrgResponse response = orgMapper.toResponse(renamed);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -165,10 +163,7 @@ public class OrganizationController {
             @Parameter(description = "组织ID") @PathVariable Long id,
             @Parameter(description = "新组织类型") @RequestParam OrgType newType) {
         SysOrg org = requireOrganization(id);
-        // Convert from shared OrgType to domain OrgType
-        com.sism.organization.domain.OrgType domainType =
-            com.sism.organization.domain.OrgType.fromSharedOrgType(newType);
-        SysOrg updated = organizationApplicationService.changeOrganizationType(org, domainType);
+        SysOrg updated = organizationApplicationService.changeOrganizationType(org, newType);
         OrgResponse response = orgMapper.toResponse(updated);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -198,11 +193,8 @@ public class OrganizationController {
     }
 
     private SysOrg requireOrganization(Long id) {
-        SysOrg org = organizationApplicationService.getOrganizationById(id);
-        if (org == null) {
-            throw new ResourceNotFoundException("Organization", id);
-        }
-        return org;
+        return organizationApplicationService.getOrganizationById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Organization", id));
     }
 
     private PageResult<OrgResponse> toOrgPageResult(PageResult<SysOrg> pageResult) {
@@ -210,7 +202,10 @@ public class OrganizationController {
                 orgMapper.toResponseList(pageResult.getItems()),
                 pageResult.getTotal(),
                 pageResult.getPage(),
-                pageResult.getPageSize()
+                pageResult.getPageSize(),
+                pageResult.getTotalPages(),
+                pageResult.isFirst(),
+                pageResult.isLast()
         );
     }
 }

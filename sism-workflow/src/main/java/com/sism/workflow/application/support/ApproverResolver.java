@@ -2,12 +2,11 @@ package com.sism.workflow.application.support;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.execution.application.ReportApplicationService;
 import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.interfaces.dto.ApproverCandidateResponse;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -24,28 +23,19 @@ public class ApproverResolver {
 
     private final UserRepository userRepository;
     private final PlanRepository planRepository;
-    private final JdbcTemplate jdbcTemplate;
+    private final ReportApplicationService reportApplicationService;
     private final WorkflowApproverProperties workflowApproverProperties;
 
-    @Autowired
     public ApproverResolver(
             UserRepository userRepository,
             PlanRepository planRepository,
-            JdbcTemplate jdbcTemplate,
+            ReportApplicationService reportApplicationService,
             WorkflowApproverProperties workflowApproverProperties
     ) {
         this.userRepository = userRepository;
         this.planRepository = planRepository;
-        this.jdbcTemplate = jdbcTemplate;
+        this.reportApplicationService = reportApplicationService;
         this.workflowApproverProperties = workflowApproverProperties;
-    }
-
-    public ApproverResolver(
-            UserRepository userRepository,
-            PlanRepository planRepository,
-            JdbcTemplate jdbcTemplate
-    ) {
-        this(userRepository, planRepository, jdbcTemplate, defaultWorkflowApproverProperties());
     }
 
     public Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId) {
@@ -207,15 +197,9 @@ public class ApproverResolver {
         }
 
         if (PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            Long planId = jdbcTemplate.query(
-                    """
-                    SELECT plan_id
-                    FROM public.plan_report
-                    WHERE id = ?
-                    """,
-                    rs -> rs.next() ? rs.getLong("plan_id") : null,
-                    instance.getEntityId()
-            );
+            Long planId = reportApplicationService.findReportById(instance.getEntityId())
+                    .map(report -> report.getPlanId())
+                    .orElse(null);
             if (planId == null || planId <= 0) {
                 return requesterOrgId;
             }
@@ -296,36 +280,5 @@ public class ApproverResolver {
 
     private Long requireConfigured(Long value, String propertyName) {
         return Objects.requireNonNull(value, propertyName + " is not configured");
-    }
-
-    private static WorkflowApproverProperties defaultWorkflowApproverProperties() {
-        WorkflowApproverProperties properties = new WorkflowApproverProperties();
-        properties.setApproverRoleId(2L);
-        properties.setStrategyDeptHeadRoleId(3L);
-        properties.setVicePresidentRoleId(4L);
-        properties.setStrategyOrgId(35L);
-        properties.setFunctionalVicePresidentScopeByOrg(Map.ofEntries(
-                Map.entry(35L, 35L),
-                Map.entry(36L, 36L),
-                Map.entry(37L, 37L),
-                Map.entry(38L, 38L),
-                Map.entry(39L, 39L),
-                Map.entry(40L, 40L),
-                Map.entry(41L, 41L),
-                Map.entry(42L, 42L),
-                Map.entry(43L, 43L),
-                Map.entry(44L, 44L),
-                Map.entry(45L, 45L),
-                Map.entry(46L, 46L),
-                Map.entry(47L, 47L),
-                Map.entry(48L, 48L),
-                Map.entry(49L, 49L),
-                Map.entry(50L, 50L),
-                Map.entry(51L, 51L),
-                Map.entry(52L, 52L),
-                Map.entry(53L, 53L),
-                Map.entry(54L, 54L)
-        ));
-        return properties;
     }
 }

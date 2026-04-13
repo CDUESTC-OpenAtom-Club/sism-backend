@@ -10,6 +10,7 @@ import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.application.support.FlowResolver;
 import com.sism.workflow.application.support.StepInstanceFactory;
 import com.sism.workflow.application.support.SubmissionStepAutoCompletePolicy;
+import com.sism.workflow.application.support.WorkflowApproverProperties;
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
@@ -24,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -75,13 +77,24 @@ class StartWorkflowUseCaseTest {
         flowDef.setFlowName("Plan下发审批（战略发展部）");
         flowDef.setSteps(List.of(submitStep, approvalStep));
 
+        User approver = new User();
+        approver.setId(301L);
+        approver.setOrgId(35L);
+        approver.setIsActive(true);
+
         when(flowDefinitionRepository.findById(1L)).thenReturn(Optional.of(flowDef));
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(flowDefinitionRepository.findByCode(any())).thenReturn(Optional.empty());
         lenient().when(flowDefinitionRepository.findByEntityType(any())).thenReturn(List.of());
+        when(userRepository.findByRoleId(3L)).thenReturn(List.of(approver));
 
         FlowResolver flowResolver = new FlowResolver(flowDefinitionRepository);
-        ApproverResolver approverResolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver approverResolver = new ApproverResolver(
+                userRepository,
+                planRepository,
+                jdbcTemplate,
+                workflowApproverProperties()
+        );
         SubmissionStepAutoCompletePolicy autoCompletePolicy = new SubmissionStepAutoCompletePolicy();
         StepInstanceFactory stepInstanceFactory = new StepInstanceFactory(approverResolver, autoCompletePolicy);
         WorkflowEventDispatcher workflowEventDispatcher = new WorkflowEventDispatcher(eventPublisher, eventStore);
@@ -110,8 +123,17 @@ class StartWorkflowUseCaseTest {
 
         var secondStep = result.getStepInstances().get(1);
         assertEquals(AuditInstance.STEP_STATUS_PENDING, secondStep.getStatus());
-        assertEquals(null, secondStep.getApproverId());
+        assertEquals(301L, secondStep.getApproverId());
         assertEquals(35L, secondStep.getApproverOrgId());
         assertEquals(2, result.resolveCurrentPendingStep().orElseThrow().getStepNo());
+    }
+    private WorkflowApproverProperties workflowApproverProperties() {
+        WorkflowApproverProperties properties = new WorkflowApproverProperties();
+        properties.setApproverRoleId(2L);
+        properties.setStrategyDeptHeadRoleId(3L);
+        properties.setVicePresidentRoleId(4L);
+        properties.setStrategyOrgId(35L);
+        properties.setFunctionalVicePresidentScopeByOrg(java.util.Map.of());
+        return properties;
     }
 }

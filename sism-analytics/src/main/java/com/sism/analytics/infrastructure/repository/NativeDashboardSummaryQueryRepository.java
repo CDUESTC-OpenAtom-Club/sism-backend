@@ -10,6 +10,9 @@ import java.util.List;
 
 @Repository
 public class NativeDashboardSummaryQueryRepository implements DashboardSummaryQueryRepository {
+    private static final int DASHBOARD_SUMMARY_COLUMN_COUNT = 8;
+    private static final int DEPARTMENT_PROGRESS_COLUMN_COUNT = 5;
+    private static final int RECENT_ACTIVITY_COLUMN_COUNT = 6;
 
     private static final String INDICATOR_VIEW = "analytics_indicator_dashboard_view";
     private static final String ALERT_VIEW = "analytics_unresolved_alert_dashboard_view";
@@ -128,6 +131,7 @@ public class NativeDashboardSummaryQueryRepository implements DashboardSummaryQu
                 .setParameter("warningSeverity", "WARNING")
                 .setParameter("infoSeverity", "INFO")
                 .getSingleResult();
+        requireColumnCount(row, DASHBOARD_SUMMARY_COLUMN_COUNT, "dashboard summary");
         return new DashboardSummaryMetrics(
                 toLong(row[0]),
                 toLong(row[1]),
@@ -148,6 +152,7 @@ public class NativeDashboardSummaryQueryRepository implements DashboardSummaryQu
                 .getResultList();
         List<DepartmentProgressRow> result = new ArrayList<>(rows.size());
         for (Object[] row : rows) {
+            requireColumnCount(row, DEPARTMENT_PROGRESS_COLUMN_COUNT, "department progress");
             result.add(new DepartmentProgressRow(
                     (String) row[0],
                     toDouble(row[1]),
@@ -168,6 +173,7 @@ public class NativeDashboardSummaryQueryRepository implements DashboardSummaryQu
                 .getResultList();
         List<RecentActivityRow> result = new ArrayList<>(rows.size());
         for (Object[] row : rows) {
+            requireColumnCount(row, RECENT_ACTIVITY_COLUMN_COUNT, "recent activities");
             result.add(new RecentActivityRow(
                     toLong(row[0]),
                     row[1] == null ? null : row[1].toString(),
@@ -198,5 +204,12 @@ public class NativeDashboardSummaryQueryRepository implements DashboardSummaryQu
             return number.doubleValue();
         }
         return Double.parseDouble(value.toString());
+    }
+
+    private static void requireColumnCount(Object[] row, int expected, String queryName) {
+        if (row == null || row.length != expected) {
+            throw new IllegalStateException("Unexpected column count for " + queryName + ": expected "
+                    + expected + " but was " + (row == null ? 0 : row.length));
+        }
     }
 }

@@ -4,9 +4,12 @@ import com.sism.alert.domain.Alert;
 import com.sism.alert.domain.enums.AlertSeverity;
 import com.sism.alert.domain.enums.AlertStatus;
 import com.sism.alert.domain.repository.AlertRepository;
+import com.sism.alert.interfaces.dto.AlertStatsDTO;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +37,7 @@ public class AlertApplicationService {
                             String severity, BigDecimal actualPercent,
                             BigDecimal expectedPercent, BigDecimal gapPercent,
                             String detailJson) {
-        String normalizedSeverity = AlertSeverity.normalize(severity);
+        AlertSeverity normalizedSeverity = AlertSeverity.normalize(severity);
         if (normalizedSeverity == null) {
             throw new IllegalArgumentException("Severity must be INFO, WARNING, or CRITICAL");
         }
@@ -84,7 +87,7 @@ public class AlertApplicationService {
     }
 
     public List<Alert> getAlertsBySeverity(String severity) {
-        String normalizedSeverity = AlertSeverity.normalize(severity);
+        AlertSeverity normalizedSeverity = AlertSeverity.normalize(severity);
         if (normalizedSeverity == null) {
             return List.of();
         }
@@ -96,10 +99,35 @@ public class AlertApplicationService {
     }
 
     public List<Alert> getUnresolvedAlerts() {
-        List<Alert> unresolvedAlerts = new java.util.ArrayList<>();
-        unresolvedAlerts.addAll(alertRepository.findByStatus(AlertStatus.OPEN));
-        unresolvedAlerts.addAll(alertRepository.findByStatus(AlertStatus.IN_PROGRESS));
-        return unresolvedAlerts;
+        return alertRepository.findByStatusIn(List.of(AlertStatus.OPEN, AlertStatus.IN_PROGRESS));
+    }
+
+    public Page<Alert> getAllAlerts(Pageable pageable) {
+        return alertRepository.findAll(pageable);
+    }
+
+    public Page<Alert> getAlertsByStatus(String status, Pageable pageable) {
+        AlertStatus normalizedStatus = Alert.normalizeStatus(status);
+        if (normalizedStatus == null) {
+            return Page.empty(pageable);
+        }
+        return alertRepository.findByStatus(normalizedStatus, pageable);
+    }
+
+    public Page<Alert> getAlertsBySeverity(String severity, Pageable pageable) {
+        AlertSeverity normalizedSeverity = AlertSeverity.normalize(severity);
+        if (normalizedSeverity == null) {
+            return Page.empty(pageable);
+        }
+        return alertRepository.findBySeverity(normalizedSeverity, pageable);
+    }
+
+    public Page<Alert> getAlertsByIndicatorId(Long indicatorId, Pageable pageable) {
+        return alertRepository.findByIndicatorId(indicatorId, pageable);
+    }
+
+    public Page<Alert> getUnresolvedAlerts(Pageable pageable) {
+        return alertRepository.findByStatusIn(List.of(AlertStatus.OPEN, AlertStatus.IN_PROGRESS), pageable);
     }
 
     // ==================== Update ====================
@@ -136,7 +164,7 @@ public class AlertApplicationService {
     }
 
     public long countBySeverity(String severity) {
-        String normalizedSeverity = AlertSeverity.normalize(severity);
+        AlertSeverity normalizedSeverity = AlertSeverity.normalize(severity);
         if (normalizedSeverity == null) {
             return 0L;
         }
@@ -146,28 +174,23 @@ public class AlertApplicationService {
     /**
      * Get alert statistics: totalOpen + countBySeverity breakdown
      */
-    public Map<String, Object> getAlertStats() {
-        long totalOpen = alertRepository.countByStatus(AlertStatus.IN_PROGRESS)
-                + alertRepository.countByStatus(AlertStatus.OPEN);
-
-        Map<String, Long> countBySeverity = new LinkedHashMap<>();
-        countBySeverity.put("CRITICAL", countBySeverityAndOpenStatus("CRITICAL"));
-        countBySeverity.put("WARNING", countBySeverityAndOpenStatus("WARNING"));
-        countBySeverity.put("INFO", countBySeverityAndOpenStatus("INFO"));
-
-        Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("totalOpen", totalOpen);
-        stats.put("countBySeverity", countBySeverity);
-        return stats;
+    public AlertStatsDTO getAlertStats() {
+        Map<String, Long> countBySeverity = toSeverityCountMap(alertRepository.countOpenBySeverity());
+        long totalOpen = countBySeverity.values().stream().mapToLong(Long::longValue).sum();
+        return new AlertStatsDTO(totalOpen, countBySeverity);
     }
 
-    private long countBySeverityAndOpenStatus(String severity) {
-        String normalizedSeverity = AlertSeverity.normalize(severity);
-        if (normalizedSeverity == null) {
-            return 0L;
+    private Map<String, Long> toSeverityCountMap(List<AlertRepository.SeverityCount> counts) {
+        Map<String, Long> countBySeverity = new LinkedHashMap<>();
+        countBySeverity.put(AlertSeverity.CRITICAL.name(), 0L);
+        countBySeverity.put(AlertSeverity.WARNING.name(), 0L);
+        countBySeverity.put(AlertSeverity.INFO.name(), 0L);
+        for (AlertRepository.SeverityCount count : counts) {
+            if (count.getSeverity() != null) {
+                countBySeverity.put(count.getSeverity().name(), count.getCount());
+            }
         }
-        return alertRepository.countBySeverityAndStatus(normalizedSeverity, AlertStatus.IN_PROGRESS)
-                + alertRepository.countBySeverityAndStatus(normalizedSeverity, AlertStatus.OPEN);
+        return countBySeverity;
     }
 
     private void publishAndClearEvents(Alert alert) {

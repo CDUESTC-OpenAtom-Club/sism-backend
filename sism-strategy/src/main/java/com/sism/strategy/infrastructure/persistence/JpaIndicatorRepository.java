@@ -1,6 +1,7 @@
 package com.sism.strategy.infrastructure.persistence;
 
 import com.sism.organization.domain.SysOrg;
+import com.sism.organization.domain.OrgType;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.enums.IndicatorLevel;
 import com.sism.strategy.domain.repository.IndicatorRepository;
@@ -11,7 +12,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -121,16 +121,16 @@ public class JpaIndicatorRepository implements IndicatorRepository {
 
     @Override
     public List<Indicator> findFirstLevelIndicators() {
-        return findAll().stream()
+        return jpaRepository.findFirstLevelIndicators(OrgType.functional).stream()
                 .filter(indicator -> indicator.getLevel() == IndicatorLevel.FIRST)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Indicator> findSecondLevelIndicators() {
-        return findAll().stream()
+        return jpaRepository.findSecondLevelIndicators(OrgType.functional).stream()
                 .filter(indicator -> indicator.getLevel() == IndicatorLevel.SECOND)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -138,13 +138,7 @@ public class JpaIndicatorRepository implements IndicatorRepository {
         if (keyword == null || keyword.trim().isEmpty()) {
             return List.of();
         }
-        String lowerKeyword = keyword.toLowerCase();
-        return findAll().stream()
-                .filter(indicator -> {
-                    String desc = indicator.getIndicatorDesc();
-                    return desc != null && desc.toLowerCase().contains(lowerKeyword);
-                })
-                .collect(Collectors.toList());
+        return jpaRepository.findByIndicatorDescContainingIgnoreCaseAndIsDeletedFalse(keyword.trim());
     }
 
     @Override

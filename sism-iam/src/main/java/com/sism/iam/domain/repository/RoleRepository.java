@@ -5,7 +5,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * RoleRepository - 角色仓储接口
@@ -42,6 +44,11 @@ public interface RoleRepository {
      * 根据用户ID查询角色
      */
     List<Role> findByUserId(Long userId);
+
+    /**
+     * 批量统计角色权限数
+     */
+    Map<Long, Long> countPermissionsByRoleIds(Set<Long> roleIds);
 
     /**
      * 保存角色

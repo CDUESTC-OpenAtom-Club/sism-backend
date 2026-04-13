@@ -9,18 +9,14 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.NotFound;
 import org.hibernate.annotations.NotFoundAction;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
-
 /**
  * Current strategic-task implementation within the broader task center.
  */
 @Getter
-@Setter
 @Entity
 @Table(name = "sys_task")
 @Access(AccessType.FIELD)
@@ -78,15 +74,11 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="is_deleted", nullable=false)
     private Boolean isDeleted = false;
 
-    @Transient
+    @Column(name = "status", nullable = false)
     private String status = STATUS_DRAFT;
 
-    @Setter(AccessLevel.NONE)
-    @Formula("(SELECT COALESCE(p.status, 'DRAFT') FROM plan p WHERE p.id = plan_id)")
-    private String planStatus;
-
     public String getPlanStatus() {
-        return planStatus != null ? planStatus : TaskStatus.DRAFT.value();
+        return TaskStatus.DRAFT.value();
     }
 
     public void setStatus(String status) {
@@ -95,6 +87,30 @@ public class StrategicTask extends AggregateRoot<Long> {
 
     public void setStatus(TaskStatus status) {
         this.status = status == null ? null : status.value();
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setPlanId(Long planId) {
+        this.planId = planId;
+    }
+
+    public void setCycleId(Long cycleId) {
+        this.cycleId = cycleId;
+    }
+
+    public void setTaskType(TaskType taskType) {
+        this.taskType = taskType;
+    }
+
+    public void setOrg(SysOrg org) {
+        this.org = org;
+    }
+
+    public void setCreatedByOrg(SysOrg createdByOrg) {
+        this.createdByOrg = createdByOrg;
     }
 
     @Transient
@@ -170,7 +186,7 @@ public class StrategicTask extends AggregateRoot<Long> {
     }
 
     public void updateName(String name) {
-        if (Objects.isNull(name) || name.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Task name cannot be empty");
         }
         this.name = name;
@@ -183,10 +199,48 @@ public class StrategicTask extends AggregateRoot<Long> {
     }
 
     public void updateSortOrder(Integer sortOrder) {
-        if (Objects.isNull(sortOrder) || sortOrder < 0) {
+        if (sortOrder == null || sortOrder < 0) {
             throw new IllegalArgumentException("Sort order must be non-negative");
         }
         this.sortOrder = sortOrder;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateRemark(String remark) {
+        this.remark = remark;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void markDeleted() {
+        this.isDeleted = true;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void reassign(TaskType taskType,
+                         Long planId,
+                         Long cycleId,
+                         SysOrg org,
+                         SysOrg createdByOrg) {
+        if (taskType == null) {
+            throw new IllegalArgumentException("Task type cannot be null");
+        }
+        if (planId == null) {
+            throw new IllegalArgumentException("Plan ID cannot be null");
+        }
+        if (cycleId == null) {
+            throw new IllegalArgumentException("Cycle ID cannot be null");
+        }
+        if (org == null) {
+            throw new IllegalArgumentException("Organization cannot be null");
+        }
+        if (createdByOrg == null) {
+            throw new IllegalArgumentException("Created by org cannot be null");
+        }
+        this.taskType = taskType;
+        this.planId = planId;
+        this.cycleId = cycleId;
+        this.org = org;
+        this.createdByOrg = createdByOrg;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -223,13 +277,6 @@ public class StrategicTask extends AggregateRoot<Long> {
     protected void onCreated() {
         if (id != null) {
             addEvent(new TaskCreatedEvent(id, name, org != null ? org.getId() : null));
-        }
-    }
-
-    @PostLoad
-    protected void onLoad() {
-        if (status == null) {
-            setStatus(TaskStatus.DRAFT);
         }
     }
 

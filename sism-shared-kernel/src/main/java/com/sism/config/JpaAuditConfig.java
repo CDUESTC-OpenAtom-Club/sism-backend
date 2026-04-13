@@ -1,11 +1,13 @@
 package com.sism.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Optional;
 
@@ -15,6 +17,7 @@ import java.util.Optional;
  */
 @Configuration
 @EnableJpaAuditing(auditorAwareRef = "auditorProvider")
+@Slf4j
 public class JpaAuditConfig {
     
     /**
@@ -33,17 +36,33 @@ public class JpaAuditConfig {
             }
             
             // Extract user ID from authentication principal
-            // This assumes the principal contains the user ID
-            // Adjust based on your authentication implementation
             try {
                 Object principal = authentication.getPrincipal();
-                if (principal instanceof Long) {
+                if (principal instanceof UserDetails userDetails) {
+                    String username = userDetails.getUsername();
+                    if (username != null && username.matches("\\d+")) {
+                        return Optional.of(Long.parseLong(username));
+                    }
+                } else if (principal instanceof Long) {
                     return Optional.of((Long) principal);
                 } else if (principal instanceof String) {
-                    return Optional.of(Long.parseLong((String) principal));
+                    String principalValue = (String) principal;
+                    if (principalValue.matches("\\d+")) {
+                        return Optional.of(Long.parseLong(principalValue));
+                    }
+                } else if (principal != null) {
+                    try {
+                        var idMethod = principal.getClass().getMethod("getId");
+                        Object idValue = idMethod.invoke(principal);
+                        if (idValue instanceof Number number) {
+                            return Optional.of(number.longValue());
+                        }
+                    } catch (NoSuchMethodException ignored) {
+                        log.debug("Unsupported principal type for JPA auditing: {}", principal.getClass().getName());
+                    }
                 }
             } catch (Exception e) {
-                // Log error and return empty
+                log.debug("Failed to resolve auditor from authentication principal", e);
                 return Optional.empty();
             }
             

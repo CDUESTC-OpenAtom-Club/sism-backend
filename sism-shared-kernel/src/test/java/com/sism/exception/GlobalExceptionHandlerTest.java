@@ -1,12 +1,12 @@
 package com.sism.exception;
 
 import com.sism.common.ApiResponse;
-import com.sism.shared.domain.exception.BusinessException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.ObjectError;
@@ -54,13 +54,56 @@ class GlobalExceptionHandlerTest {
     @Test
     void shouldMapSharedBusinessExceptionsToBadRequestResponse() {
         var response = handler.handleSharedBusinessException(
-                new BusinessException("BUSINESS_ERROR", "shared failure"));
+                new com.sism.shared.domain.exception.BusinessException("BUSINESS_ERROR", "shared failure"));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         ApiResponse<Void> body = response.getBody();
         assertNotNull(body);
-        assertEquals(1000, body.getCode());
+        assertEquals(400, body.getCode());
         assertEquals("shared failure", body.getMessage());
+    }
+
+    @Test
+    void shouldMapLegacyBusinessExceptionThroughSharedHandler() {
+        var response = handler.handleSharedBusinessException(
+                new com.sism.exception.BusinessException(404, "legacy not found"));
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        ApiResponse<Void> body = response.getBody();
+        assertNotNull(body);
+        assertEquals(1003, body.getCode());
+        assertEquals("legacy not found", body.getMessage());
+    }
+
+    @Test
+    void shouldMapLegacyResourceNotFoundExceptionThroughSharedHandler() {
+        var response = handler.handleSharedResourceNotFoundException(
+                new ResourceNotFoundException("Plan", 1L));
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        ApiResponse<Void> body = response.getBody();
+        assertNotNull(body);
+        assertEquals(1003, body.getCode());
+        assertEquals("Plan with id '1' not found", body.getMessage());
+    }
+
+    @Test
+    void shouldConvertMalformedJsonToBadRequestResponse() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/indicators/reminders/statuses");
+        request.addHeader("X-Request-ID", "req-malformed-json");
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        HttpMessageNotReadableException exception =
+                new HttpMessageNotReadableException("JSON parse error");
+
+        var response = handler.handleHttpMessageNotReadableException(exception);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        ApiResponse<Void> body = response.getBody();
+        assertNotNull(body);
+        assertFalse(body.isSuccess());
+        assertEquals(1001, body.getCode());
+        assertEquals("请求体格式错误", body.getMessage());
     }
 
     private static final class SamplePayload {

@@ -1,7 +1,7 @@
 package com.sism.organization.infrastructure.persistence;
 
+import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.enums.OrgType;
 import com.sism.organization.domain.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -40,6 +40,11 @@ public class JpaOrganizationRepository implements OrganizationRepository {
     @Override
     public List<SysOrg> findByTypes(List<OrgType> types) {
         return jpaRepository.findByTypeIn(types);
+    }
+
+    @Override
+    public List<SysOrg> findByTypesAndIsActive(List<OrgType> types, Boolean isActive) {
+        return jpaRepository.findByTypeInAndIsActive(types, isActive);
     }
 
     @Override

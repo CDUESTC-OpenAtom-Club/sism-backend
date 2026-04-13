@@ -132,6 +132,24 @@ class StrategicTaskTest {
     }
 
     @Test
+    @DisplayName("Should reassign task boundary through domain method")
+    void shouldReassignTaskBoundaryThroughDomainMethod() {
+        StrategicTask task = StrategicTask.create("测试任务", TaskType.BASIC, 1L, 1L, org, createdByOrg);
+        SysOrg newOrg = SysOrg.create("党委办公室", com.sism.organization.domain.OrgType.functional);
+        newOrg.setId(99L);
+        SysOrg newCreatedByOrg = SysOrg.create("战略发展部", com.sism.organization.domain.OrgType.admin);
+        newCreatedByOrg.setId(100L);
+
+        task.reassign(TaskType.DEVELOPMENT, 2L, 3L, newOrg, newCreatedByOrg);
+
+        assertEquals(TaskType.DEVELOPMENT, task.getTaskType());
+        assertEquals(2L, task.getPlanId());
+        assertEquals(3L, task.getCycleId());
+        assertEquals(99L, task.getOrg().getId());
+        assertEquals(100L, task.getCreatedByOrg().getId());
+    }
+
+    @Test
     @DisplayName("Should validate StrategicTask with valid parameters")
     void shouldValidateStrategicTaskWithValidParameters() {
         StrategicTask task = StrategicTask.create("有效任务", TaskType.BASIC, 1L, 1L, org, createdByOrg);

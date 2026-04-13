@@ -79,7 +79,7 @@ public interface DataExportRepository extends JpaRepository<DataExport, Long> {
     /**
      * 根据请求者ID和名称模糊查找导出任务
      */
-    @Query("SELECT e FROM DataExport e WHERE e.requestedBy = :requestedBy AND e.name LIKE %:name% AND e.deleted = false ORDER BY e.requestedAt DESC")
+    @Query("SELECT e FROM DataExport e WHERE e.requestedBy = :requestedBy AND e.name LIKE CONCAT('%', :name, '%') ESCAPE '\\' AND e.deleted = false ORDER BY e.requestedAt DESC")
     Page<DataExport> findByRequestedByAndNameContainingAndNotDeleted(
             @Param("requestedBy") Long requestedBy,
             @Param("name") String name,
@@ -137,7 +137,7 @@ public interface DataExportRepository extends JpaRepository<DataExport, Long> {
     /**
      * 根据名称模糊查找导出任务
      */
-    @Query("SELECT e FROM DataExport e WHERE e.name LIKE %:name% AND e.deleted = false ORDER BY e.requestedAt DESC")
+    @Query("SELECT e FROM DataExport e WHERE e.name LIKE CONCAT('%', :name, '%') ESCAPE '\\' AND e.deleted = false ORDER BY e.requestedAt DESC")
     Page<DataExport> findByNameContainingAndNotDeleted(@Param("name") String name, Pageable pageable);
 
     default List<DataExport> findByNameContainingAndNotDeleted(String name) {

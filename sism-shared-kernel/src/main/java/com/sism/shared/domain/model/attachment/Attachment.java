@@ -4,18 +4,13 @@ import com.sism.shared.domain.model.base.AggregateRoot;
 import com.sism.shared.domain.exception.BusinessException;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
 /**
  * Attachment aggregate root - DDD model for file attachments
  */
 @Getter
-@Setter
 @Entity
 @Table(name = "attachments")
 @Access(AccessType.FIELD)
@@ -72,17 +67,20 @@ public class Attachment extends AggregateRoot<Long> {
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
     @Override
     public boolean canPublish() {
-        return storageDriver != null && "FILE".equals(storageDriver) 
-            ? (objectKey != null && Files.exists(Paths.get(objectKey)))
-            : (objectKey != null);
+        return objectKey != null && !objectKey.isBlank();
+    }
+
+    @Override
+    public Long getId() {
+        return id;
+    }
+
+    @Override
+    public void setId(Long id) {
+        assertIdUnchanged(this.id, id);
+        this.id = id;
     }
 
     @Override
@@ -101,23 +99,50 @@ public class Attachment extends AggregateRoot<Long> {
     public void markAsDeleted() {
         this.isDeleted = true;
         this.deletedAt = OffsetDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(java.time.LocalDateTime.now());
     }
 
     public void restore() {
         this.isDeleted = false;
         this.deletedAt = null;
-        this.updatedAt = LocalDateTime.now();
+        setUpdatedAt(java.time.LocalDateTime.now());
     }
 
     public boolean isDeleted() {
         return Boolean.TRUE.equals(isDeleted);
     }
 
+    public void configureStorage(String storageDriver, String bucket, String objectKey, String etag, String publicUrl) {
+        this.storageDriver = storageDriver;
+        this.bucket = bucket;
+        this.objectKey = objectKey;
+        this.etag = etag;
+        this.publicUrl = publicUrl;
+        setUpdatedAt(java.time.LocalDateTime.now());
+    }
+
+    public void describeFile(String originalName, String contentType, String fileExt, Long sizeBytes, String sha256) {
+        this.originalName = originalName;
+        this.contentType = contentType;
+        this.fileExt = fileExt;
+        this.sizeBytes = sizeBytes;
+        this.sha256 = sha256;
+    }
+
+    public void assignUploader(Long uploadedBy, OffsetDateTime uploadedAt) {
+        this.uploadedBy = uploadedBy;
+        this.uploadedAt = uploadedAt;
+    }
+
+    public void updateRemark(String remark) {
+        this.remark = remark;
+        setUpdatedAt(java.time.LocalDateTime.now());
+    }
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        setCreatedAt(java.time.LocalDateTime.now());
+        setUpdatedAt(java.time.LocalDateTime.now());
         if (uploadedAt == null) {
             uploadedAt = OffsetDateTime.now();
         }
@@ -125,6 +150,6 @@ public class Attachment extends AggregateRoot<Long> {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        setUpdatedAt(java.time.LocalDateTime.now());
     }
 }

@@ -28,15 +28,15 @@ public enum AlertSeverity {
      * @param severity severity label from API or persistence
      * @return canonical severity label or {@code null} when unsupported
      */
-    public static String normalize(String severity) {
+    public static AlertSeverity normalize(String severity) {
         if (severity == null || severity.trim().isEmpty()) {
             return null;
         }
 
         return switch (severity.trim().toUpperCase(Locale.ROOT)) {
-            case "MAJOR", "WARNING" -> WARNING.name();
-            case "MINOR", "INFO" -> INFO.name();
-            case "CRITICAL" -> CRITICAL.name();
+            case "MAJOR", "WARNING" -> WARNING;
+            case "MINOR", "INFO" -> INFO;
+            case "CRITICAL" -> CRITICAL;
             default -> null;
         };
     }

@@ -145,6 +145,25 @@ class ReportTest {
     }
 
     @Test
+    @DisplayName("Should reject failing generated report")
+    void shouldRejectFailingGeneratedReport() {
+        Report report = Report.create(
+                "失败报告",
+                Report.TYPE_OPERATIONAL,
+                Report.FORMAT_EXCEL,
+                3L,
+                "{\"param\":\"value\"}",
+                "测试失败场景"
+        );
+        report.generate("/reports/result.xlsx", 512L);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                report.fail("重复失败"));
+
+        assertTrue(exception.getMessage().contains("DRAFT status"));
+    }
+
+    @Test
     @DisplayName("Should publish ReportGenerationFailedEvent when report generation fails")
     void shouldPublishReportGenerationFailedEvent() {
         Report report = Report.create(
@@ -182,7 +201,27 @@ class ReportTest {
         IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
                 report.generate("/path/to/report.pdf", 1024L));
 
-        assertTrue(exception.getMessage().contains("Cannot regenerate a failed report"));
+        assertTrue(exception.getMessage().contains("DRAFT status"));
+    }
+
+    @Test
+    @DisplayName("Should reject generating report when already generated")
+    void shouldRejectGeneratingReportWhenAlreadyGenerated() {
+        Report report = Report.create(
+                "已生成的报告",
+                Report.TYPE_STRATEGIC,
+                Report.FORMAT_PDF,
+                1L,
+                null,
+                null
+        );
+        report.setId(2L);
+        report.generate("/path/to/generated.pdf", 1024L);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+                report.generate("/path/to/duplicate.pdf", 1024L));
+
+        assertTrue(exception.getMessage().contains("DRAFT status"));
     }
 
     @Test

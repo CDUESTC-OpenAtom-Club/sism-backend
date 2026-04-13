@@ -2,7 +2,6 @@ package com.sism.analytics.application;
 
 import com.sism.analytics.domain.Dashboard;
 import com.sism.analytics.infrastructure.repository.DashboardRepository;
-import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +32,7 @@ public class DashboardApplicationService extends BaseApplicationService {
     public Dashboard createDashboard(String name, String description, Long userId, boolean isPublic, String config) {
         requirePositiveUserId(userId, "User ID");
         Dashboard dashboard = Dashboard.create(name, description, userId, isPublic, config);
-        publishAndSaveEvents(dashboard);
+        publishAndSaveEvents(dashboard, eventStore, eventPublisher);
         return dashboardRepository.save(dashboard);
     }
 
@@ -44,7 +43,7 @@ public class DashboardApplicationService extends BaseApplicationService {
     public Dashboard updateDashboard(Long dashboardId, Long currentUserId, String name, String description, boolean isPublic, String config) {
         Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.update(name, description, isPublic, config);
-        publishAndSaveEvents(dashboard);
+        publishAndSaveEvents(dashboard, eventStore, eventPublisher);
         return dashboardRepository.save(dashboard);
     }
 
@@ -55,7 +54,7 @@ public class DashboardApplicationService extends BaseApplicationService {
     public Dashboard updateDashboardConfig(Long dashboardId, Long currentUserId, String config) {
         Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.updateConfig(config);
-        publishAndSaveEvents(dashboard);
+        publishAndSaveEvents(dashboard, eventStore, eventPublisher);
         return dashboardRepository.save(dashboard);
     }
 
@@ -66,7 +65,7 @@ public class DashboardApplicationService extends BaseApplicationService {
     public Dashboard makePublic(Long dashboardId, Long currentUserId) {
         Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.makePublic();
-        publishAndSaveEvents(dashboard);
+        publishAndSaveEvents(dashboard, eventStore, eventPublisher);
         return dashboardRepository.save(dashboard);
     }
 
@@ -77,7 +76,7 @@ public class DashboardApplicationService extends BaseApplicationService {
     public Dashboard makePrivate(Long dashboardId, Long currentUserId) {
         Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.makePrivate();
-        publishAndSaveEvents(dashboard);
+        publishAndSaveEvents(dashboard, eventStore, eventPublisher);
         return dashboardRepository.save(dashboard);
     }
 
@@ -88,7 +87,7 @@ public class DashboardApplicationService extends BaseApplicationService {
     public void deleteDashboard(Long dashboardId, Long currentUserId) {
         Dashboard dashboard = findOwnedByCurrentUser(dashboardId, currentUserId);
         dashboard.delete();
-        publishAndSaveEvents(dashboard);
+        publishAndSaveEvents(dashboard, eventStore, eventPublisher);
         dashboardRepository.save(dashboard);
     }
 
@@ -100,7 +99,7 @@ public class DashboardApplicationService extends BaseApplicationService {
         requirePositiveUserId(targetUserId, "Target user ID");
         Dashboard original = findOwnedByCurrentUser(dashboardId, currentUserId);
         Dashboard copied = original.copyToUser(targetUserId);
-        publishAndSaveEvents(copied);
+        publishAndSaveEvents(copied, eventStore, eventPublisher);
         return dashboardRepository.save(copied);
     }
 
@@ -155,14 +154,14 @@ public class DashboardApplicationService extends BaseApplicationService {
      */
     public List<Dashboard> searchDashboardsByName(Long userId, Long currentUserId, String name) {
         requireUserOwnership(userId, currentUserId);
-        return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(userId, name);
+        return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(userId, escapeLikePattern(name));
     }
 
     public Page<Dashboard> searchDashboardsByName(Long userId, Long currentUserId, String name, int pageNum, int pageSize) {
         requireUserOwnership(userId, currentUserId);
         return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(
                 userId,
-                name,
+                escapeLikePattern(name),
                 AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
@@ -198,19 +197,5 @@ public class DashboardApplicationService extends BaseApplicationService {
     @Override
     protected void requireUserOwnership(Long requestedUserId, Long currentUserId) {
         requireUserOwnership(requestedUserId, currentUserId, "No permission to access another user's dashboards");
-    }
-
-    /**
-     * 发布和保存领域事件
-     */
-    private void publishAndSaveEvents(Dashboard dashboard) {
-        List<DomainEvent> events = dashboard.getDomainEvents();
-        if (events != null && !events.isEmpty()) {
-            for (DomainEvent event : events) {
-                eventStore.save(event);
-            }
-            eventPublisher.publishAll(events);
-            dashboard.clearEvents();
-        }
     }
 }

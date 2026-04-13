@@ -40,10 +40,10 @@ public class Cycle extends AggregateRoot<Long> {
     @Column(name = "description")
     private String description;
 
-    @Transient
+    @Column(name = "status", nullable = false, length = 20)
     private String status = "ACTIVE";
 
-    @Transient
+    @Column(name = "is_deleted", nullable = false)
     private Boolean isDeleted = false;
 
     @Column(name = "created_at", nullable = false)
@@ -104,8 +104,8 @@ public class Cycle extends AggregateRoot<Long> {
         if (isDeleted == null) {
             isDeleted = false;
         }
-        if (status == null) {
-            status = deriveStatus();
+        if (status == null || status.isBlank()) {
+            status = "ACTIVE";
         }
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
@@ -117,11 +117,11 @@ public class Cycle extends AggregateRoot<Long> {
 
     @PostLoad
     protected void onLoad() {
-        if (status == null || status.isBlank()) {
-            status = deriveStatus();
-        }
         if (isDeleted == null) {
             isDeleted = false;
+        }
+        if (status == null || status.isBlank()) {
+            status = deriveStatus();
         }
     }
 

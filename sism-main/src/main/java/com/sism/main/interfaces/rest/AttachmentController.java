@@ -113,16 +113,13 @@ public class AttachmentController {
             return null;
         }
         Object principal = authentication.getPrincipal();
-        try {
-            Class<?> principalClass = principal.getClass();
-            Long id = (Long) principalClass.getMethod("getId").invoke(principal);
-            @SuppressWarnings("unchecked")
-            Collection<? extends GrantedAuthority> authorities =
-                    (Collection<? extends GrantedAuthority>) principalClass.getMethod("getAuthorities").invoke(principal);
-            return new UserIdentity(id, authorities == null ? java.util.List.of() : authorities);
-        } catch (ReflectiveOperationException | ClassCastException e) {
-            return null;
+        if (principal instanceof com.sism.iam.application.dto.CurrentUser currentUser) {
+            return new UserIdentity(
+                    currentUser.getId(),
+                    currentUser.getAuthorities() == null ? java.util.List.of() : currentUser.getAuthorities()
+            );
         }
+        return null;
     }
 
     private record UserIdentity(Long id, Collection<? extends GrantedAuthority> authorities) {

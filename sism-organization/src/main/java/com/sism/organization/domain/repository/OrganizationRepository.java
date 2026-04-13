@@ -1,7 +1,7 @@
 package com.sism.organization.domain.repository;
 
+import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.enums.OrgType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -43,6 +43,11 @@ public interface OrganizationRepository {
      * 根据多个组织类型查询
      */
     List<SysOrg> findByTypes(List<OrgType> types);
+
+    /**
+     * 根据多个组织类型和激活状态查询
+     */
+    List<SysOrg> findByTypesAndIsActive(List<OrgType> types, Boolean isActive);
 
     /**
      * 根据激活状态查询

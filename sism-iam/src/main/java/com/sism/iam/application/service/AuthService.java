@@ -24,6 +24,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtTokenService jwtTokenService;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;
 
     /**
      * 用户登录
@@ -37,16 +38,22 @@ public class AuthService {
             throw new IllegalArgumentException("请输入密码");
         }
 
+        String clientKey = "global";
+        loginAttemptService.assertNotBlocked(request.getUsername(), clientKey);
+
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            loginAttemptService.recordFailure(request.getUsername(), clientKey);
             throw new IllegalArgumentException("用户名或密码错误");
         }
 
         if (!user.getIsActive()) {
             throw new IllegalStateException("账号已被禁用，请联系管理员");
         }
+
+        loginAttemptService.recordSuccess(request.getUsername(), clientKey);
 
         List<String> roleCodes = userRepository.findRoleCodesByUserId(user.getId());
 
@@ -92,6 +99,10 @@ public class AuthService {
      */
     public boolean validateToken(String token) {
         return jwtTokenService.validateToken(token);
+    }
+
+    public void logout(String token) {
+        jwtTokenService.blacklistToken(token);
     }
 
     /**

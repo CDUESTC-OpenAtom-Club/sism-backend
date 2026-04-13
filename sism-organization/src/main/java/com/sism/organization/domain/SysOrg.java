@@ -1,6 +1,5 @@
 package com.sism.organization.domain;
 
-import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.event.OrgCreatedEvent;
 import com.sism.organization.domain.event.OrgActivatedEvent;
 import com.sism.organization.domain.event.OrgDeactivatedEvent;
@@ -149,24 +148,7 @@ public class SysOrg extends AggregateRoot<Long> {
     }
 
     public void updateName(String name) {
-        if (Objects.isNull(name) || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Organization name cannot be empty");
-        }
-        String normalizedName = name.trim();
-        validateNameLength(normalizedName);
-        this.name = normalizedName;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void updateDescription(String description) {
-        // Description is not currently stored in the entity - this method is for future use
-        // This is a placeholder to support the test method
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public String getDescription() {
-        // Description is not currently stored in the entity - this method is for future use
-        return null;
+        rename(name);
     }
 
     public void updateParent(SysOrg parentOrg) {
@@ -180,15 +162,6 @@ public class SysOrg extends AggregateRoot<Long> {
             this.level = 1;
         }
         this.updatedAt = LocalDateTime.now();
-    }
-
-    public SysOrg getParentOrg() {
-        if (parentOrgId == null) {
-            return null;
-        }
-        SysOrg parent = new SysOrg();
-        parent.setId(parentOrgId);
-        return parent;
     }
 
     public void delete() {
@@ -211,7 +184,7 @@ public class SysOrg extends AggregateRoot<Long> {
     }
 
     public void setOrgName(String orgName) {
-        this.name = orgName;
+        rename(orgName);
     }
 
     public boolean isTopLevel() {

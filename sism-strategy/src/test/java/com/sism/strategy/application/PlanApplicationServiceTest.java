@@ -10,7 +10,6 @@ import com.sism.strategy.domain.plan.PlanStatus;
 import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
-import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.strategy.domain.Cycle;
 import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.repository.CycleRepository;
@@ -79,9 +78,6 @@ class PlanApplicationServiceTest {
     private IndicatorRepository indicatorRepository;
 
     @Mock
-    private OrganizationRepository organizationRepository;
-
-    @Mock
     private BasicTaskWeightValidationService basicTaskWeightValidationService;
 
     @Mock
@@ -145,7 +141,6 @@ class PlanApplicationServiceTest {
                 planRepository,
                 cycleRepository,
                 indicatorRepository,
-                organizationRepository,
                 basicTaskWeightValidationService,
                 taskRepository,
                 eventPublisher,
@@ -175,7 +170,6 @@ class PlanApplicationServiceTest {
         when(planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
                 2026L, PlanLevel.STRAT_TO_FUNC, 35L, 36L))
                 .thenReturn(List.of());
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(planRepository.save(any(Plan.class))).thenAnswer(invocation -> {
             Plan saved = invocation.getArgument(0);
             saved.setId(99L);
@@ -259,6 +253,30 @@ class PlanApplicationServiceTest {
         assertEquals(1L, result.get().getId());
         verify(taskRepository).findById(92071L);
         verify(planRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("Should load only requested organization names for plan responses")
+    void shouldLoadOnlyRequestedOrganizationNames() {
+        Plan plan = Plan.create(2026L, 36L, 35L, PlanLevel.STRAT_TO_FUNC);
+        plan.setId(1L);
+        when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
+        when(namedParameterJdbcTemplate.queryForList(
+                contains("FROM public.sys_org"),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of(
+                Map.of("id", 35L, "name", "战略发展部"),
+                Map.of("id", 36L, "name", "党委办公室")
+        ));
+
+        PlanResponse response = service.getPlanById(1L).orElseThrow();
+
+        assertEquals("战略发展部", response.getCreatedByOrgName());
+        assertEquals("党委办公室", response.getTargetOrgName());
+        verify(namedParameterJdbcTemplate).queryForList(
+                contains("FROM public.sys_org"),
+                any(MapSqlParameterSource.class)
+        );
     }
 
     @Test
@@ -459,7 +477,6 @@ class PlanApplicationServiceTest {
 
         when(planRepository.findPage(eq(List.of()), eq(List.of()), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(first, second), PageRequest.of(0, 20), 2));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(List.of(1L, 2L)))
                 .thenReturn(Map.of(
                         1L,
@@ -621,7 +638,6 @@ class PlanApplicationServiceTest {
         plan.returnForRevision();
 
         when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(1L)).thenReturn(
                 PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
                         .workflowInstanceId(88L)
@@ -652,7 +668,6 @@ class PlanApplicationServiceTest {
         plan.setId(2L);
 
         when(planRepository.findById(2L)).thenReturn(Optional.of(plan));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(2L)).thenReturn(
                 PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
                         .workflowInstanceId(98L)
@@ -680,7 +695,6 @@ class PlanApplicationServiceTest {
 
         when(planRepository.findById(3L)).thenReturn(Optional.of(plan));
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(cycle));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(3L)).thenReturn(List.of());
         when(planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(3L)).thenReturn(
                 PlanWorkflowSnapshotQueryService.WorkflowSnapshot.builder()
@@ -725,7 +739,6 @@ class PlanApplicationServiceTest {
 
         when(planRepository.findById(4L)).thenReturn(Optional.of(plan));
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(4L)).thenReturn(List.of(task));
         lenient().when(indicatorRepository.findByTaskIds(List.of(41001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(4L)).thenReturn(List.of());
@@ -753,7 +766,6 @@ class PlanApplicationServiceTest {
 
         when(planRepository.findById(5L)).thenReturn(Optional.of(plan));
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(5L)).thenReturn(List.of(task));
         lenient().when(indicatorRepository.findByTaskIds(List.of(51001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(5L)).thenReturn(List.of());
@@ -796,7 +808,6 @@ class PlanApplicationServiceTest {
 
         when(planRepository.findById(6L)).thenReturn(Optional.of(plan));
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(6L)).thenReturn(List.of(task));
         lenient().when(indicatorRepository.findByTaskIds(List.of(61001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(6L)).thenReturn(List.of());
@@ -837,7 +848,6 @@ class PlanApplicationServiceTest {
 
         when(planRepository.findById(7L)).thenReturn(Optional.of(plan));
         when(cycleRepository.findById(2026L)).thenReturn(Optional.of(createCycle(2026L, 2026)));
-        when(organizationRepository.findAll()).thenReturn(List.of());
         when(taskRepository.findByPlanId(7L)).thenReturn(List.of(task));
         lenient().when(indicatorRepository.findByTaskIds(List.of(71001L))).thenReturn(List.of(indicator));
         when(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(7L)).thenReturn(List.of());

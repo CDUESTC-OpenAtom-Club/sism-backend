@@ -2,19 +2,16 @@ package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.iam.application.service.RoleService;
+import com.sism.iam.application.service.PaginationPolicy;
+import com.sism.iam.application.service.RoleManagementService;
 import com.sism.iam.domain.Permission;
 import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.PermissionRepository;
-import com.sism.iam.domain.repository.RoleRepository;
-import com.sism.iam.domain.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +19,8 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,23 +34,30 @@ import java.util.stream.Collectors;
 @Tag(name = "角色权限管理", description = "角色和权限管理接口")
 public class RoleManagementController {
 
-    private final RoleService roleService;
-    private final RoleRepository roleRepository;
-    private final UserRepository userRepository;
-    private final PermissionRepository permissionRepository;
+    private final RoleManagementService roleManagementService;
 
     // ========== 角色查询 ==========
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "分页查询角色列表")
     public ResponseEntity<ApiResponse<PageResult<RoleResponse>>> listRoles(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int pageSize
     ) {
-        Pageable pageable = PageRequest.of(page, pageSize);
-        Page<Role> rolePage = roleRepository.findAll(pageable);
+        Page<Role> rolePage = roleManagementService.findRoles(PaginationPolicy.toPageRequest(page, pageSize));
+        Set<Long> roleIds = rolePage.getContent().stream()
+                .map(Role::getId)
+                .collect(Collectors.toSet());
+        Map<Long, Long> userCounts = roleManagementService.countUsersByRoleIds(roleIds);
+        Map<Long, Long> permissionCounts = roleManagementService.countPermissionsByRoleIds(roleIds);
         PageResult<RoleResponse> result = PageResult.of(
-                rolePage.getContent().stream().map(this::convertToResponse).collect(Collectors.toList()),
+                rolePage.getContent().stream()
+                        .map(role -> convertToResponse(
+                                role,
+                                userCounts.getOrDefault(role.getId(), 0L),
+                                permissionCounts.getOrDefault(role.getId(), 0L)))
+                        .collect(Collectors.toList()),
                 rolePage.getTotalElements(),
                 rolePage.getNumber(),
                 rolePage.getSize()
@@ -60,13 +66,19 @@ public class RoleManagementController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "根据ID查询角色详情")
     public ResponseEntity<ApiResponse<RoleResponse>> getRoleById(@PathVariable Long id) {
-        Optional<Role> roleOpt = roleRepository.findById(id);
+        Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(ApiResponse.success(convertToResponse(roleOpt.get())));
+        Role role = roleOpt.get();
+        return ResponseEntity.ok(ApiResponse.success(convertToResponse(
+                role,
+                roleManagementService.countUsersByRoleId(id),
+                roleManagementService.countPermissionsByRoleId(id)
+        )));
     }
 
     // ========== 角色创建 ==========
@@ -77,21 +89,16 @@ public class RoleManagementController {
     public ResponseEntity<ApiResponse<RoleResponse>> createRole(
             @Valid @RequestBody CreateRoleRequest request
     ) {
-        // 检查角色代码是否已存在
-        if (roleRepository.findByRoleCode(request.getRoleCode()).isPresent()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Role code already exists"));
+        try {
+            Role role = roleManagementService.createRole(
+                    request.getRoleCode(),
+                    request.getRoleName(),
+                    request.getDescription()
+            );
+            return ResponseEntity.ok(ApiResponse.success(convertToResponse(role, 0, 0)));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
         }
-        if (roleRepository.findByRoleName(request.getRoleName()).isPresent()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Role name already exists"));
-        }
-
-        Role role = roleService.createRole(
-                request.getRoleCode(),
-                request.getRoleName(),
-                request.getDescription()
-        );
-        role = roleRepository.save(role);
-        return ResponseEntity.ok(ApiResponse.success(convertToResponse(role)));
     }
 
     // ========== 角色更新 ==========
@@ -103,35 +110,26 @@ public class RoleManagementController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateRoleRequest request
     ) {
-        Optional<Role> roleOpt = roleRepository.findById(id);
+        Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        Role role = roleOpt.get();
-
-        // 检查角色代码是否已被其他角色使用
-        if (request.getRoleCode() != null && !request.getRoleCode().equals(role.getRoleCode())) {
-            if (roleRepository.findByRoleCode(request.getRoleCode()).isPresent()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Role code already exists"));
-            }
-            role.setRoleCode(request.getRoleCode());
+        try {
+            Role role = roleManagementService.updateRole(
+                    id,
+                    request.getRoleCode(),
+                    request.getRoleName(),
+                    request.getDescription()
+            );
+            return ResponseEntity.ok(ApiResponse.success(convertToResponse(
+                    role,
+                    roleManagementService.countUsersByRoleId(role.getId()),
+                    roleManagementService.countPermissionsByRoleId(role.getId())
+            )));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
         }
-
-        // 检查角色名称是否已被其他角色使用
-        if (request.getRoleName() != null && !request.getRoleName().equals(role.getRoleName())) {
-            if (roleRepository.findByRoleName(request.getRoleName()).isPresent()) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("Role name already exists"));
-            }
-            role.setRoleName(request.getRoleName());
-        }
-
-        if (request.getDescription() != null) {
-            role.setDescription(request.getDescription());
-        }
-
-        role = roleRepository.save(role);
-        return ResponseEntity.ok(ApiResponse.success(convertToResponse(role)));
     }
 
     // ========== 角色删除 ==========
@@ -140,19 +138,17 @@ public class RoleManagementController {
     @Operation(summary = "删除角色")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteRole(@PathVariable Long id) {
-        Optional<Role> roleOpt = roleRepository.findById(id);
+        Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        // 检查角色是否仍在使用（是否有用户关联）
-        List<Role> userRoles = roleRepository.findByUserId(id);
-        if (!userRoles.isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Role is still in use by users"));
+        try {
+            roleManagementService.deleteRole(id);
+            return ResponseEntity.ok(ApiResponse.success(null));
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
         }
-
-        roleRepository.delete(roleOpt.get());
-        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     // ========== 权限管理 ==========
@@ -162,42 +158,42 @@ public class RoleManagementController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<RoleResponse>> assignPermissions(
             @PathVariable Long id,
-            @RequestBody AssignPermissionsRequest request
+            @Valid @RequestBody AssignPermissionsRequest request
     ) {
-        Optional<Role> roleOpt = roleRepository.findById(id);
+        Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        Role role = roleOpt.get();
-
-        // 从 PermissionRepository 实际查询权限对象
-        Set<Long> permissionIds = Set.copyOf(request.getPermissionIds());
-        Set<Permission> permissions = permissionRepository.findByIds(permissionIds);
-
-        // 验证所有请求的权限都存在
-        if (permissions.size() != permissionIds.size()) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("One or more permissions not found"));
+        Set<Long> permissionIds = request.getPermissionIds() == null
+                ? Set.of()
+                : request.getPermissionIds().stream()
+                        .filter(java.util.Objects::nonNull)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        try {
+            Role role = roleManagementService.assignPermissions(id, permissionIds);
+            return ResponseEntity.ok(ApiResponse.success(convertToResponse(
+                    role,
+                    roleManagementService.countUsersByRoleId(role.getId()),
+                    roleManagementService.countPermissionsByRoleId(role.getId())
+            )));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
         }
-
-        role = roleService.addPermissionsToRole(role, permissions);
-        role = roleRepository.save(role);
-
-        return ResponseEntity.ok(ApiResponse.success(convertToResponse(role)));
     }
 
     @GetMapping("/{id}/permissions")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "获取角色的权限列表")
     public ResponseEntity<ApiResponse<List<PermissionResponse>>> getRolePermissions(
             @PathVariable Long id
     ) {
-        Optional<Role> roleOpt = roleRepository.findById(id);
+        Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        List<PermissionResponse> permissions = roleOpt.get().getPermissions().stream()
+        List<PermissionResponse> permissions = roleManagementService.getRolePermissions(id).stream()
                 .map(this::convertToPermissionResponse)
                 .collect(Collectors.toList());
 
@@ -211,36 +207,30 @@ public class RoleManagementController {
             @PathVariable Long id,
             @PathVariable Long permissionId
     ) {
-        Optional<Role> roleOpt = roleRepository.findById(id);
+        Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
 
-        // 验证权限存在
-        Optional<Permission> permissionOpt = permissionRepository.findById(permissionId);
-        if (permissionOpt.isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Permission not found"));
+        try {
+            roleManagementService.removePermission(id, permissionId);
+            return ResponseEntity.ok(ApiResponse.success(null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
         }
-
-        Role role = roleOpt.get();
-        roleService.removePermissionsFromRole(role, Set.of(permissionOpt.get()));
-        roleRepository.save(role);
-
-        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     // ========== 内部辅助方法 ==========
 
-    private RoleResponse convertToResponse(Role role) {
+    private RoleResponse convertToResponse(Role role, long userCount, long permissionCount) {
         RoleResponse response = new RoleResponse();
         response.setId(role.getId());
         response.setRoleCode(role.getRoleCode());
         response.setRoleName(role.getRoleName());
         response.setDescription(role.getDescription());
         response.setIsEnabled(role.getIsEnabled());
-        response.setPermissionCount(role.getPermissions().size());
-        response.setUserCount(userRepository.findByRoleId(role.getId()).size());
+        response.setPermissionCount(Math.toIntExact(permissionCount));
+        response.setUserCount(Math.toIntExact(userCount));
         response.setCreateTime(role.getCreatedAt());
 
         return response;
@@ -298,6 +288,7 @@ public class RoleManagementController {
 
     @lombok.Data
     public static class AssignPermissionsRequest {
+        @NotEmpty(message = "permissionIds is required")
         private List<Long> permissionIds;
     }
 }

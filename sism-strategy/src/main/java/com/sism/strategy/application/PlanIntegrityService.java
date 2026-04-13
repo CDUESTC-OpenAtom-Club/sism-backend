@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.util.List;
@@ -71,7 +73,7 @@ public class PlanIntegrityService {
                 ensureFunctionalToCollegePlans(cycle, functionalOrgs, academicOrgs);
             }
 
-            lastEnsuredAtMillis = System.currentTimeMillis();
+            markEnsureCompletedAfterCommit();
             log.info(
                     "[PlanIntegrityService] Ensured plan matrix for cycles={}, functionalOrgs={}, academicOrgs={}",
                     cycles.size(),
@@ -86,6 +88,19 @@ public class PlanIntegrityService {
     private boolean isRecentlyEnsured(long nowMillis) {
         return lastEnsuredAtMillis > 0
                 && nowMillis - lastEnsuredAtMillis < ENSURE_INTERVAL_MILLIS;
+    }
+
+    private void markEnsureCompletedAfterCommit() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            lastEnsuredAtMillis = System.currentTimeMillis();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                lastEnsuredAtMillis = System.currentTimeMillis();
+            }
+        });
     }
 
     private void ensureStrategyToFunctionalPlans(Cycle cycle, List<SysOrg> functionalOrgs) {

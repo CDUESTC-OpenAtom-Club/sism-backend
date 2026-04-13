@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/milestones")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "里程碑", description = "战略侧里程碑主要接口。这是规划的权威入口点。")
 public class MilestoneController {
 
@@ -36,9 +37,7 @@ public class MilestoneController {
     @GetMapping("/plan/{planId}")
     @Operation(summary = "根据计划ID获取里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> getMilestonesByPlan(@PathVariable Long planId) {
-        // 注意：MilestoneApplicationService当前没有getMilestonesByPlanId方法
-        // 这里返回空列表，需要在MilestoneApplicationService中添加相关方法
-        java.util.List<MilestoneResponse> milestones = java.util.List.of();
+        java.util.List<MilestoneResponse> milestones = milestoneApplicationService.getMilestonesByPlanId(planId);
         return ResponseEntity.ok(ApiResponse.success(milestones));
     }
 

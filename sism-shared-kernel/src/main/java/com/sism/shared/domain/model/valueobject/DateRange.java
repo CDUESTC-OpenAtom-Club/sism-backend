@@ -43,6 +43,9 @@ public class DateRange {
      * 判断指定日期是否在范围内
      */
     public boolean contains(LocalDate date) {
+        if (date == null) {
+            return false;
+        }
         return !date.isBefore(startDate) && !date.isAfter(endDate);
     }
 
@@ -50,6 +53,9 @@ public class DateRange {
      * 判断指定日期时间是否在范围内
      */
     public boolean contains(LocalDateTime dateTime) {
+        if (dateTime == null) {
+            return false;
+        }
         LocalDate date = dateTime.toLocalDate();
         return contains(date);
     }

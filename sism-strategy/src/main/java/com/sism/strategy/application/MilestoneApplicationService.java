@@ -1,7 +1,11 @@
 package com.sism.strategy.application;
 
+import com.sism.strategy.domain.Indicator;
 import com.sism.strategy.domain.model.milestone.Milestone;
+import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.domain.repository.MilestoneRepository;
+import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.repository.TaskRepository;
 import com.sism.strategy.interfaces.dto.BatchSaveMilestonesRequest;
 import com.sism.strategy.interfaces.dto.CreateMilestoneRequest;
 import com.sism.strategy.interfaces.dto.MilestoneResponse;
@@ -32,12 +36,19 @@ import java.util.stream.Collectors;
 public class MilestoneApplicationService {
 
     private final MilestoneRepository milestoneRepository;
+    private final TaskRepository taskRepository;
+    private final IndicatorRepository indicatorRepository;
+
+    public MilestoneApplicationService(MilestoneRepository milestoneRepository) {
+        this(milestoneRepository, null, null);
+    }
 
     /**
      * 创建里程碑
      */
     @Transactional
     public MilestoneResponse createMilestone(CreateMilestoneRequest request) {
+        validateCreateRequest(request);
         Milestone milestone = new Milestone();
         milestone.setMilestoneName(request.getMilestoneName());
         milestone.setDescription(request.getDescription());
@@ -204,32 +215,18 @@ public class MilestoneApplicationService {
      */
     public Page<MilestoneResponse> getMilestones(int page, int size, Long indicatorId, String status) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        List<Milestone> allMilestones = milestoneRepository.findAll();
-
-        // 应用过滤
-        List<Milestone> filteredMilestones = allMilestones.stream()
-                .filter(milestone -> {
-                    boolean matchIndicator = indicatorId == null ||
-                            (milestone.getIndicatorId() != null && milestone.getIndicatorId().equals(indicatorId));
-                    boolean matchStatus = status == null || status.equals(milestone.getStatus());
-                    return matchIndicator && matchStatus;
-                })
-                .collect(Collectors.toList());
-
-        // 分页
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), filteredMilestones.size());
-
-        if (start >= filteredMilestones.size()) {
-            return new PageImpl<>(List.of(), pageable, filteredMilestones.size());
+        Page<Milestone> milestonePage;
+        if (indicatorId != null && status != null && !status.isBlank()) {
+            milestonePage = milestoneRepository.findByIndicatorIdAndStatus(indicatorId, status, pageable);
+        } else if (indicatorId != null) {
+            milestonePage = milestoneRepository.findByIndicatorId(indicatorId, pageable);
+        } else if (status != null && !status.isBlank()) {
+            milestonePage = milestoneRepository.findByStatus(status, pageable);
+        } else {
+            milestonePage = milestoneRepository.findAll(pageable);
         }
 
-        List<MilestoneResponse> pageContent = filteredMilestones.subList(start, end).stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-
-        return new PageImpl<>(pageContent, pageable, filteredMilestones.size());
+        return milestonePage.map(this::convertToResponse);
     }
 
     /**
@@ -237,6 +234,36 @@ public class MilestoneApplicationService {
      */
     public List<MilestoneResponse> getMilestonesByIndicatorId(Long indicatorId) {
         return milestoneRepository.findByIndicatorId(indicatorId).stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 根据计划ID查询里程碑
+     * 通过计划 -> 任务 -> 指标 -> 里程碑关系链聚合返回
+     */
+    public List<MilestoneResponse> getMilestonesByPlanId(Long planId) {
+        if (planId == null) {
+            return List.of();
+        }
+
+        List<Long> taskIds = taskRepository.findByPlanId(planId).stream()
+                .map(StrategicTask::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        if (taskIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> indicatorIds = indicatorRepository.findByTaskIds(taskIds).stream()
+                .map(Indicator::getId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toList());
+        if (indicatorIds.isEmpty()) {
+            return List.of();
+        }
+
+        return milestoneRepository.findByIndicatorIdIn(indicatorIds).stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
@@ -269,5 +296,24 @@ public class MilestoneApplicationService {
      */
     private MilestoneResponse convertToResponse(Milestone milestone) {
         return MilestoneResponse.fromEntity(milestone);
+    }
+
+    private void validateCreateRequest(CreateMilestoneRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Milestone request cannot be null");
+        }
+        if (request.getIndicatorId() == null) {
+            throw new IllegalArgumentException("Indicator ID cannot be null");
+        }
+        if (request.getMilestoneName() == null || request.getMilestoneName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Milestone name cannot be blank");
+        }
+        if (request.getTargetProgress() != null
+                && (request.getTargetProgress() < 0 || request.getTargetProgress() > 100)) {
+            throw new IllegalArgumentException("Target progress must be between 0 and 100");
+        }
+        if (request.getStatus() == null || request.getStatus().isBlank()) {
+            throw new IllegalArgumentException("Status cannot be blank");
+        }
     }
 }

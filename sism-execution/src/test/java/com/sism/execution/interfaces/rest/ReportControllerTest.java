@@ -4,7 +4,9 @@ import com.sism.common.PageResult;
 import com.sism.execution.application.ReportApplicationService;
 import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
+import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.execution.interfaces.dto.CreatePlanReportRequest;
+import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import com.sism.execution.interfaces.dto.RejectPlanReportRequest;
 import com.sism.execution.interfaces.dto.UpdatePlanReportRequest;
 import com.sism.iam.application.dto.CurrentUser;
@@ -143,7 +145,6 @@ class ReportControllerTest {
         when(reportApplicationService.rejectReport(4L, 104L, "bad", currentUser)).thenReturn(existing);
 
         RejectPlanReportRequest request = new RejectPlanReportRequest();
-        request.setUserId(999L);
         request.setReason("bad");
 
         var response = controller.rejectReport(4L, request, currentUser);
@@ -217,6 +218,66 @@ class ReportControllerTest {
     }
 
     @Test
+    @DisplayName("getReportById should tolerate null indicator details")
+    void getReportByIdShouldTolerateNullIndicatorDetails() {
+        ReportController controller = new ReportController(reportApplicationService);
+
+        when(currentUser.getOrgId()).thenReturn(10L);
+
+        PlanReport report = PlanReport.createDraft("2026-04", 10L, ReportOrgType.FUNC_DEPT, 300L, 106L);
+        report.setId(9L);
+        report.setIndicatorDetails(null);
+        when(reportApplicationService.findReportById(9L)).thenReturn(Optional.of(report));
+
+        var response = controller.getReportById(9L, currentUser);
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertNotNull(response.getBody());
+        assertEquals(0, response.getBody().getData().getIndicatorDetails().size());
+    }
+
+    @Test
+    @DisplayName("getReportById should tolerate null attachment lists")
+    void getReportByIdShouldTolerateNullAttachmentLists() {
+        ReportController controller = new ReportController(reportApplicationService);
+
+        when(currentUser.getOrgId()).thenReturn(10L);
+
+        PlanReport report = PlanReport.createDraft("2026-04", 10L, ReportOrgType.FUNC_DEPT, 301L, 106L);
+        report.setId(10L);
+        report.setIndicatorDetails(List.of(new PlanReportIndicatorSnapshot(77L, 45, "comment", "note", null)));
+        when(reportApplicationService.findReportById(10L)).thenReturn(Optional.of(report));
+
+        var response = controller.getReportById(10L, currentUser);
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().getData().getIndicatorDetails().size());
+        assertNotNull(response.getBody().getData().getIndicatorDetails().get(0).getAttachments());
+        assertEquals(0, response.getBody().getData().getIndicatorDetails().get(0).getAttachments().size());
+    }
+
+    @Test
+    @DisplayName("getReportsByPlanId should tolerate null indicator details")
+    void getReportsByPlanIdShouldTolerateNullIndicatorDetails() {
+        ReportController controller = new ReportController(reportApplicationService);
+
+        when(currentUser.getOrgId()).thenReturn(10L);
+
+        PlanReport report = PlanReport.createDraft("2026-04", 10L, ReportOrgType.FUNC_DEPT, 4036L, 106L);
+        report.setId(8L);
+        report.setIndicatorDetails(null);
+        when(reportApplicationService.findReportsByPlanId(4036L)).thenReturn(List.of(report));
+
+        var response = controller.getReportsByPlanId(4036L, currentUser);
+
+        assertEquals(200, response.getStatusCodeValue());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().getData().size());
+        assertNotNull(response.getBody().getData().get(0).getIndicatorDetails());
+    }
+
+    @Test
     @DisplayName("getReportsByStatusPaginated should preserve page total elements")
     void getReportsByStatusPaginatedShouldPreserveTotalElements() {
         ReportController controller = new ReportController(reportApplicationService);
@@ -236,5 +297,32 @@ class ReportControllerTest {
         PageResult<?> pageResult = response.getBody().getData();
         assertEquals(7, pageResult.getTotal());
         assertEquals(1, pageResult.getItems().size());
+    }
+
+    @Test
+    @DisplayName("searchReports should constrain non-admin to current org in query layer")
+    void searchReportsShouldConstrainNonAdminToCurrentOrgInQueryLayer() {
+        ReportController controller = new ReportController(reportApplicationService);
+
+        when(currentUser.getOrgId()).thenReturn(10L);
+        Page<PlanReport> reportPage = org.mockito.Mockito.mock(Page.class);
+        PlanReport report = PlanReport.createDraft("202604", 10L, ReportOrgType.FUNC_DEPT, 200L, 105L);
+        when(reportPage.getContent()).thenReturn(List.of(report));
+        when(reportPage.getTotalElements()).thenReturn(1L);
+        when(reportPage.getNumber()).thenReturn(0);
+        when(reportPage.getSize()).thenReturn(10);
+
+        PlanReportQueryRequest queryRequest = new PlanReportQueryRequest();
+        queryRequest.setStatus("SUBMITTED");
+        queryRequest.setPage(1);
+        queryRequest.setSize(10);
+
+        when(reportApplicationService.findReportsByConditionsForOrg(queryRequest, 10L))
+                .thenReturn(reportPage);
+
+        var response = controller.searchReports(queryRequest, currentUser);
+
+        assertEquals(200, response.getStatusCodeValue());
+        verify(reportApplicationService).findReportsByConditionsForOrg(queryRequest, 10L);
     }
 }

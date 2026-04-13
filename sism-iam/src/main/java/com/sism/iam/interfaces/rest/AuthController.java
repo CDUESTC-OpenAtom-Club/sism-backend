@@ -10,10 +10,10 @@ import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -48,14 +48,15 @@ public class AuthController {
      * 用户注册
      */
     @PostMapping("/register")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "用户注册")
-    public ResponseEntity<ApiResponse<User>> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> register(@RequestBody RegisterRequest request) {
         User user = authService.register(
                 request.getUsername(),
                 request.getPassword(),
                 request.getRealName()
         );
-        return ResponseEntity.ok(ApiResponse.success(user));
+        return ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user)));
     }
 
     /**
@@ -101,7 +102,10 @@ public class AuthController {
      */
     @PostMapping("/logout")
     @Operation(summary = "用户登出")
-    public ResponseEntity<ApiResponse<Void>> logout() {
+    public ResponseEntity<ApiResponse<Void>> logout(@RequestHeader(value = "Authorization", required = false) String authorization) {
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            authService.logout(authorization.substring(7));
+        }
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
@@ -121,33 +125,22 @@ public class AuthController {
      * 查询所有用户
      */
     @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "查询所有用户")
     public ResponseEntity<ApiResponse<UserListPageResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "100") int size
+            @RequestParam(defaultValue = "20") int size
     ) {
-        List<UserListItemResponse> allUsers = userService.findAll().stream()
-                .map(this::toUserListItemResponse)
-                .toList();
-
-        int safePage = Math.max(page, 0);
-        int safeSize = Math.max(size, 1);
-        int start = Math.min(safePage * safeSize, allUsers.size());
-        int end = Math.min(start + safeSize, allUsers.size());
-
-        var userPage = new PageImpl<>(
-                allUsers.subList(start, end),
-                PageRequest.of(safePage, safeSize),
-                allUsers.size()
-        );
-
-        return ResponseEntity.ok(ApiResponse.success(UserListPageResponse.fromPage(userPage)));
+        Page<User> userPage = userService.findPage(page, size);
+        Page<UserListItemResponse> responsePage = userPage.map(this::toUserListItemResponse);
+        return ResponseEntity.ok(ApiResponse.success(UserListPageResponse.fromPage(responsePage)));
     }
 
     /**
      * 根据ID查询用户
      */
     @GetMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "根据ID查询用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserById(@PathVariable Long id) {
         return userService.findById(id)
@@ -159,6 +152,7 @@ public class AuthController {
      * 根据用户名查询用户
      */
     @GetMapping("/users/username/{username}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "根据用户名查询用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserByUsername(@PathVariable String username) {
         return userService.findByUsername(username)
@@ -170,6 +164,7 @@ public class AuthController {
      * 根据组织ID查询用户
      */
     @GetMapping("/users/org/{orgId}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "根据组织ID查询用户")
     public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getUsersByOrgId(@PathVariable Long orgId) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -181,6 +176,7 @@ public class AuthController {
      * 创建用户
      */
     @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "创建用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> createUser(@RequestBody CreateUserRequest request) {
         User user = userService.createUser(
@@ -198,6 +194,7 @@ public class AuthController {
      * 更新用户
      */
     @PutMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "更新用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> updateUser(
             @PathVariable Long id,
@@ -216,6 +213,7 @@ public class AuthController {
      * 删除用户
      */
     @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "删除用户")
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
@@ -226,6 +224,7 @@ public class AuthController {
      * 锁定用户
      */
     @PostMapping("/users/{id}/lock")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "锁定用户")
     public ResponseEntity<ApiResponse<Void>> lockUser(@PathVariable Long id) {
         userService.lockUser(id);
@@ -236,6 +235,7 @@ public class AuthController {
      * 解锁用户
      */
     @PostMapping("/users/{id}/unlock")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "解锁用户")
     public ResponseEntity<ApiResponse<Void>> unlockUser(@PathVariable Long id) {
         userService.unlockUser(id);
@@ -292,7 +292,9 @@ public class AuthController {
                     user.getRealName(),
                     user.getOrgId(),
                     user.getIsActive(),
-                    user.getRoles().stream().map(role -> role.getRoleCode()).collect(Collectors.toList())
+                    user.getRoles() == null
+                            ? List.of()
+                            : user.getRoles().stream().map(role -> role.getRoleCode()).collect(Collectors.toList())
             );
         }
     }
@@ -345,7 +347,7 @@ public class AuthController {
     }
 
     private UserListItemResponse toUserListItemResponse(User user) {
-        List<UserRoleItemResponse> roles = user.getRoles().stream()
+        List<UserRoleItemResponse> roles = (user.getRoles() == null ? List.<com.sism.iam.domain.Role>of() : user.getRoles()).stream()
                 .map(role -> new UserRoleItemResponse(role.getRoleCode(), role.getRoleName()))
                 .toList();
 

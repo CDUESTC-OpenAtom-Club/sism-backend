@@ -167,8 +167,10 @@ public class ReportController {
     public ResponseEntity<ApiResponse<PageResult<PlanReportSimpleResponse>>> searchReports(
             @Valid PlanReportQueryRequest queryRequest,
             @AuthenticationPrincipal CurrentUser currentUser) {
-        Page<PlanReport> reportPage = reportApplicationService.findReportsByConditions(queryRequest);
-        List<PlanReportSimpleResponse> responses = filterReportsByPermission(reportPage.getContent(), currentUser).stream()
+        Page<PlanReport> reportPage = isAdmin(currentUser)
+                ? reportApplicationService.findReportsByConditions(queryRequest)
+                : reportApplicationService.findReportsByConditionsForOrg(queryRequest, requireCurrentOrgId(currentUser));
+        List<PlanReportSimpleResponse> responses = reportPage.getContent().stream()
                 .map(PlanReportSimpleResponse::fromEntity)
                 .collect(Collectors.toList());
         PageResult<PlanReportSimpleResponse> pageResult = PageResult.of(
@@ -222,7 +224,9 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByMonth(
             @Parameter(description = "月份，格式：yyyy-MM") @PathVariable String month,
             @AuthenticationPrincipal CurrentUser currentUser) {
-        List<PlanReport> reports = filterReportsByPermission(reportApplicationService.findReportsByMonth(month), currentUser);
+        List<PlanReport> reports = isAdmin(currentUser)
+                ? reportApplicationService.findReportsByMonth(month)
+                : reportApplicationService.findReportsByMonthAndOrgId(month, requireCurrentOrgId(currentUser));
         List<PlanReportSimpleResponse> responses = reports.stream()
                 .map(PlanReportSimpleResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -235,7 +239,9 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByStatus(
             @Parameter(description = "报告状态：DRAFT/SUBMITTED/APPROVED/REJECTED") @PathVariable String status,
             @AuthenticationPrincipal CurrentUser currentUser) {
-        List<PlanReport> reports = filterReportsByPermission(reportApplicationService.findReportsByStatus(status), currentUser);
+        List<PlanReport> reports = isAdmin(currentUser)
+                ? reportApplicationService.findReportsByStatus(status)
+                : reportApplicationService.findReportsByStatusForOrg(status, requireCurrentOrgId(currentUser));
         List<PlanReportSimpleResponse> responses = reports.stream()
                 .map(PlanReportSimpleResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -250,8 +256,10 @@ public class ReportController {
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal CurrentUser currentUser) {
-        Page<PlanReport> reportPage = reportApplicationService.findReportsByStatus(status, page, size);
-        List<PlanReportSimpleResponse> responses = filterReportsByPermission(reportPage.getContent(), currentUser).stream()
+        Page<PlanReport> reportPage = isAdmin(currentUser)
+                ? reportApplicationService.findReportsByStatus(status, page, size)
+                : reportApplicationService.findReportsByStatusForOrg(status, requireCurrentOrgId(currentUser), page, size);
+        List<PlanReportSimpleResponse> responses = reportPage.getContent().stream()
                 .map(PlanReportSimpleResponse::fromEntity)
                 .collect(Collectors.toList());
         PageResult<PlanReportSimpleResponse> pageResult = PageResult.of(
@@ -268,7 +276,9 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getPendingReports(
             @AuthenticationPrincipal CurrentUser currentUser) {
-        List<PlanReport> reports = filterReportsByPermission(reportApplicationService.findPendingReports(), currentUser);
+        List<PlanReport> reports = isAdmin(currentUser)
+                ? reportApplicationService.findPendingReports()
+                : reportApplicationService.findPendingReportsForOrg(requireCurrentOrgId(currentUser));
         List<PlanReportSimpleResponse> responses = reports.stream()
                 .map(PlanReportSimpleResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -281,7 +291,9 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByOrgType(
             @Parameter(description = "组织类型：ADMIN/FUNCTIONAL/ACADEMIC") @PathVariable ReportOrgType orgType,
             @AuthenticationPrincipal CurrentUser currentUser) {
-        List<PlanReport> reports = filterReportsByPermission(reportApplicationService.findReportsByOrgType(orgType), currentUser);
+        List<PlanReport> reports = isAdmin(currentUser)
+                ? reportApplicationService.findReportsByOrgType(orgType)
+                : reportApplicationService.findReportsByOrgTypeForOrg(orgType, requireCurrentOrgId(currentUser));
         List<PlanReportSimpleResponse> responses = reports.stream()
                 .map(PlanReportSimpleResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -294,7 +306,9 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByPlanId(
             @Parameter(description = "计划ID") @PathVariable Long planId,
             @AuthenticationPrincipal CurrentUser currentUser) {
-        List<PlanReport> reports = filterReportsByPermission(reportApplicationService.findReportsByPlanId(planId), currentUser);
+        List<PlanReport> reports = isAdmin(currentUser)
+                ? reportApplicationService.findReportsByPlanId(planId)
+                : reportApplicationService.findReportsByPlanIdForOrg(planId, requireCurrentOrgId(currentUser));
         List<PlanReportSimpleResponse> responses = reports.stream()
                 .map(PlanReportSimpleResponse::fromEntity)
                 .collect(Collectors.toList());
@@ -309,9 +323,7 @@ public class ReportController {
             @AuthenticationPrincipal CurrentUser currentUser) {
         long count = isAdmin(currentUser)
                 ? reportApplicationService.countReportsByStatus(status)
-                : reportApplicationService.findReportsByStatus(status).stream()
-                .filter(report -> Objects.equals(report.getReportOrgId(), requireCurrentOrgId(currentUser)))
-                .count();
+                : reportApplicationService.countReportsByStatusForOrg(status, requireCurrentOrgId(currentUser));
         return ResponseEntity.ok(ApiResponse.success(count));
     }
 

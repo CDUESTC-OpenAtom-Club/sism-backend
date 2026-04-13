@@ -31,9 +31,9 @@ public class DataExport extends AggregateRoot<Long> {
     public static final String STATUS_COMPLETED = "COMPLETED";
     public static final String STATUS_FAILED = "FAILED";
 
-    public static final String FORMAT_EXCEL = "EXCEL";
-    public static final String FORMAT_CSV = "CSV";
-    public static final String FORMAT_PDF = "PDF";
+    public static final String FORMAT_EXCEL = ExportFormat.EXCEL.getCode();
+    public static final String FORMAT_CSV = ExportFormat.CSV.getCode();
+    public static final String FORMAT_PDF = ExportFormat.PDF.getCode();
 
     @Column(name = "task_name", nullable = false, length = 255)
     private String name;
@@ -74,9 +74,6 @@ public class DataExport extends AggregateRoot<Long> {
     @Column(name = "is_deleted", nullable = false)
     private boolean deleted = false;
 
-    @Transient
-    private LocalDateTime createdAt;
-
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -103,8 +100,6 @@ public class DataExport extends AggregateRoot<Long> {
         export.requestedBy = requestedBy;
         export.parameters = parameters;
         export.requestedAt = LocalDateTime.now();
-        export.createdAt = LocalDateTime.now();
-
         export.validate();
         return export;
     }
@@ -199,7 +194,17 @@ public class DataExport extends AggregateRoot<Long> {
      * 验证导出格式
      */
     private boolean isValidFormat(String format) {
-        return FORMAT_EXCEL.equals(format) || FORMAT_CSV.equals(format) || FORMAT_PDF.equals(format);
+        return ExportFormat.isValidCode(format);
+    }
+
+    @Override
+    public LocalDateTime getCreatedAt() {
+        return requestedAt;
+    }
+
+    @Override
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.requestedAt = createdAt;
     }
 
     /**

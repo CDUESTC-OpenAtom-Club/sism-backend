@@ -31,8 +31,11 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     @Value("${app.security.headers.content-type-options:nosniff}")
     private String contentTypeOptions;
 
-    @Value("${app.security.headers.xss-protection:1; mode=block}")
-    private String xssProtection;
+    @Value("${app.security.headers.content-security-policy:default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'}")
+    private String contentSecurityPolicy;
+
+    @Value("${app.security.headers.strict-transport-security:max-age=31536000; includeSubDomains}")
+    private String strictTransportSecurity;
 
     @Value("${app.security.headers.referrer-policy:strict-origin-when-cross-origin}")
     private String referrerPolicy;
@@ -57,9 +60,13 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
             // nosniff tells browser to strictly follow Content-Type header
             response.setHeader("X-Content-Type-Options", contentTypeOptions);
 
-            // X-XSS-Protection: Enables browser's XSS filter
-            // 1; mode=block enables filter and blocks page if attack detected
-            response.setHeader("X-XSS-Protection", xssProtection);
+            // Content-Security-Policy: Restricts where the browser can load assets from.
+            response.setHeader("Content-Security-Policy", contentSecurityPolicy);
+
+            // Strict-Transport-Security: Enforce HTTPS only when the request is already secure.
+            if (isSecureRequest(request)) {
+                response.setHeader("Strict-Transport-Security", strictTransportSecurity);
+            }
 
             // Referrer-Policy: Controls how much referrer info is sent
             // strict-origin-when-cross-origin sends full URL for same-origin, only origin for cross-origin
@@ -94,5 +101,19 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
             }
         }
         return false;
+    }
+
+    private boolean isSecureRequest(HttpServletRequest request) {
+        if (request.isSecure()) {
+            return true;
+        }
+
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        if (forwardedProto != null && forwardedProto.equalsIgnoreCase("https")) {
+            return true;
+        }
+
+        String forwarded = request.getHeader("Forwarded");
+        return forwarded != null && forwarded.toLowerCase().contains("proto=https");
     }
 }

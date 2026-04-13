@@ -1,6 +1,6 @@
 package com.sism.organization.interfaces.dto;
 
-import com.sism.enums.OrgType;
+import com.sism.organization.domain.OrgType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

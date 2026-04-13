@@ -3,21 +3,13 @@ package com.sism.shared.domain.exception;
 /**
  * 认证异常
  */
-public class AuthenticationException extends RuntimeException {
-
-    private final String code;
+public class AuthenticationException extends BusinessException {
 
     public AuthenticationException(String message) {
-        super(message);
-        this.code = "AUTHENTICATION_FAILED";
+        super("AUTHENTICATION_FAILED", message);
     }
 
     public AuthenticationException(String code, String message) {
-        super(message);
-        this.code = code;
-    }
-
-    public String getCode() {
-        return code;
+        super(code, message);
     }
 }

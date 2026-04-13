@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MilestoneApplicationService {
 
+    private static final int MAX_PAGE_SIZE = 100;
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
     private final ExecutionMilestoneRepository milestoneRepository;
@@ -220,7 +221,7 @@ public class MilestoneApplicationService {
     }
 
     private int normalizePageSize(int size) {
-        return Math.max(size, 1);
+        return Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
     }
 
 }

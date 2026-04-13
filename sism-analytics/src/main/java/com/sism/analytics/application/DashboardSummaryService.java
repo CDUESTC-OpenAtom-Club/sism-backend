@@ -5,10 +5,14 @@ import com.sism.analytics.interfaces.dto.DashboardSummaryDTO;
 import com.sism.analytics.interfaces.dto.DepartmentProgressDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.cache.annotation.Cacheable;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,14 +28,13 @@ import java.util.Map;
 @Transactional(readOnly = true)
 public class DashboardSummaryService {
 
-    private static final String ALERT_SEVERITY_CRITICAL = "CRITICAL";
-    private static final String ALERT_SEVERITY_WARNING = "WARNING";
-    private static final String ALERT_SEVERITY_INFO = "INFO";
-    private static final String INDICATOR_TYPE_BASIC = "基础性指标";
-    private static final String INDICATOR_TYPE_DEVELOPMENT = "发展性指标";
     private static final int RECENT_ACTIVITY_LIMIT = 20;
+    private static final double ON_TRACK_THRESHOLD = 80.0;
+    private static final double AT_RISK_THRESHOLD = 50.0;
 
     private final DashboardSummaryQueryRepository dashboardSummaryQueryRepository;
+    @Qualifier("analyticsCacheManager")
+    private final CacheManager cacheManager;
 
     /**
      * Get dashboard summary aggregating indicator stats
@@ -71,7 +74,6 @@ public class DashboardSummaryService {
     /**
      * Get department progress grouped by target_org_id
      */
-    @SuppressWarnings("unchecked")
     @Cacheable(cacheNames = "department-progress", key = "'progress'")
     public List<DepartmentProgressDTO> getDepartmentProgress() {
         return dashboardSummaryQueryRepository.fetchDepartmentProgressRows().stream()
@@ -82,7 +84,6 @@ public class DashboardSummaryService {
     /**
      * Get recent activities - recent indicator changes
      */
-    @SuppressWarnings("unchecked")
     @Cacheable(cacheNames = "recent-activities", key = "'recent'")
     public List<Map<String, Object>> getRecentActivities() {
         List<Map<String, Object>> result = new ArrayList<>();
@@ -99,6 +100,12 @@ public class DashboardSummaryService {
         return result;
     }
 
+    public void evictCachedSummaries() {
+        evictCache("dashboard-summary");
+        evictCache("department-progress");
+        evictCache("recent-activities");
+    }
+
     private DepartmentProgressDTO toDepartmentProgress(DashboardSummaryQueryRepository.DepartmentProgressRow row) {
         double progress = row.averageProgress();
         return DepartmentProgressDTO.builder()
@@ -113,16 +120,25 @@ public class DashboardSummaryService {
     }
 
     private String resolveDepartmentStatus(double progress) {
-        if (progress >= 80) {
+        if (progress >= ON_TRACK_THRESHOLD) {
             return "on_track";
         }
-        if (progress >= 50) {
+        if (progress >= AT_RISK_THRESHOLD) {
             return "at_risk";
         }
         return "behind";
     }
 
     private static double round2(double value) {
-        return Math.round(value * 100.0) / 100.0;
+        return BigDecimal.valueOf(value)
+                .setScale(2, RoundingMode.HALF_UP)
+                .doubleValue();
+    }
+
+    private void evictCache(String cacheName) {
+        var cache = cacheManager.getCache(cacheName);
+        if (cache != null) {
+            cache.clear();
+        }
     }
 }

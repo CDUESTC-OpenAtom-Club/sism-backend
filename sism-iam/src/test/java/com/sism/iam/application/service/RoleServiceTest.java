@@ -2,32 +2,44 @@ package com.sism.iam.application.service;
 
 import com.sism.iam.domain.Permission;
 import com.sism.iam.domain.Role;
+import com.sism.iam.domain.repository.RoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for RoleService
  * Tests role management business logic
  */
 @DisplayName("RoleService Tests")
+@ExtendWith(MockitoExtension.class)
 class RoleServiceTest {
+
+    @Mock
+    private RoleRepository roleRepository;
 
     private RoleService roleService;
 
     @BeforeEach
     void setUp() {
-        roleService = new RoleService();
+        roleService = new RoleService(roleRepository);
     }
 
     @Test
     @DisplayName("Should create role with valid parameters")
     void shouldCreateRoleWithValidParameters() {
+        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
         Role role = roleService.createRole("ADMIN", "Administrator", "Full system access");
 
         assertNotNull(role);
@@ -40,6 +52,8 @@ class RoleServiceTest {
     @Test
     @DisplayName("Should create role with null description")
     void shouldCreateRoleWithNullDescription() {
+        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
         Role role = roleService.createRole("USER", "User", null);
 
         assertNotNull(role);

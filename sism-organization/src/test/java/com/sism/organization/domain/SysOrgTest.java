@@ -1,11 +1,8 @@
 package com.sism.organization.domain;
 
 import com.sism.organization.domain.OrgType;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -77,15 +74,23 @@ class SysOrgTest {
     }
 
     @Test
-    @DisplayName("Should update organization description successfully")
-    void shouldUpdateOrganizationDescriptionSuccessfully() {
-        SysOrg org = SysOrg.create("测试部门", OrgType.academic);
-        LocalDateTime initialUpdatedAt = org.getUpdatedAt();
+    @DisplayName("setOrgName should reuse rename validation")
+    void setOrgNameShouldReuseRenameValidation() {
+        SysOrg org = SysOrg.create("旧部门名称", OrgType.academic);
 
-        org.updateDescription("这是一个测试部门的描述");
+        assertThrows(IllegalArgumentException.class, () -> org.setOrgName(" "));
+    }
 
-        assertNotNull(org.getUpdatedAt());
-        assertNotEquals(initialUpdatedAt, org.getUpdatedAt());
+    @Test
+    @DisplayName("Should validate setOrgName using rename business rules")
+    void shouldValidateSetOrgNameUsingRenameBusinessRules() {
+        SysOrg org = SysOrg.create("旧部门名称", OrgType.academic);
+
+        assertThrows(IllegalArgumentException.class, () -> org.setOrgName(" "));
+
+        org.setOrgName(" 新部门名称 ");
+
+        assertEquals("新部门名称", org.getName());
     }
 
     @Test
@@ -97,6 +102,18 @@ class SysOrgTest {
         org.updateParent(parentOrg);
 
         assertEquals(parentOrg.getId(), org.getParentOrgId());
+    }
+
+    @Test
+    @DisplayName("updateName should delegate to rename rules")
+    void updateNameShouldDelegateToRenameRules() {
+        SysOrg org = SysOrg.create("旧部门名称", OrgType.academic);
+
+        assertThrows(IllegalArgumentException.class, () -> org.updateName(" "));
+
+        org.updateName(" 新部门名称 ");
+
+        assertEquals("新部门名称", org.getName());
     }
 
     @Test

@@ -29,13 +29,15 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class IndicatorControllerTest {
@@ -95,6 +97,7 @@ class IndicatorControllerTest {
         assertEquals(4L, item.getCycleId());
         assertEquals(2026, item.getYear());
         assertEquals(41003L, item.getTaskId());
+        verifyNoInteractions(jpaTaskRepository);
     }
 
     @Test
@@ -107,7 +110,8 @@ class IndicatorControllerTest {
         indicator.setTargetOrg(new com.sism.organization.domain.SysOrg());
         indicator.getTargetOrg().setId(61L);
         indicator.getTargetOrg().setName("目标组织");
-        when(strategyApplicationService.getIndicatorByIdAndOwnerOrgId(3005L, 99L)).thenReturn(null);
+        when(strategyApplicationService.getIndicatorByIdAndOwnerOrgId(3005L, 99L))
+                .thenThrow(new IllegalArgumentException("Indicator not found for owner org: 3005"));
 
         CurrentUser currentUser = new CurrentUser(
                 9L,
@@ -126,6 +130,26 @@ class IndicatorControllerTest {
         verify(strategyApplicationService).getIndicatorByIdAndOwnerOrgId(3005L, 99L);
     }
 
+    @Test
+    @DisplayName("listIndicators should use named parameters for task and report lookups")
+    void shouldUseNamedParameterQueriesForIndicatorAggregation() {
+        Indicator indicator = createIndicator(2004L, 41003L);
+        when(strategyApplicationService.getIndicatorsByYear(2026, PageRequest.of(0, 1)))
+                .thenReturn(new PageImpl<>(List.of(indicator), PageRequest.of(0, 1), 1));
+
+        controller.listIndicators(0, 1, null, null, 2026);
+
+        verify(namedParameterJdbcTemplate).queryForList(
+                contains("FROM public.sys_task"),
+                any(MapSqlParameterSource.class)
+        );
+        verify(namedParameterJdbcTemplate).queryForList(
+                contains("FROM public.plan_report_indicator"),
+                any(MapSqlParameterSource.class)
+        );
+        verifyNoMoreInteractions(jpaTaskRepository);
+    }
+
     private IndicatorController instantiateController() {
         try {
             Constructor<IndicatorController> constructor = IndicatorController.class.getDeclaredConstructor(
@@ -134,6 +158,7 @@ class IndicatorControllerTest {
                     OrganizationRepository.class,
                     JpaTaskRepositoryInternal.class,
                     JdbcTemplate.class,
+                    NamedParameterJdbcTemplate.class,
                     Class.forName("com.sism.iam.application.service.UserNotificationService")
             );
             Object userNotificationService = null;
@@ -143,6 +168,7 @@ class IndicatorControllerTest {
                     organizationRepository,
                     jpaTaskRepository,
                     jdbcTemplate,
+                    namedParameterJdbcTemplate,
                     userNotificationService
             );
         } catch (ReflectiveOperationException ex) {
@@ -151,23 +177,6 @@ class IndicatorControllerTest {
     }
 
     private void stubJdbcQueries() {
-        doAnswer(invocation -> {
-            String sql = invocation.getArgument(0, String.class);
-            if (sql.contains("FROM public.plan_report_indicator")) {
-                return List.of();
-            }
-            if (sql.contains("FROM public.sys_task")) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("task_id", 41003L);
-                row.put("task_name", "重点任务");
-                row.put("task_type", "QUANTITATIVE");
-                row.put("cycle_id", 4L);
-                row.put("year", 2026);
-                return List.of(row);
-            }
-            return List.of();
-        }).when(jdbcTemplate).queryForList(anyString(), any(Object[].class));
-
         when(namedParameterJdbcTemplate.queryForList(
                 contains("FROM public.sys_task"),
                 any(MapSqlParameterSource.class)
@@ -178,6 +187,10 @@ class IndicatorControllerTest {
                 "cycle_id", 4L,
                 "year", 2026
         )));
+        when(namedParameterJdbcTemplate.queryForList(
+                contains("FROM public.plan_report_indicator"),
+                any(MapSqlParameterSource.class)
+        )).thenReturn(List.of());
     }
 
     private Indicator createIndicator(Long indicatorId, Long taskId) {

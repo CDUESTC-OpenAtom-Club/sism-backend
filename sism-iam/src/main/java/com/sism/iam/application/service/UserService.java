@@ -5,6 +5,8 @@ import com.sism.iam.domain.Role;
 import com.sism.iam.domain.repository.RoleRepository;
 import com.sism.iam.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 创建用户
@@ -45,7 +48,7 @@ public class UserService {
 
         User user = new User();
         user.setUsername(username);
-        user.setPassword(password);
+        user.setPassword(passwordEncoder.encode(password));
         user.setRealName(realName);
         user.setOrgId(orgId);
         user.setIsActive(true);
@@ -112,6 +115,14 @@ public class UserService {
      */
     public List<User> findAll() {
         return userRepository.findAll();
+    }
+
+    /**
+     * 分页查询所有用户
+     */
+    @Transactional(readOnly = true)
+    public Page<User> findPage(int page, int size) {
+        return userRepository.findAll(PaginationPolicy.toPageRequest(page, size));
     }
 
     /**

@@ -111,7 +111,7 @@ public class DatabaseDataChecker {
                 SELECT COUNT(*) FROM indicator WHERE owner_org_id IS NULL
                 """, Long.class);
 
-            if (count > 0) {
+            if (count != null && count > 0) {
                 issues.add(Map.of(
                     "type", "INDICATORS_WITHOUT_OWNER",
                     "description", "Indicators without owner organization",
@@ -128,7 +128,7 @@ public class DatabaseDataChecker {
                 SELECT COUNT(*) FROM indicator WHERE target_org_id IS NULL
                 """, Long.class);
 
-            if (count > 0) {
+            if (count != null && count > 0) {
                 issues.add(Map.of(
                     "type", "INDICATORS_WITHOUT_TARGET",
                     "description", "Indicators without target organization",

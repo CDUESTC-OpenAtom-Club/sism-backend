@@ -2,10 +2,11 @@ package com.sism.workflow.application.query;
 
 import com.sism.iam.domain.repository.UserRepository;
 import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.execution.application.ReportApplicationService;
+import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
-import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
@@ -19,11 +20,11 @@ import com.sism.workflow.interfaces.dto.WorkflowInstanceDetailResponse;
 import com.sism.workflow.interfaces.dto.WorkflowInstanceResponse;
 import com.sism.workflow.interfaces.dto.WorkflowTaskResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class WorkflowReadModelService {
 
@@ -49,32 +51,35 @@ public class WorkflowReadModelService {
     private final AuditInstanceRepository auditInstanceRepository;
     private final WorkflowQueryRepository workflowQueryRepository;
     private final WorkflowReadModelMapper workflowReadModelMapper;
-    private final ApproverResolver approverResolver;
     private final PlanRepository planRepository;
-    private final JdbcTemplate jdbcTemplate;
+    private final ReportApplicationService reportApplicationService;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
 
     public PageResult<com.sism.workflow.interfaces.dto.WorkflowDefinitionResponse> listDefinitions(int pageNum, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
+        int safePageNum = normalizePageNum(pageNum);
+        int safePageSize = normalizePageSize(pageSize);
+        Pageable pageable = PageRequest.of(safePageNum - 1, safePageSize);
         Page<AuditFlowDef> page = workflowDefinitionQueryService.getAllAuditFlowDefs(pageable);
         List<com.sism.workflow.interfaces.dto.WorkflowDefinitionResponse> items = page.getContent().stream()
                 .map(workflowReadModelMapper::toDefinitionResponse)
                 .toList();
-        return PageResult.of(items, page.getTotalElements(), pageNum, pageSize);
+        return PageResult.of(items, page.getTotalElements(), safePageNum, safePageSize);
     }
 
     public PageResult<WorkflowInstanceResponse> listInstances(String definitionId, int pageNum, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNum - 1, pageSize);
-        Page<AuditInstance> page = auditInstanceRepository.findByFlowDefId(Long.parseLong(definitionId), pageable);
+        int safePageNum = normalizePageNum(pageNum);
+        int safePageSize = normalizePageSize(pageSize);
+        Pageable pageable = PageRequest.of(safePageNum - 1, safePageSize);
+        Page<AuditInstance> page = auditInstanceRepository.findByFlowDefId(parseRequiredLong(definitionId, "definitionId"), pageable);
         List<WorkflowInstanceResponse> items = page.getContent().stream()
                 .map(this::buildInstanceSummary)
                 .toList();
-        return PageResult.of(items, page.getTotalElements(), pageNum, pageSize);
+        return PageResult.of(items, page.getTotalElements(), safePageNum, safePageSize);
     }
 
     public WorkflowInstanceDetailResponse getInstanceDetail(String instanceId) {
-        AuditInstance instance = auditInstanceRepository.findById(Long.parseLong(instanceId))
+        AuditInstance instance = auditInstanceRepository.findById(parseRequiredLong(instanceId, "instanceId"))
                 .orElseThrow(() -> new IllegalArgumentException("Workflow instance not found: " + instanceId));
         return buildInstanceDetail(instance);
     }
@@ -108,42 +113,66 @@ public class WorkflowReadModelService {
 
     public PageResult<WorkflowTaskResponse> getMyPendingTasks(Long userId, int pageNum) {
         int pageSize = 10;
-        List<AuditInstance> pendingInstances = auditInstanceRepository.findByStatus(AuditInstance.STATUS_PENDING);
+        int safePageNum = Math.max(pageNum, 1);
+        Pageable pageable = PageRequest.of(safePageNum - 1, pageSize);
+        Page<AuditInstance> pendingPage = workflowQueryRepository.findPendingAuditInstancesByUserId(userId, pageable);
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
 
-        List<WorkflowTaskResponse> tasks = pendingInstances.stream()
+        List<WorkflowTaskResponse> tasks = pendingPage.getContent().stream()
                 .flatMap(instance -> instance.getStepInstances().stream()
                         .filter(step -> AuditInstance.STEP_STATUS_PENDING.equals(step.getStatus()))
-                        .filter(step -> canUserHandleStep(instance, step, userId))
-                        .map(step -> enrichTaskResponse(instance, step)))
+                        .filter(step -> Objects.equals(step.getApproverId(), userId))
+                        .map(step -> enrichTaskResponse(instance, step, orgNameCache, userNameCache, flowDefCache, businessContextCache)))
                 .sorted(Comparator.comparing(WorkflowTaskResponse::getCreatedTime,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
-
-        int start = (pageNum - 1) * pageSize;
-        int end = Math.min(start + pageSize, tasks.size());
-        List<WorkflowTaskResponse> pagedTasks = start < tasks.size() ? tasks.subList(start, end) : List.of();
-        return PageResult.of(pagedTasks, tasks.size(), pageNum, pageSize);
+        return PageResult.of(tasks, pendingPage.getTotalElements(), safePageNum, pageSize);
     }
 
     public PageResult<WorkflowInstanceResponse> getMyApprovedInstances(Long userId, int pageNum, int pageSize) {
-        List<WorkflowInstanceResponse> items = workflowQueryRepository.findApprovedAuditInstancesByUserId(userId).stream()
-                .map(this::buildInstanceSummary)
+        int safePageNum = Math.max(pageNum, 1);
+        int safePageSize = Math.max(pageSize, 1);
+        Page<AuditInstance> page = workflowQueryRepository.findApprovedAuditInstancesByUserId(
+                userId,
+                PageRequest.of(safePageNum - 1, safePageSize)
+        );
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+
+        List<WorkflowInstanceResponse> items = page.getContent().stream()
+                .map(instance -> buildInstanceSummary(instance, userNameCache, orgNameCache, flowDefCache, businessContextCache))
                 .sorted(Comparator
                         .comparing(WorkflowInstanceResponse::getEndTime, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(WorkflowInstanceResponse::getStartTime, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(WorkflowInstanceResponse::getInstanceId, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
-        return paginateInstanceResponses(items, pageNum, pageSize);
+        return PageResult.of(items, page.getTotalElements(), safePageNum, safePageSize);
     }
 
     public PageResult<WorkflowInstanceResponse> getMyAppliedInstances(Long userId, int pageNum, int pageSize) {
-        List<WorkflowInstanceResponse> items = workflowQueryRepository.findAppliedAuditInstancesByUserId(userId).stream()
-                .map(this::buildInstanceSummary)
+        int safePageNum = Math.max(pageNum, 1);
+        int safePageSize = Math.max(pageSize, 1);
+        Page<AuditInstance> page = workflowQueryRepository.findAppliedAuditInstancesByUserId(
+                userId,
+                PageRequest.of(safePageNum - 1, safePageSize)
+        );
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+
+        List<WorkflowInstanceResponse> items = page.getContent().stream()
+                .map(instance -> buildInstanceSummary(instance, userNameCache, orgNameCache, flowDefCache, businessContextCache))
                 .sorted(Comparator
                         .comparing(WorkflowInstanceResponse::getStartTime, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(WorkflowInstanceResponse::getInstanceId, Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
-        return paginateInstanceResponses(items, pageNum, pageSize);
+        return PageResult.of(items, page.getTotalElements(), safePageNum, safePageSize);
     }
 
     private WorkflowInstanceDetailResponse buildInstanceDetail(AuditInstance instance) {
@@ -208,12 +237,14 @@ public class WorkflowReadModelService {
         return response;
     }
 
-    private WorkflowTaskResponse enrichTaskResponse(AuditInstance instance, AuditStepInstance step) {
+    private WorkflowTaskResponse enrichTaskResponse(
+            AuditInstance instance,
+            AuditStepInstance step,
+            Map<Long, String> orgNameCache,
+            Map<Long, String> userNameCache,
+            Map<Long, AuditFlowDef> flowDefCache,
+            Map<String, WorkflowBusinessContext> businessContextCache) {
         WorkflowTaskResponse response = workflowReadModelMapper.toPendingTaskResponse(instance, step);
-        Map<Long, String> orgNameCache = new HashMap<>();
-        Map<Long, String> userNameCache = new HashMap<>();
-        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
-        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
         WorkflowBusinessContext context = resolveBusinessContext(instance, orgNameCache, businessContextCache);
         AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId(), flowDefCache);
         response.setEntityType(toExternalEntityType(instance.getEntityType()));
@@ -305,16 +336,6 @@ public class WorkflowReadModelService {
                 .max(Comparator
                         .comparing(AuditInstance::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(AuditInstance::getId, Comparator.nullsLast(Comparator.naturalOrder())));
-    }
-
-    private PageResult<WorkflowInstanceResponse> paginateInstanceResponses(
-            List<WorkflowInstanceResponse> items, int pageNum, int pageSize) {
-        int safePageNum = Math.max(pageNum, 1);
-        int safePageSize = Math.max(pageSize, 1);
-        int start = (safePageNum - 1) * safePageSize;
-        int end = Math.min(start + safePageSize, items.size());
-        List<WorkflowInstanceResponse> pagedItems = start < items.size() ? items.subList(start, end) : List.of();
-        return PageResult.of(pagedItems, items.size(), safePageNum, safePageSize);
     }
 
     private List<AuditInstance> findInstancesByBusiness(String entityType, Long entityId) {
@@ -413,27 +434,10 @@ public class WorkflowReadModelService {
         String sourceOrgName = null;
         Long targetOrgId = null;
         String targetOrgName = null;
-        Map<String, Object> reportRow = jdbcTemplate.query(
-                """
-                SELECT plan_id, report_org_id, report_month
-                FROM public.plan_report
-                WHERE id = ?
-                """,
-                rs -> {
-                    if (!rs.next()) {
-                        return null;
-                    }
-                    return Map.of(
-                            "plan_id", rs.getObject("plan_id"),
-                            "report_org_id", rs.getObject("report_org_id"),
-                            "report_month", rs.getString("report_month")
-                    );
-                },
-                reportId
-        );
-        Long planId = reportRow == null ? null : toLong(reportRow.get("plan_id"));
-        Long reportOrgId = reportRow == null ? null : toLong(reportRow.get("report_org_id"));
-        String reportMonth = reportRow == null ? null : (String) reportRow.get("report_month");
+        PlanReport report = reportApplicationService.findReportById(reportId).orElse(null);
+        Long planId = report == null ? null : report.getPlanId();
+        Long reportOrgId = report == null ? null : report.getReportOrgId();
+        String reportMonth = report == null ? null : report.getReportMonth();
         String planName = planId == null ? null : "Plan " + planId;
 
         if (planId != null) {
@@ -475,19 +479,6 @@ public class WorkflowReadModelService {
         AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(flowDefId);
         flowDefCache.put(flowDefId, flowDef);
         return flowDef;
-    }
-
-    private boolean canUserHandleStep(AuditInstance instance, AuditStepInstance step, Long userId) {
-        AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(instance.getFlowDefId());
-        if (flowDef == null || flowDef.getSteps() == null) {
-            return false;
-        }
-
-        AuditStepDef stepDef = flowDef.getSteps().stream()
-                .filter(candidate -> candidate.getId() != null && candidate.getId().equals(step.getStepDefId()))
-                .findFirst()
-                .orElse(null);
-        return approverResolver.canUserApprove(stepDef, userId, instance.getRequesterOrgId(), instance);
     }
 
     private String resolveUserName(Long userId) {
@@ -585,6 +576,25 @@ public class WorkflowReadModelService {
             return Long.parseLong(String.valueOf(value));
         } catch (NumberFormatException ignored) {
             return null;
+        }
+    }
+
+    private int normalizePageNum(int pageNum) {
+        return Math.max(pageNum, 1);
+    }
+
+    private int normalizePageSize(int pageSize) {
+        return Math.max(pageSize, 1);
+    }
+
+    private long parseRequiredLong(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must be a numeric value");
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(fieldName + " must be a numeric value: " + value, ex);
         }
     }
 

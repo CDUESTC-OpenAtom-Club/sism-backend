@@ -1,6 +1,8 @@
 package com.sism.workflow.application;
 
 import com.sism.execution.domain.model.report.ReportOrgType;
+import com.sism.execution.application.ReportApplicationService;
+import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.event.PlanReportApprovedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportRejectedEvent;
 import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
@@ -10,7 +12,6 @@ import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
 import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +46,8 @@ public class ReportWorkflowEventListener {
     private final BusinessWorkflowApplicationService businessWorkflowService;
     private final WorkflowApplicationService workflowApplicationService;
     private final AuditInstanceRepository auditInstanceRepository;
-    private final JdbcTemplate jdbcTemplate;
+    private final WorkflowTerminalStatusSyncService workflowTerminalStatusSyncService;
+    private final ReportApplicationService reportApplicationService;
 
     /**
      * 处理"计划报告已提交"事件
@@ -66,41 +68,19 @@ public class ReportWorkflowEventListener {
             log.info("报告ID: {}, 报告月份: {}, 报告组织ID: {}",
                     event.getReportId(), event.getReportMonth(), event.getReportOrgId());
 
-            ReportOrgType reportOrgType = jdbcTemplate.query(
-                    """
-                    SELECT report_org_type
-                    FROM public.plan_report
-                    WHERE id = ?
-                    """,
-                    rs -> rs.next() ? ReportOrgType.valueOf(rs.getString("report_org_type")) : null,
-                    event.getReportId()
-            );
+            PlanReport report = reportApplicationService.findReportById(event.getReportId())
+                    .orElse(null);
+            ReportOrgType reportOrgType = report == null ? null : report.getReportOrgType();
             if (reportOrgType == null) {
                 throw new IllegalArgumentException("Report not found: " + event.getReportId());
             }
 
-            Long auditInstanceId = jdbcTemplate.query(
-                    """
-                    SELECT audit_instance_id
-                    FROM public.plan_report
-                    WHERE id = ?
-                    """,
-                    rs -> rs.next() ? rs.getObject("audit_instance_id", Long.class) : null,
-                    event.getReportId()
-            );
+            Long auditInstanceId = report == null ? null : report.getAuditInstanceId();
 
             AuditInstance resumableInstance = findResumableReportInstance(event.getReportId(), auditInstanceId);
             if (resumableInstance != null) {
                 AuditInstance resumed = workflowApplicationService.resumeWithdrawnAuditInstance(resumableInstance);
-                jdbcTemplate.update(
-                        """
-                        UPDATE public.plan_report
-                        SET audit_instance_id = ?
-                        WHERE id = ?
-                        """,
-                        resumed.getId(),
-                        event.getReportId()
-                );
+                reportApplicationService.attachAuditInstance(event.getReportId(), resumed.getId());
                 log.info("✅ 已恢复既有报告审批实例 - instanceId: {}, reportId: {}",
                         resumed.getId(), event.getReportId());
                 return;
@@ -124,27 +104,18 @@ public class ReportWorkflowEventListener {
             log.info("✅ 工作流启动成功 - 工作流实例ID: {}, 报告ID: {}",
                     response.getInstanceId(), event.getReportId());
             if (response.getInstanceId() != null) {
-                jdbcTemplate.update(
-                        """
-                        UPDATE public.plan_report
-                        SET audit_instance_id = ?
-                        WHERE id = ?
-                        """,
-                        Long.parseLong(response.getInstanceId()),
-                        event.getReportId()
-                );
+                reportApplicationService.attachAuditInstance(event.getReportId(), Long.parseLong(response.getInstanceId()));
             }
 
         } catch (IllegalStateException e) {
             // 可能是因为已经存在活跃的工作流实例
             log.warn("⚠️ 无法启动工作流（可能是因为已存在活跃实例）: reportId={}, reason={}",
                     event.getReportId(), e.getMessage());
-            // 不抛出异常，继续处理其他事件
+            throw e;
         } catch (Exception e) {
             log.error("❌ 启动工作流失败: reportId={}, 错误信息={}",
                     event.getReportId(), e.getMessage(), e);
-            // 记录错误但不阻塞事件处理流程
-            // 在生产环境中，可能需要存储这个失败事件以供后续重试
+            throw new IllegalStateException("Failed to start report workflow for reportId=" + event.getReportId(), e);
         }
     }
 
@@ -171,7 +142,7 @@ public class ReportWorkflowEventListener {
                 throw new IllegalStateException("Report is not approved yet: " + event.getReportId());
             }
 
-            int syncedCount = syncWorkflowTerminalStatus(
+            int syncedCount = workflowTerminalStatusSyncService.syncReportWorkflowTerminalStatus(
                     event.getReportId(),
                     AuditInstance.STATUS_APPROVED,
                     event.getApproverId(),
@@ -182,6 +153,7 @@ public class ReportWorkflowEventListener {
         } catch (Exception e) {
             log.error("❌ 处理报告批准事件失败: reportId={}, 错误信息={}",
                     event.getReportId(), e.getMessage(), e);
+            throw new IllegalStateException("Failed to process approved report event for reportId=" + event.getReportId(), e);
         }
     }
 
@@ -209,7 +181,7 @@ public class ReportWorkflowEventListener {
                 throw new IllegalStateException("Report is not rejected yet: " + event.getReportId());
             }
 
-            int syncedCount = syncWorkflowTerminalStatus(
+            int syncedCount = workflowTerminalStatusSyncService.syncReportWorkflowTerminalStatus(
                     event.getReportId(),
                     AuditInstance.STATUS_REJECTED,
                     event.getApproverId(),
@@ -220,6 +192,7 @@ public class ReportWorkflowEventListener {
         } catch (Exception e) {
             log.error("❌ 处理报告驳回事件失败: reportId={}, 错误信息={}",
                     event.getReportId(), e.getMessage(), e);
+            throw new IllegalStateException("Failed to process rejected report event for reportId=" + event.getReportId(), e);
         }
     }
 
@@ -247,37 +220,8 @@ public class ReportWorkflowEventListener {
     }
 
     private boolean hasReportStatus(Long reportId, String expectedStatus) {
-        String currentStatus = jdbcTemplate.query(
-                """
-                SELECT status
-                FROM public.plan_report
-                WHERE id = ?
-                """,
-                rs -> rs.next() ? rs.getString("status") : null,
-                reportId
-        );
-        return expectedStatus.equalsIgnoreCase(String.valueOf(currentStatus));
-    }
-
-    private int syncWorkflowTerminalStatus(Long reportId, String terminalStatus, Long operatorId, String comment) {
-        int syncedCount = 0;
-        for (var instance : auditInstanceRepository.findByBusinessTypeAndBusinessId(PLAN_REPORT_ENTITY_TYPE, reportId)) {
-            if (!AuditInstance.STATUS_PENDING.equals(instance.getStatus())) {
-                continue;
-            }
-            instance.completeExternally(terminalStatus, operatorId, comment);
-            auditInstanceRepository.save(instance);
-            syncedCount++;
-        }
-        for (var instance : auditInstanceRepository.findByBusinessTypeAndBusinessId("PlanReport", reportId)) {
-            if (!AuditInstance.STATUS_PENDING.equals(instance.getStatus())) {
-                continue;
-            }
-            instance.completeExternally(terminalStatus, operatorId, comment);
-            auditInstanceRepository.save(instance);
-            syncedCount++;
-        }
-        return syncedCount;
+        PlanReport report = reportApplicationService.findReportById(reportId).orElse(null);
+        return report != null && expectedStatus.equalsIgnoreCase(report.getStatus());
     }
 
     private String resolveWorkflowCode(ReportOrgType reportOrgType) {

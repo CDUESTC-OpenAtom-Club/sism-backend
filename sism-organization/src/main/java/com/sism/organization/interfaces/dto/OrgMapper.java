@@ -63,12 +63,7 @@ public class OrgMapper {
         if (request == null) {
             return null;
         }
-        // Convert from shared OrgType to domain OrgType
-        com.sism.organization.domain.OrgType domainType =
-            com.sism.organization.domain.OrgType.fromSharedOrgType(
-                request.getType()
-            );
-        return SysOrg.create(request.getName(), domainType);
+        return SysOrg.create(request.getName(), request.getType());
     }
 
     /**
@@ -82,12 +77,7 @@ public class OrgMapper {
             org.rename(request.getName());
         }
         if (request.getType() != null) {
-            // Convert from shared OrgType to domain OrgType
-            com.sism.organization.domain.OrgType domainType =
-                com.sism.organization.domain.OrgType.fromSharedOrgType(
-                    request.getType()
-                );
-            org.changeType(domainType);
+            org.changeType(request.getType());
         }
         if (request.getSortOrder() != null) {
             org.updateSortOrder(request.getSortOrder());

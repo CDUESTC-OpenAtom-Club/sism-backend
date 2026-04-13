@@ -1,6 +1,8 @@
 package com.sism.iam.domain.repository;
 
 import com.sism.iam.domain.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,11 @@ public interface UserRepository {
      * 查询所有用户
      */
     List<User> findAll();
+
+    /**
+     * 分页查询所有用户
+     */
+    Page<User> findAll(Pageable pageable);
 
     /**
      * 根据用户名查询用户

@@ -1,6 +1,7 @@
 package com.sism.exception;
 
 import com.sism.common.ApiResponse;
+import com.sism.common.ErrorCodes;
 import com.sism.shared.domain.exception.AuthenticationException;
 import com.sism.shared.domain.exception.AuthorizationException;
 import com.sism.shared.domain.exception.TechnicalException;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.ObjectError;
 import org.springframework.validation.FieldError;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -47,44 +49,6 @@ public class GlobalExceptionHandler {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern(TIMESTAMP_FORMAT);
 
     /**
-     * Handle business exceptions (expected application errors).
-     * Maps to API doc error codes: 1000-1999
-     */
-    @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
-        String requestId = getOrGenerateRequestId();
-        String requestContext = getRequestContext();
-        
-        log.warn("Business exception: code={}, message={}, requestId={}, context=[{}]", 
-                e.getCode(), e.getMessage(), requestId, requestContext);
-        
-        int errorCode = mapBusinessCodeToApiErrorCode(e.getCode());
-        ApiResponse<Void> response = ApiResponse.error(errorCode, e.getMessage());
-        
-        return ResponseEntity
-                .status(getHttpStatus(e.getCode()))
-                .body(response);
-    }
-    
-    /**
-     * Handle resource not found exceptions.
-     */
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(ResourceNotFoundException e) {
-        String requestId = getOrGenerateRequestId();
-        String requestContext = getRequestContext();
-        
-        log.warn("Resource not found: message={}, requestId={}, context=[{}]", 
-                e.getMessage(), requestId, requestContext);
-        
-        ApiResponse<Void> response = ApiResponse.error(1002, e.getMessage());
-        
-        return ResponseEntity
-                .status(HttpStatus.NOT_FOUND)
-                .body(response);
-    }
-    
-    /**
      * Handle unauthorized exceptions.
      */
     @ExceptionHandler(UnauthorizedException.class)
@@ -95,7 +59,7 @@ public class GlobalExceptionHandler {
         log.warn("Unauthorized access: message={}, requestId={}, context=[{}]", 
                 e.getMessage(), requestId, requestContext);
         
-        ApiResponse<Void> response = ApiResponse.error(2002, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INVALID_TOKEN, e.getMessage());
         
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
@@ -113,7 +77,7 @@ public class GlobalExceptionHandler {
         log.warn("Conflict: message={}, requestId={}, context=[{}]", 
                 e.getMessage(), requestId, requestContext);
         
-        ApiResponse<Void> response = ApiResponse.error(1003, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.DATA_ALREADY_EXISTS, e.getMessage());
         
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
@@ -169,6 +133,25 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(response);
     }
+
+    /**
+     * Handle malformed request bodies such as invalid JSON.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException e) {
+        String requestId = getOrGenerateRequestId();
+        String requestContext = getRequestContext();
+
+        log.warn("Malformed request body: message={}, requestId={}, context=[{}]",
+                e.getMessage(), requestId, requestContext);
+
+        ApiResponse<Void> response = ApiResponse.error(1001, "请求体格式错误");
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
     
     /**
      * Handle illegal argument exceptions.
@@ -199,7 +182,7 @@ public class GlobalExceptionHandler {
         log.warn("Illegal state: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1000, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -217,10 +200,10 @@ public class GlobalExceptionHandler {
         log.warn("Shared business exception: code={}, message={}, requestId={}, context=[{}]",
                 e.getCode(), e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1000, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(mapBusinessCodeToApiErrorCode(e.getCode()), e.getMessage());
 
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
+                .status(getHttpStatus(e.getCode()))
                 .body(response);
     }
 
@@ -235,7 +218,7 @@ public class GlobalExceptionHandler {
         log.warn("Shared resource not found: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1002, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.DATA_NOT_FOUND, e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
@@ -253,7 +236,7 @@ public class GlobalExceptionHandler {
         log.warn("Authentication failed: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(2001, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INVALID_CREDENTIALS, e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
@@ -271,7 +254,7 @@ public class GlobalExceptionHandler {
         log.warn("Authorization failed: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(2003, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INSUFFICIENT_PERMISSION, e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
@@ -289,7 +272,7 @@ public class GlobalExceptionHandler {
         log.error("Technical error: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext, e);
 
-        ApiResponse<Void> response = ApiResponse.error(3001, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INTERNAL_ERROR, e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -307,7 +290,7 @@ public class GlobalExceptionHandler {
         log.warn("Workflow exception: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1000, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -325,7 +308,7 @@ public class GlobalExceptionHandler {
         log.warn("N+1 query detected: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1000, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, e.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -343,7 +326,7 @@ public class GlobalExceptionHandler {
         log.warn("Resource endpoint not found: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1002, "接口不存在");
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.DATA_NOT_FOUND, "接口不存在");
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
@@ -361,7 +344,7 @@ public class GlobalExceptionHandler {
         log.warn("Method not supported: method={}, message={}, requestId={}, context=[{}]",
                 e.getMethod(), e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1001, "请求方法不支持");
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, "请求方法不支持");
 
         return ResponseEntity
                 .status(HttpStatus.METHOD_NOT_ALLOWED)
@@ -379,7 +362,7 @@ public class GlobalExceptionHandler {
         log.warn("Access denied: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(2003, "无权限访问");
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INSUFFICIENT_PERMISSION, "无权限访问");
 
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
@@ -401,7 +384,7 @@ public class GlobalExceptionHandler {
                 requestContext,
                 e);
 
-        ApiResponse<Void> response = ApiResponse.error(1000, "系统错误");
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INTERNAL_ERROR, "系统错误");
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -472,23 +455,71 @@ public class GlobalExceptionHandler {
      * Map business error code to API documentation error code (number format).
      * API doc uses: 1000-1999 for general, 2000-2999 for auth, etc.
      */
-    private int mapBusinessCodeToApiErrorCode(int code) {
+    private int mapBusinessCodeToApiErrorCode(String code) {
+        if (code == null || code.isBlank()) {
+            return ErrorCodes.BAD_REQUEST;
+        }
+
         return switch (code) {
-            case 400 -> 1001;  // Parameter validation failed
-            case 401 -> 2002; // Unauthorized
-            case 403 -> 2003; // Forbidden
-            case 404 -> 1002; // Data not found
-            case 409 -> 1003; // Data already exists
-            case 422 -> 1004; // Operation not allowed
-            case 429 -> 1008; // Rate limit
-            case 500 -> 1000; // System error
-            default -> 1000;
+            case "400", "BUSINESS_ERROR" -> ErrorCodes.BAD_REQUEST;
+            case "401", "AUTHENTICATION_FAILED", "INVALID_TOKEN" -> ErrorCodes.INVALID_TOKEN;
+            case "403", "AUTHORIZATION_FAILED", "INSUFFICIENT_PERMISSION" -> ErrorCodes.INSUFFICIENT_PERMISSION;
+            case "404", "RESOURCE_NOT_FOUND", "DATA_NOT_FOUND" -> ErrorCodes.DATA_NOT_FOUND;
+            case "409", "DATA_ALREADY_EXISTS" -> ErrorCodes.DATA_ALREADY_EXISTS;
+            case "422", "INVALID_STATUS" -> ErrorCodes.INVALID_STATUS;
+            case "429", "RATE_LIMIT_EXCEEDED" -> ErrorCodes.RATE_LIMIT_EXCEEDED;
+            case "500", "TECHNICAL_ERROR", "INTERNAL_ERROR" -> ErrorCodes.INTERNAL_ERROR;
+            default -> {
+                try {
+                    yield mapBusinessCodeToApiErrorCode(Integer.parseInt(code));
+                } catch (NumberFormatException ignored) {
+                    yield ErrorCodes.BAD_REQUEST;
+                }
+            }
         };
     }
-    
+
+    private int mapBusinessCodeToApiErrorCode(int code) {
+        return switch (code) {
+            case 400 -> ErrorCodes.BAD_REQUEST;
+            case 401 -> ErrorCodes.INVALID_TOKEN;
+            case 403 -> ErrorCodes.INSUFFICIENT_PERMISSION;
+            case 404 -> ErrorCodes.DATA_NOT_FOUND;
+            case 409 -> ErrorCodes.DATA_ALREADY_EXISTS;
+            case 422 -> ErrorCodes.INVALID_STATUS;
+            case 429 -> ErrorCodes.RATE_LIMIT_EXCEEDED;
+            case 500 -> ErrorCodes.INTERNAL_ERROR;
+            default -> ErrorCodes.INTERNAL_ERROR;
+        };
+    }
+
     /**
      * Map error code to HTTP status.
      */
+    private HttpStatus getHttpStatus(String code) {
+        if (code == null || code.isBlank()) {
+            return HttpStatus.BAD_REQUEST;
+        }
+
+        return switch (code) {
+            case "400", "BUSINESS_ERROR" -> HttpStatus.BAD_REQUEST;
+            case "401", "AUTHENTICATION_FAILED" -> HttpStatus.UNAUTHORIZED;
+            case "403", "AUTHORIZATION_FAILED" -> HttpStatus.FORBIDDEN;
+            case "404", "RESOURCE_NOT_FOUND" -> HttpStatus.NOT_FOUND;
+            case "409" -> HttpStatus.CONFLICT;
+            case "422", "INVALID_STATUS" -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case "429", "RATE_LIMIT_EXCEEDED" -> HttpStatus.TOO_MANY_REQUESTS;
+            case "500", "TECHNICAL_ERROR", "INTERNAL_ERROR" -> HttpStatus.INTERNAL_SERVER_ERROR;
+            default -> {
+                try {
+                    yield getHttpStatus(Integer.parseInt(code));
+                } catch (NumberFormatException ignored) {
+                    yield HttpStatus.BAD_REQUEST;
+                }
+            }
+        };
+    }
+
     private HttpStatus getHttpStatus(int code) {
         return switch (code) {
             case 400 -> HttpStatus.BAD_REQUEST;
@@ -497,6 +528,7 @@ public class GlobalExceptionHandler {
             case 404 -> HttpStatus.NOT_FOUND;
             case 409 -> HttpStatus.CONFLICT;
             case 422 -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case 429 -> HttpStatus.TOO_MANY_REQUESTS;
             default -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }

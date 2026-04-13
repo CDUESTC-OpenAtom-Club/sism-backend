@@ -1,6 +1,7 @@
 package com.sism.execution.domain.repository;
 
 import com.sism.execution.domain.model.report.PlanReport;
+import com.sism.execution.domain.model.report.PlanReportStatus;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,13 +26,17 @@ public interface PlanReportRepository {
 
     List<PlanReport> findByReportMonth(String reportMonth);
 
-    List<PlanReport> findByStatus(String status);
+    List<PlanReport> findByStatus(PlanReportStatus status);
 
-    List<PlanReport> findByReportOrgIdAndStatus(Long reportOrgId, String status);
+    default List<PlanReport> findByStatus(String status) {
+        return findByStatus(PlanReportStatus.from(status));
+    }
+
+    List<PlanReport> findByReportOrgIdAndStatus(Long reportOrgId, PlanReportStatus status);
 
     List<PlanReport> findByOrgIdAndMonthRange(Long orgId, String startMonth, String endMonth);
 
-    List<PlanReport> findByStatusAndOrgType(String status, ReportOrgType orgType);
+    List<PlanReport> findByStatusAndOrgType(PlanReportStatus status, ReportOrgType orgType);
 
     List<PlanReport> findAllActive();
 
@@ -42,16 +47,32 @@ public interface PlanReportRepository {
             Long reportOrgId,
             ReportOrgType reportOrgType,
             Long planId,
-            String status,
+            PlanReportStatus status,
             Pageable pageable);
+
+    default Page<PlanReport> findByConditions(
+            String reportMonth,
+            Long reportOrgId,
+            ReportOrgType reportOrgType,
+            Long planId,
+            String status,
+            Pageable pageable) {
+        return findByConditions(reportMonth, reportOrgId, reportOrgType, planId, PlanReportStatus.from(status), pageable);
+    }
 
     Page<PlanReport> findByReportOrgId(Long orgId, Pageable pageable);
 
-    Page<PlanReport> findByStatus(String status, Pageable pageable);
+    Page<PlanReport> findByStatus(PlanReportStatus status, Pageable pageable);
+
+    default Page<PlanReport> findByStatus(String status, Pageable pageable) {
+        return findByStatus(PlanReportStatus.from(status), pageable);
+    }
 
     List<PlanReport> findByPlanId(Long planId);
 
-    long countByStatus(String status);
+    long countByStatus(PlanReportStatus status);
+
+    long countByStatusAndReportOrgId(PlanReportStatus status, Long reportOrgId);
 
     List<PlanReport> findByMonthAndOrgId(String month, Long orgId);
 

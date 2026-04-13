@@ -2,17 +2,20 @@ package com.sism.iam.application;
 
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
+import com.sism.util.TokenBlacklistService;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Base64;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for JwtTokenService
@@ -22,14 +25,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class JwtTokenServiceTest {
 
     private JwtTokenService jwtTokenService;
+    private TokenBlacklistService blacklistService;
     private final String secret = "SismSecretKeyForJWTTokenGeneration2024VeryLongSecretKeyForTesting";
     private final Long expiration = 86400000L; // 24 hours
+    private final Long refreshExpiration = 604800000L; // 7 days
 
     @BeforeEach
     void setUp() {
-        jwtTokenService = new JwtTokenService();
+        blacklistService = Mockito.mock(TokenBlacklistService.class);
+        jwtTokenService = new JwtTokenService(blacklistService);
         ReflectionTestUtils.setField(jwtTokenService, "secret", secret);
         ReflectionTestUtils.setField(jwtTokenService, "expiration", expiration);
+        ReflectionTestUtils.setField(jwtTokenService, "refreshExpiration", refreshExpiration);
     }
 
     @Test
@@ -265,5 +272,59 @@ class JwtTokenServiceTest {
         String subject = jwtTokenService.extractUsername(token);
 
         assertEquals(username, subject);
+    }
+
+    @Test
+    @DisplayName("Should preserve roles when refreshing token")
+    void shouldPreserveRolesWhenRefreshingToken() {
+        User user = new User();
+        user.setId(123L);
+        user.setUsername("testuser");
+        user.setOrgId(42L);
+
+        String refreshToken = jwtTokenService.generateRefreshToken(user, java.util.List.of("ADMIN", "USER"));
+
+        var refreshed = jwtTokenService.refreshToken(refreshToken);
+
+        String accessToken = (String) refreshed.get("accessToken");
+        assertEquals(java.util.List.of("ADMIN", "USER"), jwtTokenService.getRolesFromToken(accessToken));
+        verify(blacklistService).blacklist(refreshToken);
+    }
+
+    @Test
+    @DisplayName("Should reject access token in refresh flow")
+    void shouldRejectAccessTokenInRefreshFlow() {
+        User user = new User();
+        user.setId(123L);
+        user.setUsername("testuser");
+
+        String accessToken = jwtTokenService.generateToken(user, java.util.List.of("ADMIN"));
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> jwtTokenService.refreshToken(accessToken)
+        );
+
+        assertEquals("Not a refresh token", exception.getMessage());
+        verify(blacklistService, never()).blacklist(accessToken);
+    }
+
+    @Test
+    @DisplayName("Should invalidate blacklisted token")
+    void shouldInvalidateBlacklistedToken() {
+        com.sism.util.TokenBlacklistService blacklistService = Mockito.mock(com.sism.util.TokenBlacklistService.class);
+        jwtTokenService = new JwtTokenService(blacklistService);
+        ReflectionTestUtils.setField(jwtTokenService, "secret", secret);
+        ReflectionTestUtils.setField(jwtTokenService, "expiration", expiration);
+        ReflectionTestUtils.setField(jwtTokenService, "refreshExpiration", refreshExpiration);
+
+        User user = new User();
+        user.setId(123L);
+        user.setUsername("testuser");
+
+        String token = jwtTokenService.generateToken(user);
+        when(blacklistService.isBlacklisted(token)).thenReturn(true);
+
+        assertFalse(jwtTokenService.validateToken(token));
     }
 }
