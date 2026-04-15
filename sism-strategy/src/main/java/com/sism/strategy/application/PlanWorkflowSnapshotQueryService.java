@@ -134,11 +134,15 @@ public class PlanWorkflowSnapshotQueryService {
             return null;
         }
 
+        Map<Long, String> userNamesById = resolveUserNames(Set.of(instance.getRequesterId()));
+
         WorkflowSnapshot snapshot = WorkflowSnapshot.builder()
                 .workflowInstanceId(instance.getInstanceId())
                 .workflowStatus(instance.getStatus())
                 .starterId(instance.getRequesterId())
-                .starterName(resolveUserName(instance.getRequesterId()))
+                .starterName(userNamesById.getOrDefault(
+                        instance.getRequesterId(),
+                        instance.getRequesterId() == null ? null : "User#" + instance.getRequesterId()))
                 .startedAt(instance.getStartedAt())
                 .completedAt(instance.getCompletedAt())
                 .build();
@@ -159,9 +163,15 @@ public class PlanWorkflowSnapshotQueryService {
         if (!currentSteps.isEmpty()) {
             Object[] stepRow = (Object[]) currentSteps.get(0);
             Long approverId = asLong(stepRow[1]);
+            if (approverId != null && !userNamesById.containsKey(approverId)) {
+                userNamesById = new HashMap<>(userNamesById);
+                userNamesById.putAll(resolveUserNames(Set.of(approverId)));
+            }
             snapshot.setCurrentStepName(asString(stepRow[0]));
             snapshot.setCurrentApproverId(approverId);
-            snapshot.setCurrentApproverName(resolveUserName(approverId));
+            snapshot.setCurrentApproverName(userNamesById.getOrDefault(
+                    approverId,
+                    approverId == null ? null : "User#" + approverId));
         }
 
         boolean hasCurrentPendingStep = !currentSteps.isEmpty()
@@ -351,6 +361,13 @@ public class PlanWorkflowSnapshotQueryService {
                 .setParameter("instanceId", workflowInstanceId)
                 .getResultList();
 
+        Set<Long> operatorIds = rows.stream()
+                .map(Object[].class::cast)
+                .map(columns -> asLong(columns[2]))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> userNamesById = resolveUserNames(operatorIds);
+
         for (Object row : rows) {
             Object[] columns = (Object[]) row;
             Long approverId = asLong(columns[2]);
@@ -358,7 +375,9 @@ public class PlanWorkflowSnapshotQueryService {
                     .taskId(asLong(columns[0]))
                     .stepName(asString(columns[1]))
                     .operatorId(approverId)
-                    .operatorName(resolveUserName(approverId))
+                    .operatorName(userNamesById.getOrDefault(
+                            approverId,
+                            approverId == null ? null : "User#" + approverId))
                     .action(resolveHistoryAction(asString(columns[3])))
                     .comment(asString(columns[4]))
                     .operateTime(asLocalDateTime(columns[5]) != null ? asLocalDateTime(columns[5]) : asLocalDateTime(columns[6]))
@@ -421,15 +440,6 @@ public class PlanWorkflowSnapshotQueryService {
             return null;
         }
         return asString(rows.get(0));
-    }
-
-    private String resolveUserName(Long userId) {
-        if (userId == null) {
-            return null;
-        }
-        return userRepository.findById(userId)
-                .map(user -> user.getRealName() != null && !user.getRealName().isBlank() ? user.getRealName() : user.getUsername())
-                .orElse("User#" + userId);
     }
 
     private Map<Long, String> resolveUserNames(Set<Long> userIds) {

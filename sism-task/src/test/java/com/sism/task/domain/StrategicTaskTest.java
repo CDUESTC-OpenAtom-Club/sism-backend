@@ -65,8 +65,10 @@ class StrategicTaskTest {
         StrategicTask task = StrategicTask.create("测试任务", TaskType.BASIC, 1L, 1L, org, createdByOrg);
 
         assertEquals(TaskStatus.DRAFT, task.getStatusEnum());
+        assertEquals(TaskStatus.DRAFT.value(), task.getPlanStatus());
         task.activate();
         assertEquals(TaskStatus.ACTIVE, task.getStatusEnum());
+        assertEquals(TaskStatus.ACTIVE.value(), task.getPlanStatus());
     }
 
     @Test

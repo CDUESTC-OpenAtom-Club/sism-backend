@@ -147,7 +147,7 @@ class ReportApplicationServiceTest {
     @Test
     void findReportsByConditions_shouldCapPageSize() {
         var pageable = PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createdAt"));
-        when(planReportRepository.findByConditions(null, null, null, null, null, pageable))
+        when(planReportRepository.findByConditions(null, null, null, null, (String) null, pageable))
                 .thenReturn(Page.empty(pageable));
 
         PlanReportQueryRequest queryRequest = new PlanReportQueryRequest();
@@ -155,7 +155,7 @@ class ReportApplicationServiceTest {
 
         reportApplicationService.findReportsByConditions(queryRequest);
 
-        verify(planReportRepository).findByConditions(null, null, null, null, null, pageable);
+        verify(planReportRepository).findByConditions(null, null, null, null, (String) null, pageable);
     }
 
     @Test

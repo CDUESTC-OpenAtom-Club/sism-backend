@@ -62,8 +62,8 @@ class DashboardSummaryCachingTest {
     @EnableCaching
     static class TestConfig {
 
-        @Bean
-        CacheManager cacheManager() {
+        @Bean("analyticsCacheManager")
+        CacheManager analyticsCacheManager() {
             return new ConcurrentMapCacheManager("dashboard-summary", "department-progress", "recent-activities");
         }
 
@@ -74,7 +74,7 @@ class DashboardSummaryCachingTest {
 
         @Bean
         DashboardSummaryService dashboardSummaryService(DashboardSummaryQueryRepository dashboardSummaryQueryRepository) {
-            return new DashboardSummaryService(dashboardSummaryQueryRepository, cacheManager());
+            return new DashboardSummaryService(dashboardSummaryQueryRepository, analyticsCacheManager());
         }
     }
 }

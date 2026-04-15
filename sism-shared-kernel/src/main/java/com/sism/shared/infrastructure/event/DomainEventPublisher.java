@@ -3,6 +3,7 @@ package com.sism.shared.infrastructure.event;
 import com.sism.shared.domain.model.base.DomainEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ public class DomainEventPublisher {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final EventStore eventStore;
 
+    @Autowired
     public DomainEventPublisher(ApplicationEventPublisher applicationEventPublisher,
                                 ObjectProvider<EventStore> eventStoreProvider) {
         this.applicationEventPublisher = applicationEventPublisher;

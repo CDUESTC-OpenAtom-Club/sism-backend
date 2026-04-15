@@ -11,8 +11,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -59,6 +62,21 @@ class AttachmentApplicationServiceTest {
                 .thenReturn("../../etc/passwd");
 
         assertThrows(SecurityException.class, () -> service.loadAsResource(9L));
+    }
+
+    @Test
+    @DisplayName("Should reject missing attachment file instead of returning fallback path")
+    void shouldRejectMissingAttachmentFile() {
+        AttachmentApplicationService service = new AttachmentApplicationService(jdbcTemplate);
+        Path uploadDir = Path.of(System.getProperty("java.io.tmpdir"), "sism-main-attachment-missing-test");
+        ReflectionTestUtils.setField(service, "uploadPath", uploadDir.toString());
+        assertDoesNotThrow(() -> Files.createDirectories(uploadDir));
+
+        when(jdbcTemplate.queryForObject(any(String.class), eq(String.class), eq(10L)))
+                .thenReturn("missing.pdf");
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> service.loadAsResource(10L));
+        assertEquals("Attachment file not found: missing.pdf", exception.getMessage());
     }
 
     @Test

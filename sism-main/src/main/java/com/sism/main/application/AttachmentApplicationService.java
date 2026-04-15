@@ -178,6 +178,6 @@ public class AttachmentApplicationService {
             }
         }
 
-        return candidates.get(0);
+        throw new IllegalArgumentException("Attachment file not found: " + objectKey);
     }
 }

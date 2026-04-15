@@ -27,12 +27,18 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class TaskApplicationService {
+
+    private static final Map<String, OrgType> PLAN_LEVEL_TARGET_ORG_TYPES = Map.of(
+            "FUNC_TO_COLLEGE", OrgType.academic,
+            "STRAT_TO_FUNC", OrgType.functional
+    );
 
     private final TaskRepository taskRepository;
     private final OrganizationRepository organizationRepository;
@@ -316,11 +322,9 @@ public class TaskApplicationService {
         if (!Objects.equals(planCreatedByOrgId, createdByOrg.getId())) {
             throw new IllegalArgumentException("任务创建组织与计划创建组织不一致");
         }
-        if ("FUNC_TO_COLLEGE".equals(planLevel) && org.getType() != OrgType.academic) {
-            throw new IllegalArgumentException("FUNC_TO_COLLEGE 计划只能绑定二级学院任务");
-        }
-        if ("STRAT_TO_FUNC".equals(planLevel) && org.getType() != OrgType.functional) {
-            throw new IllegalArgumentException("STRAT_TO_FUNC 计划只能绑定职能部门任务");
+        OrgType expectedTargetOrgType = PLAN_LEVEL_TARGET_ORG_TYPES.get(planLevel);
+        if (expectedTargetOrgType != null && org.getType() != expectedTargetOrgType) {
+            throw new IllegalArgumentException(planLevel + " 计划绑定的任务组织类型不正确");
         }
     }
 

@@ -19,19 +19,23 @@ import java.util.List;
 public class WebSocketConfig implements WebSocketConfigurer {
 
     private final SismWebSocketHandler sismWebSocketHandler;
+    private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
     private final List<String> allowedOriginPatterns;
 
     public WebSocketConfig(
             SismWebSocketHandler sismWebSocketHandler,
+            JwtHandshakeInterceptor jwtHandshakeInterceptor,
             @Value("${app.websocket.allowed-origin-patterns:http://localhost:3500,http://127.0.0.1:3500}") List<String> allowedOriginPatterns
     ) {
         this.sismWebSocketHandler = sismWebSocketHandler;
+        this.jwtHandshakeInterceptor = jwtHandshakeInterceptor;
         this.allowedOriginPatterns = allowedOriginPatterns;
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(sismWebSocketHandler, "/ws/notifications")
+                .addInterceptors(jwtHandshakeInterceptor)
                 .setAllowedOriginPatterns(allowedOriginPatterns.toArray(String[]::new));
     }
 }

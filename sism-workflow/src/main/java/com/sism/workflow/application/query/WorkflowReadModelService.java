@@ -72,8 +72,12 @@ public class WorkflowReadModelService {
         int safePageSize = normalizePageSize(pageSize);
         Pageable pageable = PageRequest.of(safePageNum - 1, safePageSize);
         Page<AuditInstance> page = auditInstanceRepository.findByFlowDefId(parseRequiredLong(definitionId, "definitionId"), pageable);
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
         List<WorkflowInstanceResponse> items = page.getContent().stream()
-                .map(this::buildInstanceSummary)
+                .map(instance -> buildInstanceSummary(instance, userNameCache, orgNameCache, flowDefCache, businessContextCache))
                 .toList();
         return PageResult.of(items, page.getTotalElements(), safePageNum, safePageSize);
     }
@@ -91,13 +95,17 @@ public class WorkflowReadModelService {
     }
 
     public List<WorkflowHistoryCardResponse> listInstanceHistoryByBusiness(String entityType, Long entityId) {
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
         List<AuditInstance> qualified = findInstancesByBusiness(entityType, entityId).stream()
-                .filter(this::isHistoryQualified)
+                .filter(instance -> isHistoryQualified(instance, flowDefCache))
                 .sorted(Comparator
                         .comparing(AuditInstance::getStartedAt, Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(AuditInstance::getId, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
         Map<Long, Integer> roundNoByInstanceId = new HashMap<>();
         for (int index = 0; index < qualified.size(); index++) {
             roundNoByInstanceId.put(qualified.get(index).getId(), index + 1);
@@ -107,7 +115,13 @@ public class WorkflowReadModelService {
                 .sorted(Comparator
                         .comparing(AuditInstance::getStartedAt, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(AuditInstance::getId, Comparator.nullsLast(Comparator.reverseOrder())))
-                .map(instance -> buildHistoryCard(instance, roundNoByInstanceId.getOrDefault(instance.getId(), 0)))
+                .map(instance -> buildHistoryCard(
+                        instance,
+                        roundNoByInstanceId.getOrDefault(instance.getId(), 0),
+                        userNameCache,
+                        orgNameCache,
+                        flowDefCache,
+                        businessContextCache))
                 .toList();
     }
 
@@ -302,11 +316,13 @@ public class WorkflowReadModelService {
         return history;
     }
 
-    private WorkflowHistoryCardResponse buildHistoryCard(AuditInstance instance, int roundNo) {
-        Map<Long, String> userNameCache = new HashMap<>();
-        Map<Long, String> orgNameCache = new HashMap<>();
-        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
-        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+    private WorkflowHistoryCardResponse buildHistoryCard(
+            AuditInstance instance,
+            int roundNo,
+            Map<Long, String> userNameCache,
+            Map<Long, String> orgNameCache,
+            Map<Long, AuditFlowDef> flowDefCache,
+            Map<String, WorkflowBusinessContext> businessContextCache) {
         WorkflowBusinessContext context = resolveBusinessContext(instance, orgNameCache, businessContextCache);
         AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId(), flowDefCache);
         return WorkflowHistoryCardResponse.builder()
@@ -348,11 +364,11 @@ public class WorkflowReadModelService {
                 .toList();
     }
 
-    private boolean isHistoryQualified(AuditInstance instance) {
+    private boolean isHistoryQualified(AuditInstance instance, Map<Long, AuditFlowDef> flowDefCache) {
         if (instance == null || !AuditInstance.STATUS_APPROVED.equalsIgnoreCase(instance.getStatus())) {
             return false;
         }
-        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId());
+        AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId(), flowDefCache);
         if (flowDef == null || flowDef.getSteps() == null) {
             return false;
         }
@@ -390,7 +406,7 @@ public class WorkflowReadModelService {
         WorkflowBusinessContext resolved;
         if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
             resolved = planRepository.findById(instance.getEntityId())
-                    .map(this::buildPlanContext)
+                    .map(plan -> buildPlanContext(plan, orgNameCache))
                     .orElseGet(() -> new WorkflowBusinessContext(
                             instance.getEntityId(),
                             "Plan " + instance.getEntityId(),
@@ -405,7 +421,7 @@ public class WorkflowReadModelService {
         }
 
         if (isPlanReportEntityType(instance.getEntityType())) {
-            resolved = buildPlanReportContext(instance.getEntityId());
+            resolved = buildPlanReportContext(instance.getEntityId(), orgNameCache);
             businessContextCache.put(cacheKey, resolved);
             return resolved;
         }
@@ -415,21 +431,21 @@ public class WorkflowReadModelService {
         return resolved;
     }
 
-    private WorkflowBusinessContext buildPlanContext(Plan plan) {
+    private WorkflowBusinessContext buildPlanContext(Plan plan, Map<Long, String> orgNameCache) {
         Long sourceOrgId = plan.getCreatedByOrgId();
         Long targetOrgId = plan.getTargetOrgId();
         return new WorkflowBusinessContext(
                 plan.getId(),
                 "Plan " + plan.getId(),
                 sourceOrgId,
-                resolveOrgName(sourceOrgId),
+                resolveOrgName(sourceOrgId, orgNameCache),
                 targetOrgId,
-                resolveOrgName(targetOrgId),
+                resolveOrgName(targetOrgId, orgNameCache),
                 null
         );
     }
 
-    private WorkflowBusinessContext buildPlanReportContext(Long reportId) {
+    private WorkflowBusinessContext buildPlanReportContext(Long reportId, Map<Long, String> orgNameCache) {
         Long sourceOrgId = null;
         String sourceOrgName = null;
         Long targetOrgId = null;
@@ -444,13 +460,13 @@ public class WorkflowReadModelService {
             Optional<Plan> plan = planRepository.findById(planId);
             if (plan.isPresent()) {
                 sourceOrgId = plan.get().getCreatedByOrgId();
-                sourceOrgName = resolveOrgName(sourceOrgId);
+                sourceOrgName = resolveOrgName(sourceOrgId, orgNameCache);
                 targetOrgId = plan.get().getTargetOrgId();
-                targetOrgName = resolveOrgName(targetOrgId);
+                targetOrgName = resolveOrgName(targetOrgId, orgNameCache);
             }
         }
 
-        String reportOrgName = resolveOrgName(reportOrgId);
+        String reportOrgName = resolveOrgName(reportOrgId, orgNameCache);
         String displayName = (reportMonth == null ? "" : reportMonth + " ")
                 + (reportOrgName == null ? "月报" : reportOrgName + "月报");
 
@@ -465,10 +481,6 @@ public class WorkflowReadModelService {
         );
     }
 
-    private AuditFlowDef resolveFlowDef(Long flowDefId) {
-        return resolveFlowDef(flowDefId, new HashMap<>());
-    }
-
     private AuditFlowDef resolveFlowDef(Long flowDefId, Map<Long, AuditFlowDef> flowDefCache) {
         if (flowDefId == null) {
             return null;
@@ -479,10 +491,6 @@ public class WorkflowReadModelService {
         AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefById(flowDefId);
         flowDefCache.put(flowDefId, flowDef);
         return flowDef;
-    }
-
-    private String resolveUserName(Long userId) {
-        return resolveUserName(userId, new HashMap<>());
     }
 
     private String resolveUserName(Long userId, Map<Long, String> userNameCache) {
@@ -499,10 +507,6 @@ public class WorkflowReadModelService {
                 .orElse("User#" + userId);
         userNameCache.put(userId, userName);
         return userName;
-    }
-
-    private String resolveOrgName(Long orgId) {
-        return resolveOrgName(orgId, new HashMap<>());
     }
 
     private String resolveOrgName(Long orgId, Map<Long, String> orgNameCache) {

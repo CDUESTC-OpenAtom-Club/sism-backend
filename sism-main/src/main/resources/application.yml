@@ -29,10 +29,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none  # 禁用自动更新,使用 Flyway 管理
+    open-in-view: true
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
         jdbc:
           batch_size: 20

@@ -158,6 +158,7 @@ class ApproverResolverTest {
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setRoleId(2L);
         stepDef.setStepName("职能部门终审人审批");
+        stepDef.setIsTerminal(true);
 
         AuditInstance instance = new AuditInstance();
         instance.setEntityType("PLAN");
@@ -179,6 +180,39 @@ class ApproverResolverTest {
 
         when(planRepository.findById(7057L)).thenReturn(Optional.of(plan));
         when(userRepository.findByRoleId(2L)).thenReturn(List.of(collegeApprover, functionalApprover));
+
+        ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
+
+        assertEquals(267L, resolver.resolveApproverId(stepDef, 188L, 57L, instance));
+    }
+
+    @Test
+    void resolveApproverId_shouldUseTerminalMetadataBeforeLegacyStepNameForCollegeFinalApproval() {
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setRoleId(2L);
+        stepDef.setStepName("任意终审节点");
+        stepDef.setIsTerminal(true);
+
+        AuditInstance instance = new AuditInstance();
+        instance.setEntityType("PLAN");
+        instance.setEntityId(8088L);
+
+        Plan plan = new Plan();
+        plan.setId(8088L);
+        plan.setCreatedByOrgId(44L);
+
+        User creatorOrgApprover = new User();
+        creatorOrgApprover.setId(267L);
+        creatorOrgApprover.setOrgId(44L);
+        creatorOrgApprover.setIsActive(true);
+
+        User requesterOrgApprover = new User();
+        requesterOrgApprover.setId(370L);
+        requesterOrgApprover.setOrgId(57L);
+        requesterOrgApprover.setIsActive(true);
+
+        when(planRepository.findById(8088L)).thenReturn(Optional.of(plan));
+        when(userRepository.findByRoleId(2L)).thenReturn(List.of(requesterOrgApprover, creatorOrgApprover));
 
         ApproverResolver resolver = new ApproverResolver(userRepository, planRepository, reportApplicationService, workflowApproverProperties());
 

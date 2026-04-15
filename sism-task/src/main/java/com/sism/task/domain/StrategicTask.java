@@ -49,12 +49,12 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="task_type", nullable=false)
     private TaskType taskType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "org_id", nullable = false)
     @NotFound(action = NotFoundAction.IGNORE)
     private SysOrg org;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "created_by_org_id", nullable = false)
     @NotFound(action = NotFoundAction.IGNORE)
     private SysOrg createdByOrg;
@@ -78,7 +78,7 @@ public class StrategicTask extends AggregateRoot<Long> {
     private String status = STATUS_DRAFT;
 
     public String getPlanStatus() {
-        return TaskStatus.DRAFT.value();
+        return status;
     }
 
     public void setStatus(String status) {

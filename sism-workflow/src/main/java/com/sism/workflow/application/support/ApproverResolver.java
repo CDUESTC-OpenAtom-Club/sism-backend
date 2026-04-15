@@ -7,6 +7,7 @@ import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditStepDef;
 import com.sism.workflow.domain.runtime.model.AuditInstance;
 import com.sism.workflow.interfaces.dto.ApproverCandidateResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @Component
+@Slf4j
 public class ApproverResolver {
 
     private static final String PLAN_ENTITY_TYPE = "PLAN";
@@ -49,15 +51,11 @@ public class ApproverResolver {
         }
 
         Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
-        return resolveByRoleId(roleId, requesterId, scopeOrgId, stepDef.getStepName());
+        return resolveByRoleId(roleId, scopeOrgId, stepDef.getStepName());
     }
 
-    private Long resolveByRoleId(Long roleId, Long requesterId, Long requesterOrgId, String stepName) {
-        List<User> candidates = userRepository.findByRoleId(roleId).stream()
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepName))
-                .sorted(Comparator.comparing(User::getId))
-                .toList();
+    private Long resolveByRoleId(Long roleId, Long requesterOrgId, String stepName) {
+        List<User> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId);
         if (candidates.isEmpty()) {
             throw new IllegalStateException("No available approver candidates for step: " + stepName);
         }
@@ -105,7 +103,7 @@ public class ApproverResolver {
             return getStrategyOrgId();
         }
         if (getVicePresidentRoleId().equals(roleId)) {
-            return resolveVicePresidentScopeOrgId(stepDef.getStepName(), scopeOrgId);
+            return resolveVicePresidentScopeOrgId(scopeOrgId);
         }
         return scopeOrgId;
     }
@@ -116,9 +114,7 @@ public class ApproverResolver {
             throw new IllegalStateException("Workflow step is missing role assignment: " + stepDef.getStepName());
         }
 
-        List<ApproverCandidateResponse> candidates = userRepository.findByRoleId(roleId).stream()
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
+        List<ApproverCandidateResponse> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId).stream()
                 .sorted(Comparator.comparing(User::getId))
                 .map(user -> ApproverCandidateResponse.builder()
                         .userId(user.getId())
@@ -148,11 +144,12 @@ public class ApproverResolver {
         }
 
         Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
+        List<Long> roleIds = userRepository.findRoleIdsByUserId(userId);
 
         return userRepository.findById(userId)
                 .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> userRepository.findRoleIdsByUserId(userId).contains(roleId))
-                .filter(user -> matchesRoleScope(user, roleId, scopeOrgId, stepDef.getStepName()))
+                .filter(user -> roleIds.contains(roleId))
+                .filter(user -> matchesRoleScope(user, roleId, scopeOrgId))
                 .isPresent();
     }
 
@@ -176,13 +173,19 @@ public class ApproverResolver {
             return;
         }
 
-        boolean valid = userRepository.findByRoleId(roleId).stream()
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
+        boolean valid = findScopedActiveUsersByRole(roleId, requesterOrgId).stream()
                 .anyMatch(user -> approverId.equals(user.getId()));
         if (!valid) {
             throw new IllegalArgumentException("Selected approver does not match step role: " + stepDef.getStepName());
         }
+    }
+
+    private List<User> findScopedActiveUsersByRole(Long roleId, Long requesterOrgId) {
+        return userRepository.findByRoleId(roleId).stream()
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId))
+                .sorted(Comparator.comparing(User::getId))
+                .toList();
     }
 
     private Long resolveScopeOrgId(AuditStepDef stepDef, Long requesterOrgId, AuditInstance instance) {
@@ -220,11 +223,24 @@ public class ApproverResolver {
                 && !PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
             return false;
         }
+
+        if (!getApproverRoleId().equals(stepDef.getRoleId())) {
+            return false;
+        }
+
+        if (Boolean.TRUE.equals(stepDef.getIsTerminal())) {
+            return true;
+        }
+
         String stepName = stepDef.getStepName();
-        return stepName != null && stepName.contains(COLLEGE_FINAL_APPROVAL_STEP_NAME);
+        boolean fallbackMatched = stepName != null && stepName.contains(COLLEGE_FINAL_APPROVAL_STEP_NAME);
+        if (fallbackMatched) {
+            log.warn("Using legacy step-name fallback for college final approval scope: stepName={}", stepName);
+        }
+        return fallbackMatched;
     }
 
-    private boolean matchesRoleScope(User user, Long roleId, Long requesterOrgId, String stepName) {
+    private boolean matchesRoleScope(User user, Long roleId, Long requesterOrgId) {
         Long userOrgId = user.getOrgId();
 
         if (getApproverRoleId().equals(roleId)) {
@@ -234,17 +250,14 @@ public class ApproverResolver {
             return isStrategyOrg(userOrgId);
         }
         if (getVicePresidentRoleId().equals(roleId)) {
-            Long scopeOrgId = resolveVicePresidentScopeOrgId(stepName, requesterOrgId);
+            Long scopeOrgId = resolveVicePresidentScopeOrgId(requesterOrgId);
             return scopeOrgId != null && scopeOrgId.equals(userOrgId);
         }
 
         return true;
     }
 
-    private Long resolveVicePresidentScopeOrgId(String stepName, Long requesterOrgId) {
-        if (stepName != null && stepName.contains("学院院长")) {
-            return requesterOrgId;
-        }
+    private Long resolveVicePresidentScopeOrgId(Long requesterOrgId) {
         Map<Long, Long> scopeByOrg = workflowApproverProperties.getFunctionalVicePresidentScopeByOrg();
         if (scopeByOrg == null || scopeByOrg.isEmpty()) {
             return requesterOrgId;

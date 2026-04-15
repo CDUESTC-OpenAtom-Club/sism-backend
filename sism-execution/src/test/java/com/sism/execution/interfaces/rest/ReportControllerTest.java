@@ -17,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.data.domain.Page;
 
@@ -263,11 +264,10 @@ class ReportControllerTest {
         ReportController controller = new ReportController(reportApplicationService);
 
         when(currentUser.getOrgId()).thenReturn(10L);
-
         PlanReport report = PlanReport.createDraft("2026-04", 10L, ReportOrgType.FUNC_DEPT, 4036L, 106L);
         report.setId(8L);
         report.setIndicatorDetails(null);
-        when(reportApplicationService.findReportsByPlanId(4036L)).thenReturn(List.of(report));
+        when(reportApplicationService.findReportsByPlanIdForOrg(4036L, 10L)).thenReturn(List.of(report));
 
         var response = controller.getReportsByPlanId(4036L, currentUser);
 
@@ -289,7 +289,7 @@ class ReportControllerTest {
         when(reportPage.getTotalElements()).thenReturn(7L);
         when(reportPage.getNumber()).thenReturn(0);
         when(reportPage.getSize()).thenReturn(10);
-        when(reportApplicationService.findReportsByStatus("SUBMITTED", 1, 10))
+        when(reportApplicationService.findReportsByStatusForOrg("SUBMITTED", 10L, 1, 10))
                 .thenReturn(reportPage);
 
         var response = controller.getReportsByStatusPaginated("SUBMITTED", 1, 10, currentUser);

@@ -2,6 +2,7 @@ package com.sism.iam.application;
 
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
+import com.sism.iam.domain.repository.UserRepository;
 import com.sism.util.TokenBlacklistService;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;
@@ -26,6 +27,7 @@ class JwtTokenServiceTest {
 
     private JwtTokenService jwtTokenService;
     private TokenBlacklistService blacklistService;
+    private UserRepository userRepository;
     private final String secret = "SismSecretKeyForJWTTokenGeneration2024VeryLongSecretKeyForTesting";
     private final Long expiration = 86400000L; // 24 hours
     private final Long refreshExpiration = 604800000L; // 7 days
@@ -33,7 +35,8 @@ class JwtTokenServiceTest {
     @BeforeEach
     void setUp() {
         blacklistService = Mockito.mock(TokenBlacklistService.class);
-        jwtTokenService = new JwtTokenService(blacklistService);
+        userRepository = Mockito.mock(UserRepository.class);
+        jwtTokenService = new JwtTokenService(blacklistService, userRepository);
         ReflectionTestUtils.setField(jwtTokenService, "secret", secret);
         ReflectionTestUtils.setField(jwtTokenService, "expiration", expiration);
         ReflectionTestUtils.setField(jwtTokenService, "refreshExpiration", refreshExpiration);
@@ -45,6 +48,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
 
@@ -59,6 +63,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
         String extractedUsername = jwtTokenService.extractUsername(token);
@@ -72,6 +77,8 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
+        when(userRepository.findByUsername("testuser")).thenReturn(java.util.Optional.of(user));
 
         String token = jwtTokenService.generateToken(user);
         boolean isValid = jwtTokenService.validateToken(token);
@@ -116,6 +123,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(expectedUserId);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
         Long extractedUserId = jwtTokenService.getUserIdFromToken(token);
@@ -139,10 +147,12 @@ class JwtTokenServiceTest {
         User user1 = new User();
         user1.setId(1L);
         user1.setUsername("user1");
+        user1.setTokenVersion(0L);
 
         User user2 = new User();
         user2.setId(2L);
         user2.setUsername("user2");
+        user2.setTokenVersion(0L);
 
         String token1 = jwtTokenService.generateToken(user1);
         String token2 = jwtTokenService.generateToken(user2);
@@ -159,6 +169,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         long startTime = System.currentTimeMillis();
         String token = jwtTokenService.generateToken(user);
@@ -179,6 +190,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
 
@@ -196,6 +208,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(userId);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
 
@@ -214,6 +227,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername(username);
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
 
@@ -232,6 +246,7 @@ class JwtTokenServiceTest {
         user.setId(123L);
         user.setUsername("testuser");
         user.setOrgId(42L);
+        user.setTokenVersion(0L);
 
         Role role = new Role();
         role.setRoleCode("ADMIN");
@@ -252,6 +267,8 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
+        when(userRepository.findByUsername("testuser")).thenReturn(java.util.Optional.of(user));
 
         String token = jwtTokenService.generateToken(user);
 
@@ -267,6 +284,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername(username);
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
         String subject = jwtTokenService.extractUsername(token);
@@ -281,6 +299,8 @@ class JwtTokenServiceTest {
         user.setId(123L);
         user.setUsername("testuser");
         user.setOrgId(42L);
+        user.setTokenVersion(5L);
+        when(userRepository.findByUsername("testuser")).thenReturn(java.util.Optional.of(user));
 
         String refreshToken = jwtTokenService.generateRefreshToken(user, java.util.List.of("ADMIN", "USER"));
 
@@ -297,6 +317,7 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         String accessToken = jwtTokenService.generateToken(user, java.util.List.of("ADMIN"));
 
@@ -313,7 +334,7 @@ class JwtTokenServiceTest {
     @DisplayName("Should invalidate blacklisted token")
     void shouldInvalidateBlacklistedToken() {
         com.sism.util.TokenBlacklistService blacklistService = Mockito.mock(com.sism.util.TokenBlacklistService.class);
-        jwtTokenService = new JwtTokenService(blacklistService);
+        jwtTokenService = new JwtTokenService(blacklistService, userRepository);
         ReflectionTestUtils.setField(jwtTokenService, "secret", secret);
         ReflectionTestUtils.setField(jwtTokenService, "expiration", expiration);
         ReflectionTestUtils.setField(jwtTokenService, "refreshExpiration", refreshExpiration);
@@ -321,9 +342,29 @@ class JwtTokenServiceTest {
         User user = new User();
         user.setId(123L);
         user.setUsername("testuser");
+        user.setTokenVersion(0L);
 
         String token = jwtTokenService.generateToken(user);
         when(blacklistService.isBlacklisted(token)).thenReturn(true);
+
+        assertFalse(jwtTokenService.validateToken(token));
+    }
+
+    @Test
+    @DisplayName("Should invalidate token when persisted token version changes")
+    void shouldInvalidateTokenWhenPersistedTokenVersionChanges() {
+        User issuedUser = new User();
+        issuedUser.setId(123L);
+        issuedUser.setUsername("testuser");
+        issuedUser.setTokenVersion(1L);
+
+        String token = jwtTokenService.generateToken(issuedUser);
+
+        User persistedUser = new User();
+        persistedUser.setId(123L);
+        persistedUser.setUsername("testuser");
+        persistedUser.setTokenVersion(2L);
+        when(userRepository.findByUsername("testuser")).thenReturn(java.util.Optional.of(persistedUser));
 
         assertFalse(jwtTokenService.validateToken(token));
     }

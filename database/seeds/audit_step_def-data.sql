@@ -28,20 +28,20 @@ INSERT INTO public.audit_step_def (
     step_no
 )
 VALUES
-    (1, 1, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (1, 1, '填报人提交', 'SUBMIT', NULL, false, NOW(), NOW(), 1),
     (2, 1, '战略发展部负责人审批', 'APPROVAL', 3, false, NOW(), NOW(), 2),
     (3, 1, '分管校领导审批', 'APPROVAL', 4, true, NOW(), NOW(), 3),
 
-    (4, 2, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (4, 2, '填报人提交', 'SUBMIT', NULL, false, NOW(), NOW(), 1),
     (5, 2, '职能部门审批人审批', 'APPROVAL', 2, false, NOW(), NOW(), 2),
     (6, 2, '分管校领导审批', 'APPROVAL', 4, true, NOW(), NOW(), 3),
 
-    (7, 3, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (7, 3, '填报人提交', 'SUBMIT', NULL, false, NOW(), NOW(), 1),
     (8, 3, '职能部门审批人审批', 'APPROVAL', 2, false, NOW(), NOW(), 2),
     (9, 3, '分管校领导审批', 'APPROVAL', 4, false, NOW(), NOW(), 3),
     (10, 3, '战略发展部终审人审批', 'APPROVAL', 3, true, NOW(), NOW(), 4),
 
-    (11, 4, '填报人提交', 'SUBMIT', 1, false, NOW(), NOW(), 1),
+    (11, 4, '填报人提交', 'SUBMIT', NULL, false, NOW(), NOW(), 1),
     (12, 4, '二级学院审批人审批', 'APPROVAL', 2, false, NOW(), NOW(), 2),
     (13, 4, '学院院长审批人审批', 'APPROVAL', 4, false, NOW(), NOW(), 3),
     (14, 4, '职能部门终审人审批', 'APPROVAL', 2, true, NOW(), NOW(), 4)

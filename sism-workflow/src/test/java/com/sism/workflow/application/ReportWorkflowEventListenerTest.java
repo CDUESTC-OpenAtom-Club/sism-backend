@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,6 +68,22 @@ class ReportWorkflowEventListenerTest {
         assertEquals("PLAN_REPORT", requestCaptor.getValue().getBusinessEntityType());
         assertEquals(66L, requestCaptor.getValue().getVariables().get("submitterId"));
         verify(reportApplicationService).attachAuditInstance(100L, 88L);
+    }
+
+    @Test
+    void handlePlanReportSubmitted_shouldRetryTransientWorkflowStartFailures() {
+        PlanReport report = new PlanReport();
+        report.setReportOrgType(ReportOrgType.FUNC_DEPT);
+        when(reportApplicationService.findReportById(100L)).thenReturn(Optional.of(report));
+        when(businessWorkflowApplicationService.startWorkflow(any(), eq(66L), eq(200L)))
+                .thenThrow(new RuntimeException("transient-1"))
+                .thenThrow(new RuntimeException("transient-2"))
+                .thenReturn(WorkflowInstanceResponse.builder().instanceId("99").build());
+
+        listener.handlePlanReportSubmitted(new PlanReportSubmittedEvent(100L, "2026-03", 200L, 66L));
+
+        verify(businessWorkflowApplicationService, times(3)).startWorkflow(any(), eq(66L), eq(200L));
+        verify(reportApplicationService).attachAuditInstance(100L, 99L);
     }
 
     @Test

@@ -121,9 +121,6 @@ public class Alert extends AggregateRoot<Long> {
         if (severity == null) {
             throw new IllegalArgumentException("Severity is required");
         }
-        if (severity == null) {
-            throw new IllegalArgumentException("Severity must be INFO, WARNING, or CRITICAL");
-        }
         if (status == null) {
             throw new IllegalArgumentException("Status must be OPEN, IN_PROGRESS, RESOLVED, or CLOSED");
         }

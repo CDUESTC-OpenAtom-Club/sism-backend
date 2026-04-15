@@ -82,6 +82,10 @@ public class AuditStepDef {
             return stepType.trim().toUpperCase();
         }
 
+        if (Integer.valueOf(1).equals(stepOrder) && roleId == null) {
+            return STEP_TYPE_SUBMIT;
+        }
+
         // Compatibility fallback for legacy rows before step_type is backfilled.
         if (stepName != null && stepName.contains("提交")) {
             return STEP_TYPE_SUBMIT;

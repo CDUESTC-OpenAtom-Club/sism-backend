@@ -104,8 +104,6 @@ class WorkflowControllerTest {
                 new com.sism.workflow.application.query.WorkflowReadModelMapper()
         );
 
-        when(workflowApplicationService.getAuditInstanceById(10L)).thenReturn(null);
-
         var response = controller.cancelInstance(10L, null);
 
         assertEquals(200, response.getStatusCodeValue());

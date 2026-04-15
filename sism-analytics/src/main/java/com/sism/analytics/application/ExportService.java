@@ -17,7 +17,6 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,8 +35,6 @@ public class ExportService {
     private final DataExportRepository dataExportRepository;
     private final AnalyticsFileStorageService analyticsFileStorageService;
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
-
     /**
      * 导出数据为Excel格式
      */
@@ -51,10 +48,7 @@ public class ExportService {
         try {
             dataExportApplicationService.startProcessing(export.getId(), requestedBy);
 
-            String fileName = generateFileName(exportName, ExportFormat.EXCEL);
-            Path exportRoot = analyticsFileStorageService.resolveExportRoot();
-            Path filePath = exportRoot.resolve(fileName);
-            Files.createDirectories(exportRoot);
+            Path filePath = analyticsFileStorageService.prepareManagedExportFile(export);
 
             // 创建Excel文件
             try (Workbook workbook = new XSSFWorkbook()) {
@@ -114,10 +108,7 @@ public class ExportService {
         try {
             dataExportApplicationService.startProcessing(export.getId(), requestedBy);
 
-            String fileName = generateFileName(exportName, ExportFormat.CSV);
-            Path exportRoot = analyticsFileStorageService.resolveExportRoot();
-            Path filePath = exportRoot.resolve(fileName);
-            Files.createDirectories(exportRoot);
+            Path filePath = analyticsFileStorageService.prepareManagedExportFile(export);
 
             // 创建CSV文件
             CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
@@ -145,15 +136,6 @@ public class ExportService {
             log.error("Failed to export to CSV: {}", e.getMessage(), e);
             return dataExportApplicationService.failDataExport(export.getId(), requestedBy, e.getMessage());
         }
-    }
-
-    /**
-     * 生成文件名
-     */
-    private String generateFileName(String exportName, ExportFormat format) {
-        String safeName = exportName.replaceAll("[^a-zA-Z0-9\u4e00-\u9fa5]", "_");
-        String timestamp = LocalDateTime.now().format(DATE_FORMATTER);
-        return safeName + "_" + timestamp + format.getFileExtension();
     }
 
     private void validateExportInput(String exportName, String exportType, Long requestedBy,

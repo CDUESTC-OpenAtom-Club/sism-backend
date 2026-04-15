@@ -2,6 +2,7 @@ package com.sism.workflow.application;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.execution.application.ReportApplicationService;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.strategy.domain.repository.PlanRepository;
@@ -55,7 +56,7 @@ class StartWorkflowUseCaseTest {
     private PlanRepository planRepository;
 
     @Mock
-    private JdbcTemplate jdbcTemplate;
+    private ReportApplicationService reportApplicationService;
 
     @Test
     void startAuditInstance_shouldAutoCompleteSubmitterStepAndActivateNextApprover() {
@@ -92,7 +93,7 @@ class StartWorkflowUseCaseTest {
         ApproverResolver approverResolver = new ApproverResolver(
                 userRepository,
                 planRepository,
-                jdbcTemplate,
+                reportApplicationService,
                 workflowApproverProperties()
         );
         SubmissionStepAutoCompletePolicy autoCompletePolicy = new SubmissionStepAutoCompletePolicy();

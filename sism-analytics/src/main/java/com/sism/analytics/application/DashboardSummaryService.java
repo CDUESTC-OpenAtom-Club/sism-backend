@@ -39,7 +39,7 @@ public class DashboardSummaryService {
     /**
      * Get dashboard summary aggregating indicator stats
      */
-    @Cacheable(cacheNames = "dashboard-summary", key = "'summary'")
+    @Cacheable(cacheNames = "dashboard-summary", cacheManager = "analyticsCacheManager", key = "'summary'")
     public DashboardSummaryDTO getDashboardSummary() {
         DashboardSummaryQueryRepository.DashboardSummaryMetrics metrics =
                 dashboardSummaryQueryRepository.fetchDashboardSummaryMetrics();
@@ -74,7 +74,7 @@ public class DashboardSummaryService {
     /**
      * Get department progress grouped by target_org_id
      */
-    @Cacheable(cacheNames = "department-progress", key = "'progress'")
+    @Cacheable(cacheNames = "department-progress", cacheManager = "analyticsCacheManager", key = "'progress'")
     public List<DepartmentProgressDTO> getDepartmentProgress() {
         return dashboardSummaryQueryRepository.fetchDepartmentProgressRows().stream()
                 .map(this::toDepartmentProgress)
@@ -84,7 +84,7 @@ public class DashboardSummaryService {
     /**
      * Get recent activities - recent indicator changes
      */
-    @Cacheable(cacheNames = "recent-activities", key = "'recent'")
+    @Cacheable(cacheNames = "recent-activities", cacheManager = "analyticsCacheManager", key = "'recent'")
     public List<Map<String, Object>> getRecentActivities() {
         List<Map<String, Object>> result = new ArrayList<>();
         for (DashboardSummaryQueryRepository.RecentActivityRow row : dashboardSummaryQueryRepository.fetchRecentActivityRows(RECENT_ACTIVITY_LIMIT)) {

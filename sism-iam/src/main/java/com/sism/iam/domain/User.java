@@ -45,6 +45,9 @@ public class User extends AggregateRoot<Long> {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    @Column(name = "token_version", nullable = false)
+    private Long tokenVersion = 0L;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "sys_user_role",

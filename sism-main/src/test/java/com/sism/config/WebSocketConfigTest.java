@@ -19,6 +19,9 @@ class WebSocketConfigTest {
     private SismWebSocketHandler sismWebSocketHandler;
 
     @Mock
+    private JwtHandshakeInterceptor jwtHandshakeInterceptor;
+
+    @Mock
     private WebSocketHandlerRegistry registry;
 
     @Mock
@@ -29,13 +32,16 @@ class WebSocketConfigTest {
     void shouldApplyConfiguredAllowedOrigins() {
         WebSocketConfig config = new WebSocketConfig(
                 sismWebSocketHandler,
+                jwtHandshakeInterceptor,
                 java.util.List.of("http://localhost:3500", "https://sism.example.com")
         );
 
         doReturn(registration).when(registry).addHandler(sismWebSocketHandler, "/ws/notifications");
+        doReturn(registration).when(registration).addInterceptors(jwtHandshakeInterceptor);
 
         config.registerWebSocketHandlers(registry);
 
+        verify(registration).addInterceptors(jwtHandshakeInterceptor);
         verify(registration).setAllowedOriginPatterns("http://localhost:3500", "https://sism.example.com");
     }
 }

@@ -17,6 +17,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class PlanWorkflowEventListener {
 
     private static final String PLAN_ENTITY_TYPE = "PLAN";
+    private static final int MAX_START_ATTEMPTS = 3;
 
     private final BusinessWorkflowApplicationService businessWorkflowApplicationService;
 
@@ -34,11 +35,7 @@ public class PlanWorkflowEventListener {
             request.setBusinessEntityId(event.getPlanId());
             request.setBusinessEntityType(PLAN_ENTITY_TYPE);
 
-            var response = businessWorkflowApplicationService.startWorkflow(
-                    request,
-                    event.getSubmitterId(),
-                    event.getSubmitterOrgId()
-            );
+            var response = startWorkflowWithRetry(request, event.getSubmitterId(), event.getSubmitterOrgId());
             log.info("Started plan workflow for planId={}, instanceId={}", event.getPlanId(), response.getInstanceId());
         } catch (Exception ex) {
             log.error("Failed to start plan workflow for planId={}, workflowCode={}: {}",
@@ -48,5 +45,28 @@ public class PlanWorkflowEventListener {
                     ex
             );
         }
+    }
+
+    private com.sism.workflow.interfaces.dto.WorkflowInstanceResponse startWorkflowWithRetry(
+            StartWorkflowRequest request,
+            Long submitterId,
+            Long submitterOrgId
+    ) {
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_START_ATTEMPTS; attempt++) {
+            try {
+                return businessWorkflowApplicationService.startWorkflow(request, submitterId, submitterOrgId);
+            } catch (IllegalStateException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                lastFailure = e;
+                if (attempt == MAX_START_ATTEMPTS) {
+                    break;
+                }
+                log.warn("Retrying plan workflow start, attempt={}/{}, workflowCode={}, entityId={}, reason={}",
+                        attempt + 1, MAX_START_ATTEMPTS, request.getWorkflowCode(), request.getBusinessEntityId(), e.getMessage());
+            }
+        }
+        throw lastFailure == null ? new IllegalStateException("Unknown plan workflow start failure") : lastFailure;
     }
 }

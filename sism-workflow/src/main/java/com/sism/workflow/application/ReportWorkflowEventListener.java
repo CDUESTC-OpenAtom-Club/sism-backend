@@ -42,6 +42,7 @@ public class ReportWorkflowEventListener {
     private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
     private static final String REPORT_STATUS_APPROVED = "APPROVED";
     private static final String REPORT_STATUS_REJECTED = "REJECTED";
+    private static final int MAX_START_ATTEMPTS = 3;
 
     private final BusinessWorkflowApplicationService businessWorkflowService;
     private final WorkflowApplicationService workflowApplicationService;
@@ -95,11 +96,7 @@ public class ReportWorkflowEventListener {
 
             Long initiatorId = resolveSubmitterId(event);
 
-            var response = businessWorkflowService.startWorkflow(
-                    request,
-                    initiatorId,
-                    event.getReportOrgId()
-            );
+            var response = startWorkflowWithRetry(request, initiatorId, event.getReportOrgId());
 
             log.info("✅ 工作流启动成功 - 工作流实例ID: {}, 报告ID: {}",
                     response.getInstanceId(), event.getReportId());
@@ -282,5 +279,28 @@ public class ReportWorkflowEventListener {
 
         String stepName = step.getStepName();
         return stepName != null && stepName.contains("提交");
+    }
+
+    private com.sism.workflow.interfaces.dto.WorkflowInstanceResponse startWorkflowWithRetry(
+            StartWorkflowRequest request,
+            Long initiatorId,
+            Long reportOrgId
+    ) {
+        RuntimeException lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_START_ATTEMPTS; attempt++) {
+            try {
+                return businessWorkflowService.startWorkflow(request, initiatorId, reportOrgId);
+            } catch (IllegalStateException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                lastFailure = e;
+                if (attempt == MAX_START_ATTEMPTS) {
+                    break;
+                }
+                log.warn("Retrying report workflow start, attempt={}/{}, entityId={}, reason={}",
+                        attempt + 1, MAX_START_ATTEMPTS, request.getBusinessEntityId(), e.getMessage());
+            }
+        }
+        throw lastFailure == null ? new IllegalStateException("Unknown report workflow start failure") : lastFailure;
     }
 }

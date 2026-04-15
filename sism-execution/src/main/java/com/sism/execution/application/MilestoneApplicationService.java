@@ -67,7 +67,7 @@ public class MilestoneApplicationService {
                                      Integer sortOrder, Boolean isPaired,
                                      Long inheritedFrom) {
         Milestone milestone = milestoneRepository.findById(milestoneId)
-                .orElseThrow(() -> new ResourceNotFoundException("Milestone", milestoneId));
+                .orElseThrow(() -> new ResourceNotFoundException("Milestone not found with id: " + milestoneId));
 
         if (indicatorId != null) {
             milestone.setIndicatorId(indicatorId);

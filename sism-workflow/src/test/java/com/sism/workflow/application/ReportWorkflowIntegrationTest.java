@@ -3,6 +3,8 @@ package com.sism.workflow.application;
 import com.sism.execution.domain.model.report.PlanReport;
 import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.model.report.event.PlanReportSubmittedEvent;
+import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
+import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.infrastructure.ExecutionModuleConfig;
 import com.sism.iam.domain.User;
@@ -13,6 +15,8 @@ import com.sism.shared.infrastructure.event.EventStoreInMemory;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.domain.definition.model.AuditFlowDef;
 import com.sism.workflow.domain.definition.repository.FlowDefinitionRepository;
@@ -25,6 +29,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -371,6 +376,7 @@ class ReportWorkflowIntegrationTest {
     @EnableAutoConfiguration
     @Import({ExecutionModuleConfig.class, WorkflowModuleConfig.class})
     @ComponentScan(basePackages = {
+            "com.sism.execution.application",
             "com.sism.execution.infrastructure.persistence",
             "com.sism.workflow.application",
             "com.sism.workflow.infrastructure.persistence",
@@ -399,6 +405,11 @@ class ReportWorkflowIntegrationTest {
                 @Override
                 public List<User> findAll() {
                     return new ArrayList<>(users.values());
+                }
+
+                @Override
+                public org.springframework.data.domain.Page<User> findAll(org.springframework.data.domain.Pageable pageable) {
+                    return new org.springframework.data.domain.PageImpl<>(new ArrayList<>(users.values()), pageable, users.size());
                 }
 
                 @Override
@@ -491,10 +502,13 @@ class ReportWorkflowIntegrationTest {
                 public List<SysOrg> findByParentOrgId(Long parentOrgId) { return List.of(); }
 
                 @Override
-                public List<SysOrg> findByType(com.sism.enums.OrgType type) { return List.of(); }
+                public List<SysOrg> findByType(com.sism.organization.domain.OrgType type) { return List.of(); }
 
                 @Override
-                public List<SysOrg> findByTypes(List<com.sism.enums.OrgType> types) { return List.of(); }
+                public List<SysOrg> findByTypes(List<com.sism.organization.domain.OrgType> types) { return List.of(); }
+
+                @Override
+                public List<SysOrg> findByTypesAndIsActive(List<com.sism.organization.domain.OrgType> types, Boolean isActive) { return List.of(); }
 
                 @Override
                 public List<SysOrg> findByIsActive(Boolean isActive) { return List.of(); }
@@ -589,6 +603,118 @@ class ReportWorkflowIntegrationTest {
                 @Override
                 public boolean existsById(Long id) { return true; }
             };
+        }
+
+        @Bean
+        @Primary
+        PlanReportIndicatorRepository planReportIndicatorRepository() {
+            return new PlanReportIndicatorRepository() {
+                @Override
+                public Long upsertDraftIndicator(Long reportId, Long indicatorId, Integer progress, String comment, String milestoneNote) {
+                    return 1L;
+                }
+
+                @Override
+                public void attachFiles(Long planReportIndicatorId, List<Long> attachmentIds, Long createdBy) {}
+
+                @Override
+                public List<PlanReportIndicatorSnapshot> findByReportId(Long reportId) { return List.of(); }
+
+                @Override
+                public java.util.Map<Long, List<PlanReportIndicatorSnapshot>> findByReportIds(List<Long> reportIds) {
+                    return java.util.Map.of();
+                }
+            };
+        }
+
+        @Bean
+        IndicatorRepository indicatorRepository() {
+            return new IndicatorRepository() {
+                @Override
+                public Optional<Indicator> findById(Long id) { return Optional.empty(); }
+
+                @Override
+                public Optional<Indicator> findByIdAndOwnerOrgId(Long id, Long ownerOrgId) { return Optional.empty(); }
+
+                @Override
+                public List<Indicator> findAll() { return List.of(); }
+
+                @Override
+                public org.springframework.data.domain.Page<Indicator> findAll(org.springframework.data.domain.Pageable pageable) {
+                    return org.springframework.data.domain.Page.empty(pageable);
+                }
+
+                @Override
+                public List<Indicator> findByTargetOrg(SysOrg targetOrg) { return List.of(); }
+
+                @Override
+                public List<Indicator> findByTargetOrgId(Long targetOrgId) { return List.of(); }
+
+                @Override
+                public List<Indicator> findByOwnerOrg(SysOrg ownerOrg) { return List.of(); }
+
+                @Override
+                public List<Indicator> findByOwnerOrgId(Long ownerOrgId) { return List.of(); }
+
+                @Override
+                public List<Indicator> findByOwnerOrgIdAndTargetOrgId(Long ownerOrgId, Long targetOrgId) { return List.of(); }
+
+                @Override
+                public List<Indicator> findByStatus(String status) { return List.of(); }
+
+                @Override
+                public org.springframework.data.domain.Page<Indicator> findByStatus(String status, org.springframework.data.domain.Pageable pageable) {
+                    return org.springframework.data.domain.Page.empty(pageable);
+                }
+
+                @Override
+                public List<Indicator> findByParentIndicatorId(Long parentIndicatorId) { return List.of(); }
+
+                @Override
+                public List<Indicator> findByTaskId(Long taskId) { return List.of(); }
+
+                @Override
+                public List<Indicator> findByTaskIds(List<Long> taskIds) { return List.of(); }
+
+                @Override
+                public Indicator save(Indicator indicator) { return indicator; }
+
+                @Override
+                public List<Indicator> saveAll(List<Indicator> indicators) { return indicators; }
+
+                @Override
+                public void delete(Indicator indicator) {}
+
+                @Override
+                public boolean existsById(Long id) { return false; }
+
+                @Override
+                public List<Indicator> findFirstLevelIndicators() { return List.of(); }
+
+                @Override
+                public List<Indicator> findSecondLevelIndicators() { return List.of(); }
+
+                @Override
+                public List<Indicator> findByKeyword(String keyword) { return List.of(); }
+
+                @Override
+                public org.springframework.data.domain.Page<Indicator> findByTaskIds(List<Long> taskIds, org.springframework.data.domain.Pageable pageable) {
+                    return org.springframework.data.domain.Page.empty(pageable);
+                }
+
+                @Override
+                public org.springframework.data.domain.Page<Indicator> findByYear(Integer year, org.springframework.data.domain.Pageable pageable) {
+                    return org.springframework.data.domain.Page.empty(pageable);
+                }
+
+                @Override
+                public List<Indicator> findByIds(List<Long> ids) { return List.of(); }
+            };
+        }
+
+        @Bean
+        EventStore eventStore() {
+            return new EventStoreInMemory();
         }
     }
 

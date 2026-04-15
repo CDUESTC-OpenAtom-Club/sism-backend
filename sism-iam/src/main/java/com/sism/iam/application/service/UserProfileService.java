@@ -59,6 +59,7 @@ public class UserProfileService {
         PasswordPolicy.validateLength(newPassword);
 
         user.setPassword(passwordEncoder.encode(newPassword));
+        user.setTokenVersion(user.getTokenVersion() == null ? 1L : user.getTokenVersion() + 1L);
         user.setUpdatedAt(LocalDateTime.now());
         return userRepository.save(user);
     }
