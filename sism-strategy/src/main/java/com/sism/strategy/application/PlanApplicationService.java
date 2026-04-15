@@ -23,9 +23,8 @@ import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
 import com.sism.strategy.infrastructure.StrategyOrgProperties;
 import com.sism.task.domain.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
-import com.sism.strategy.application.MilestoneApplicationService;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -57,14 +56,8 @@ import java.util.stream.Stream;
  * 处理计划的业务逻辑，包括计划的创建、更新、查询等操作
  */
 @Service("strategyPlanApplicationService")
-@RequiredArgsConstructor
 @Slf4j
 public class PlanApplicationService {
-    private static final String ROLE_CODE_APPROVER = "APPROVER";
-    private static final String ROLE_CODE_STRATEGY_DEPT_HEAD = "STRATEGY_DEPT_HEAD";
-    private static final String ROLE_CODE_VICE_PRESIDENT = "VICE_PRESIDENT";
-
-
     private final PlanRepository planRepository;
     private final CycleRepository cycleRepository;
     private final IndicatorRepository indicatorRepository;
@@ -76,8 +69,42 @@ public class PlanApplicationService {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final PlanIntegrityService planIntegrityService;
     private final StrategyOrgProperties strategyOrgProperties;
+    private final PlanWorkflowRuntimeService planWorkflowRuntimeService;
     private final MilestoneApplicationService milestoneApplicationService;
     private final ObjectProvider<PlanApplicationService> selfProvider;
+
+    @Autowired
+    public PlanApplicationService(
+            PlanRepository planRepository,
+            CycleRepository cycleRepository,
+            IndicatorRepository indicatorRepository,
+            BasicTaskWeightValidationService basicTaskWeightValidationService,
+            TaskRepository taskRepository,
+            DomainEventPublisher eventPublisher,
+            PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService,
+            JdbcTemplate jdbcTemplate,
+            NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+            PlanIntegrityService planIntegrityService,
+            StrategyOrgProperties strategyOrgProperties,
+            PlanWorkflowRuntimeService planWorkflowRuntimeService,
+            MilestoneApplicationService milestoneApplicationService,
+            ObjectProvider<PlanApplicationService> selfProvider
+    ) {
+        this.planRepository = planRepository;
+        this.cycleRepository = cycleRepository;
+        this.indicatorRepository = indicatorRepository;
+        this.basicTaskWeightValidationService = basicTaskWeightValidationService;
+        this.taskRepository = taskRepository;
+        this.eventPublisher = eventPublisher;
+        this.planWorkflowSnapshotQueryService = planWorkflowSnapshotQueryService;
+        this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.planIntegrityService = planIntegrityService;
+        this.strategyOrgProperties = strategyOrgProperties;
+        this.planWorkflowRuntimeService = planWorkflowRuntimeService;
+        this.milestoneApplicationService = milestoneApplicationService;
+        this.selfProvider = selfProvider;
+    }
 
     public PlanApplicationService(PlanRepository planRepository,
                                   CycleRepository cycleRepository,
@@ -102,6 +129,11 @@ public class PlanApplicationService {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
         this.planIntegrityService = planIntegrityService;
         this.strategyOrgProperties = strategyOrgProperties;
+        this.planWorkflowRuntimeService = new PlanWorkflowRuntimeService(
+                jdbcTemplate,
+                planRepository,
+                strategyOrgProperties
+        );
         this.milestoneApplicationService = null;
         this.selfProvider = new ObjectProvider<>() {
             @Override
@@ -137,8 +169,7 @@ public class PlanApplicationService {
     @Transactional
     public PlanResponse createPlan(CreatePlanRequest request) {
         // 验证周期是否存在
-        Cycle cycle = cycleRepository.findById(request.getCycleId())
-                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + request.getCycleId()));
+        Cycle cycle = requireCycle(request.getCycleId());
 
         // 确定计划层级
         PlanLevel planLevel = determinePlanLevel(request.getPlanType());
@@ -175,8 +206,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse updatePlan(Long id, UpdatePlanRequest request) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         Long nextTargetOrgId = request.getTargetOrgId() != null ? request.getTargetOrgId() : plan.getTargetOrgId();
         Long nextCreatedByOrgId = request.getCreatedByOrgId() != null ? request.getCreatedByOrgId() : plan.getCreatedByOrgId();
@@ -199,8 +229,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public void deletePlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         planRepository.delete(plan);
     }
@@ -211,8 +240,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse publishPlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
         plan.activate();
@@ -247,15 +275,14 @@ public class PlanApplicationService {
                                                    SubmitPlanApprovalRequest request,
                                                    Long currentUserId,
                                                    Long currentOrgId) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
         PlanWorkflowSnapshotQueryService.WorkflowSnapshot existingSnapshot =
                 planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(id);
 
         plan.submitForApproval(allowsDistributedSubmission(request));
         Plan saved = planRepository.save(plan);
         publishAndClearEvents(saved);
-        boolean resumedWithdrawnWorkflow = reactivateWithdrawnWorkflowCurrentStep(
+        boolean resumedWithdrawnWorkflow = planWorkflowRuntimeService.reactivateWithdrawnWorkflowCurrentStep(
                 existingSnapshot == null ? null : existingSnapshot.getWorkflowInstanceId());
         if (!resumedWithdrawnWorkflow) {
             eventPublisher.publish(new PlanSubmittedForApprovalEvent(
@@ -291,8 +318,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse approvePlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
         plan.approve();
@@ -310,8 +336,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse rejectPlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         plan.returnForRevision();
         Plan saved = planRepository.save(plan);
@@ -333,7 +358,7 @@ public class PlanApplicationService {
             throw new IllegalStateException("Plan is not in a withdrawable workflow state");
         }
 
-        withdrawWorkflowCurrentStep(workflowSnapshot.getWorkflowInstanceId());
+        planWorkflowRuntimeService.withdrawWorkflowCurrentStep(workflowSnapshot.getWorkflowInstanceId());
         plan.withdraw();
         Plan saved = planRepository.save(plan);
         publishAndClearEvents(saved);
@@ -384,431 +409,6 @@ public class PlanApplicationService {
         });
     }
 
-    private void withdrawWorkflowCurrentStep(Long workflowInstanceId) {
-        if (workflowInstanceId == null) {
-            return;
-        }
-
-        List<WorkflowStepRow> submitterSteps = jdbcTemplate.query(
-                """
-                SELECT asi.id, asi.step_no
-                FROM public.audit_step_instance asi
-                JOIN public.audit_instance ai ON ai.id = asi.instance_id
-                LEFT JOIN public.audit_step_def asd ON asd.id = asi.step_def_id
-                WHERE asi.instance_id = ?
-                  AND asi.status = 'APPROVED'
-                  AND (
-                        COALESCE(UPPER(asd.step_type), '') = 'SUBMIT'
-                        OR asi.step_name LIKE '%提交%'
-                        OR (ai.requester_id IS NOT NULL AND ai.requester_id = asi.approver_id)
-                  )
-                ORDER BY asi.step_no DESC NULLS LAST, asi.approved_at DESC NULLS LAST, asi.id DESC
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2), null, true, null, null),
-                workflowInstanceId
-        );
-
-        if (!submitterSteps.isEmpty()) {
-            jdbcTemplate.update("""
-                    UPDATE public.audit_step_instance
-                    SET status = 'WITHDRAWN',
-                        approved_at = CURRENT_TIMESTAMP,
-                        comment = '提交人撤回'
-                    WHERE id = ?
-                    """, submitterSteps.get(0).id());
-        }
-
-        jdbcTemplate.update("""
-                UPDATE public.audit_step_instance
-                SET status = 'WAITING'
-                WHERE instance_id = ?
-                  AND status = 'PENDING'
-                  AND step_no > 1
-                """, workflowInstanceId);
-
-        jdbcTemplate.update("""
-                UPDATE public.audit_instance
-                SET status = 'WITHDRAWN',
-                    completed_at = CURRENT_TIMESTAMP,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """, workflowInstanceId);
-    }
-
-    private boolean reactivateWithdrawnWorkflowCurrentStep(Long workflowInstanceId) {
-        if (workflowInstanceId == null) {
-            return false;
-        }
-
-        List<WorkflowStepRow> withdrawnSteps = jdbcTemplate.query(
-                """
-                SELECT asi.id,
-                       asi.step_no,
-                       asi.step_def_id,
-                       COALESCE(UPPER(asd.step_type), '') = 'SUBMIT' AS is_submit,
-                       ai.requester_id,
-                       ai.requester_org_id
-                FROM public.audit_step_instance asi
-                JOIN public.audit_instance ai ON ai.id = asi.instance_id
-                LEFT JOIN public.audit_step_def asd ON asd.id = asi.step_def_id
-                WHERE asi.instance_id = ?
-                  AND asi.status = 'WITHDRAWN'
-                ORDER BY asi.step_no DESC NULLS LAST, asi.id DESC
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepRow(
-                        rs.getLong(1),
-                        rs.getInt(2),
-                        rs.getLong(3),
-                        rs.getBoolean(4),
-                        rs.getLong(5),
-                        rs.getLong(6)
-                ),
-                workflowInstanceId
-        );
-
-        if (withdrawnSteps.isEmpty()) {
-            return false;
-        }
-
-        WorkflowStepRow withdrawnStep = withdrawnSteps.get(0);
-        WorkflowInstanceContext workflowContext = loadWorkflowInstanceContext(workflowInstanceId);
-        if (workflowContext == null) {
-            log.warn("Workflow instance context missing for {}, fallback to withdrawn step context", workflowInstanceId);
-            workflowContext = new WorkflowInstanceContext(
-                    workflowInstanceId,
-                    null,
-                    withdrawnStep.requesterId(),
-                    withdrawnStep.requesterOrgId(),
-                    "PLAN",
-                    null
-            );
-        }
-        if (withdrawnStep.isSubmitStep()) {
-            jdbcTemplate.update("""
-                    UPDATE public.audit_step_instance
-                    SET status = 'APPROVED',
-                        approved_at = CURRENT_TIMESTAMP,
-                        comment = '系统自动完成提交流程节点'
-                    WHERE id = ?
-                    """, withdrawnStep.id());
-
-            if (workflowContext.flowDefId() == null) {
-                if (withdrawnStep.stepNo() <= 1) {
-                    jdbcTemplate.update("""
-                            UPDATE public.audit_step_instance
-                            SET status = 'PENDING',
-                                approved_at = NULL,
-                                comment = NULL
-                            WHERE instance_id = ?
-                              AND status = 'WAITING'
-                            """, workflowInstanceId);
-                } else {
-                    String insertSql = """
-                            INSERT INTO public.audit_step_instance (
-                                step_def_id,
-                                instance_id,
-                                step_no,
-                                status,
-                                created_at
-                            )
-                            VALUES (?, ?, %d, 'PENDING', CURRENT_TIMESTAMP)
-                            """.formatted(withdrawnStep.stepNo() + 1);
-                    jdbcTemplate.update(insertSql,
-                            withdrawnStep.stepDefId(),
-                            workflowInstanceId
-                    );
-                }
-
-                jdbcTemplate.update("""
-                        UPDATE public.audit_instance
-                        SET status = 'IN_REVIEW',
-                            completed_at = NULL,
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE id = ?
-                        """, workflowInstanceId);
-                return true;
-            }
-
-            WorkflowStepRow waitingStep = loadFirstWaitingWorkflowStep(workflowInstanceId);
-            int restoredWaitingRows = 0;
-            if (waitingStep != null) {
-                WorkflowStepDefinition waitingStepDef = loadWorkflowStepDefinition(waitingStep.stepDefId());
-                ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(waitingStepDef, workflowContext);
-                restoredWaitingRows = jdbcTemplate.update("""
-                        UPDATE public.audit_step_instance
-                        SET status = 'PENDING',
-                            approver_id = ?,
-                            approver_org_id = ?,
-                            approved_at = NULL,
-                            comment = NULL
-                        WHERE id = ?
-                        """,
-                        resolvedApprover.approverId(),
-                        resolvedApprover.approverOrgId(),
-                        waitingStep.id());
-            }
-
-            if (restoredWaitingRows == 0) {
-                WorkflowStepDefinition nextStepDef = loadNextWorkflowStepDefinition(
-                        workflowContext.flowDefId(),
-                        withdrawnStep.stepDefId()
-                );
-                if (nextStepDef != null) {
-                    ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(nextStepDef, workflowContext);
-                    jdbcTemplate.update("""
-                            INSERT INTO public.audit_step_instance (
-                                instance_id,
-                                step_no,
-                                step_name,
-                                step_def_id,
-                                status,
-                                approver_id,
-                                approver_org_id,
-                                comment,
-                                approved_at,
-                                created_at
-                            )
-                            VALUES (?, ?, ?, ?, 'PENDING', ?, ?, NULL, NULL, CURRENT_TIMESTAMP)
-                            """,
-                            workflowInstanceId,
-                            withdrawnStep.stepNo() + 1,
-                            nextStepDef.stepName(),
-                            nextStepDef.id(),
-                            resolvedApprover.approverId(),
-                            resolvedApprover.approverOrgId()
-                    );
-                }
-            }
-        } else {
-            WorkflowStepDefinition returnedStepDef = loadWorkflowStepDefinition(withdrawnStep.stepDefId());
-            ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(returnedStepDef, workflowContext);
-            jdbcTemplate.update("""
-                    UPDATE public.audit_step_instance
-                    SET status = 'PENDING',
-                        approver_id = ?,
-                        approver_org_id = ?,
-                        approved_at = NULL,
-                        comment = NULL
-                    WHERE id = ?
-                    """,
-                    resolvedApprover.approverId(),
-                    resolvedApprover.approverOrgId(),
-                    withdrawnStep.id());
-        }
-        jdbcTemplate.update("""
-                UPDATE public.audit_instance
-                SET status = 'IN_REVIEW',
-                    completed_at = NULL,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """, workflowInstanceId);
-        return true;
-    }
-
-    private WorkflowInstanceContext loadWorkflowInstanceContext(Long workflowInstanceId) {
-        List<WorkflowInstanceContext> rows = jdbcTemplate.query(
-                """
-                SELECT id, flow_def_id, requester_id, requester_org_id, entity_type, entity_id
-                FROM public.audit_instance
-                WHERE id = ?
-                """,
-                (rs, _rowNum) -> new WorkflowInstanceContext(
-                        rs.getLong("id"),
-                        rs.getLong("flow_def_id"),
-                        rs.getLong("requester_id"),
-                        rs.getLong("requester_org_id"),
-                        rs.getString("entity_type"),
-                        rs.getLong("entity_id")
-                ),
-                workflowInstanceId
-        );
-        if (rows.isEmpty()) {
-            return null;
-        }
-        return rows.get(0);
-    }
-
-    private WorkflowStepRow loadFirstWaitingWorkflowStep(Long workflowInstanceId) {
-        List<WorkflowStepRow> rows = jdbcTemplate.query(
-                """
-                SELECT id, step_no, step_def_id
-                FROM public.audit_step_instance
-                WHERE instance_id = ?
-                  AND status = 'WAITING'
-                  AND step_no > 1
-                ORDER BY step_no ASC, id ASC
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepRow(
-                        rs.getLong("id"),
-                        rs.getInt("step_no"),
-                        rs.getLong("step_def_id"),
-                        false,
-                        null,
-                        null
-                ),
-                workflowInstanceId
-        );
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    private WorkflowStepDefinition loadWorkflowStepDefinition(Long stepDefId) {
-        if (stepDefId == null) {
-            return null;
-        }
-        List<WorkflowStepDefinition> rows = jdbcTemplate.query(
-                """
-                SELECT id, step_name, step_no, step_type, role_id
-                FROM public.audit_step_def
-                WHERE id = ?
-                """,
-                (rs, _rowNum) -> new WorkflowStepDefinition(
-                        rs.getLong("id"),
-                        rs.getString("step_name"),
-                        rs.getInt("step_no"),
-                        rs.getString("step_type"),
-                        rs.getObject("role_id") == null ? null : rs.getLong("role_id")
-                ),
-                stepDefId
-        );
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    private WorkflowStepDefinition loadNextWorkflowStepDefinition(Long flowDefId, Long currentStepDefId) {
-        List<WorkflowStepDefinition> rows = jdbcTemplate.query(
-                """
-                SELECT next_def.id, next_def.step_name, next_def.step_no, next_def.step_type, next_def.role_id
-                FROM public.audit_step_def current_def
-                JOIN public.audit_step_def next_def
-                  ON next_def.flow_id = current_def.flow_id
-                 AND next_def.step_no = current_def.step_no + 1
-                WHERE current_def.id = ?
-                  AND current_def.flow_id = ?
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepDefinition(
-                        rs.getLong("id"),
-                        rs.getString("step_name"),
-                        rs.getInt("step_no"),
-                        rs.getString("step_type"),
-                        rs.getObject("role_id") == null ? null : rs.getLong("role_id")
-                ),
-                currentStepDefId,
-                flowDefId
-        );
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    private ResolvedWorkflowApprover resolveWorkflowApprover(
-            WorkflowStepDefinition stepDef,
-            WorkflowInstanceContext context
-    ) {
-        if (stepDef == null) {
-            return new ResolvedWorkflowApprover(null, context.requesterOrgId());
-        }
-        if (stepDef.isSubmitStep()) {
-            return new ResolvedWorkflowApprover(context.requesterId(), context.requesterOrgId());
-        }
-
-        Long approverOrgId = resolveWorkflowApproverOrgId(stepDef, context);
-        Long approverId = resolveWorkflowApproverId(stepDef, approverOrgId);
-        return new ResolvedWorkflowApprover(approverId, approverOrgId);
-    }
-
-    private Long resolveWorkflowApproverOrgId(
-            WorkflowStepDefinition stepDef,
-            WorkflowInstanceContext context
-    ) {
-        String roleCode = loadRoleCode(stepDef.roleId());
-        if (ROLE_CODE_STRATEGY_DEPT_HEAD.equals(roleCode)) {
-            return strategyOrgProperties.getStrategyOrgId();
-        }
-        if (ROLE_CODE_VICE_PRESIDENT.equals(roleCode)) {
-            if (stepDef.stepName() != null && stepDef.stepName().contains("学院院长")) {
-                return context.requesterOrgId();
-            }
-            return context.requesterOrgId();
-        }
-        if (ROLE_CODE_APPROVER.equals(roleCode) && stepDef.stepName() != null && stepDef.stepName().contains("职能部门终审")) {
-            return planRepository.findById(context.entityId())
-                    .map(Plan::getCreatedByOrgId)
-                    .orElse(context.requesterOrgId());
-        }
-        return context.requesterOrgId();
-    }
-
-    private String loadRoleCode(Long roleId) {
-        if (roleId == null) {
-            return null;
-        }
-        List<String> roleCodes = jdbcTemplate.query(
-                """
-                SELECT role_code
-                FROM public.sys_role
-                WHERE id = ?
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> rs.getString(1),
-                roleId
-        );
-        return roleCodes.isEmpty() ? null : roleCodes.get(0);
-    }
-
-    private Long resolveWorkflowApproverId(WorkflowStepDefinition stepDef, Long approverOrgId) {
-        if (stepDef.roleId() == null || approverOrgId == null) {
-            return null;
-        }
-        List<Long> approverIds = jdbcTemplate.query(
-                """
-                SELECT u.id
-                FROM public.sys_user u
-                JOIN public.sys_user_role ur ON ur.user_id = u.id
-                WHERE ur.role_id = ?
-                  AND u.org_id = ?
-                  AND COALESCE(u.is_active, false) = true
-                ORDER BY u.id ASC
-                """,
-                (rs, _rowNum) -> rs.getLong(1),
-                stepDef.roleId(),
-                approverOrgId
-        );
-        return approverIds.isEmpty() ? null : approverIds.get(0);
-    }
-
-    private record WorkflowStepRow(
-            Long id,
-            Integer stepNo,
-            Long stepDefId,
-            boolean isSubmitStep,
-            Long requesterId,
-            Long requesterOrgId
-    ) {}
-
-    private record WorkflowInstanceContext(
-            Long id,
-            Long flowDefId,
-            Long requesterId,
-            Long requesterOrgId,
-            String entityType,
-            Long entityId
-    ) {}
-
-    private record ResolvedWorkflowApprover(Long approverId, Long approverOrgId) {}
-
-    private record WorkflowStepDefinition(
-            Long id,
-            String stepName,
-            Integer stepOrder,
-            String stepType,
-            Long roleId
-    ) {
-        private boolean isSubmitStep() {
-            return "SUBMIT".equalsIgnoreCase(String.valueOf(stepType));
-        }
-    }
-
     private record PlanMetrics(Map<Long, Integer> indicatorCounts,
                                Map<Long, Integer> milestoneCounts,
                                Map<Long, Integer> completionPercentages) {
@@ -822,8 +422,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse archivePlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         plan.archive();
         Plan saved = planRepository.save(plan);
@@ -943,8 +542,7 @@ public class PlanApplicationService {
      */
     public List<PlanResponse> getPlansByCycle(Long cycleId) {
         planIntegrityService.ensurePlanMatrix();
-        Cycle cycle = cycleRepository.findById(cycleId)
-                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
+        Cycle cycle = requireCycle(cycleId);
 
         List<Plan> plans = planRepository.findByCycleId(cycleId);
         Map<Long, String> orgNamesById = loadOrgNamesById(plans);
@@ -964,8 +562,7 @@ public class PlanApplicationService {
     public PlanDetailsResponse getPlanDetails(Long id) {
         planIntegrityService.ensurePlanMatrix();
         long startedAt = System.currentTimeMillis();
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         Cycle cycle = cycleRepository.findById(plan.getCycleId()).orElse(null);
 
@@ -1015,6 +612,7 @@ public class PlanApplicationService {
 
         String planStatus = PlanStatus.fromRaw(plan.getStatus()).value();
         List<Indicator> planIndicators = loadPlanIndicators(plan);
+        Map<Long, String> taskNamesById = loadTaskNamesById(planIndicators);
         List<Long> indicatorIds = planIndicators.stream()
                 .map(Indicator::getId)
                 .filter(Objects::nonNull)
@@ -1029,7 +627,8 @@ public class PlanApplicationService {
                         indicator,
                         planStatus,
                         reportProgressByIndicatorId.get(indicator.getId()),
-                        currentReportContext))
+                        currentReportContext,
+                        taskNamesById))
                 .collect(Collectors.toList());
         details.setIndicators(indicators);
         details.setWorkflowHistory(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(plan.getId()));
@@ -1174,7 +773,7 @@ public class PlanApplicationService {
         }
 
         List<Long> orgIds = plans.stream()
-                .flatMap(plan -> Stream.of(plan.getTargetOrgId(), plan.getCreatedByOrgId()))
+                .flatMap(plan -> Stream.<Long>of(plan.getTargetOrgId(), plan.getCreatedByOrgId()))
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
@@ -1343,6 +942,16 @@ public class PlanApplicationService {
         }
     }
 
+    private Plan requirePlan(Long planId) {
+        return planRepository.findById(planId)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + planId));
+    }
+
+    private Cycle requireCycle(Long cycleId) {
+        return cycleRepository.findById(cycleId)
+                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
+    }
+
     /**
      * 将Indicator实体转换为响应DTO
      * 指标状态统一使用 Plan 的状态
@@ -1350,19 +959,15 @@ public class PlanApplicationService {
     private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator,
                                                                 String planStatus,
                                                                 Integer reportProgress,
-                                                                CurrentReportContext currentReportContext) {
+                                                                CurrentReportContext currentReportContext,
+                                                                Map<Long, String> taskNamesById) {
         // 使用 Plan 的状态作为指标状态
         String effectiveStatus = planStatus != null ? planStatus :
                 (indicator.getStatus() != null ? indicator.getStatus().name() : "DRAFT");
         PendingIndicatorState pendingIndicatorState = currentReportContext.getPendingState(indicator.getId());
         String ownerOrgName = indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getName() : null;
         String targetOrgName = indicator.getTargetOrg() != null ? indicator.getTargetOrg().getName() : null;
-        String taskName = null;
-        if (indicator.getTaskId() != null) {
-            taskName = taskRepository.findById(indicator.getTaskId())
-                    .map(StrategicTask::getName)
-                    .orElse(null);
-        }
+        String taskName = indicator.getTaskId() == null ? null : taskNamesById.get(indicator.getTaskId());
 
         return InternalIndicatorResponse.builder()
                 .id(indicator.getId())
@@ -1395,7 +1000,33 @@ public class PlanApplicationService {
      * 将Indicator实体转换为响应DTO（兼容旧方法，用于非Plan关联场景）
      */
     private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator) {
-        return convertIndicatorToResponse(indicator, null, null, CurrentReportContext.empty());
+        return convertIndicatorToResponse(indicator, null, null, CurrentReportContext.empty(), Map.of());
+    }
+
+    private Map<Long, String> loadTaskNamesById(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> taskIds = indicators.stream()
+                .map(Indicator::getTaskId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return taskIds.stream()
+                .map(taskRepository::findById)
+                .flatMap(Optional::stream)
+                .filter(task -> task.getId() != null)
+                .collect(Collectors.toMap(
+                        StrategicTask::getId,
+                        StrategicTask::getName,
+                        (left, right) -> left,
+                        HashMap::new
+                ));
     }
 
     private CurrentReportContext getCurrentReportContext(Long planId, List<Long> indicatorIds) {

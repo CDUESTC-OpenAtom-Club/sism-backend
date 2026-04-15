@@ -2,10 +2,12 @@ package com.sism.iam.application;
 
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.Role;
+import com.sism.iam.domain.repository.UserRepository;
 import com.sism.util.TokenBlacklistService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -30,13 +32,21 @@ public class JwtTokenService {
     private Long refreshExpiration;
 
     private final TokenBlacklistService tokenBlacklistService;
+    private final UserRepository userRepository;
+
+    @Autowired
+    public JwtTokenService(TokenBlacklistService tokenBlacklistService, UserRepository userRepository) {
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.userRepository = userRepository;
+    }
 
     public JwtTokenService(TokenBlacklistService tokenBlacklistService) {
-        this.tokenBlacklistService = tokenBlacklistService;
+        this(tokenBlacklistService, null);
     }
 
     public JwtTokenService() {
         this.tokenBlacklistService = null;
+        this.userRepository = null;
     }
 
     @PostConstruct
@@ -63,6 +73,7 @@ public class JwtTokenService {
         claims.put("username", user.getUsername());
         claims.put("orgId", user.getOrgId());
         claims.put("roles", normalizeRoleCodes(roleCodes));
+        claims.put("tokenVersion", normalizeTokenVersion(user));
 
         return Jwts.builder()
                 .claims(claims)
@@ -79,7 +90,7 @@ public class JwtTokenService {
 
     public boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token) && !isBlacklisted(token);
+            return !isTokenExpired(token) && !isBlacklisted(token) && isTokenVersionCurrent(token);
         } catch (Exception e) {
             return false;
         }
@@ -117,12 +128,12 @@ public class JwtTokenService {
     }
 
     public Map<String, Object> refreshToken(String refreshToken) {
-        if (!validateToken(refreshToken)) {
-            throw new IllegalArgumentException("Invalid refresh token");
-        }
-
         if (!isRefreshToken(refreshToken)) {
             throw new IllegalArgumentException("Not a refresh token");
+        }
+
+        if (!validateToken(refreshToken)) {
+            throw new IllegalArgumentException("Invalid refresh token");
         }
 
         String username = extractUsername(refreshToken);
@@ -159,6 +170,7 @@ public class JwtTokenService {
         claims.put("username", user.getUsername());
         claims.put("orgId", user.getOrgId());
         claims.put("roles", normalizeRoleCodes(roleCodes));
+        claims.put("tokenVersion", normalizeTokenVersion(user));
         claims.put("type", "refresh");
 
         return Jwts.builder()
@@ -190,6 +202,25 @@ public class JwtTokenService {
         return "refresh".equalsIgnoreCase(extractClaims(token).get("type", String.class));
     }
 
+    private boolean isTokenVersionCurrent(String token) {
+        if (userRepository == null) {
+            return true;
+        }
+
+        Claims claims = extractClaims(token);
+        String username = claims.getSubject();
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
+        Long tokenVersion = claims.get("tokenVersion", Long.class);
+        long expectedVersion = tokenVersion == null ? 0L : tokenVersion;
+
+        return userRepository.findByUsername(username)
+                .map(user -> normalizeTokenVersion(user) == expectedVersion)
+                .orElse(false);
+    }
+
     private List<String> extractRoleCodes(Collection<Role> roles) {
         if (roles == null || roles.isEmpty()) {
             return List.of();
@@ -209,5 +240,12 @@ public class JwtTokenService {
                 .filter(roleCode -> roleCode != null && !roleCode.isBlank())
                 .distinct()
                 .toList();
+    }
+
+    private long normalizeTokenVersion(User user) {
+        if (user == null || user.getTokenVersion() == null || user.getTokenVersion() < 0) {
+            return 0L;
+        }
+        return user.getTokenVersion();
     }
 }

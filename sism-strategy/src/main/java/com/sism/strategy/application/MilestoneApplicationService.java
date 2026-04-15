@@ -10,7 +10,7 @@ import com.sism.strategy.interfaces.dto.BatchSaveMilestonesRequest;
 import com.sism.strategy.interfaces.dto.CreateMilestoneRequest;
 import com.sism.strategy.interfaces.dto.MilestoneResponse;
 import com.sism.strategy.interfaces.dto.UpdateMilestoneRequest;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -32,12 +32,22 @@ import java.util.stream.Collectors;
  * 处理里程碑的业务逻辑，包括里程碑的创建、更新、查询等操作
  */
 @Service("strategyMilestoneApplicationService")
-@RequiredArgsConstructor
 public class MilestoneApplicationService {
 
     private final MilestoneRepository milestoneRepository;
     private final TaskRepository taskRepository;
     private final IndicatorRepository indicatorRepository;
+
+    @Autowired
+    public MilestoneApplicationService(
+            MilestoneRepository milestoneRepository,
+            TaskRepository taskRepository,
+            IndicatorRepository indicatorRepository
+    ) {
+        this.milestoneRepository = milestoneRepository;
+        this.taskRepository = taskRepository;
+        this.indicatorRepository = indicatorRepository;
+    }
 
     public MilestoneApplicationService(MilestoneRepository milestoneRepository) {
         this(milestoneRepository, null, null);
