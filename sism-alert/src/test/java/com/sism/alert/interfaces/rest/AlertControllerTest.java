@@ -153,6 +153,31 @@ class AlertControllerTest {
     }
 
     @Test
+    void getAllAlertsPageShouldNormalizeInvalidPagingArguments() {
+        Authentication authentication = authentication(11L, 35L, "ROLE_USER");
+        when(alertAccessService.getAccessibleAlerts(authentication, PageRequest.of(0, 100)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
+
+        alertController.getAllAlertsPage(authentication, -1, 9999);
+
+        verify(alertAccessService).getAccessibleAlerts(authentication, PageRequest.of(0, 100));
+    }
+
+    @Test
+    void searchAlertsShouldDelegateToAccessService() {
+        Authentication authentication = authentication(11L, 35L, "ROLE_USER");
+        Alert alert = alert(1L, 100L, AlertStatus.OPEN, "CRITICAL");
+        when(alertAccessService.searchAccessibleAlerts("OPEN", "CRITICAL", authentication, PageRequest.of(0, 20)))
+                .thenReturn(new PageImpl<>(List.of(alert), PageRequest.of(0, 20), 1));
+
+        var response = alertController.searchAlerts(authentication, "OPEN", "CRITICAL", 0, 20);
+        PageResult<AlertResponse> page = response.getBody().getData();
+
+        assertEquals(1, page.getItems().size());
+        verify(alertAccessService).searchAccessibleAlerts("OPEN", "CRITICAL", authentication, PageRequest.of(0, 20));
+    }
+
+    @Test
     void countAlertsShouldUseAggregateQueriesForAdmin() {
         Authentication authentication = authentication(11L, 35L, "ROLE_ADMIN");
 

@@ -165,7 +165,7 @@ public class DataExportController {
         return ResponseEntity.ok(ApiResponse.success(dataExports.stream().map(this::toDataExportDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/downloadable")
+    @GetMapping(value = "/downloadable", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "获取所有可下载的数据导出")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DataExportDTO>>> getAllDownloadable(
@@ -185,6 +185,16 @@ public class DataExportController {
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDataExportDTO))));
     }
 
+    @GetMapping("/downloadable/page")
+    @Operation(summary = "分页获取所有可下载的数据导出(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DataExportDTO>>> getAllDownloadablePagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return getAllDownloadablePage(currentUser, pageNum, pageSize);
+    }
+
     @GetMapping("/pending")
     @Operation(summary = "获取所有待处理的数据导出")
     @PreAuthorize("isAuthenticated()")
@@ -194,7 +204,7 @@ public class DataExportController {
         return ResponseEntity.ok(ApiResponse.success(dataExports.stream().map(this::toDataExportDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/failed")
+    @GetMapping(value = "/failed", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "获取所有失败的数据导出")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DataExportDTO>>> getAllFailed(
@@ -214,6 +224,16 @@ public class DataExportController {
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDataExportDTO))));
     }
 
+    @GetMapping("/failed/page")
+    @Operation(summary = "分页获取所有失败的数据导出(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DataExportDTO>>> getAllFailedPagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return getAllFailedPage(currentUser, pageNum, pageSize);
+    }
+
     @GetMapping("/retryable")
     @Operation(summary = "获取所有可重试的数据导出")
     @PreAuthorize("isAuthenticated()")
@@ -223,7 +243,7 @@ public class DataExportController {
         return ResponseEntity.ok(ApiResponse.success(dataExports.stream().map(this::toDataExportDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/status/{status}")
+    @GetMapping(value = "/status/{status}", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "按状态获取数据导出")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DataExportDTO>>> getDataExportsByStatus(
@@ -243,6 +263,17 @@ public class DataExportController {
             @RequestParam(defaultValue = "10") int pageSize) {
         var page = dataExportApplicationService.findDataExportsByStatus(status, requireCurrentUserId(currentUser), pageNum, pageSize);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDataExportDTO))));
+    }
+
+    @GetMapping("/status/{status}/page")
+    @Operation(summary = "分页按状态获取数据导出(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DataExportDTO>>> getDataExportsByStatusPagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable String status,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return getDataExportsByStatusPage(currentUser, status, pageNum, pageSize);
     }
 
     @GetMapping("/user/{requestedBy}/status/{status}")
@@ -272,7 +303,7 @@ public class DataExportController {
         return ResponseEntity.ok(ApiResponse.success(dataExports.stream().map(this::toDataExportDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/search")
+    @GetMapping(value = "/search", params = {"name", "!pageNum", "!pageSize"})
     @Operation(summary = "按名称搜索数据导出")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DataExportDTO>>> searchDataExportsByName(
@@ -292,6 +323,17 @@ public class DataExportController {
             @RequestParam(defaultValue = "10") int pageSize) {
         var page = dataExportApplicationService.searchDataExportsByName(name, requireCurrentUserId(currentUser), pageNum, pageSize);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDataExportDTO))));
+    }
+
+    @GetMapping("/search/page")
+    @Operation(summary = "分页按名称搜索数据导出(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DataExportDTO>>> searchDataExportsByNamePagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestParam String name,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return searchDataExportsByNamePage(currentUser, name, pageNum, pageSize);
     }
 
     @GetMapping("/count/user/{requestedBy}")
@@ -336,7 +378,7 @@ public class DataExportController {
 
     @PostMapping("/cleanup")
     @Operation(summary = "清理过期的数据导出")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     public ResponseEntity<ApiResponse<Integer>> cleanupExpiredExports(@RequestParam(defaultValue = "7") int daysToKeep) {
         int cleanedCount = exportService.cleanupExpiredExports(daysToKeep);
         return ResponseEntity.ok(ApiResponse.success(cleanedCount));

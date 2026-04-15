@@ -103,4 +103,13 @@ class ReportApplicationServiceTest {
 
         verify(reportRepository).findByGeneratedByAndNameContainingAndNotDeleted(1L, "100\\%\\_done");
     }
+
+    @Test
+    @DisplayName("searchReportsByName should reject blank keyword")
+    void searchReportsByNameShouldRejectBlankKeyword() {
+        assertThrows(IllegalArgumentException.class, () ->
+                reportApplicationService.searchReportsByName("   ", 1L)
+        );
+        verifyNoInteractions(reportRepository);
+    }
 }

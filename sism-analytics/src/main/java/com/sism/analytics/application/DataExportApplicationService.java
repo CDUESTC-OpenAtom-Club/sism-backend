@@ -240,14 +240,18 @@ public class DataExportApplicationService extends BaseApplicationService {
 
     public List<DataExport> findDataExportsByStatus(String status, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
-        return dataExportRepository.findByRequestedByAndStatusAndNotDeleted(currentUserId, status);
+        return dataExportRepository.findByRequestedByAndStatusAndNotDeleted(
+                currentUserId,
+                normalizeRequiredText(status, "Status")
+        );
     }
 
     public Page<DataExport> findDataExportsByStatus(String status, Long currentUserId, int pageNum, int pageSize) {
         requirePositiveUserId(currentUserId, "Current user ID");
+        String normalizedStatus = normalizeRequiredText(status, "Status");
         return dataExportRepository.findByRequestedByAndStatusAndNotDeleted(
                 currentUserId,
-                status,
+                normalizedStatus,
                 AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
@@ -260,7 +264,10 @@ public class DataExportApplicationService extends BaseApplicationService {
 
     public List<DataExport> findDataExportsByRequestedByAndStatus(Long requestedBy, String status, Long currentUserId) {
         requireRequestedUserMatchesCurrentUser(requestedBy, currentUserId);
-        return dataExportRepository.findByRequestedByAndStatusAndNotDeleted(currentUserId, status);
+        return dataExportRepository.findByRequestedByAndStatusAndNotDeleted(
+                currentUserId,
+                normalizeRequiredText(status, "Status")
+        );
     }
 
     /**
@@ -286,17 +293,19 @@ public class DataExportApplicationService extends BaseApplicationService {
 
     public List<DataExport> searchDataExportsByName(String name, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
+        String normalizedName = normalizeRequiredText(name, "Name");
         return dataExportRepository.findByRequestedByAndNameContainingAndNotDeleted(
                 currentUserId,
-                escapeLikePattern(name)
+                escapeLikePattern(normalizedName)
         );
     }
 
     public Page<DataExport> searchDataExportsByName(String name, Long currentUserId, int pageNum, int pageSize) {
         requirePositiveUserId(currentUserId, "Current user ID");
+        String normalizedName = normalizeRequiredText(name, "Name");
         return dataExportRepository.findByRequestedByAndNameContainingAndNotDeleted(
                 currentUserId,
-                escapeLikePattern(name),
+                escapeLikePattern(normalizedName),
                 AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
@@ -321,7 +330,10 @@ public class DataExportApplicationService extends BaseApplicationService {
 
     public long countDataExportsByStatus(String status, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
-        return dataExportRepository.countByRequestedByAndStatusAndNotDeleted(currentUserId, status);
+        return dataExportRepository.countByRequestedByAndStatusAndNotDeleted(
+                currentUserId,
+                normalizeRequiredText(status, "Status")
+        );
     }
 
     /**

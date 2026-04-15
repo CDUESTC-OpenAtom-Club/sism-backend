@@ -50,6 +50,13 @@ abstract class BaseApplicationService {
                 .replace("_", "\\_");
     }
 
+    protected String normalizeRequiredText(String value, String fieldName) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " cannot be blank");
+        }
+        return value.trim();
+    }
+
     protected void publishAndSaveEvents(
             AggregateRoot<?> aggregateRoot,
             EventStore eventStore,

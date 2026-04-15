@@ -34,6 +34,9 @@ import java.util.Map;
 @Tag(name = "预警管理", description = "预警和警告管理接口")
 public class AlertController {
 
+    private static final int DEFAULT_PAGE = 0;
+    private static final int MAX_SIZE = 100;
+
     private final AlertApplicationService alertApplicationService;
     private final AlertAccessService alertAccessService;
 
@@ -90,7 +93,7 @@ public class AlertController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        var result = alertAccessService.getAccessibleAlerts(authentication, PageRequest.of(page, size))
+        var result = alertAccessService.getAccessibleAlerts(authentication, toPageRequest(page, size))
                 .map(AlertResponse::fromEntity);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(result)));
     }
@@ -130,7 +133,7 @@ public class AlertController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        var result = alertAccessService.getAccessibleAlertsByStatus(status, authentication, PageRequest.of(page, size))
+        var result = alertAccessService.getAccessibleAlertsByStatus(status, authentication, toPageRequest(page, size))
                 .map(AlertResponse::fromEntity);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(result)));
     }
@@ -155,7 +158,7 @@ public class AlertController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        var result = alertAccessService.getAccessibleAlertsBySeverity(severity, authentication, PageRequest.of(page, size))
+        var result = alertAccessService.getAccessibleAlertsBySeverity(severity, authentication, toPageRequest(page, size))
                 .map(AlertResponse::fromEntity);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(result)));
     }
@@ -180,7 +183,7 @@ public class AlertController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        var result = alertAccessService.getAccessibleAlertsByIndicator(indicatorId, authentication, PageRequest.of(page, size))
+        var result = alertAccessService.getAccessibleAlertsByIndicator(indicatorId, authentication, toPageRequest(page, size))
                 .map(AlertResponse::fromEntity);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(result)));
     }
@@ -201,7 +204,22 @@ public class AlertController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        var result = alertAccessService.getAccessibleUnresolvedAlerts(authentication, PageRequest.of(page, size))
+        var result = alertAccessService.getAccessibleUnresolvedAlerts(authentication, toPageRequest(page, size))
+                .map(AlertResponse::fromEntity);
+        return ResponseEntity.ok(ApiResponse.success(PageResult.of(result)));
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "分页筛选预警", description = "支持按状态和严重程度分页筛选预警")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<AlertResponse>>> searchAlerts(
+            Authentication authentication,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String severity,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        var result = alertAccessService.searchAccessibleAlerts(status, severity, authentication, toPageRequest(page, size))
                 .map(AlertResponse::fromEntity);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(result)));
     }
@@ -236,7 +254,7 @@ public class AlertController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除预警", description = "删除指定预警记录")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     public ResponseEntity<ApiResponse<Void>> deleteAlert(
             @PathVariable Long id,
             Authentication authentication
@@ -290,5 +308,11 @@ public class AlertController {
         } catch (NumberFormatException e) {
             throw new AuthorizationException("无法获取当前用户ID，请联系管理员");
         }
+    }
+
+    private PageRequest toPageRequest(int page, int size) {
+        int normalizedPage = Math.max(page, DEFAULT_PAGE);
+        int normalizedSize = Math.min(Math.max(size, 1), MAX_SIZE);
+        return PageRequest.of(normalizedPage, normalizedSize);
     }
 }

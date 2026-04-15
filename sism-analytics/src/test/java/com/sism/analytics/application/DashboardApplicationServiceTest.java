@@ -129,4 +129,13 @@ class DashboardApplicationServiceTest {
 
         verify(dashboardRepository).findByUserIdAndNameContainingAndNotDeleted(1L, "100\\%\\_done");
     }
+
+    @Test
+    @DisplayName("searchDashboardsByName should reject blank keyword")
+    void searchDashboardsByNameShouldRejectBlankKeyword() {
+        assertThrows(IllegalArgumentException.class, () ->
+                dashboardApplicationService.searchDashboardsByName(1L, 1L, "  ")
+        );
+        verifyNoInteractions(dashboardRepository);
+    }
 }

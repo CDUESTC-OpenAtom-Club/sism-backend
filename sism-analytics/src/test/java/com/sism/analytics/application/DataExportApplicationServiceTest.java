@@ -104,4 +104,13 @@ class DataExportApplicationServiceTest {
 
         verify(dataExportRepository).findByRequestedByAndNameContainingAndNotDeleted(1L, "100\\%\\_done");
     }
+
+    @Test
+    @DisplayName("searchDataExportsByName should reject blank keyword")
+    void searchDataExportsByNameShouldRejectBlankKeyword() {
+        assertThrows(IllegalArgumentException.class, () ->
+                dataExportApplicationService.searchDataExportsByName("   ", 1L)
+        );
+        verifyNoInteractions(dataExportRepository);
+    }
 }

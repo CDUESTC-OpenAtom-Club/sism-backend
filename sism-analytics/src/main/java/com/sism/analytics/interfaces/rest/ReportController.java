@@ -141,7 +141,7 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(reports.stream().map(this::toReportDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/generated")
+    @GetMapping(value = "/generated", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "获取所有已生成的报告")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<ReportDTO>>> getAllGeneratedReports(
@@ -161,6 +161,16 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toReportDTO))));
     }
 
+    @GetMapping("/generated/page")
+    @Operation(summary = "分页获取所有已生成的报告(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<ReportDTO>>> getAllGeneratedReportsPagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return getAllGeneratedReportsPage(currentUser, pageNum, pageSize);
+    }
+
     @GetMapping("/type/{type}")
     @Operation(summary = "按类型获取报告")
     @PreAuthorize("isAuthenticated()")
@@ -171,7 +181,7 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(reports.stream().map(this::toReportDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/status/{status}")
+    @GetMapping(value = "/status/{status}", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "按状态获取报告")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<ReportDTO>>> getReportsByStatus(
@@ -193,6 +203,17 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toReportDTO))));
     }
 
+    @GetMapping("/status/{status}/page")
+    @Operation(summary = "分页按状态获取报告(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<ReportDTO>>> getReportsByStatusPagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable String status,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return getReportsByStatusPage(currentUser, status, pageNum, pageSize);
+    }
+
     @GetMapping("/date-range")
     @Operation(summary = "按日期范围获取报告")
     @PreAuthorize("isAuthenticated()")
@@ -207,7 +228,7 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(reports.stream().map(this::toReportDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/search")
+    @GetMapping(value = "/search", params = {"name", "!pageNum", "!pageSize"})
     @Operation(summary = "按名称搜索报告")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<ReportDTO>>> searchReportsByName(
@@ -227,6 +248,17 @@ public class ReportController {
             @RequestParam(defaultValue = "10") int pageSize) {
         var page = reportApplicationService.searchReportsByName(name, requireCurrentUserId(currentUser), pageNum, pageSize);
         return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toReportDTO))));
+    }
+
+    @GetMapping("/search/page")
+    @Operation(summary = "分页按名称搜索报告(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<ReportDTO>>> searchReportsByNamePagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestParam String name,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize) {
+        return searchReportsByNamePage(currentUser, name, pageNum, pageSize);
     }
 
     @GetMapping("/count/user/{generatedBy}")

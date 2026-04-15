@@ -166,7 +166,10 @@ public class ReportApplicationService extends BaseApplicationService {
 
     public List<Report> findReportsByType(String type, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
-        return reportRepository.findByGeneratedByAndTypeAndNotDeleted(currentUserId, type);
+        return reportRepository.findByGeneratedByAndTypeAndNotDeleted(
+                currentUserId,
+                normalizeRequiredText(type, "Type")
+        );
     }
 
     /**
@@ -178,14 +181,18 @@ public class ReportApplicationService extends BaseApplicationService {
 
     public List<Report> findReportsByStatus(String status, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
-        return reportRepository.findByGeneratedByAndStatusAndNotDeleted(currentUserId, status);
+        return reportRepository.findByGeneratedByAndStatusAndNotDeleted(
+                currentUserId,
+                normalizeRequiredText(status, "Status")
+        );
     }
 
     public Page<Report> findReportsByStatus(String status, Long currentUserId, int pageNum, int pageSize) {
         requirePositiveUserId(currentUserId, "Current user ID");
+        String normalizedStatus = normalizeRequiredText(status, "Status");
         return reportRepository.findByGeneratedByAndStatusAndNotDeleted(
                 currentUserId,
-                status,
+                normalizedStatus,
                 AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
@@ -212,17 +219,19 @@ public class ReportApplicationService extends BaseApplicationService {
 
     public List<Report> searchReportsByName(String name, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
+        String normalizedName = normalizeRequiredText(name, "Name");
         return reportRepository.findByGeneratedByAndNameContainingAndNotDeleted(
                 currentUserId,
-                escapeLikePattern(name)
+                escapeLikePattern(normalizedName)
         );
     }
 
     public Page<Report> searchReportsByName(String name, Long currentUserId, int pageNum, int pageSize) {
         requirePositiveUserId(currentUserId, "Current user ID");
+        String normalizedName = normalizeRequiredText(name, "Name");
         return reportRepository.findByGeneratedByAndNameContainingAndNotDeleted(
                 currentUserId,
-                escapeLikePattern(name),
+                escapeLikePattern(normalizedName),
                 AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 
@@ -247,7 +256,10 @@ public class ReportApplicationService extends BaseApplicationService {
 
     public long countReportsByStatus(String status, Long currentUserId) {
         requirePositiveUserId(currentUserId, "Current user ID");
-        return reportRepository.countByGeneratedByAndStatusAndNotDeleted(currentUserId, status);
+        return reportRepository.countByGeneratedByAndStatusAndNotDeleted(
+                currentUserId,
+                normalizeRequiredText(status, "Status")
+        );
     }
 
     /**

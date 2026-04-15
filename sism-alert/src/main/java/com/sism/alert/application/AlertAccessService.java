@@ -182,6 +182,46 @@ public class AlertAccessService {
         return alertRepository.findByIndicatorIdInAndSeverity(accessibleIndicatorIds, normalizedSeverity, pageable);
     }
 
+    public Page<Alert> searchAccessibleAlerts(
+            String status,
+            String severity,
+            Authentication authentication,
+            Pageable pageable
+    ) {
+        AlertStatus normalizedStatus = Alert.normalizeStatus(status);
+        AlertSeverity normalizedSeverity = AlertSeverity.normalize(severity);
+
+        if (hasText(status) && normalizedStatus == null) {
+            return Page.empty(pageable);
+        }
+        if (hasText(severity) && normalizedSeverity == null) {
+            return Page.empty(pageable);
+        }
+        if (normalizedStatus == null && normalizedSeverity == null) {
+            return getAccessibleAlerts(authentication, pageable);
+        }
+        if (normalizedStatus != null && normalizedSeverity == null) {
+            return getAccessibleAlertsByStatus(normalizedStatus.name(), authentication, pageable);
+        }
+        if (normalizedStatus == null) {
+            return getAccessibleAlertsBySeverity(normalizedSeverity.name(), authentication, pageable);
+        }
+
+        if (isAdmin(authentication)) {
+            return alertRepository.findByStatusAndSeverity(normalizedStatus, normalizedSeverity, pageable);
+        }
+        Set<Long> accessibleIndicatorIds = resolveAccessibleIndicatorIds(authentication);
+        if (accessibleIndicatorIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        return alertRepository.findByIndicatorIdInAndStatusAndSeverity(
+                accessibleIndicatorIds,
+                normalizedStatus,
+                normalizedSeverity,
+                pageable
+        );
+    }
+
     public List<Alert> getAccessibleAlertsByIndicator(Long indicatorId, Authentication authentication) {
         if (isAdmin(authentication)) {
             return alertRepository.findByIndicatorId(indicatorId);
@@ -279,8 +319,13 @@ public class AlertAccessService {
     }
 
     public boolean isAdmin(Authentication authentication) {
-        return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        if (authentication == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .anyMatch(authority -> "ROLE_VICE_PRESIDENT".equals(authority)
+                        || "ROLE_STRATEGY_DEPT_HEAD".equals(authority));
     }
 
     private CurrentUser requireCurrentUser(Authentication authentication) {
@@ -288,5 +333,9 @@ public class AlertAccessService {
             throw new AuthorizationException("无法获取当前用户信息，请联系管理员");
         }
         return currentUser;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }

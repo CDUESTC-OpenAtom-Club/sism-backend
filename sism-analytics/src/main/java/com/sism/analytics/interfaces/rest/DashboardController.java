@@ -8,6 +8,7 @@ import com.sism.analytics.interfaces.dto.DashboardDTO;
 import com.sism.analytics.interfaces.dto.UpdateDashboardRequest;
 import com.sism.iam.application.dto.CurrentUser;
 import com.sism.common.ApiResponse;
+import com.sism.common.PageResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -131,7 +132,7 @@ public class DashboardController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/user/{userId}")
+    @GetMapping(value = "/user/{userId}", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "根据用户ID获取仪表盘")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DashboardDTO>>> getDashboardsByUserId(
@@ -142,7 +143,32 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(dashboards.stream().map(this::toDashboardDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/user/{userId}/public")
+    @GetMapping(value = "/user/{userId}", params = {"pageNum", "pageSize"})
+    @Operation(summary = "分页根据用户ID获取仪表盘")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> getDashboardsByUserIdPage(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        Long currentUserId = requireCurrentUserId(currentUser);
+        ensureCurrentUserOwnsRequestedUser(currentUserId, userId);
+        var page = dashboardApplicationService.findDashboardsByUserId(userId, currentUserId, pageNum, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDashboardDTO))));
+    }
+
+    @GetMapping("/user/{userId}/page")
+    @Operation(summary = "分页根据用户ID获取仪表盘(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> getDashboardsByUserIdPagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return getDashboardsByUserIdPage(currentUser, userId, pageNum, pageSize);
+    }
+
+    @GetMapping(value = "/user/{userId}/public", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "根据用户ID获取公开仪表盘")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DashboardDTO>>> getPublicDashboardsByUserId(
@@ -153,7 +179,32 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(dashboards.stream().map(this::toDashboardDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/public")
+    @GetMapping(value = "/user/{userId}/public", params = {"pageNum", "pageSize"})
+    @Operation(summary = "分页根据用户ID获取公开仪表盘")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> getPublicDashboardsByUserIdPage(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        Long currentUserId = requireCurrentUserId(currentUser);
+        ensureCurrentUserOwnsRequestedUser(currentUserId, userId);
+        var page = dashboardApplicationService.findPublicDashboardsByUserId(userId, currentUserId, pageNum, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDashboardDTO))));
+    }
+
+    @GetMapping("/user/{userId}/public/page")
+    @Operation(summary = "分页根据用户ID获取公开仪表盘(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> getPublicDashboardsByUserIdPagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return getPublicDashboardsByUserIdPage(currentUser, userId, pageNum, pageSize);
+    }
+
+    @GetMapping(value = "/public", params = {"!pageNum", "!pageSize"})
     @Operation(summary = "获取所有公开仪表盘")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DashboardDTO>>> getAllPublicDashboards() {
@@ -161,7 +212,26 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(dashboards.stream().map(this::toDashboardDTO).collect(Collectors.toList())));
     }
 
-    @GetMapping("/user/{userId}/search")
+    @GetMapping(value = "/public", params = {"pageNum", "pageSize"})
+    @Operation(summary = "分页获取所有公开仪表盘")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> getAllPublicDashboardsPage(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        var page = dashboardApplicationService.findAllPublicDashboards(pageNum, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDashboardDTO))));
+    }
+
+    @GetMapping("/public/page")
+    @Operation(summary = "分页获取所有公开仪表盘(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> getAllPublicDashboardsPagePath(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return getAllPublicDashboardsPage(pageNum, pageSize);
+    }
+
+    @GetMapping(value = "/user/{userId}/search", params = {"name", "!pageNum", "!pageSize"})
     @Operation(summary = "按名称搜索仪表盘")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<DashboardDTO>>> searchDashboardsByName(
@@ -171,6 +241,33 @@ public class DashboardController {
         ensureCurrentUserOwnsRequestedUser(requireCurrentUserId(currentUser), userId);
         List<Dashboard> dashboards = dashboardApplicationService.searchDashboardsByName(userId, requireCurrentUserId(currentUser), name);
         return ResponseEntity.ok(ApiResponse.success(dashboards.stream().map(this::toDashboardDTO).collect(Collectors.toList())));
+    }
+
+    @GetMapping(value = "/user/{userId}/search", params = {"name", "pageNum", "pageSize"})
+    @Operation(summary = "分页按名称搜索仪表盘")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> searchDashboardsByNamePage(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long userId,
+            @RequestParam String name,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        Long currentUserId = requireCurrentUserId(currentUser);
+        ensureCurrentUserOwnsRequestedUser(currentUserId, userId);
+        var page = dashboardApplicationService.searchDashboardsByName(userId, currentUserId, name, pageNum, pageSize);
+        return ResponseEntity.ok(ApiResponse.success(PageResult.of(page.map(this::toDashboardDTO))));
+    }
+
+    @GetMapping("/user/{userId}/search/page")
+    @Operation(summary = "分页按名称搜索仪表盘(显式分页路径)")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PageResult<DashboardDTO>>> searchDashboardsByNamePagePath(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long userId,
+            @RequestParam String name,
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "20") int pageSize) {
+        return searchDashboardsByNamePage(currentUser, userId, name, pageNum, pageSize);
     }
 
     @GetMapping("/count/user/{userId}")

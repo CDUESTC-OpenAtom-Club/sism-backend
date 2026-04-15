@@ -45,6 +45,10 @@ public interface AlertRepository {
 
     Page<Alert> findBySeverity(AlertSeverity severity, Pageable pageable);
 
+    List<Alert> findByStatusAndSeverity(AlertStatus status, AlertSeverity severity);
+
+    Page<Alert> findByStatusAndSeverity(AlertStatus status, AlertSeverity severity, Pageable pageable);
+
     List<Alert> findByIndicatorId(Long indicatorId);
 
     Page<Alert> findByIndicatorId(Long indicatorId, Pageable pageable);
@@ -56,6 +60,19 @@ public interface AlertRepository {
     List<Alert> findByIndicatorIdInAndSeverity(Collection<Long> indicatorIds, AlertSeverity severity);
 
     Page<Alert> findByIndicatorIdInAndSeverity(Collection<Long> indicatorIds, AlertSeverity severity, Pageable pageable);
+
+    List<Alert> findByIndicatorIdInAndStatusAndSeverity(
+            Collection<Long> indicatorIds,
+            AlertStatus status,
+            AlertSeverity severity
+    );
+
+    Page<Alert> findByIndicatorIdInAndStatusAndSeverity(
+            Collection<Long> indicatorIds,
+            AlertStatus status,
+            AlertSeverity severity,
+            Pageable pageable
+    );
 
     List<Alert> findByIndicatorIdInAndStatusIn(Collection<Long> indicatorIds, Collection<AlertStatus> statuses);
 

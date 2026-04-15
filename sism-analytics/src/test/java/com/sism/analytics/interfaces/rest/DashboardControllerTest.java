@@ -6,6 +6,8 @@ import com.sism.analytics.interfaces.dto.CreateDashboardRequest;
 import com.sism.iam.application.dto.CurrentUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -81,6 +83,30 @@ class DashboardControllerTest {
         assertThrows(AccessDeniedException.class, () -> controller.searchDashboardsByName(currentUser, 2L, "test"));
         assertThrows(AccessDeniedException.class, () -> controller.countDashboardsByUserId(currentUser, 2L));
         verifyNoInteractions(service);
+    }
+
+    @Test
+    @DisplayName("paging endpoints should delegate to application service")
+    void pagingEndpointsShouldDelegateToApplicationService() {
+        DashboardApplicationService service = mock(DashboardApplicationService.class);
+        DashboardController controller = new DashboardController(service);
+        CurrentUser currentUser = new CurrentUser(1L, "alice", "Alice", null, 10L, List.of());
+        Dashboard dashboard = Dashboard.create("我的看板", "描述", 1L, false, "{}");
+
+        when(service.findDashboardsByUserId(1L, 1L, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(dashboard), PageRequest.of(0, 20), 1));
+        when(service.findPublicDashboardsByUserId(1L, 1L, 1, 20))
+                .thenReturn(new PageImpl<>(List.of(dashboard), PageRequest.of(0, 20), 1));
+        when(service.searchDashboardsByName(1L, 1L, "我的", 1, 20))
+                .thenReturn(new PageImpl<>(List.of(dashboard), PageRequest.of(0, 20), 1));
+
+        assertDoesNotThrow(() -> controller.getDashboardsByUserIdPage(currentUser, 1L, 1, 20));
+        assertDoesNotThrow(() -> controller.getPublicDashboardsByUserIdPage(currentUser, 1L, 1, 20));
+        assertDoesNotThrow(() -> controller.searchDashboardsByNamePage(currentUser, 1L, "我的", 1, 20));
+
+        verify(service).findDashboardsByUserId(1L, 1L, 1, 20);
+        verify(service).findPublicDashboardsByUserId(1L, 1L, 1, 20);
+        verify(service).searchDashboardsByName(1L, 1L, "我的", 1, 20);
     }
 
     @Test

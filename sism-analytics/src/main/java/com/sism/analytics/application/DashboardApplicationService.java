@@ -154,14 +154,17 @@ public class DashboardApplicationService extends BaseApplicationService {
      */
     public List<Dashboard> searchDashboardsByName(Long userId, Long currentUserId, String name) {
         requireUserOwnership(userId, currentUserId);
-        return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(userId, escapeLikePattern(name));
+        return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(
+                userId,
+                escapeLikePattern(normalizeRequiredText(name, "Name"))
+        );
     }
 
     public Page<Dashboard> searchDashboardsByName(Long userId, Long currentUserId, String name, int pageNum, int pageSize) {
         requireUserOwnership(userId, currentUserId);
         return dashboardRepository.findByUserIdAndNameContainingAndNotDeleted(
                 userId,
-                escapeLikePattern(name),
+                escapeLikePattern(normalizeRequiredText(name, "Name")),
                 AnalyticsPaginationSupport.toPageable(pageNum, pageSize));
     }
 

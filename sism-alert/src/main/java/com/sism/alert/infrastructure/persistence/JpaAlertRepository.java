@@ -44,6 +44,12 @@ public interface JpaAlertRepository extends JpaRepository<Alert, Long>, AlertRep
     Page<Alert> findBySeverity(AlertSeverity severity, Pageable pageable);
 
     @Override
+    List<Alert> findByStatusAndSeverity(AlertStatus status, AlertSeverity severity);
+
+    @Override
+    Page<Alert> findByStatusAndSeverity(AlertStatus status, AlertSeverity severity, Pageable pageable);
+
+    @Override
     List<Alert> findByIndicatorId(Long indicatorId);
 
     @Override
@@ -66,6 +72,21 @@ public interface JpaAlertRepository extends JpaRepository<Alert, Long>, AlertRep
 
     @Override
     Page<Alert> findByIndicatorIdInAndSeverity(Collection<Long> indicatorIds, AlertSeverity severity, Pageable pageable);
+
+    @Override
+    List<Alert> findByIndicatorIdInAndStatusAndSeverity(
+            Collection<Long> indicatorIds,
+            AlertStatus status,
+            AlertSeverity severity
+    );
+
+    @Override
+    Page<Alert> findByIndicatorIdInAndStatusAndSeverity(
+            Collection<Long> indicatorIds,
+            AlertStatus status,
+            AlertSeverity severity,
+            Pageable pageable
+    );
 
     @Override
     List<Alert> findByIndicatorIdInAndStatusIn(Collection<Long> indicatorIds, Collection<AlertStatus> statuses);
