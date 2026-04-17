@@ -7,6 +7,7 @@ set -e
 
 JAR_PATH="sism-main/target/sism-main-1.0.0.jar"
 ENV_FILE=".env"
+DEFAULT_APP_JAVA_OPTS="-Xms256m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError"
 
 cleanup_backend_processes() {
     local pids=""
@@ -53,6 +54,11 @@ else
 fi
 echo ""
 
+APP_JAVA_OPTS="${APP_JAVA_OPTS:-${JAVA_OPTS:-$DEFAULT_APP_JAVA_OPTS}}"
+echo "✓ JVM 参数: $APP_JAVA_OPTS"
+echo "✓ Hikari 连接池: max=${DB_HIKARI_MAX_POOL_SIZE:-8}, minIdle=${DB_HIKARI_MIN_IDLE:-2}"
+echo ""
+
 echo "→ 重新构建后端模块并刷新本地 Maven 依赖..."
 ./mvnw -pl sism-main -am clean install -DskipTests -Dmaven.test.skip=true
 echo "✓ 构建完成"
@@ -64,7 +70,7 @@ fi
 
 echo "→ 启动后端服务..."
 nohup env JAVA_HOME=/opt/homebrew/opt/openjdk@17 PATH="$JAVA_HOME/bin:$PATH" \
-    java -jar "$JAR_PATH" > /tmp/sism-backend.log 2>&1 < /dev/null &
+    java $APP_JAVA_OPTS -jar "$JAR_PATH" > /tmp/sism-backend.log 2>&1 < /dev/null &
 BACKEND_PID=$!
 disown "$BACKEND_PID" 2>/dev/null || true
 

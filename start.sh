@@ -10,6 +10,7 @@ JAR_PATH="sism-main/target/sism-main-1.0.0.jar"
 LOG_FILE="/tmp/sism-backend.log"
 HEALTH_URL="http://localhost:8080/api/v1/auth/health"
 MAX_RETRIES=30
+DEFAULT_APP_JAVA_OPTS="-Xms256m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError"
 
 cleanup_backend_processes() {
     local pids=""
@@ -97,6 +98,11 @@ echo "✓ 已加载环境文件: $SCRIPT_DIR/$ENV_FILE"
 echo "✓ 当前数据库: ${DB_URL:-<missing DB_URL>}"
 echo ""
 
+APP_JAVA_OPTS="${APP_JAVA_OPTS:-${JAVA_OPTS:-$DEFAULT_APP_JAVA_OPTS}}"
+echo "✓ JVM 参数: $APP_JAVA_OPTS"
+echo "✓ Hikari 连接池: max=${DB_HIKARI_MAX_POOL_SIZE:-8}, minIdle=${DB_HIKARI_MIN_IDLE:-2}"
+echo ""
+
 cleanup_backend_processes
 
 echo "→ 重新构建后端模块并刷新本地 Maven 依赖..."
@@ -110,7 +116,7 @@ if [ ! -f "$JAR_PATH" ]; then
 fi
 
 echo "→ 启动后端服务..."
-nohup java -jar "$JAR_PATH" >"$LOG_FILE" 2>&1 < /dev/null &
+nohup java $APP_JAVA_OPTS -jar "$JAR_PATH" >"$LOG_FILE" 2>&1 < /dev/null &
 BACKEND_PID=$!
 disown "$BACKEND_PID" 2>/dev/null || true
 
