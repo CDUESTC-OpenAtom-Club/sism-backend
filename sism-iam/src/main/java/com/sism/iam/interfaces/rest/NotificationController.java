@@ -171,7 +171,7 @@ public class NotificationController {
      * 创建告警事件
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "创建新告警事件")
     public ResponseEntity<Notification> createNotification(
             @RequestParam Long indicatorId,
@@ -198,7 +198,7 @@ public class NotificationController {
      * 更新告警事件状态
      */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "更新告警事件状态")
     public ResponseEntity<Notification> updateNotificationStatus(
             @PathVariable Long id,
@@ -210,7 +210,7 @@ public class NotificationController {
      * 标记告警事件为已处理
      */
     @PostMapping("/{id}/handle")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "标记告警事件为已处理")
     public ResponseEntity<Notification> handleNotification(
             @PathVariable Long id,
@@ -225,7 +225,7 @@ public class NotificationController {
      * 删除告警事件
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "删除告警事件")
     public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
         notificationService.deleteNotification(id);

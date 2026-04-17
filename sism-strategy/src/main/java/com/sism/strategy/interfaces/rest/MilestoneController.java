@@ -24,6 +24,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "里程碑", description = "战略侧里程碑主要接口。这是规划的权威入口点。")
 public class MilestoneController {
 
+    private static final String MILESTONE_WRITE_ACCESS =
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private final MilestoneApplicationService milestoneApplicationService;
 
     @GetMapping("/{id}")
@@ -57,7 +60,7 @@ public class MilestoneController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "创建新里程碑", description = "战略侧里程碑管理的主要入口点。")
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(
             @Valid @RequestBody com.sism.strategy.interfaces.dto.CreateMilestoneRequest request) {
@@ -66,7 +69,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "更新里程碑")
     public ResponseEntity<ApiResponse<MilestoneResponse>> updateMilestone(
             @PathVariable Long id,
@@ -76,7 +79,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/indicator/{indicatorId}/batch")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "为指标批量保存里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> saveMilestones(
             @PathVariable Long indicatorId,
@@ -87,7 +90,7 @@ public class MilestoneController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "删除里程碑")
     public ResponseEntity<ApiResponse<Void>> deleteMilestone(@PathVariable Long id) {
         milestoneApplicationService.deleteMilestone(id);

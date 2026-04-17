@@ -32,11 +32,16 @@ import java.util.List;
 @Tag(name = "组织管理", description = "组织管理相关接口")
 public class OrganizationController {
 
+    private static final String ORG_READ_ACCESS =
+            "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')";
+    private static final String ORG_WRITE_ACCESS =
+            "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')";
+
     private final OrganizationApplicationService organizationApplicationService;
     private final OrgMapper orgMapper;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ORG_WRITE_ACCESS)
     @Operation(summary = "创建新组织")
     public ResponseEntity<ApiResponse<OrgResponse>> createOrganization(
             @Valid @RequestBody OrgRequest request) {
@@ -51,7 +56,7 @@ public class OrganizationController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_READ_ACCESS)
     @Operation(summary = "获取所有组织")
     public ResponseEntity<ApiResponse<List<OrgResponse>>> getAllOrganizations() {
         List<SysOrg> orgs = organizationApplicationService.getAllOrganizations();
@@ -60,7 +65,7 @@ public class OrganizationController {
     }
 
     @GetMapping(params = {"pageNum", "pageSize"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_READ_ACCESS)
     @Operation(summary = "获取所有组织（分页）")
     public ResponseEntity<ApiResponse<PageResult<OrgResponse>>> getAllOrganizationsPage(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") @Min(1) int pageNum,
@@ -71,7 +76,7 @@ public class OrganizationController {
     }
 
     @GetMapping(params = {"page", "size"})
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_READ_ACCESS)
     @Operation(summary = "获取所有组织（分页，别名）")
     public ResponseEntity<ApiResponse<PageResult<OrgResponse>>> getAllOrganizationsPageAlias(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") @Min(1) int page,
@@ -82,7 +87,7 @@ public class OrganizationController {
     }
 
     @GetMapping("/departments")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_READ_ACCESS)
     @Operation(summary = "获取所有部门")
     public ResponseEntity<ApiResponse<List<OrgResponse>>> getAllDepartments(
             @Parameter(description = "是否包含已禁用的组织") @RequestParam(defaultValue = "false") boolean includeDisabled) {
@@ -92,7 +97,7 @@ public class OrganizationController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_READ_ACCESS)
     @Operation(summary = "根据ID获取组织")
     public ResponseEntity<ApiResponse<OrgResponse>> getOrganizationById(
             @Parameter(description = "组织ID") @PathVariable Long id) {
@@ -102,7 +107,7 @@ public class OrganizationController {
     }
 
     @GetMapping("/tree")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_READ_ACCESS)
     @Operation(summary = "获取组织树", description = "includeUsers 参数已不支持，传入 true 将返回 400")
     public ResponseEntity<ApiResponse<List<OrgResponse>>> getOrganizationTree(
             @Parameter(description = "兼容保留参数，已不支持；传入 true 将返回 400") @RequestParam(defaultValue = "false") boolean includeUsers,
@@ -113,7 +118,7 @@ public class OrganizationController {
     }
 
     @GetMapping("/{id}/users")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_READ_ACCESS)
     @Operation(summary = "根据组织ID获取用户列表")
     public ResponseEntity<ApiResponse<List<OrgUserResponse>>> getUsersByOrganizationId(
             @Parameter(description = "组织ID") @PathVariable Long id) {
@@ -123,7 +128,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_WRITE_ACCESS)
     @Operation(summary = "激活组织")
     public ResponseEntity<ApiResponse<OrgResponse>> activateOrganization(
             @Parameter(description = "组织ID") @PathVariable Long id) {
@@ -134,7 +139,7 @@ public class OrganizationController {
     }
 
     @PostMapping("/{id}/deactivate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'ORG_MANAGER')")
+    @PreAuthorize(ORG_WRITE_ACCESS)
     @Operation(summary = "停用组织")
     public ResponseEntity<ApiResponse<OrgResponse>> deactivateOrganization(
             @Parameter(description = "组织ID") @PathVariable Long id) {
@@ -145,7 +150,7 @@ public class OrganizationController {
     }
 
     @PutMapping("/{id}/name")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ORG_WRITE_ACCESS)
     @Operation(summary = "重命名组织")
     public ResponseEntity<ApiResponse<OrgResponse>> renameOrganization(
             @Parameter(description = "组织ID") @PathVariable Long id,
@@ -157,7 +162,7 @@ public class OrganizationController {
     }
 
     @PutMapping("/{id}/type")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ORG_WRITE_ACCESS)
     @Operation(summary = "修改组织类型")
     public ResponseEntity<ApiResponse<OrgResponse>> changeOrganizationType(
             @Parameter(description = "组织ID") @PathVariable Long id,
@@ -169,7 +174,7 @@ public class OrganizationController {
     }
 
     @PutMapping("/{id}/sort-order")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ORG_WRITE_ACCESS)
     @Operation(summary = "更新组织排序顺序")
     public ResponseEntity<ApiResponse<OrgResponse>> updateSortOrder(
             @Parameter(description = "组织ID") @PathVariable Long id,
@@ -181,7 +186,7 @@ public class OrganizationController {
     }
 
     @PutMapping("/{id}/parent")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ORG_WRITE_ACCESS)
     @Operation(summary = "更新父组织")
     public ResponseEntity<ApiResponse<OrgResponse>> updateParentOrganization(
             @Parameter(description = "组织ID") @PathVariable Long id,

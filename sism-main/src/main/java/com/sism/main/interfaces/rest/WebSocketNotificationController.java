@@ -31,7 +31,7 @@ public class WebSocketNotificationController {
     }
 
     @PostMapping("/test/{userId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "发送测试通知给特定用户")
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendTestNotification(
             @PathVariable String userId,

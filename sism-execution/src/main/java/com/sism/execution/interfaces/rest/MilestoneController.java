@@ -31,12 +31,17 @@ import java.util.stream.Collectors;
 @Tag(name = "Milestones", description = "Milestone management endpoints")
 public class MilestoneController {
 
+    private static final String EXEC_MILESTONE_WRITE_ACCESS =
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+    private static final String EXEC_MILESTONE_READ_ACCESS =
+            "hasAnyRole('REPORTER','APPROVER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private final MilestoneApplicationService milestoneApplicationService;
 
     // ==================== Milestone CRUD Operations ====================
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(EXEC_MILESTONE_WRITE_ACCESS)
     @Operation(summary = "创建里程碑", description = "创建一个新的里程碑")
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(
             @Valid @RequestBody CreateMilestoneRequest request) {
@@ -55,7 +60,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(EXEC_MILESTONE_WRITE_ACCESS)
     @Operation(summary = "更新里程碑", description = "更新里程碑的信息")
     public ResponseEntity<ApiResponse<MilestoneResponse>> updateMilestone(
             @Parameter(description = "里程碑ID") @PathVariable Long id,
@@ -76,7 +81,7 @@ public class MilestoneController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(EXEC_MILESTONE_WRITE_ACCESS)
     @Operation(summary = "删除里程碑", description = "删除指定的里程碑")
     public ResponseEntity<ApiResponse<Void>> deleteMilestone(
             @Parameter(description = "里程碑ID") @PathVariable Long id) {
@@ -86,7 +91,7 @@ public class MilestoneController {
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID查询里程碑详情", description = "获取指定里程碑的完整信息")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<MilestoneResponse>> getMilestoneById(
             @Parameter(description = "里程碑ID") @PathVariable Long id) {
         Milestone milestone = milestoneApplicationService.findMilestoneById(id)
@@ -98,7 +103,7 @@ public class MilestoneController {
 
     @GetMapping
     @Operation(summary = "分页查询所有里程碑", description = "获取所有里程碑，支持分页")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<PageResult<MilestoneResponse>>> getAllMilestones(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size) {
@@ -117,7 +122,7 @@ public class MilestoneController {
 
     @GetMapping("/list")
     @Operation(summary = "查询所有里程碑（列表）", description = "获取所有里程碑列表，不分页")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<List<MilestoneResponse>>> getAllMilestonesList() {
         List<Milestone> milestones = milestoneApplicationService.findAllMilestones();
         List<MilestoneResponse> responses = milestones.stream()
@@ -128,7 +133,7 @@ public class MilestoneController {
 
     @GetMapping("/indicator/{indicatorId}")
     @Operation(summary = "根据指标ID查询里程碑", description = "获取指定指标的所有里程碑")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<List<MilestoneResponse>>> getMilestonesByIndicatorId(
             @Parameter(description = "指标ID") @PathVariable Long indicatorId) {
         List<Milestone> milestones = milestoneApplicationService.findMilestonesByIndicatorId(indicatorId);
@@ -140,7 +145,7 @@ public class MilestoneController {
 
     @GetMapping("/status/{status}")
     @Operation(summary = "根据状态查询里程碑（列表）", description = "获取指定状态的所有里程碑列表")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<List<MilestoneResponse>>> getMilestonesByStatus(
             @Parameter(description = "里程碑状态") @PathVariable String status) {
         List<Milestone> milestones = milestoneApplicationService.findMilestonesByStatus(resolveStatus(status));
@@ -152,7 +157,7 @@ public class MilestoneController {
 
     @GetMapping("/status/{status}/page")
     @Operation(summary = "根据状态分页查询里程碑", description = "获取指定状态的里程碑，支持分页")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<PageResult<MilestoneResponse>>> getMilestonesByStatusPaginated(
             @Parameter(description = "里程碑状态") @PathVariable String status,
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
@@ -172,7 +177,7 @@ public class MilestoneController {
 
     @GetMapping("/exists/{id}")
     @Operation(summary = "检查里程碑是否存在", description = "检查指定ID的里程碑是否存在")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<Boolean>> checkMilestoneExists(
             @Parameter(description = "里程碑ID") @PathVariable Long id) {
         boolean exists = milestoneApplicationService.existsById(id);
@@ -183,7 +188,7 @@ public class MilestoneController {
 
     @GetMapping("/{id}/pairing-status")
     @Operation(summary = "查询里程碑配对状态", description = "查询指定里程碑的配对状态")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMilestonePairingStatus(
             @Parameter(description = "里程碑ID") @PathVariable Long id) {
         return milestoneApplicationService.getMilestonePairingStatus(id)
@@ -193,7 +198,7 @@ public class MilestoneController {
 
     @GetMapping("/indicator/{indicatorId}/pairing-status")
     @Operation(summary = "查询指标里程碑配对状态", description = "查询指定指标的所有里程碑配对状态")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<Map<String, Object>>> getIndicatorMilestonePairingStatus(
             @Parameter(description = "指标ID") @PathVariable Long indicatorId) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -203,7 +208,7 @@ public class MilestoneController {
 
     @GetMapping("/indicator/{indicatorId}/can-report/{milestoneId}")
     @Operation(summary = "检查指标里程碑是否可填报", description = "检查指标和里程碑是否可以进行进度填报")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(EXEC_MILESTONE_READ_ACCESS)
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkIndicatorMilestoneCanReport(
             @Parameter(description = "指标ID") @PathVariable Long indicatorId,
             @Parameter(description = "里程碑ID") @PathVariable Long milestoneId) {

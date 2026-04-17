@@ -34,13 +34,18 @@ import java.util.stream.Collectors;
 @Tag(name = "计划报告", description = "计划报告管理接口")
 public class ReportController {
 
+    private static final String REPORT_WRITE_ACCESS =
+            "hasAnyRole('REPORTER','APPROVER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+    private static final String REPORT_APPROVAL_ACCESS =
+            "hasAnyRole('APPROVER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private final ReportApplicationService reportApplicationService;
 
     // ==================== Report CRUD Operations ====================
 
     @PostMapping
     @Operation(summary = "创建月度报告（草稿）", description = "创建一个新的月度进度报告，初始状态为草稿")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PlanReportResponse>> createReport(
             @Valid @RequestBody CreatePlanReportRequest request,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -57,7 +62,7 @@ public class ReportController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新报告内容", description = "更新报告的内容、摘要、进度、问题和下一步计划等信息")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PlanReportResponse>> updateReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
             @Valid @RequestBody UpdatePlanReportRequest request,
@@ -93,7 +98,7 @@ public class ReportController {
 
     @GetMapping("/{id}")
     @Operation(summary = "根据ID查询报告详情", description = "获取指定报告的完整信息")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PlanReportResponse>> getReportById(
             @Parameter(description = "报告ID") @PathVariable Long id,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -105,7 +110,7 @@ public class ReportController {
 
     @PostMapping("/{id}/submit")
     @Operation(summary = "提交报告", description = "将草稿状态的报告提交审批")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PlanReportResponse>> submitReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -116,7 +121,7 @@ public class ReportController {
 
     @PostMapping("/{id}/approve")
     @Operation(summary = "审批通过报告", description = "审批通过已提交的报告")
-    @PreAuthorize("hasAnyRole('ADMIN','APPROVER')")
+    @PreAuthorize(REPORT_APPROVAL_ACCESS)
     public ResponseEntity<ApiResponse<PlanReportResponse>> approveReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -127,7 +132,7 @@ public class ReportController {
 
     @PostMapping("/{id}/reject")
     @Operation(summary = "驳回报告", description = "驳回已提交的报告，并提供驳回理由")
-    @PreAuthorize("hasAnyRole('ADMIN','APPROVER')")
+    @PreAuthorize(REPORT_APPROVAL_ACCESS)
     public ResponseEntity<ApiResponse<PlanReportResponse>> rejectReport(
             @Parameter(description = "报告ID") @PathVariable Long id,
             @Valid @RequestBody RejectPlanReportRequest request,
@@ -141,7 +146,7 @@ public class ReportController {
 
     @GetMapping
     @Operation(summary = "分页查询所有报告", description = "获取所有有效的报告，支持分页")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PageResult<PlanReportSimpleResponse>>> getAllReports(
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
@@ -163,7 +168,7 @@ public class ReportController {
 
     @GetMapping("/search")
     @Operation(summary = "多条件查询报告", description = "根据多种条件组合查询报告，支持分页")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PageResult<PlanReportSimpleResponse>>> searchReports(
             @Valid PlanReportQueryRequest queryRequest,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -184,7 +189,7 @@ public class ReportController {
 
     @GetMapping("/org/{orgId}")
     @Operation(summary = "根据组织ID查询报告（列表）", description = "获取指定组织的所有报告列表")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByOrgId(
             @Parameter(description = "组织ID") @PathVariable Long orgId,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -198,7 +203,7 @@ public class ReportController {
 
     @GetMapping("/org/{orgId}/page")
     @Operation(summary = "根据组织ID分页查询报告", description = "获取指定组织的报告，支持分页")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PageResult<PlanReportSimpleResponse>>> getReportsByOrgIdPaginated(
             @Parameter(description = "组织ID") @PathVariable Long orgId,
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
@@ -220,7 +225,7 @@ public class ReportController {
 
     @GetMapping("/month/{month}")
     @Operation(summary = "根据月份查询报告", description = "获取指定月份的所有报告")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByMonth(
             @Parameter(description = "月份，格式：yyyy-MM") @PathVariable String month,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -235,7 +240,7 @@ public class ReportController {
 
     @GetMapping("/status/{status}")
     @Operation(summary = "根据状态查询报告（列表）", description = "获取指定状态的所有报告列表")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByStatus(
             @Parameter(description = "报告状态：DRAFT/SUBMITTED/APPROVED/REJECTED") @PathVariable String status,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -250,7 +255,7 @@ public class ReportController {
 
     @GetMapping("/status/{status}/page")
     @Operation(summary = "根据状态分页查询报告", description = "获取指定状态的报告，支持分页")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<PageResult<PlanReportSimpleResponse>>> getReportsByStatusPaginated(
             @Parameter(description = "报告状态：DRAFT/SUBMITTED/APPROVED/REJECTED") @PathVariable String status,
             @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") int page,
@@ -273,7 +278,7 @@ public class ReportController {
 
     @GetMapping("/pending")
     @Operation(summary = "查询待审批的报告", description = "获取所有状态为SUBMITTED的待审批报告")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getPendingReports(
             @AuthenticationPrincipal CurrentUser currentUser) {
         List<PlanReport> reports = isAdmin(currentUser)
@@ -287,7 +292,7 @@ public class ReportController {
 
     @GetMapping("/org-type/{orgType}")
     @Operation(summary = "根据组织类型查询报告", description = "获取指定组织类型的所有报告")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByOrgType(
             @Parameter(description = "组织类型：ADMIN/FUNCTIONAL/ACADEMIC") @PathVariable ReportOrgType orgType,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -302,7 +307,7 @@ public class ReportController {
 
     @GetMapping("/plan/{planId}")
     @Operation(summary = "根据计划ID查询报告", description = "获取关联到指定计划的所有报告")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize("hasAnyRole('REPORTER','APPROVER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByPlanId(
             @Parameter(description = "计划ID") @PathVariable Long planId,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -317,7 +322,7 @@ public class ReportController {
 
     @GetMapping("/count/status/{status}")
     @Operation(summary = "统计指定状态的报告数量", description = "获取指定状态的报告总数")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<Long>> countReportsByStatus(
             @Parameter(description = "报告状态") @PathVariable String status,
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -329,7 +334,7 @@ public class ReportController {
 
     @GetMapping("/month/{month}/org/{orgId}")
     @Operation(summary = "根据月份和组织ID查询报告", description = "获取指定月份和组织的所有报告")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT','FUNC_DEPT','APPROVER')")
+    @PreAuthorize(REPORT_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<List<PlanReportSimpleResponse>>> getReportsByMonthAndOrgId(
             @Parameter(description = "月份，格式：yyyy-MM") @PathVariable String month,
             @Parameter(description = "组织ID") @PathVariable Long orgId,
@@ -380,10 +385,13 @@ public class ReportController {
     }
 
     private boolean isAdmin(CurrentUser currentUser) {
-        return currentUser != null
-                && currentUser.getAuthorities() != null
-                && currentUser.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        if (currentUser == null || currentUser.getAuthorities() == null) {
+            return false;
+        }
+        return currentUser.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .anyMatch(authority -> "ROLE_VICE_PRESIDENT".equals(authority)
+                        || "ROLE_STRATEGY_DEPT_HEAD".equals(authority));
     }
 
     private Long requireCurrentOrgId(CurrentUser currentUser) {

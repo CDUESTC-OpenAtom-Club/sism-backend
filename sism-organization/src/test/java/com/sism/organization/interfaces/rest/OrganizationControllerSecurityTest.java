@@ -19,20 +19,20 @@ class OrganizationControllerSecurityTest {
     @Test
     @DisplayName("Should protect organization endpoints with PreAuthorize")
     void shouldProtectOrganizationEndpointsWithPreAuthorize() throws Exception {
-        assertRole("createOrganization", "hasRole('ADMIN')");
-        assertRole("getAllOrganizations", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("getAllOrganizationsPage", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("getAllOrganizationsPageAlias", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("getAllDepartments", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("getOrganizationById", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("getOrganizationTree", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("getUsersByOrganizationId", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("activateOrganization", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("deactivateOrganization", "hasAnyRole('ADMIN', 'ORG_MANAGER')");
-        assertRole("renameOrganization", "hasRole('ADMIN')");
-        assertRole("changeOrganizationType", "hasRole('ADMIN')");
-        assertRole("updateSortOrder", "hasRole('ADMIN')");
-        assertRole("updateParentOrganization", "hasRole('ADMIN')");
+        assertRole("createOrganization", "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("getAllOrganizations", "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("getAllOrganizationsPage", "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("getAllOrganizationsPageAlias", "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("getAllDepartments", "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("getOrganizationById", "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("getOrganizationTree", "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("getUsersByOrganizationId", "hasAnyRole('REPORTER', 'APPROVER', 'STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("activateOrganization", "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("deactivateOrganization", "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("renameOrganization", "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("changeOrganizationType", "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("updateSortOrder", "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
+        assertRole("updateParentOrganization", "hasAnyRole('STRATEGY_DEPT_HEAD', 'VICE_PRESIDENT')");
 
         assertMappingParams("getAllOrganizationsPage", "pageNum", "pageSize");
         assertMappingParams("getAllOrganizationsPageAlias", "page", "size");

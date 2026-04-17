@@ -1,7 +1,16 @@
 package com.sism.main;
 
+import com.sism.alert.infrastructure.AlertModuleConfig;
+import com.sism.analytics.infrastructure.AnalyticsModuleConfig;
+import com.sism.execution.infrastructure.ExecutionModuleConfig;
+import com.sism.iam.infrastructure.IamModuleConfig;
+import com.sism.organization.infrastructure.OrganizationModuleConfig;
+import com.sism.strategy.infrastructure.StrategyModuleConfig;
+import com.sism.task.infrastructure.TaskModuleConfig;
+import com.sism.workflow.infrastructure.WorkflowModuleConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -30,6 +39,16 @@ import org.springframework.scheduling.annotation.EnableScheduling;
                                    "com.sism.shared", "com.sism.config",
                                    "com.sism.exception", "com.sism.common",
                                    "com.sism.util", "com.sism.main"})
+@Import({
+        IamModuleConfig.class,
+        OrganizationModuleConfig.class,
+        StrategyModuleConfig.class,
+        TaskModuleConfig.class,
+        WorkflowModuleConfig.class,
+        AnalyticsModuleConfig.class,
+        ExecutionModuleConfig.class,
+        AlertModuleConfig.class
+})
 @EnableAsync
 @EnableScheduling
 public class SismMainApplication {

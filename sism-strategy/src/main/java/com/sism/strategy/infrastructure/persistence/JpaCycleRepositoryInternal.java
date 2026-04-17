@@ -16,49 +16,9 @@ public interface JpaCycleRepositoryInternal extends JpaRepository<Cycle, Long> {
     @Query("""
             SELECT c
             FROM Cycle c
-            WHERE c.id = :id
-              AND c.isDeleted = false
-            """)
-    Optional<Cycle> findByIdAndIsDeletedFalse(@Param("id") Long id);
-
-    @Query("""
-            SELECT c
-            FROM Cycle c
-            WHERE c.isDeleted = false
-            """)
-    List<Cycle> findAllActive();
-
-    @Query("""
-            SELECT c
-            FROM Cycle c
-            WHERE c.isDeleted = false
-            """)
-    Page<Cycle> findAllActive(Pageable pageable);
-
-    @Query("""
-            SELECT c
-            FROM Cycle c
             WHERE c.year = :year
-              AND c.isDeleted = false
             """)
     List<Cycle> findByYear(@Param("year") Integer year);
-
-    @Query("""
-            SELECT c
-            FROM Cycle c
-            WHERE c.status = :status
-              AND c.isDeleted = false
-            """)
-    List<Cycle> findByStatus(@Param("status") String status);
-
-    @Query("""
-            SELECT c
-            FROM Cycle c
-            WHERE c.year = :year
-              AND c.status = :status
-              AND c.isDeleted = false
-            """)
-    List<Cycle> findByYearAndStatus(@Param("year") Integer year, @Param("status") String status);
 
     @Query("SELECT DISTINCT c.year FROM Cycle c WHERE c.year IS NOT NULL ORDER BY c.year DESC")
     List<Integer> findDistinctYears();

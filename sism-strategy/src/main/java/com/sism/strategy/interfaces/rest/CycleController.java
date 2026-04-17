@@ -26,6 +26,9 @@ import java.util.List;
 @Tag(name = "考核周期", description = "考核周期管理接口")
 public class CycleController {
 
+    private static final String CYCLE_WRITE_ACCESS =
+            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private final CycleApplicationService cycleApplicationService;
 
     @GetMapping
@@ -77,7 +80,7 @@ public class CycleController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(CYCLE_WRITE_ACCESS)
     @Operation(summary = "创建新考核周期")
     public ResponseEntity<ApiResponse<Cycle>> createCycle(@Valid @RequestBody CreateCycleRequest request) {
         Cycle cycle = cycleApplicationService.createCycle(
@@ -90,7 +93,7 @@ public class CycleController {
     }
 
     @PostMapping("/{id:[0-9]+}/activate")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(CYCLE_WRITE_ACCESS)
     @Operation(summary = "激活考核周期")
     public ResponseEntity<ApiResponse<Cycle>> activateCycle(@PathVariable Long id) {
         Cycle cycle = cycleApplicationService.activateCycle(id);
@@ -98,7 +101,7 @@ public class CycleController {
     }
 
     @PostMapping("/{id:[0-9]+}/deactivate")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(CYCLE_WRITE_ACCESS)
     @Operation(summary = "停用考核周期")
     public ResponseEntity<ApiResponse<Cycle>> deactivateCycle(@PathVariable Long id) {
         Cycle cycle = cycleApplicationService.deactivateCycle(id);
@@ -106,7 +109,7 @@ public class CycleController {
     }
 
     @DeleteMapping("/{id:[0-9]+}")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(CYCLE_WRITE_ACCESS)
     @Operation(summary = "删除考核周期")
     public ResponseEntity<ApiResponse<Void>> deleteCycle(@PathVariable Long id) {
         cycleApplicationService.deleteCycle(id);

@@ -53,6 +53,11 @@ import java.util.stream.Stream;
 @Tag(name = "指标管理", description = "指标管理相关接口")
 public class IndicatorController {
 
+    private static final String INDICATOR_WRITE_ACCESS =
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+    private static final String INDICATOR_DELETE_ACCESS =
+            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private record CurrentMonthIndicatorRoundState(Integer progress, boolean hasCurrentMonthFill) {}
 
     private static String currentReportMonth() {
@@ -121,7 +126,7 @@ public class IndicatorController {
 
     @PostMapping("/{id}/reminders")
     @Operation(summary = "发送指标催办", description = "对滞后指标发送站内催办通知")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendIndicatorReminder(
             @PathVariable Long id,
             @RequestBody(required = false) ReminderRequest request,
@@ -202,7 +207,7 @@ public class IndicatorController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "创建新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> createIndicator(
             @Valid @RequestBody CreateIndicatorRequest request) {
@@ -250,7 +255,7 @@ public class IndicatorController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "更新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> updateIndicator(
             @PathVariable Long id,
@@ -282,7 +287,7 @@ public class IndicatorController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(INDICATOR_DELETE_ACCESS)
     @Operation(summary = "删除指标")
     public ResponseEntity<ApiResponse<Void>> deleteIndicator(@PathVariable Long id) {
         strategyApplicationService.deleteIndicator(id);
@@ -290,7 +295,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "提交指标审核")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReview(@PathVariable Long id) {
         Indicator indicator;
@@ -304,14 +309,14 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/submit-review")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "提交指标审核(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReviewAlias(@PathVariable Long id) {
         return submitForReview(id);
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "审核通过指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicator(@PathVariable Long id) {
         Indicator indicator;
@@ -325,14 +330,14 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/approve-review")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "审核通过指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicatorAlias(@PathVariable Long id) {
         return approveIndicator(id);
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "拒绝指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicator(
             @PathVariable Long id,
@@ -349,7 +354,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/reject-review")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "拒绝指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicatorAlias(
             @PathVariable Long id,
@@ -358,7 +363,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/distribute")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "分发指标到目标组织")
     public ResponseEntity<ApiResponse<IndicatorResponse>> distributeIndicator(
             @PathVariable Long id,
@@ -394,7 +399,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/withdraw")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "撤回已分发的指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> withdrawIndicator(
             @PathVariable Long id,
@@ -407,7 +412,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/batch-withdraw")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "批量撤回指标(按所属和目标组织)")
     public ResponseEntity<ApiResponse<BatchWithdrawResponse>> batchWithdrawIndicators(
             @RequestBody @Valid BatchWithdrawRequest request) {
@@ -420,7 +425,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/actions/batch-distribute")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "批量分发指标(分发页面专用)")
     public ResponseEntity<ApiResponse<BatchDistributeIndicatorsResponse>> batchDistributeIndicators(
             @RequestBody @Valid BatchDistributeIndicatorsRequest request) {
@@ -565,7 +570,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/breakdown")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "分解指标为子指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> breakdownIndicator(@PathVariable Long id) {
         Indicator brokenDown = strategyApplicationService.breakdownIndicator(id);
@@ -573,7 +578,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "激活指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> activateIndicator(@PathVariable Long id) {
         Indicator activated = strategyApplicationService.activateIndicator(id);
@@ -581,7 +586,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/terminate")
-    @PreAuthorize("hasAnyRole('ADMIN','STRATEGY_DEPT')")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "终止指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> terminateIndicator(
             @PathVariable Long id,

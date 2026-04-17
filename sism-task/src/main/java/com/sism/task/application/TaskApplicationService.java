@@ -443,7 +443,7 @@ public class TaskApplicationService {
             case "createdByOrgId" -> Sort.by(direction, "t.created_by_org_id");
             case "sortOrder" -> Sort.by(direction, "t.sort_order");
             case "planStatus" -> Sort.by(direction, "p.status");
-            case "taskStatus" -> Sort.by(direction, "t.status");
+            case "taskStatus" -> Sort.by(direction, "p.status");
             case "createdAt" -> Sort.by(direction, "t.created_at");
             case "updatedAt" -> Sort.by(direction, "t.updated_at");
             default -> throw new IllegalArgumentException("不支持的排序字段: " + sortBy);

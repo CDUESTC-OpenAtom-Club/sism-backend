@@ -24,7 +24,7 @@ class CycleApplicationServiceTest {
     @DisplayName("Should throw when cycle does not exist")
     void shouldThrowWhenCycleMissing() {
         CycleApplicationService service = new CycleApplicationService(cycleRepository);
-        when(cycleRepository.findByIdAndIsDeletedFalse(404L)).thenReturn(Optional.empty());
+        when(cycleRepository.findById(404L)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> service.getCycleById(404L));
     }

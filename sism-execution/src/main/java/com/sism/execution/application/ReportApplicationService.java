@@ -243,7 +243,7 @@ public class ReportApplicationService {
 
     @Transactional
     public PlanReport submitReport(Long reportId, Long userId, CurrentUser currentUser) {
-        requireAnyRole(currentUser, "ROLE_ADMIN", "ROLE_STRATEGY_DEPT", "ROLE_FUNC_DEPT", "ROLE_APPROVER");
+        requireAnyRole(currentUser, "ROLE_VICE_PRESIDENT", "ROLE_STRATEGY_DEPT_HEAD", "ROLE_REPORTER", "ROLE_APPROVER");
         Long actorId = resolveUserId(userId, currentUser);
         return submitReport(reportId, actorId);
     }
@@ -274,7 +274,7 @@ public class ReportApplicationService {
 
     @Transactional
     public PlanReport approveReport(Long reportId, Long userId, CurrentUser currentUser) {
-        requireAnyRole(currentUser, "ROLE_ADMIN", "ROLE_APPROVER");
+        requireAnyRole(currentUser, "ROLE_VICE_PRESIDENT", "ROLE_STRATEGY_DEPT_HEAD", "ROLE_APPROVER");
         Long actorId = resolveUserId(userId, currentUser);
         return approveReport(reportId, actorId);
     }
@@ -295,7 +295,7 @@ public class ReportApplicationService {
 
     @Transactional
     public PlanReport rejectReport(Long reportId, Long userId, String reason, CurrentUser currentUser) {
-        requireAnyRole(currentUser, "ROLE_ADMIN", "ROLE_APPROVER");
+        requireAnyRole(currentUser, "ROLE_VICE_PRESIDENT", "ROLE_STRATEGY_DEPT_HEAD", "ROLE_APPROVER");
         Long actorId = resolveUserId(userId, currentUser);
         return rejectReport(reportId, actorId, reason);
     }

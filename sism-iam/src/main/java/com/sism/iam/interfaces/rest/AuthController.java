@@ -31,6 +31,9 @@ import java.util.stream.Collectors;
 @Tag(name = "认证管理", description = "用户认证相关接口")
 public class AuthController {
 
+    private static final String IAM_ADMIN_ACCESS =
+            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private final AuthService authService;
     private final UserService userService;
 
@@ -48,7 +51,7 @@ public class AuthController {
      * 用户注册
      */
     @PostMapping("/register")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "用户注册")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> register(@RequestBody RegisterRequest request) {
         User user = authService.register(
@@ -125,7 +128,7 @@ public class AuthController {
      * 查询所有用户
      */
     @GetMapping("/users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "查询所有用户")
     public ResponseEntity<ApiResponse<UserListPageResponse>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
@@ -140,7 +143,7 @@ public class AuthController {
      * 根据ID查询用户
      */
     @GetMapping("/users/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "根据ID查询用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserById(@PathVariable Long id) {
         return userService.findById(id)
@@ -152,7 +155,7 @@ public class AuthController {
      * 根据用户名查询用户
      */
     @GetMapping("/users/username/{username}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "根据用户名查询用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserByUsername(@PathVariable String username) {
         return userService.findByUsername(username)
@@ -164,7 +167,7 @@ public class AuthController {
      * 根据组织ID查询用户
      */
     @GetMapping("/users/org/{orgId}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "根据组织ID查询用户")
     public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getUsersByOrgId(@PathVariable Long orgId) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -176,7 +179,7 @@ public class AuthController {
      * 创建用户
      */
     @PostMapping("/users")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "创建用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> createUser(@RequestBody CreateUserRequest request) {
         User user = userService.createUser(
@@ -194,7 +197,7 @@ public class AuthController {
      * 更新用户
      */
     @PutMapping("/users/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "更新用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> updateUser(
             @PathVariable Long id,
@@ -213,7 +216,7 @@ public class AuthController {
      * 删除用户
      */
     @DeleteMapping("/users/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "删除用户")
     public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
@@ -224,7 +227,7 @@ public class AuthController {
      * 锁定用户
      */
     @PostMapping("/users/{id}/lock")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "锁定用户")
     public ResponseEntity<ApiResponse<Void>> lockUser(@PathVariable Long id) {
         userService.lockUser(id);
@@ -235,7 +238,7 @@ public class AuthController {
      * 解锁用户
      */
     @PostMapping("/users/{id}/unlock")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "解锁用户")
     public ResponseEntity<ApiResponse<Void>> unlockUser(@PathVariable Long id) {
         userService.unlockUser(id);

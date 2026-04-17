@@ -74,7 +74,7 @@ public class StrategicTask extends AggregateRoot<Long> {
     @Column(name="is_deleted", nullable=false)
     private Boolean isDeleted = false;
 
-    @Column(name = "status", nullable = false)
+    @Transient
     private String status = STATUS_DRAFT;
 
     public String getPlanStatus() {

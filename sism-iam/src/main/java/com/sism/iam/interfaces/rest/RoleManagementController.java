@@ -34,12 +34,15 @@ import java.util.stream.Collectors;
 @Tag(name = "角色权限管理", description = "角色和权限管理接口")
 public class RoleManagementController {
 
+    private static final String ROLE_ADMIN_ACCESS =
+            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private final RoleManagementService roleManagementService;
 
     // ========== 角色查询 ==========
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     @Operation(summary = "分页查询角色列表")
     public ResponseEntity<ApiResponse<PageResult<RoleResponse>>> listRoles(
             @RequestParam(defaultValue = "0") int page,
@@ -66,7 +69,7 @@ public class RoleManagementController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     @Operation(summary = "根据ID查询角色详情")
     public ResponseEntity<ApiResponse<RoleResponse>> getRoleById(@PathVariable Long id) {
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
@@ -85,7 +88,7 @@ public class RoleManagementController {
 
     @PostMapping
     @Operation(summary = "创建新角色")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<RoleResponse>> createRole(
             @Valid @RequestBody CreateRoleRequest request
     ) {
@@ -105,7 +108,7 @@ public class RoleManagementController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新角色信息")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<RoleResponse>> updateRole(
             @PathVariable Long id,
             @Valid @RequestBody UpdateRoleRequest request
@@ -136,7 +139,7 @@ public class RoleManagementController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除角色")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<Void>> deleteRole(@PathVariable Long id) {
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
@@ -155,7 +158,7 @@ public class RoleManagementController {
 
     @PostMapping("/{id}/permissions")
     @Operation(summary = "给角色分配权限")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<RoleResponse>> assignPermissions(
             @PathVariable Long id,
             @Valid @RequestBody AssignPermissionsRequest request
@@ -183,7 +186,7 @@ public class RoleManagementController {
     }
 
     @GetMapping("/{id}/permissions")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     @Operation(summary = "获取角色的权限列表")
     public ResponseEntity<ApiResponse<List<PermissionResponse>>> getRolePermissions(
             @PathVariable Long id
@@ -202,7 +205,7 @@ public class RoleManagementController {
 
     @DeleteMapping("/{id}/permissions/{permissionId}")
     @Operation(summary = "从角色移除权限")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<Void>> removePermission(
             @PathVariable Long id,
             @PathVariable Long permissionId

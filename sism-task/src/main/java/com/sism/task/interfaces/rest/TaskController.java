@@ -27,11 +27,16 @@ import java.util.Objects;
 @Tag(name = "任务管理", description = "任务中心相关接口。战略任务是当前的任务类型之一。")
 public class TaskController {
 
+    private static final String TASK_WRITE_ACCESS =
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+    private static final String TASK_DELETE_ACCESS =
+            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+
     private final TaskApplicationService taskApplicationService;
 
     @PostMapping
     @Operation(summary = "创建新任务", description = "创建战略任务，并为未来任务类型保留明确的任务类别语义。")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> createTask(
             @Valid @RequestBody CreateTaskRequest request,
             Authentication authentication) {
@@ -108,7 +113,7 @@ public class TaskController {
 
     @PostMapping("/{id}/activate")
     @Operation(summary = "激活任务", description = "仅更新任务状态。此接口不代表计划审批或分发状态。")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> activateTask(@PathVariable Long id, Authentication authentication) {
         boolean admin = isAdmin(authentication);
         CurrentUser currentUser = admin ? null : requireCurrentUser(authentication);
@@ -118,7 +123,7 @@ public class TaskController {
 
     @PostMapping("/{id}/complete")
     @Operation(summary = "完成任务", description = "仅更新任务状态。此接口不代表计划审批或分发状态。")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> completeTask(@PathVariable Long id, Authentication authentication) {
         boolean admin = isAdmin(authentication);
         CurrentUser currentUser = admin ? null : requireCurrentUser(authentication);
@@ -128,7 +133,7 @@ public class TaskController {
 
     @PostMapping("/{id}/cancel")
     @Operation(summary = "取消任务", description = "仅更新任务状态。此接口不代表计划审批或分发状态。")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> cancelTask(@PathVariable Long id, Authentication authentication) {
         boolean admin = isAdmin(authentication);
         CurrentUser currentUser = admin ? null : requireCurrentUser(authentication);
@@ -138,7 +143,7 @@ public class TaskController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新任务")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> updateTask(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskRequest request,
@@ -151,7 +156,7 @@ public class TaskController {
 
     @PutMapping("/{id}/name")
     @Operation(summary = "更新任务名称")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskName(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskNameRequest request,
@@ -164,7 +169,7 @@ public class TaskController {
 
     @PutMapping("/{id}/sort-order")
     @Operation(summary = "更新任务排序顺序")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> updateSortOrder(
             @PathVariable Long id,
             @RequestParam Integer sortOrder,
@@ -177,7 +182,7 @@ public class TaskController {
 
     @PutMapping("/{id}/desc")
     @Operation(summary = "更新任务描述")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskDesc(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskDescRequest request,
@@ -190,7 +195,7 @@ public class TaskController {
 
     @PutMapping("/{id}/remark")
     @Operation(summary = "更新任务备注")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STRATEGY_DEPT')")
+    @PreAuthorize(TASK_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskRemark(
             @PathVariable Long id,
             @Valid @RequestBody UpdateTaskRemarkRequest request,
@@ -203,7 +208,7 @@ public class TaskController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除任务(软删除)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize(TASK_DELETE_ACCESS)
     public ResponseEntity<ApiResponse<Void>> deleteTask(@PathVariable Long id, Authentication authentication) {
         boolean admin = isAdmin(authentication);
         CurrentUser currentUser = admin ? null : requireCurrentUser(authentication);
@@ -287,8 +292,13 @@ public class TaskController {
     }
 
     private boolean isAdmin(Authentication authentication) {
-        return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
+        if (authentication == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .anyMatch(authority -> "ROLE_VICE_PRESIDENT".equals(authority)
+                        || "ROLE_STRATEGY_DEPT_HEAD".equals(authority));
     }
 
     private CurrentUser requireCurrentUser(Authentication authentication) {

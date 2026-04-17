@@ -55,7 +55,7 @@ public class Milestone {
     @Column(name = "is_paired")
     private Boolean isPaired;
 
-    @Column(name = "inherited_from")
+    @Transient
     private Long inheritedFrom;
 
     @Column(name = "created_at")

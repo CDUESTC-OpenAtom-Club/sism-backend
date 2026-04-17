@@ -105,7 +105,8 @@ public class AttachmentController {
     private boolean isAdmin(UserIdentity currentUser) {
         return currentUser.authorities().stream()
                 .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_ADMIN"::equals);
+                .anyMatch(authority -> "ROLE_VICE_PRESIDENT".equals(authority)
+                        || "ROLE_STRATEGY_DEPT_HEAD".equals(authority));
     }
 
     private UserIdentity resolveCurrentUser(Authentication authentication) {

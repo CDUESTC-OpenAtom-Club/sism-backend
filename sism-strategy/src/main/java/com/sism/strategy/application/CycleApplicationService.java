@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +26,7 @@ public class CycleApplicationService {
     }
 
     public Cycle getCycleById(Long id) {
-        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
+        Cycle cycle = cycleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         return cycle;
     }
@@ -36,7 +35,10 @@ public class CycleApplicationService {
         if (status == null || status.isBlank()) {
             return cycleRepository.findAll();
         }
-        return cycleRepository.findByStatus(status.trim().toUpperCase(Locale.ROOT));
+        String expectedStatus = status.trim().toUpperCase();
+        return cycleRepository.findAll().stream()
+                .filter(cycle -> expectedStatus.equals(cycle.deriveStatus()))
+                .toList();
     }
 
     public List<Cycle> getCyclesByYear(Integer year) {
@@ -47,7 +49,10 @@ public class CycleApplicationService {
         if (status == null || status.isBlank()) {
             return cycleRepository.findByYear(year);
         }
-        return cycleRepository.findByYearAndStatus(year, status.trim().toUpperCase(Locale.ROOT));
+        String expectedStatus = status.trim().toUpperCase();
+        return cycleRepository.findByYear(year).stream()
+                .filter(cycle -> expectedStatus.equals(cycle.deriveStatus()))
+                .toList();
     }
 
     @Transactional
@@ -58,7 +63,7 @@ public class CycleApplicationService {
 
     @Transactional
     public Cycle activateCycle(Long id) {
-        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
+        Cycle cycle = cycleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         cycle.activate();
         Cycle savedCycle = cycleRepository.save(cycle);
@@ -67,7 +72,7 @@ public class CycleApplicationService {
 
     @Transactional
     public Cycle deactivateCycle(Long id) {
-        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
+        Cycle cycle = cycleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         cycle.deactivate();
         Cycle savedCycle = cycleRepository.save(cycle);
@@ -76,10 +81,9 @@ public class CycleApplicationService {
 
     @Transactional
     public void deleteCycle(Long id) {
-        Cycle cycle = cycleRepository.findByIdAndIsDeletedFalse(id)
+        Cycle cycle = cycleRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
-        cycle.delete();
-        cycleRepository.save(cycle);
+        cycleRepository.delete(cycle);
     }
 
     /**
@@ -88,13 +92,5 @@ public class CycleApplicationService {
      */
     public List<Integer> getAvailableYears() {
         return cycleRepository.findDistinctYears();
-    }
-
-    private boolean matchesStatus(Cycle cycle, String expectedStatus) {
-        if (expectedStatus == null || expectedStatus.isBlank()) {
-            return true;
-        }
-        return cycle.getStatus() != null
-                && cycle.getStatus().equalsIgnoreCase(expectedStatus.trim().toUpperCase(Locale.ROOT));
     }
 }

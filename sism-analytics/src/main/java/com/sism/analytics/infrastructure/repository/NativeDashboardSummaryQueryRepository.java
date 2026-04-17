@@ -66,7 +66,7 @@ public class NativeDashboardSummaryQueryRepository implements DashboardSummaryQu
                 COALESCE(AVG(i.progress), 0) AS avg_progress,
                 COUNT(i.id) AS total_indicators,
                 COUNT(CASE WHEN i.status = :completedStatus THEN 1 END) AS completed_indicators,
-                COALESCE(a.alert_count, 0) AS alert_count
+                COALESCE(MAX(a.alert_count), 0) AS alert_count
             FROM analytics_active_org_dashboard_view o
             LEFT JOIN analytics_indicator_dashboard_view i ON i.target_org_id = o.id
             LEFT JOIN (

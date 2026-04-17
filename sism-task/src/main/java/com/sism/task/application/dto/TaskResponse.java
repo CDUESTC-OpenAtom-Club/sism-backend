@@ -44,7 +44,7 @@ public class TaskResponse {
         response.setCreatedByOrgId(task.getCreatedByOrg() != null ? task.getCreatedByOrg().getId() : null);
         response.setSortOrder(task.getSortOrder());
         response.setPlanStatus(DEFAULT_PLAN_STATUS);
-        response.setTaskStatus(defaultStatus(task.getStatus()));
+        response.setTaskStatus(DEFAULT_PLAN_STATUS);
         response.setRemark(task.getRemark());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());

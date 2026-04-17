@@ -40,12 +40,6 @@ public class Cycle extends AggregateRoot<Long> {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "status", nullable = false, length = 20)
-    private String status = "ACTIVE";
-
-    @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted = false;
-
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
@@ -58,25 +52,20 @@ public class Cycle extends AggregateRoot<Long> {
         cycle.year = year;
         cycle.startDate = startDate;
         cycle.endDate = endDate;
-        cycle.status = "ACTIVE";
-        cycle.isDeleted = false;
         cycle.createdAt = LocalDateTime.now();
         cycle.updatedAt = LocalDateTime.now();
         return cycle;
     }
 
     public void activate() {
-        this.status = "ACTIVE";
         this.updatedAt = LocalDateTime.now();
     }
 
     public void deactivate() {
-        this.status = "INACTIVE";
         this.updatedAt = LocalDateTime.now();
     }
 
-    public void delete() {
-        this.isDeleted = true;
+    public void touch() {
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -101,12 +90,6 @@ public class Cycle extends AggregateRoot<Long> {
 
     @PrePersist
     protected void onCreate() {
-        if (isDeleted == null) {
-            isDeleted = false;
-        }
-        if (status == null || status.isBlank()) {
-            status = "ACTIVE";
-        }
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
@@ -117,12 +100,6 @@ public class Cycle extends AggregateRoot<Long> {
 
     @PostLoad
     protected void onLoad() {
-        if (isDeleted == null) {
-            isDeleted = false;
-        }
-        if (status == null || status.isBlank()) {
-            status = deriveStatus();
-        }
     }
 
     @JsonProperty("cycleId")
