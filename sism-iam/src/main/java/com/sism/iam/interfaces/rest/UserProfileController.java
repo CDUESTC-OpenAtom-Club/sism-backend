@@ -4,6 +4,7 @@ import com.sism.common.ApiResponse;
 import com.sism.iam.application.service.UserProfileService;
 import com.sism.iam.domain.Role;
 import com.sism.iam.domain.User;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
+    private final OrganizationRepository organizationRepository;
 
     // ========== 个人资料查询 ==========
 
@@ -119,15 +121,19 @@ public class UserProfileController {
     // ========== 内部辅助方法 ==========
 
     private UserProfileResponse convertToProfileResponse(User user) {
+        var organization = organizationRepository.findById(user.getOrgId()).orElse(null);
         UserProfileResponse response = new UserProfileResponse();
         response.setId(user.getId());
         response.setUsername(user.getUsername());
         response.setRealName(user.getRealName());
         response.setOrgId(user.getOrgId());
+        response.setOrgName(organization != null ? organization.getName() : null);
+        response.setOrgType(organization != null ? organization.getType().name() : null);
         response.setIsActive(user.getIsActive());
         response.setRoles(user.getRoles() == null
                 ? List.of()
                 : user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
+        response.setAvatar(user.getAvatarUrl());
         response.setCreatedAt(user.getCreatedAt());
         response.setLastLoginTime(null); // TODO: 需要记录最后登录时间
 
@@ -142,6 +148,8 @@ public class UserProfileController {
         private String username;
         private String realName;
         private Long orgId;
+        private String orgName;
+        private String orgType;
         private Boolean isActive;  // 新版本改为 isActive 布尔字段
         private List<String> roles;
         private String avatar;

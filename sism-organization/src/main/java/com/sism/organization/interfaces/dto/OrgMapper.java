@@ -84,17 +84,4 @@ public class OrgMapper {
         }
         // Note: parentOrgId update requires separate handling to fetch parent entity
     }
-
-    public OrgUserResponse toUserResponse(com.sism.iam.domain.User user) {
-        return OrgUserResponse.fromUser(user);
-    }
-
-    public List<OrgUserResponse> toUserResponseList(List<com.sism.iam.domain.User> users) {
-        if (users == null) {
-            return new ArrayList<>();
-        }
-        return users.stream()
-                .map(this::toUserResponse)
-                .collect(Collectors.toList());
-    }
 }

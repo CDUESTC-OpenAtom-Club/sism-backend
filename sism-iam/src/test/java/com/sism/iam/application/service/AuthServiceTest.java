@@ -5,6 +5,9 @@ import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.organization.domain.OrgType;
+import com.sism.organization.domain.SysOrg;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,11 +42,20 @@ class AuthServiceTest {
     @Mock
     private LoginAttemptService loginAttemptService;
 
+    @Mock
+    private OrganizationRepository organizationRepository;
+
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, jwtTokenService, passwordEncoder, loginAttemptService);
+        authService = new AuthService(
+                userRepository,
+                jwtTokenService,
+                passwordEncoder,
+                loginAttemptService,
+                organizationRepository
+        );
     }
 
     @Test
@@ -59,11 +71,15 @@ class AuthServiceTest {
         user.setRealName("Test User");
         user.setPassword("encodedPassword");
         user.setIsActive(true);
+        user.setOrgId(35L);
+        SysOrg org = SysOrg.create("战略发展部", OrgType.admin);
+        org.setId(35L);
 
         when(userRepository.findByUsername("testuser"))
                 .thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "encodedPassword"))
                 .thenReturn(true);
+        when(organizationRepository.findById(35L)).thenReturn(Optional.of(org));
         when(jwtTokenService.generateToken(eq(user), anyList()))
                 .thenReturn("jwt.token.here");
 

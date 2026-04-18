@@ -1,11 +1,14 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
+import com.sism.iam.application.dto.CurrentUser;
 import com.sism.common.PageResult;
 import com.sism.iam.application.service.PaginationPolicy;
 import com.sism.iam.application.service.RoleManagementService;
 import com.sism.iam.domain.Permission;
 import com.sism.iam.domain.Role;
+import com.sism.organization.domain.OrgType;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -13,7 +16,7 @@ import jakarta.validation.constraints.NotEmpty;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -34,20 +37,22 @@ import java.util.stream.Collectors;
 @Tag(name = "角色权限管理", description = "角色和权限管理接口")
 public class RoleManagementController {
 
-    private static final String ROLE_ADMIN_ACCESS =
-            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
-
     private final RoleManagementService roleManagementService;
+    private final OrganizationRepository organizationRepository;
 
     // ========== 角色查询 ==========
 
     @GetMapping
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
     @Operation(summary = "分页查询角色列表")
     public ResponseEntity<ApiResponse<PageResult<RoleResponse>>> listRoles(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int pageSize
     ) {
+        ResponseEntity<ApiResponse<PageResult<RoleResponse>>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Page<Role> rolePage = roleManagementService.findRoles(PaginationPolicy.toPageRequest(page, pageSize));
         Set<Long> roleIds = rolePage.getContent().stream()
                 .map(Role::getId)
@@ -69,9 +74,14 @@ public class RoleManagementController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
     @Operation(summary = "根据ID查询角色详情")
-    public ResponseEntity<ApiResponse<RoleResponse>> getRoleById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<RoleResponse>> getRoleById(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long id) {
+        ResponseEntity<ApiResponse<RoleResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -88,10 +98,14 @@ public class RoleManagementController {
 
     @PostMapping
     @Operation(summary = "创建新角色")
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<RoleResponse>> createRole(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @Valid @RequestBody CreateRoleRequest request
     ) {
+        ResponseEntity<ApiResponse<RoleResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         try {
             Role role = roleManagementService.createRole(
                     request.getRoleCode(),
@@ -108,11 +122,15 @@ public class RoleManagementController {
 
     @PutMapping("/{id}")
     @Operation(summary = "更新角色信息")
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<RoleResponse>> updateRole(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id,
             @Valid @RequestBody UpdateRoleRequest request
     ) {
+        ResponseEntity<ApiResponse<RoleResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -139,8 +157,13 @@ public class RoleManagementController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除角色")
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
-    public ResponseEntity<ApiResponse<Void>> deleteRole(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteRole(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long id) {
+        ResponseEntity<ApiResponse<Void>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -158,11 +181,15 @@ public class RoleManagementController {
 
     @PostMapping("/{id}/permissions")
     @Operation(summary = "给角色分配权限")
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<RoleResponse>> assignPermissions(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id,
             @Valid @RequestBody AssignPermissionsRequest request
     ) {
+        ResponseEntity<ApiResponse<RoleResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -186,11 +213,15 @@ public class RoleManagementController {
     }
 
     @GetMapping("/{id}/permissions")
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
     @Operation(summary = "获取角色的权限列表")
     public ResponseEntity<ApiResponse<List<PermissionResponse>>> getRolePermissions(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id
     ) {
+        ResponseEntity<ApiResponse<List<PermissionResponse>>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -205,11 +236,15 @@ public class RoleManagementController {
 
     @DeleteMapping("/{id}/permissions/{permissionId}")
     @Operation(summary = "从角色移除权限")
-    @PreAuthorize(ROLE_ADMIN_ACCESS)
     public ResponseEntity<ApiResponse<Void>> removePermission(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id,
             @PathVariable Long permissionId
     ) {
+        ResponseEntity<ApiResponse<Void>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Optional<Role> roleOpt = roleManagementService.findRoleById(id);
         if (roleOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -224,6 +259,24 @@ public class RoleManagementController {
     }
 
     // ========== 内部辅助方法 ==========
+
+    private boolean hasAdminOrgAccess(CurrentUser currentUser) {
+        if (currentUser == null || currentUser.getOrgId() == null) {
+            return false;
+        }
+
+        return organizationRepository.findById(currentUser.getOrgId())
+                .map(org -> org.getType() == OrgType.admin)
+                .orElse(false);
+    }
+
+    private <T> ResponseEntity<ApiResponse<T>> denyIfNoAdminOrgAccess(CurrentUser currentUser) {
+        if (hasAdminOrgAccess(currentUser)) {
+            return null;
+        }
+
+        return ResponseEntity.status(403).body(ApiResponse.error(403, "无权限访问"));
+    }
 
     private RoleResponse convertToResponse(Role role, long userCount, long permissionCount) {
         RoleResponse response = new RoleResponse();

@@ -29,6 +29,8 @@ public class LoginResponse {
         return fromUser(
                 user,
                 user.getRoles().stream().map(role -> role.getRoleCode()).toList(),
+                null,
+                null,
                 accessToken,
                 refreshToken,
                 expiresIn
@@ -38,6 +40,8 @@ public class LoginResponse {
     public static LoginResponse fromUser(
             User user,
             List<String> roleCodes,
+            String orgName,
+            String orgType,
             String accessToken,
             String refreshToken,
             long expiresIn
@@ -57,6 +61,8 @@ public class LoginResponse {
                 user.getUsername(),
                 user.getRealName(),
                 user.getOrgId(),
+                orgName,
+                orgType,
                 roleCodes
         ));
         return response;
@@ -70,6 +76,8 @@ public class LoginResponse {
         private String username;
         private String realName;
         private Long orgId;
+        private String orgName;
+        private String orgType;
         private List<String> roles;
     }
 }

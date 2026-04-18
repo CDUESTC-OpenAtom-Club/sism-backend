@@ -6,6 +6,9 @@ import com.sism.iam.application.dto.CurrentUser;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.User;
+import com.sism.organization.domain.OrgType;
+import com.sism.organization.domain.SysOrg;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,11 +34,9 @@ import java.util.stream.Collectors;
 @Tag(name = "认证管理", description = "用户认证相关接口")
 public class AuthController {
 
-    private static final String IAM_ADMIN_ACCESS =
-            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
-
     private final AuthService authService;
     private final UserService userService;
+    private final OrganizationRepository organizationRepository;
 
     /**
      * 用户登录
@@ -51,9 +52,14 @@ public class AuthController {
      * 用户注册
      */
     @PostMapping("/register")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "用户注册")
-    public ResponseEntity<ApiResponse<UserSummaryResponse>> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> register(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestBody RegisterRequest request) {
+        ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         User user = authService.register(
                 request.getUsername(),
                 request.getPassword(),
@@ -73,7 +79,7 @@ public class AuthController {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
         return userService.findById(currentUser.getId())
-                .map(user -> ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user))))
+                .map(user -> ResponseEntity.ok(ApiResponse.success(toUserSummaryResponse(user))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -128,12 +134,16 @@ public class AuthController {
      * 查询所有用户
      */
     @GetMapping("/users")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "查询所有用户")
     public ResponseEntity<ApiResponse<UserListPageResponse>> getAllUsers(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
+        ResponseEntity<ApiResponse<UserListPageResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         Page<User> userPage = userService.findPage(page, size);
         Page<UserListItemResponse> responsePage = userPage.map(this::toUserListItemResponse);
         return ResponseEntity.ok(ApiResponse.success(UserListPageResponse.fromPage(responsePage)));
@@ -143,11 +153,16 @@ public class AuthController {
      * 根据ID查询用户
      */
     @GetMapping("/users/{id}")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "根据ID查询用户")
-    public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserById(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long id) {
+        ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         return userService.findById(id)
-                .map(user -> ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user))))
+                .map(user -> ResponseEntity.ok(ApiResponse.success(toUserSummaryResponse(user))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -155,11 +170,16 @@ public class AuthController {
      * 根据用户名查询用户
      */
     @GetMapping("/users/username/{username}")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "根据用户名查询用户")
-    public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> getUserByUsername(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable String username) {
+        ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         return userService.findByUsername(username)
-                .map(user -> ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user))))
+                .map(user -> ResponseEntity.ok(ApiResponse.success(toUserSummaryResponse(user))))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -167,11 +187,16 @@ public class AuthController {
      * 根据组织ID查询用户
      */
     @GetMapping("/users/org/{orgId}")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "根据组织ID查询用户")
-    public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getUsersByOrgId(@PathVariable Long orgId) {
+    public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getUsersByOrgId(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long orgId) {
+        ResponseEntity<ApiResponse<List<UserSummaryResponse>>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         return ResponseEntity.ok(ApiResponse.success(
-                userService.findByOrgId(orgId).stream().map(UserSummaryResponse::fromUser).collect(Collectors.toList())
+                userService.findByOrgId(orgId).stream().map(this::toUserSummaryResponse).collect(Collectors.toList())
         ));
     }
 
@@ -179,9 +204,14 @@ public class AuthController {
      * 创建用户
      */
     @PostMapping("/users")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "创建用户")
-    public ResponseEntity<ApiResponse<UserSummaryResponse>> createUser(@RequestBody CreateUserRequest request) {
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> createUser(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @RequestBody CreateUserRequest request) {
+        ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         User user = userService.createUser(
                 request.getUsername(),
                 request.getPassword(),
@@ -190,18 +220,22 @@ public class AuthController {
                 request.getOrgId(),
                 request.getRoles()
         );
-        return ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user)));
+        return ResponseEntity.ok(ApiResponse.success(toUserSummaryResponse(user)));
     }
 
     /**
      * 更新用户
      */
     @PutMapping("/users/{id}")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "更新用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> updateUser(
+            @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id,
             @RequestBody UpdateUserRequest request) {
+        ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         User user = userService.updateUser(
                 id,
                 request.getRealName(),
@@ -209,16 +243,21 @@ public class AuthController {
                 request.getOrgId(),
                 request.getRoles()
         );
-        return ResponseEntity.ok(ApiResponse.success(UserSummaryResponse.fromUser(user)));
+        return ResponseEntity.ok(ApiResponse.success(toUserSummaryResponse(user)));
     }
 
     /**
      * 删除用户
      */
     @DeleteMapping("/users/{id}")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "删除用户")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteUser(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long id) {
+        ResponseEntity<ApiResponse<Void>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         userService.deleteUser(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -227,9 +266,14 @@ public class AuthController {
      * 锁定用户
      */
     @PostMapping("/users/{id}/lock")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "锁定用户")
-    public ResponseEntity<ApiResponse<Void>> lockUser(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> lockUser(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long id) {
+        ResponseEntity<ApiResponse<Void>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         userService.lockUser(id);
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -238,11 +282,50 @@ public class AuthController {
      * 解锁用户
      */
     @PostMapping("/users/{id}/unlock")
-    @PreAuthorize(IAM_ADMIN_ACCESS)
     @Operation(summary = "解锁用户")
-    public ResponseEntity<ApiResponse<Void>> unlockUser(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> unlockUser(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @PathVariable Long id) {
+        ResponseEntity<ApiResponse<Void>> denied = denyIfNoAdminOrgAccess(currentUser);
+        if (denied != null) {
+            return denied;
+        }
         userService.unlockUser(id);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    private boolean hasAdminOrgAccess(CurrentUser currentUser) {
+        if (currentUser == null || currentUser.getOrgId() == null) {
+            return false;
+        }
+
+        return organizationRepository.findById(currentUser.getOrgId())
+                .map(org -> org.getType() == OrgType.admin)
+                .orElse(false);
+    }
+
+    private <T> ResponseEntity<ApiResponse<T>> denyIfNoAdminOrgAccess(CurrentUser currentUser) {
+        if (hasAdminOrgAccess(currentUser)) {
+            return null;
+        }
+
+        return ResponseEntity.status(403).body(ApiResponse.error(403, "无权限访问"));
+    }
+
+    private SysOrg findOrganization(Long orgId) {
+        if (orgId == null) {
+            return null;
+        }
+        return organizationRepository.findById(orgId).orElse(null);
+    }
+
+    private UserSummaryResponse toUserSummaryResponse(User user) {
+        var organization = findOrganization(user.getOrgId());
+        return UserSummaryResponse.fromUser(
+                user,
+                organization != null ? organization.getName() : null,
+                organization != null ? organization.getType().name() : null
+        );
     }
 
     // ==================== Request DTOs ====================
@@ -285,15 +368,23 @@ public class AuthController {
         private String username;
         private String realName;
         private Long orgId;
+        private String orgName;
+        private String orgType;
         private Boolean isActive;
         private List<String> roles;
 
         public static UserSummaryResponse fromUser(User user) {
+            return fromUser(user, null, null);
+        }
+
+        public static UserSummaryResponse fromUser(User user, String orgName, String orgType) {
             return new UserSummaryResponse(
                     user.getId(),
                     user.getUsername(),
                     user.getRealName(),
                     user.getOrgId(),
+                    orgName,
+                    orgType,
                     user.getIsActive(),
                     user.getRoles() == null
                             ? List.of()
@@ -353,6 +444,7 @@ public class AuthController {
         List<UserRoleItemResponse> roles = (user.getRoles() == null ? List.<com.sism.iam.domain.Role>of() : user.getRoles()).stream()
                 .map(role -> new UserRoleItemResponse(role.getRoleCode(), role.getRoleName()))
                 .toList();
+        var organization = findOrganization(user.getOrgId());
 
         return new UserListItemResponse(
                 user.getId(),
@@ -361,7 +453,7 @@ public class AuthController {
                 null,
                 null,
                 user.getOrgId(),
-                null,
+                organization != null ? organization.getName() : null,
                 roles,
                 Boolean.TRUE.equals(user.getIsActive()) ? "active" : "disabled",
                 null,

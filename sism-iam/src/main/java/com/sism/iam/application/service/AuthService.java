@@ -5,6 +5,7 @@ import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.User;
 import com.sism.iam.domain.repository.UserRepository;
+import com.sism.organization.domain.repository.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class AuthService {
     private final JwtTokenService jwtTokenService;
     private final PasswordEncoder passwordEncoder;
     private final LoginAttemptService loginAttemptService;
+    private final OrganizationRepository organizationRepository;
 
     /**
      * 用户登录
@@ -59,10 +61,13 @@ public class AuthService {
 
         String accessToken = jwtTokenService.generateToken(user, roleCodes);
         String refreshToken = jwtTokenService.generateRefreshToken(user, roleCodes);
+        var organization = organizationRepository.findById(user.getOrgId()).orElse(null);
 
         return LoginResponse.fromUser(
                 user,
                 roleCodes,
+                organization != null ? organization.getName() : null,
+                organization != null ? organization.getType().name() : null,
                 accessToken,
                 refreshToken,
                 jwtTokenService.getExpirationSeconds()

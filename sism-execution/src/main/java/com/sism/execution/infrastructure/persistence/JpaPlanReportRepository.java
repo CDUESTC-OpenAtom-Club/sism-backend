@@ -71,13 +71,16 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
     Page<PlanReport> findAllActive(Pageable pageable);
 
     @Override
-    @Query("SELECT pr FROM PlanReport pr WHERE " +
-           "(:reportMonth IS NULL OR pr.reportMonth = :reportMonth) AND " +
-           "(:reportOrgId IS NULL OR pr.reportOrgId = :reportOrgId) AND " +
-           "(:reportOrgType IS NULL OR pr.reportOrgType = :reportOrgType) AND " +
-           "(:planId IS NULL OR pr.planId = :planId) AND " +
-           "(:status IS NULL OR pr.status = :status) AND " +
-           "pr.isDeleted = false")
+    @Query(value = """
+            SELECT * FROM plan_report pr
+            WHERE (CAST(:reportMonth AS text) IS NULL OR pr.report_month = CAST(:reportMonth AS text))
+              AND (CAST(:reportOrgId AS bigint) IS NULL OR pr.report_org_id = CAST(:reportOrgId AS bigint))
+              AND (CAST(:reportOrgType AS text) IS NULL OR pr.report_org_type = CAST(:reportOrgType AS text))
+              AND (CAST(:planId AS bigint) IS NULL OR pr.plan_id = CAST(:planId AS bigint))
+              AND (CAST(:status AS text) IS NULL OR pr.status = CAST(:status AS text))
+              AND pr.is_deleted = false
+            ORDER BY pr.created_at DESC
+            """, nativeQuery = true)
     Page<PlanReport> findByConditions(
             @Param("reportMonth") String reportMonth,
             @Param("reportOrgId") Long reportOrgId,

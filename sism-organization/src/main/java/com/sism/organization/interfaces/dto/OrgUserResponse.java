@@ -1,6 +1,4 @@
 package com.sism.organization.interfaces.dto;
-
-import com.sism.iam.domain.User;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,16 +26,4 @@ public class OrgUserResponse {
 
     @Schema(description = "Whether the account is active", example = "true")
     private Boolean isActive;
-
-    public static OrgUserResponse fromUser(User user) {
-        if (user == null) {
-            return null;
-        }
-        return OrgUserResponse.builder()
-                .id(user.getId())
-                .username(user.getUsername())
-                .realName(user.getRealName())
-                .isActive(user.getIsActive())
-                .build();
-    }
 }
