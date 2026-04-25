@@ -126,25 +126,33 @@ public class MessageCenterApplicationService {
     }
 
     private MessageCenterModels.Summary buildSummary(Aggregation aggregation) {
-        long todoCount = aggregation.items().stream()
-                .filter(item -> BIZ_APPROVAL_TODO.equals(item.bizType()))
-                .count();
-        long approvalResultUnread = aggregation.items().stream()
-                .filter(item -> BIZ_APPROVAL_RESULT.equals(item.bizType()))
-                .filter(item -> READ_UNREAD.equalsIgnoreCase(item.readState()))
-                .count();
-        long reminderUnread = aggregation.items().stream()
-                .filter(item -> BIZ_REMINDER_NOTICE.equals(item.bizType()))
-                .filter(item -> READ_UNREAD.equalsIgnoreCase(item.readState()))
-                .count();
-        long systemUnread = aggregation.items().stream()
-                .filter(item -> BIZ_SYSTEM_NOTICE.equals(item.bizType()) || BIZ_BUSINESS_NOTICE.equals(item.bizType()))
-                .filter(item -> READ_UNREAD.equalsIgnoreCase(item.readState()))
-                .count();
-        long riskUnread = aggregation.items().stream()
-                .filter(item -> CATEGORY_RISK.equals(item.category()))
-                .filter(item -> READ_UNREAD.equalsIgnoreCase(item.readState()))
-                .count();
+        long todoCount = 0;
+        long approvalResultUnread = 0;
+        long reminderUnread = 0;
+        long systemUnread = 0;
+        long riskUnread = 0;
+
+        for (MessageCenterModels.Item item : aggregation.items()) {
+            String bizType = item.bizType();
+            boolean unread = READ_UNREAD.equalsIgnoreCase(item.readState());
+
+            if (BIZ_APPROVAL_TODO.equals(bizType)) {
+                todoCount++;
+            }
+            if (BIZ_APPROVAL_RESULT.equals(bizType) && unread) {
+                approvalResultUnread++;
+            }
+            if (BIZ_REMINDER_NOTICE.equals(bizType) && unread) {
+                reminderUnread++;
+            }
+            if ((BIZ_SYSTEM_NOTICE.equals(bizType) || BIZ_BUSINESS_NOTICE.equals(bizType)) && unread) {
+                systemUnread++;
+            }
+            if (CATEGORY_RISK.equals(item.category()) && unread) {
+                riskUnread++;
+            }
+        }
+
         long approvalCount = todoCount + approvalResultUnread;
         long totalCount = todoCount + approvalResultUnread + reminderUnread + systemUnread + riskUnread;
 
