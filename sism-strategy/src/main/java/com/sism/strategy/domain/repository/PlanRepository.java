@@ -15,6 +15,10 @@ public interface PlanRepository {
 
     Optional<Plan> findById(Long id);
 
+    default List<Plan> findAllByIds(List<Long> ids) {
+        return List.of();
+    }
+
     List<Plan> findAll();
 
     Page<Plan> findPage(List<Long> cycleIds, List<String> statuses, Pageable pageable);

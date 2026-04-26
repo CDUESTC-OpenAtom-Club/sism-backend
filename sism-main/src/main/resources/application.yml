@@ -10,9 +10,9 @@ spring:
   
   # Database Configuration
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/sism_db}
-    username: ${DB_USERNAME:sism_user}
-    password: ${DB_PASSWORD:sism_pass}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${DB_HIKARI_MAX_POOL_SIZE:8}
@@ -56,11 +56,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: ${ACTUATOR_EXPOSED_ENDPOINTS:health}
       base-path: /api/v1/actuator
   endpoint:
     health:
-      show-details: when_authorized
+      show-details: ${ACTUATOR_HEALTH_SHOW_DETAILS:never}
   health:
     db:
       enabled: true
@@ -79,9 +79,15 @@ logging:
 springdoc:
   api-docs:
     path: /api-docs
+    enabled: ${SWAGGER_ENABLED:false}
   swagger-ui:
     path: /swagger-ui.html
-    enabled: true
+    enabled: ${SWAGGER_ENABLED:false}
+
+app:
+  security:
+    public-docs-enabled: ${PUBLIC_DOCS_ENABLED:${SWAGGER_ENABLED:false}}
+    public-actuator-enabled: ${PUBLIC_ACTUATOR_ENABLED:false}
 
 # JWT Configuration
 jwt:

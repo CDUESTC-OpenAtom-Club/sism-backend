@@ -60,7 +60,7 @@ class GlobalExceptionHandlerTest {
         ApiResponse<Void> body = response.getBody();
         assertNotNull(body);
         assertEquals(400, body.getCode());
-        assertEquals("shared failure", body.getMessage());
+        assertEquals("请求参数不合法", body.getMessage());
     }
 
     @Test
@@ -72,7 +72,7 @@ class GlobalExceptionHandlerTest {
         ApiResponse<Void> body = response.getBody();
         assertNotNull(body);
         assertEquals(1003, body.getCode());
-        assertEquals("legacy not found", body.getMessage());
+        assertEquals("资源不存在", body.getMessage());
     }
 
     @Test
@@ -84,7 +84,7 @@ class GlobalExceptionHandlerTest {
         ApiResponse<Void> body = response.getBody();
         assertNotNull(body);
         assertEquals(1003, body.getCode());
-        assertEquals("Plan with id '1' not found", body.getMessage());
+        assertEquals("资源不存在", body.getMessage());
     }
 
     @Test

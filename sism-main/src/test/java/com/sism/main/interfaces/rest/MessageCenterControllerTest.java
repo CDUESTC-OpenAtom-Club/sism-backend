@@ -77,7 +77,7 @@ class MessageCenterControllerTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals(400, response.getBody().getCode());
-        assertEquals("仅普通通知支持标记已读", response.getBody().getMessage());
+        assertEquals("当前消息不支持该操作", response.getBody().getMessage());
     }
 
     private CurrentUser currentUser(Long id) {

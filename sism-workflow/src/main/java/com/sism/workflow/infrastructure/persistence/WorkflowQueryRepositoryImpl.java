@@ -22,6 +22,11 @@ public class WorkflowQueryRepositoryImpl implements WorkflowQueryRepository {
     }
 
     @Override
+    public Optional<AuditInstance> findPendingAuditInstanceByStepIdAndUserId(Long stepInstanceId, Long userId) {
+        return jpaWorkflowRepository.findPendingAuditInstanceByStepIdAndUserId(stepInstanceId, userId);
+    }
+
+    @Override
     public List<AuditInstance> findPendingAuditInstancesByUserId(Long userId) {
         return jpaWorkflowRepository.findPendingAuditInstancesByUserId(userId);
     }
@@ -29,6 +34,16 @@ public class WorkflowQueryRepositoryImpl implements WorkflowQueryRepository {
     @Override
     public Page<AuditInstance> findPendingAuditInstancesByUserId(Long userId, Pageable pageable) {
         return jpaWorkflowRepository.findPendingAuditInstancesByUserId(userId, pageable);
+    }
+
+    @Override
+    public long countPendingTasksByUserId(Long userId) {
+        return jpaWorkflowRepository.countPendingTasksByUserId(userId);
+    }
+
+    @Override
+    public List<WorkflowQueryRepository.PendingTaskIdentity> findPendingTaskIdentitiesByUserId(Long userId) {
+        return jpaWorkflowRepository.findPendingTaskIdentitiesByUserId(userId);
     }
 
     @Override

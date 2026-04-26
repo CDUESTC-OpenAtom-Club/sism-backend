@@ -12,11 +12,15 @@ import com.sism.organization.domain.repository.OrganizationRepository;
 import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -31,6 +35,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "认证管理", description = "用户认证相关接口")
 public class AuthController {
 
@@ -43,7 +48,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     @Operation(summary = "用户登录")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -55,7 +60,7 @@ public class AuthController {
     @Operation(summary = "用户注册")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> register(
             @AuthenticationPrincipal CurrentUser currentUser,
-            @RequestBody RegisterRequest request) {
+            @Valid @RequestBody RegisterRequest request) {
         ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
         if (denied != null) {
             return denied;
@@ -332,8 +337,16 @@ public class AuthController {
 
     @lombok.Data
     public static class RegisterRequest {
+        @NotBlank(message = "用户名不能为空")
+        @Size(max = 64, message = "用户名长度不能超过64个字符")
         private String username;
+
+        @NotBlank(message = "密码不能为空")
+        @Size(min = 8, max = 128, message = "密码长度必须在8到128个字符之间")
         private String password;
+
+        @NotBlank(message = "姓名不能为空")
+        @Size(max = 64, message = "姓名长度不能超过64个字符")
         private String realName;
     }
 
@@ -357,6 +370,7 @@ public class AuthController {
 
     @lombok.Data
     public static class RefreshTokenRequest {
+        @NotBlank(message = "刷新令牌不能为空")
         private String refreshToken;
     }
 
@@ -468,15 +482,12 @@ public class AuthController {
     @PostMapping("/refresh")
     @Operation(summary = "刷新访问令牌")
     public ResponseEntity<ApiResponse<Map<String, Object>>> refreshToken(
-            @RequestBody RefreshTokenRequest request) {
-        if (request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Refresh token is required"));
-        }
+            @Valid @RequestBody RefreshTokenRequest request) {
         try {
             Map<String, Object> result = authService.refreshToken(request.getRefreshToken());
             return ResponseEntity.ok(ApiResponse.success(result));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "刷新令牌无效或已过期"));
         }
     }
 }

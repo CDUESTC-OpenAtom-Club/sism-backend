@@ -17,6 +17,9 @@ public interface JpaUserRepositoryInternal extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = "roles")
     Optional<User> findById(Long id);
 
+    @EntityGraph(attributePaths = "roles")
+    List<User> findByIdIn(List<Long> ids);
+
     @Override
     @EntityGraph(attributePaths = "roles")
     Page<User> findAll(Pageable pageable);

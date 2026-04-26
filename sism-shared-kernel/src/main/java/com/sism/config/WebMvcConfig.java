@@ -1,5 +1,6 @@
 package com.sism.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
@@ -12,6 +13,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * This ensures SpringDoc's Swagger UI resources are properly served.
  */
 @Configuration
+@ConditionalOnProperty(prefix = "springdoc.swagger-ui", name = "enabled", havingValue = "true")
 public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override

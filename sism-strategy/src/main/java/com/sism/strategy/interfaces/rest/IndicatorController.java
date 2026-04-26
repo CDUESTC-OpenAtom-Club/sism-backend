@@ -19,6 +19,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,6 +33,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -49,6 +54,7 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping("/api/v1/indicators")
 @RequiredArgsConstructor
+@Validated
 @PreAuthorize("isAuthenticated()")
 @Tag(name = "指标管理", description = "指标管理相关接口")
 public class IndicatorController {
@@ -129,7 +135,7 @@ public class IndicatorController {
     @PreAuthorize(INDICATOR_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendIndicatorReminder(
             @PathVariable Long id,
-            @RequestBody(required = false) ReminderRequest request,
+            @Valid @RequestBody(required = false) ReminderRequest request,
             @AuthenticationPrincipal CurrentUser currentUser) {
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
@@ -171,16 +177,16 @@ public class IndicatorController {
             response.put("cooldownUntil", result.cooldownUntil());
             return ResponseEntity.ok(ApiResponse.success("催办通知发送成功", response));
         } catch (IllegalStateException ex) {
-            return ResponseEntity.status(409).body(ApiResponse.error(409, ex.getMessage()));
+            return ResponseEntity.status(409).body(ApiResponse.error(409, "当前指标暂不允许催办"));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "催办请求不合法"));
         }
     }
 
     @PostMapping("/reminders/statuses")
     @Operation(summary = "批量查询指标催办状态", description = "按当前用户维度查询指标最近一次催办状态")
     public ResponseEntity<ApiResponse<List<ReminderStatusResponse>>> getIndicatorReminderStatuses(
-            @RequestBody ReminderStatusQueryRequest request,
+            @Valid @RequestBody ReminderStatusQueryRequest request,
             @AuthenticationPrincipal CurrentUser currentUser) {
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
@@ -259,7 +265,7 @@ public class IndicatorController {
     @Operation(summary = "更新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> updateIndicator(
             @PathVariable Long id,
-            @RequestBody UpdateIndicatorRequest request) {
+            @Valid @RequestBody UpdateIndicatorRequest request) {
         SysOrg ownerOrg = request.getOwnerOrgId() != null
                 ? organizationRepository.findById(request.getOwnerOrgId())
                     .orElseThrow(() -> new IllegalArgumentException("责任组织未找到: " + request.getOwnerOrgId()))
@@ -341,7 +347,7 @@ public class IndicatorController {
     @Operation(summary = "拒绝指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicator(
             @PathVariable Long id,
-            @RequestBody RejectRequest request) {
+            @Valid @RequestBody RejectRequest request) {
         Indicator indicator;
         try {
             indicator = strategyApplicationService.getIndicatorById(id);
@@ -358,7 +364,7 @@ public class IndicatorController {
     @Operation(summary = "拒绝指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicatorAlias(
             @PathVariable Long id,
-            @RequestBody(required = false) RejectRequest request) {
+            @Valid @RequestBody(required = false) RejectRequest request) {
         return rejectIndicator(id, request != null ? request : new RejectRequest());
     }
 
@@ -590,7 +596,7 @@ public class IndicatorController {
     @Operation(summary = "终止指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> terminateIndicator(
             @PathVariable Long id,
-            @RequestBody TerminateRequest request) {
+            @Valid @RequestBody TerminateRequest request) {
         Indicator terminated = strategyApplicationService.terminateIndicator(id, request.getReason());
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(terminated)));
     }
@@ -1003,51 +1009,84 @@ public class IndicatorController {
 
     @Data
     public static class CreateIndicatorRequest {
+        @Size(max = 255, message = "指标名称长度不能超过255个字符")
         private String indicatorName;
 
+        @Size(max = 64, message = "指标编码长度不能超过64个字符")
         private String indicatorCode;
 
+        @Size(max = 1000, message = "指标描述长度不能超过1000个字符")
         private String description;
+        @Size(max = 1000, message = "指标描述长度不能超过1000个字符")
         private String indicatorDesc;
+        @Size(max = 64, message = "指标类型长度不能超过64个字符")
         private String type;
+        @Size(max = 64, message = "指标类型长度不能超过64个字符")
         private String indicatorType;
+        @Size(max = 64, message = "指标类型长度不能超过64个字符")
         private String type1;
+        @Positive(message = "任务ID必须为正数")
         private Long taskId;
+        @Positive(message = "父指标ID必须为正数")
         private Long parentIndicatorId;
+        @Positive(message = "责任组织ID必须为正数")
         private Long ownerOrgId;
+        @Positive(message = "目标组织ID必须为正数")
         private Long targetOrgId;
+        @DecimalMin(value = "0", message = "权重不能小于0")
+        @DecimalMax(value = "100", message = "权重不能大于100")
         private BigDecimal weightPercent;
+        @jakarta.validation.constraints.Min(value = 0, message = "排序值不能小于0")
         private Integer sortOrder;
+        @Size(max = 500, message = "备注长度不能超过500个字符")
         private String remark;
+        @jakarta.validation.constraints.Min(value = 0, message = "进度不能小于0")
+        @jakarta.validation.constraints.Max(value = 100, message = "进度不能大于100")
         private Integer progress;
 
+        @Positive(message = "周期ID必须为正数")
         private Long cycleId;
 
+        @Positive(message = "部门ID必须为正数")
         private Long departmentId;
 
         @DecimalMin(value = "0", message = "Target value must be positive")
         @DecimalMax(value = "100", message = "Target value cannot exceed 100")
         private BigDecimal targetValue;
 
+        @Size(max = 32, message = "单位长度不能超过32个字符")
         private String unit;
+        @Size(max = 64, message = "维度长度不能超过64个字符")
         private String dimension; // FINANCIAL, OPERATION, etc.
     }
 
     @Data
     public static class RejectRequest {
+        @Size(max = 500, message = "驳回原因长度不能超过500个字符")
         private String reason;
     }
 
     @Data
     public static class UpdateIndicatorRequest {
+        @Size(max = 255, message = "指标名称长度不能超过255个字符")
         private String indicatorName;
+        @Size(max = 1000, message = "指标描述长度不能超过1000个字符")
         private String indicatorDesc;
+        @Positive(message = "任务ID必须为正数")
         private Long taskId;
+        @Positive(message = "责任组织ID必须为正数")
         private Long ownerOrgId;
+        @Positive(message = "目标组织ID必须为正数")
         private Long targetOrgId;
+        @DecimalMin(value = "0", message = "权重不能小于0")
+        @DecimalMax(value = "100", message = "权重不能大于100")
         private BigDecimal weightPercent;
+        @jakarta.validation.constraints.Min(value = 0, message = "进度不能小于0")
+        @jakarta.validation.constraints.Max(value = 100, message = "进度不能大于100")
         private Integer progress;
+        @jakarta.validation.constraints.Min(value = 0, message = "排序值不能小于0")
         private Integer sortOrder;
+        @Size(max = 500, message = "备注长度不能超过500个字符")
         private String remark;
     }
 
@@ -1068,6 +1107,7 @@ public class IndicatorController {
 
     @Data
     public static class TerminateRequest {
+        @Size(max = 500, message = "终止原因长度不能超过500个字符")
         private String reason;
     }
 
@@ -1110,7 +1150,10 @@ public class IndicatorController {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ReminderRequest {
+        @Size(max = 500, message = "催办原因长度不能超过500个字符")
         private String reason;
+        @NotBlank(message = "催办来源不能为空")
+        @Size(max = 32, message = "催办来源长度不能超过32个字符")
         private String source = "DASHBOARD";
     }
 
@@ -1118,7 +1161,8 @@ public class IndicatorController {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ReminderStatusQueryRequest {
-        private List<Long> indicatorIds;
+        @NotEmpty(message = "indicatorIds不能为空")
+        private List<@Positive(message = "指标ID必须为正数") Long> indicatorIds;
     }
 
     @Data

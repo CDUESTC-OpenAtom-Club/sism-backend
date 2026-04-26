@@ -23,6 +23,14 @@ public class JpaOrganizationRepository implements OrganizationRepository {
     }
 
     @Override
+    public List<SysOrg> findAllByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findAllById(ids);
+    }
+
+    @Override
     public List<SysOrg> findAll() {
         return jpaRepository.findAll();
     }

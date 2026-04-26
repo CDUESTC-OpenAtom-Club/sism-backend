@@ -12,11 +12,16 @@ import com.sism.organization.domain.repository.OrganizationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -34,6 +39,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/roles")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "角色权限管理", description = "角色和权限管理接口")
 public class RoleManagementController {
 
@@ -114,7 +120,7 @@ public class RoleManagementController {
             );
             return ResponseEntity.ok(ApiResponse.success(convertToResponse(role, 0, 0)));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "角色参数不合法"));
         }
     }
 
@@ -149,7 +155,7 @@ public class RoleManagementController {
                     roleManagementService.countPermissionsByRoleId(role.getId())
             )));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "角色参数不合法"));
         }
     }
 
@@ -173,7 +179,7 @@ public class RoleManagementController {
             roleManagementService.deleteRole(id);
             return ResponseEntity.ok(ApiResponse.success(null));
         } catch (IllegalStateException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "当前角色状态不允许删除"));
         }
     }
 
@@ -208,7 +214,7 @@ public class RoleManagementController {
                     roleManagementService.countPermissionsByRoleId(role.getId())
             )));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "角色权限参数不合法"));
         }
     }
 
@@ -254,7 +260,7 @@ public class RoleManagementController {
             roleManagementService.removePermission(id, permissionId);
             return ResponseEntity.ok(ApiResponse.success(null));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "角色权限参数不合法"));
         }
     }
 
@@ -307,17 +313,29 @@ public class RoleManagementController {
 
     @lombok.Data
     public static class CreateRoleRequest {
-        @lombok.NonNull
+        @NotBlank(message = "roleCode is required")
+        @Size(max = 64, message = "roleCode must not exceed 64 characters")
+        @Pattern(regexp = "[A-Za-z0-9_:-]+", message = "roleCode contains unsupported characters")
         private String roleCode;
-        @lombok.NonNull
+
+        @NotBlank(message = "roleName is required")
+        @Size(max = 64, message = "roleName must not exceed 64 characters")
         private String roleName;
+
+        @Size(max = 255, message = "description must not exceed 255 characters")
         private String description;
     }
 
     @lombok.Data
     public static class UpdateRoleRequest {
+        @Size(min = 2, max = 64, message = "roleCode length must be between 2 and 64 characters")
+        @Pattern(regexp = "[A-Za-z0-9_:-]+", message = "roleCode contains unsupported characters")
         private String roleCode;
+
+        @Size(min = 2, max = 64, message = "roleName length must be between 2 and 64 characters")
         private String roleName;
+
+        @Size(max = 255, message = "description must not exceed 255 characters")
         private String description;
     }
 
@@ -345,6 +363,6 @@ public class RoleManagementController {
     @lombok.Data
     public static class AssignPermissionsRequest {
         @NotEmpty(message = "permissionIds is required")
-        private List<Long> permissionIds;
+        private List<@NotNull(message = "permissionId must not be null") Long> permissionIds;
     }
 }

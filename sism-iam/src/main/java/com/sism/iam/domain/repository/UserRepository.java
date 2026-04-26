@@ -20,6 +20,10 @@ public interface UserRepository {
      */
     Optional<User> findById(Long id);
 
+    default List<User> findAllByIds(List<Long> ids) {
+        return List.of();
+    }
+
     /**
      * 查询所有用户
      */

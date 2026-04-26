@@ -76,6 +76,7 @@ public class WorkflowReadModelService {
         Map<Long, String> orgNameCache = new HashMap<>();
         Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
         Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+        primeReadModelCaches(page.getContent(), userNameCache, orgNameCache, businessContextCache);
         List<WorkflowInstanceResponse> items = page.getContent().stream()
                 .map(instance -> buildInstanceSummary(instance, userNameCache, orgNameCache, flowDefCache, businessContextCache))
                 .toList();
@@ -126,24 +127,57 @@ public class WorkflowReadModelService {
     }
 
     public PageResult<WorkflowTaskResponse> getMyPendingTasks(Long userId, int pageNum) {
-        int pageSize = 10;
+        return getMyPendingTasks(userId, pageNum, 10);
+    }
+
+    public PageResult<WorkflowTaskResponse> getMyPendingTasks(Long userId, int pageNum, int pageSize) {
         int safePageNum = Math.max(pageNum, 1);
-        Pageable pageable = PageRequest.of(safePageNum - 1, pageSize);
+        int safePageSize = Math.max(pageSize, 1);
+        Pageable pageable = PageRequest.of(safePageNum - 1, safePageSize);
         Page<AuditInstance> pendingPage = workflowQueryRepository.findPendingAuditInstancesByUserId(userId, pageable);
         Map<Long, String> orgNameCache = new HashMap<>();
         Map<Long, String> userNameCache = new HashMap<>();
         Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
         Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+        primeReadModelCaches(pendingPage.getContent(), userNameCache, orgNameCache, businessContextCache);
 
         List<WorkflowTaskResponse> tasks = pendingPage.getContent().stream()
                 .flatMap(instance -> instance.getStepInstances().stream()
-                        .filter(step -> AuditInstance.STEP_STATUS_PENDING.equals(step.getStatus()))
-                        .filter(step -> Objects.equals(step.getApproverId(), userId))
-                        .map(step -> enrichTaskResponse(instance, step, orgNameCache, userNameCache, flowDefCache, businessContextCache)))
+                .filter(step -> AuditInstance.STEP_STATUS_PENDING.equals(step.getStatus()))
+                .filter(step -> Objects.equals(step.getApproverId(), userId))
+                .map(step -> enrichTaskResponse(instance, step, orgNameCache, userNameCache, flowDefCache, businessContextCache)))
                 .sorted(Comparator.comparing(WorkflowTaskResponse::getCreatedTime,
                         Comparator.nullsLast(Comparator.reverseOrder())))
                 .toList();
-        return PageResult.of(tasks, pendingPage.getTotalElements(), safePageNum, pageSize);
+        return PageResult.of(tasks, pendingPage.getTotalElements(), safePageNum, safePageSize);
+    }
+
+    public long countMyPendingTasks(Long userId) {
+        return workflowQueryRepository.countPendingTasksByUserId(userId);
+    }
+
+    public List<WorkflowQueryRepository.PendingTaskIdentity> listPendingTaskIdentities(Long userId) {
+        return workflowQueryRepository.findPendingTaskIdentitiesByUserId(userId);
+    }
+
+    public Optional<WorkflowTaskResponse> findMyPendingTaskById(Long userId, String taskId) {
+        Long stepInstanceId = toLong(taskId);
+        if (stepInstanceId == null) {
+            return Optional.empty();
+        }
+
+        Map<Long, String> orgNameCache = new HashMap<>();
+        Map<Long, String> userNameCache = new HashMap<>();
+        Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
+        Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+
+        return workflowQueryRepository.findPendingAuditInstanceByStepIdAndUserId(stepInstanceId, userId)
+                .flatMap(instance -> instance.getStepInstances().stream()
+                        .filter(step -> Objects.equals(step.getId(), stepInstanceId))
+                        .filter(step -> AuditInstance.STEP_STATUS_PENDING.equals(step.getStatus()))
+                        .filter(step -> Objects.equals(step.getApproverId(), userId))
+                        .findFirst()
+                        .map(step -> enrichTaskResponse(instance, step, orgNameCache, userNameCache, flowDefCache, businessContextCache)));
     }
 
     public PageResult<WorkflowInstanceResponse> getMyApprovedInstances(Long userId, int pageNum, int pageSize) {
@@ -157,6 +191,7 @@ public class WorkflowReadModelService {
         Map<Long, String> orgNameCache = new HashMap<>();
         Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
         Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+        primeReadModelCaches(page.getContent(), userNameCache, orgNameCache, businessContextCache);
 
         List<WorkflowInstanceResponse> items = page.getContent().stream()
                 .map(instance -> buildInstanceSummary(instance, userNameCache, orgNameCache, flowDefCache, businessContextCache))
@@ -179,6 +214,7 @@ public class WorkflowReadModelService {
         Map<Long, String> orgNameCache = new HashMap<>();
         Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
         Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+        primeReadModelCaches(page.getContent(), userNameCache, orgNameCache, businessContextCache);
 
         List<WorkflowInstanceResponse> items = page.getContent().stream()
                 .map(instance -> buildInstanceSummary(instance, userNameCache, orgNameCache, flowDefCache, businessContextCache))
@@ -194,6 +230,7 @@ public class WorkflowReadModelService {
         Map<Long, String> orgNameCache = new HashMap<>();
         Map<Long, AuditFlowDef> flowDefCache = new HashMap<>();
         Map<String, WorkflowBusinessContext> businessContextCache = new HashMap<>();
+        primeReadModelCaches(List.of(instance), userNameCache, orgNameCache, businessContextCache);
 
         WorkflowInstanceResponse summary = buildInstanceSummary(
                 instance,
@@ -479,6 +516,92 @@ public class WorkflowReadModelService {
                 targetOrgName,
                 displayName.trim()
         );
+    }
+
+    private void primeReadModelCaches(
+            List<AuditInstance> instances,
+            Map<Long, String> userNameCache,
+            Map<Long, String> orgNameCache,
+            Map<String, WorkflowBusinessContext> businessContextCache) {
+        if (instances == null || instances.isEmpty()) {
+            return;
+        }
+
+        List<Long> planIds = instances.stream()
+                .filter(Objects::nonNull)
+                .filter(instance -> PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType()))
+                .map(AuditInstance::getEntityId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<Long, Plan> planById = planRepository.findAllByIds(planIds).stream()
+                .collect(Collectors.toMap(Plan::getId, plan -> plan, (left, right) -> left, LinkedHashMap::new));
+
+        Set<Long> orgIds = new java.util.LinkedHashSet<>();
+        Set<Long> userIds = new java.util.LinkedHashSet<>();
+
+        for (AuditInstance instance : instances) {
+            if (instance == null) {
+                continue;
+            }
+            if (instance.getRequesterId() != null) {
+                userIds.add(instance.getRequesterId());
+            }
+            if (instance.getRequesterOrgId() != null) {
+                orgIds.add(instance.getRequesterOrgId());
+            }
+            if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+                Plan plan = planById.get(instance.getEntityId());
+                if (plan != null) {
+                    if (plan.getCreatedByOrgId() != null) {
+                        orgIds.add(plan.getCreatedByOrgId());
+                    }
+                    if (plan.getTargetOrgId() != null) {
+                        orgIds.add(plan.getTargetOrgId());
+                    }
+                }
+            }
+            if (instance.getStepInstances() != null) {
+                for (AuditStepInstance step : instance.getStepInstances()) {
+                    if (step.getApproverId() != null) {
+                        userIds.add(step.getApproverId());
+                    }
+                    if (step.getApproverOrgId() != null) {
+                        orgIds.add(step.getApproverOrgId());
+                    }
+                }
+            }
+        }
+
+        organizationRepository.findAllByIds(List.copyOf(orgIds)).forEach(org -> {
+            if (org.getId() != null) {
+                String orgName = org.getName() != null && !org.getName().isBlank() ? org.getName() : "Org#" + org.getId();
+                orgNameCache.put(org.getId(), orgName);
+            }
+        });
+
+        userRepository.findAllByIds(List.copyOf(userIds)).forEach(user -> {
+            if (user.getId() != null) {
+                String userName = user.getRealName() != null && !user.getRealName().isBlank()
+                        ? user.getRealName()
+                        : (user.getUsername() == null || user.getUsername().isBlank() ? "User#" + user.getId() : user.getUsername());
+                userNameCache.put(user.getId(), userName);
+            }
+        });
+
+        for (AuditInstance instance : instances) {
+            if (instance == null || !PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+                continue;
+            }
+            Plan plan = planById.get(instance.getEntityId());
+            if (plan != null) {
+                businessContextCache.put(buildBusinessContextKey(instance.getEntityType(), instance.getEntityId()), buildPlanContext(plan, orgNameCache));
+            }
+        }
+    }
+
+    private String buildBusinessContextKey(String entityType, Long entityId) {
+        return String.join(":", String.valueOf(entityType), String.valueOf(entityId));
     }
 
     private AuditFlowDef resolveFlowDef(Long flowDefId, Map<Long, AuditFlowDef> flowDefCache) {

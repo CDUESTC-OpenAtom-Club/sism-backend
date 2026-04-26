@@ -15,6 +15,34 @@ public interface UserNotificationRepository {
 
     Page<UserNotification> findByRecipientUserIdAndStatus(Long recipientUserId, String status, Pageable pageable);
 
+    Page<UserNotification> findApprovalLikeByRecipientUserId(Long recipientUserId, Pageable pageable);
+
+    Page<UserNotification> findReminderByRecipientUserId(Long recipientUserId, Pageable pageable);
+
+    Page<UserNotification> findByRecipientUserIdAndKeyword(Long recipientUserId, String keyword, Pageable pageable);
+
+    Page<UserNotification> findApprovalLikeByRecipientUserIdAndKeyword(Long recipientUserId, String keyword, Pageable pageable);
+
+    Page<UserNotification> findReminderByRecipientUserIdAndKeyword(Long recipientUserId, String keyword, Pageable pageable);
+
+    long countByRecipientUserId(Long recipientUserId);
+
+    long countByRecipientUserIdAndStatus(Long recipientUserId, String status);
+
+    long countByRecipientUserIdAndKeyword(Long recipientUserId, String keyword);
+
+    long countApprovalLikeByRecipientUserId(Long recipientUserId);
+
+    long countApprovalLikeUnreadByRecipientUserId(Long recipientUserId);
+
+    long countApprovalLikeByRecipientUserIdAndKeyword(Long recipientUserId, String keyword);
+
+    long countReminderByRecipientUserId(Long recipientUserId);
+
+    long countReminderByRecipientUserIdAndStatus(Long recipientUserId, String status);
+
+    long countReminderByRecipientUserIdAndKeyword(Long recipientUserId, String keyword);
+
     Optional<UserNotification> findByIdAndRecipientUserId(Long id, Long recipientUserId);
 
     List<UserNotification> saveAll(List<UserNotification> notifications);

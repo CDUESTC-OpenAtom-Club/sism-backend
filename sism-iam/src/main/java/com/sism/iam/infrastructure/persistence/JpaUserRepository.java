@@ -25,6 +25,14 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public List<User> findAllByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByIdIn(ids);
+    }
+
+    @Override
     public List<User> findAll() {
         return jpaRepository.findAll();
     }

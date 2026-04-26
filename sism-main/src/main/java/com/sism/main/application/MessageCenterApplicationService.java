@@ -5,6 +5,7 @@ import com.sism.iam.domain.UserNotification;
 import com.sism.iam.domain.repository.UserNotificationRepository;
 import com.sism.main.interfaces.dto.MessageCenterModels;
 import com.sism.workflow.application.query.WorkflowReadModelService;
+import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
 import com.sism.workflow.interfaces.dto.PageResult;
 import com.sism.workflow.interfaces.dto.WorkflowTaskResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 public class MessageCenterApplicationService {
 
     private static final int NOTIFICATION_BATCH_SIZE = 200;
+    private static final int MERGE_BATCH_MULTIPLIER = 2;
     private static final String CATEGORY_ALL = "ALL";
     private static final String CATEGORY_TODO = "TODO";
     private static final String CATEGORY_APPROVAL = "APPROVAL";
@@ -55,8 +56,46 @@ public class MessageCenterApplicationService {
     private final WorkflowReadModelService workflowReadModelService;
 
     public MessageCenterModels.Summary getSummary(Long userId) {
-        Aggregation aggregation = aggregate(userId);
-        return buildSummary(aggregation);
+        List<String> unavailableSources = new ArrayList<>();
+        boolean partialSuccess = false;
+        long todoCount = 0;
+        long approvalResultUnread = 0;
+        long reminderUnread = 0;
+        long systemUnread = 0;
+        long riskUnread = 0;
+
+        try {
+            todoCount = workflowReadModelService.countMyPendingTasks(userId);
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("workflow");
+        }
+
+        try {
+            long unreadTotal = userNotificationRepository.countByRecipientUserIdAndStatus(userId, READ_UNREAD);
+            approvalResultUnread = userNotificationRepository.countApprovalLikeUnreadByRecipientUserId(userId);
+            reminderUnread = userNotificationRepository.countReminderByRecipientUserIdAndStatus(userId, READ_UNREAD);
+            systemUnread = Math.max(unreadTotal - approvalResultUnread - reminderUnread, 0);
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("notifications");
+        }
+
+        long approvalCount = todoCount + approvalResultUnread;
+        long totalCount = todoCount + approvalResultUnread + reminderUnread + systemUnread + riskUnread;
+
+        return new MessageCenterModels.Summary(
+                totalCount,
+                todoCount,
+                approvalCount,
+                reminderUnread,
+                systemUnread,
+                riskUnread,
+                defaultCapabilities(),
+                LocalDateTime.now(),
+                partialSuccess,
+                List.copyOf(unavailableSources)
+        );
     }
 
     public MessageCenterModels.ListResponse getMessages(
@@ -66,29 +105,273 @@ public class MessageCenterApplicationService {
             int pageSize,
             String keyword,
             Boolean includeRisk) {
-        Aggregation aggregation = aggregate(userId);
-        List<MessageCenterModels.Item> filteredItems = aggregation.items().stream()
-                .filter(item -> matchesCategory(item, category))
-                .filter(item -> matchesKeyword(item, keyword))
-                .filter(item -> shouldInclude(item, includeRisk))
-                .toList();
-
         int safePageNum = Math.max(pageNum, 1);
         int safePageSize = Math.max(pageSize, 1);
-        int startIndex = Math.min((safePageNum - 1) * safePageSize, filteredItems.size());
-        int endIndex = Math.min(startIndex + safePageSize, filteredItems.size());
-        int totalPages = filteredItems.isEmpty() ? 0 : (int) Math.ceil((double) filteredItems.size() / safePageSize);
+        String normalizedCategory = normalize(category);
+        if (requiresKeywordOptimizedPath(keyword, includeRisk)) {
+            return buildKeywordListResponse(userId, normalizedCategory, safePageNum, safePageSize, keyword);
+        }
+        if (requiresLegacyAggregation(normalizedCategory, includeRisk)) {
+            return buildLegacyListResponse(userId, normalizedCategory, safePageNum, safePageSize, keyword, includeRisk);
+        }
+
+        return switch (normalizedCategory) {
+            case CATEGORY_TODO -> buildTodoListResponse(userId, safePageNum, safePageSize);
+            case CATEGORY_APPROVAL -> buildApprovalListResponse(userId, safePageNum, safePageSize);
+            case CATEGORY_REMINDER -> buildReminderListResponse(userId, safePageNum, safePageSize);
+            case CATEGORY_SYSTEM -> buildSystemListResponse(userId, safePageNum, safePageSize);
+            case CATEGORY_ALL, "" -> buildAllListResponse(userId, safePageNum, safePageSize);
+            default -> buildLegacyListResponse(userId, normalizedCategory, safePageNum, safePageSize, keyword, includeRisk);
+        };
+    }
+
+    private MessageCenterModels.ListResponse buildKeywordListResponse(
+            Long userId,
+            String normalizedCategory,
+            int safePageNum,
+            int safePageSize,
+            String keyword) {
+        return switch (normalizedCategory) {
+            case CATEGORY_TODO -> buildKeywordTodoListResponse(userId, safePageNum, safePageSize, keyword);
+            case CATEGORY_APPROVAL -> buildKeywordApprovalListResponse(userId, safePageNum, safePageSize, keyword);
+            case CATEGORY_REMINDER -> buildKeywordReminderListResponse(userId, safePageNum, safePageSize, keyword);
+            case CATEGORY_SYSTEM -> buildKeywordSystemListResponse(userId, safePageNum, safePageSize, keyword);
+            case CATEGORY_ALL, "" -> buildKeywordAllListResponse(userId, safePageNum, safePageSize, keyword);
+            default -> buildLegacyListResponse(userId, normalizedCategory, safePageNum, safePageSize, keyword, false);
+        };
+    }
+
+    private MessageCenterModels.ListResponse buildAllListResponse(Long userId, int safePageNum, int safePageSize) {
+        int endIndex = safePageNum * safePageSize;
+        List<String> unavailableSources = new ArrayList<>();
+        boolean partialSuccess = false;
+        List<MessageCenterModels.Item> workflowItems = List.of();
+        NotificationCandidateResult notificationResult = NotificationCandidateResult.empty();
+        WorkflowIdentityLookup workflowLookup = WorkflowIdentityLookup.empty();
+        long workflowTotal = 0;
+        long notificationTotal = 0;
+        long duplicateApprovalCount = 0;
+
+        try {
+            workflowTotal = workflowReadModelService.countMyPendingTasks(userId);
+            workflowItems = loadWorkflowCandidates(userId, endIndex);
+            workflowLookup = WorkflowIdentityLookup.fromItems(workflowItems);
+            if (workflowLookup.isEmpty()) {
+                workflowLookup = WorkflowIdentityLookup.from(workflowReadModelService.listPendingTaskIdentities(userId));
+            }
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("workflow");
+        }
+
+        try {
+            notificationTotal = userNotificationRepository.countByRecipientUserId(userId);
+            if (!workflowLookup.isEmpty()) {
+                duplicateApprovalCount = countDuplicateApprovalNotifications(userId, workflowLookup);
+            }
+            notificationResult = loadNotificationCandidates(userId, endIndex, workflowLookup);
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("notifications");
+        }
+
+        List<MessageCenterModels.Item> mergedItems = mergeAndSortItems(workflowItems, notificationResult.items());
+        int startIndex = Math.min((safePageNum - 1) * safePageSize, mergedItems.size());
+        int pageEndIndex = Math.min(startIndex + safePageSize, mergedItems.size());
+        long total = Math.max(workflowTotal + notificationTotal - duplicateApprovalCount, mergedItems.size());
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
 
         return new MessageCenterModels.ListResponse(
-                filteredItems.subList(startIndex, endIndex),
-                filteredItems.size(),
+                mergedItems.subList(startIndex, pageEndIndex),
+                total,
                 safePageNum,
                 safePageSize,
                 totalPages,
-                aggregation.partialSuccess(),
-                aggregation.unavailableSources(),
-                aggregation.capabilities()
+                partialSuccess,
+                List.copyOf(unavailableSources),
+                defaultCapabilities()
         );
+    }
+
+    private MessageCenterModels.ListResponse buildTodoListResponse(Long userId, int safePageNum, int safePageSize) {
+        try {
+            long total = workflowReadModelService.countMyPendingTasks(userId);
+            int endIndex = safePageNum * safePageSize;
+            List<MessageCenterModels.Item> items = loadWorkflowCandidates(userId, endIndex);
+            return pageItems(items, total, safePageNum, safePageSize, false, List.of());
+        } catch (RuntimeException ex) {
+            return emptyListResponse(safePageNum, safePageSize, true, List.of("workflow"));
+        }
+    }
+
+    private MessageCenterModels.ListResponse buildApprovalListResponse(Long userId, int safePageNum, int safePageSize) {
+        int endIndex = safePageNum * safePageSize;
+        List<String> unavailableSources = new ArrayList<>();
+        boolean partialSuccess = false;
+        List<MessageCenterModels.Item> workflowItems = List.of();
+        WorkflowIdentityLookup workflowLookup = WorkflowIdentityLookup.empty();
+        long workflowTotal = 0;
+        long approvalNotificationTotal = 0;
+        long duplicateApprovalCount = 0;
+        NotificationCandidateResult notificationResult = NotificationCandidateResult.empty();
+
+        try {
+            workflowTotal = workflowReadModelService.countMyPendingTasks(userId);
+            workflowItems = loadWorkflowCandidates(userId, endIndex);
+            workflowLookup = WorkflowIdentityLookup.fromItems(workflowItems);
+            if (workflowLookup.isEmpty()) {
+                workflowLookup = WorkflowIdentityLookup.from(workflowReadModelService.listPendingTaskIdentities(userId));
+            }
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("workflow");
+        }
+
+        try {
+            approvalNotificationTotal = userNotificationRepository.countApprovalLikeByRecipientUserId(userId);
+            if (!workflowLookup.isEmpty()) {
+                duplicateApprovalCount = countDuplicateApprovalNotifications(userId, workflowLookup);
+            }
+            notificationResult = loadApprovalNotificationCandidates(userId, endIndex, workflowLookup);
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("notifications");
+        }
+
+        List<MessageCenterModels.Item> mergedItems = mergeAndSortItems(workflowItems, notificationResult.items());
+        long total = Math.max(workflowTotal + approvalNotificationTotal - duplicateApprovalCount, mergedItems.size());
+        return pageItems(mergedItems, total, safePageNum, safePageSize, partialSuccess, unavailableSources);
+    }
+
+    private MessageCenterModels.ListResponse buildKeywordAllListResponse(Long userId, int safePageNum, int safePageSize, String keyword) {
+        int endIndex = safePageNum * safePageSize;
+        List<String> unavailableSources = new ArrayList<>();
+        boolean partialSuccess = false;
+        WorkflowKeywordResult workflowResult = WorkflowKeywordResult.empty();
+        WorkflowIdentityLookup workflowLookup = WorkflowIdentityLookup.empty();
+        NotificationCandidateResult notificationResult = NotificationCandidateResult.empty();
+        long notificationTotal = 0;
+        long duplicateApprovalCount = 0;
+
+        try {
+            workflowResult = loadWorkflowKeywordMatches(userId, keyword, endIndex);
+            workflowLookup = WorkflowIdentityLookup.fromItems(workflowResult.items());
+            if (workflowLookup.isEmpty()) {
+                workflowLookup = WorkflowIdentityLookup.from(workflowReadModelService.listPendingTaskIdentities(userId));
+            }
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("workflow");
+        }
+
+        try {
+            notificationTotal = userNotificationRepository.countByRecipientUserIdAndKeyword(userId, keyword);
+            if (!workflowLookup.isEmpty()) {
+                duplicateApprovalCount = countDuplicateApprovalNotificationsByKeyword(userId, keyword, workflowLookup);
+            }
+            notificationResult = loadNotificationKeywordCandidates(userId, keyword, endIndex, workflowLookup);
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("notifications");
+        }
+
+        List<MessageCenterModels.Item> mergedItems = mergeAndSortItems(workflowResult.items(), notificationResult.items());
+        long total = Math.max(workflowResult.total() + notificationTotal - duplicateApprovalCount, mergedItems.size());
+        return pageItems(mergedItems, total, safePageNum, safePageSize, partialSuccess, unavailableSources);
+    }
+
+    private MessageCenterModels.ListResponse buildKeywordTodoListResponse(Long userId, int safePageNum, int safePageSize, String keyword) {
+        try {
+            WorkflowKeywordResult workflowResult = loadWorkflowKeywordMatches(userId, keyword, safePageNum * safePageSize);
+            return pageItems(workflowResult.items(), workflowResult.total(), safePageNum, safePageSize, false, List.of());
+        } catch (RuntimeException ex) {
+            return emptyListResponse(safePageNum, safePageSize, true, List.of("workflow"));
+        }
+    }
+
+    private MessageCenterModels.ListResponse buildKeywordApprovalListResponse(Long userId, int safePageNum, int safePageSize, String keyword) {
+        int endIndex = safePageNum * safePageSize;
+        List<String> unavailableSources = new ArrayList<>();
+        boolean partialSuccess = false;
+        WorkflowKeywordResult workflowResult = WorkflowKeywordResult.empty();
+        WorkflowIdentityLookup workflowLookup = WorkflowIdentityLookup.empty();
+        NotificationCandidateResult notificationResult = NotificationCandidateResult.empty();
+        long approvalNotificationTotal = 0;
+        long duplicateApprovalCount = 0;
+
+        try {
+            workflowResult = loadWorkflowKeywordMatches(userId, keyword, endIndex);
+            workflowLookup = WorkflowIdentityLookup.fromItems(workflowResult.items());
+            if (workflowLookup.isEmpty()) {
+                workflowLookup = WorkflowIdentityLookup.from(workflowReadModelService.listPendingTaskIdentities(userId));
+            }
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("workflow");
+        }
+
+        try {
+            approvalNotificationTotal = userNotificationRepository.countApprovalLikeByRecipientUserIdAndKeyword(userId, keyword);
+            if (!workflowLookup.isEmpty()) {
+                duplicateApprovalCount = countDuplicateApprovalNotificationsByKeyword(userId, keyword, workflowLookup);
+            }
+            notificationResult = loadApprovalNotificationKeywordCandidates(userId, keyword, endIndex, workflowLookup);
+        } catch (RuntimeException ex) {
+            partialSuccess = true;
+            unavailableSources.add("notifications");
+        }
+
+        List<MessageCenterModels.Item> mergedItems = mergeAndSortItems(workflowResult.items(), notificationResult.items());
+        long total = Math.max(workflowResult.total() + approvalNotificationTotal - duplicateApprovalCount, mergedItems.size());
+        return pageItems(mergedItems, total, safePageNum, safePageSize, partialSuccess, unavailableSources);
+    }
+
+    private MessageCenterModels.ListResponse buildKeywordReminderListResponse(Long userId, int safePageNum, int safePageSize, String keyword) {
+        try {
+            long total = userNotificationRepository.countReminderByRecipientUserIdAndKeyword(userId, keyword);
+            NotificationCandidateResult notificationResult = loadReminderNotificationKeywordCandidates(userId, keyword, safePageNum * safePageSize);
+            return pageItems(notificationResult.items(), Math.max(total, notificationResult.items().size()), safePageNum, safePageSize, false, List.of());
+        } catch (RuntimeException ex) {
+            return emptyListResponse(safePageNum, safePageSize, true, List.of("notifications"));
+        }
+    }
+
+    private MessageCenterModels.ListResponse buildKeywordSystemListResponse(Long userId, int safePageNum, int safePageSize, String keyword) {
+        try {
+            long totalNotifications = userNotificationRepository.countByRecipientUserIdAndKeyword(userId, keyword);
+            long reminderTotal = userNotificationRepository.countReminderByRecipientUserIdAndKeyword(userId, keyword);
+            long approvalTotal = userNotificationRepository.countApprovalLikeByRecipientUserIdAndKeyword(userId, keyword);
+            long systemTotal = Math.max(totalNotifications - reminderTotal - approvalTotal, 0);
+            NotificationCandidateResult notificationResult = loadSystemNotificationKeywordCandidates(userId, keyword, safePageNum * safePageSize);
+            return pageItems(notificationResult.items(), Math.max(systemTotal, notificationResult.items().size()), safePageNum, safePageSize, false, List.of());
+        } catch (RuntimeException ex) {
+            return emptyListResponse(safePageNum, safePageSize, true, List.of("notifications"));
+        }
+    }
+
+    private MessageCenterModels.ListResponse buildReminderListResponse(Long userId, int safePageNum, int safePageSize) {
+        try {
+            long total = userNotificationRepository.countReminderByRecipientUserId(userId);
+            int endIndex = safePageNum * safePageSize;
+            NotificationCandidateResult notificationResult = loadReminderNotificationCandidates(userId, endIndex);
+            return pageItems(notificationResult.items(), Math.max(total, notificationResult.items().size()), safePageNum, safePageSize, false, List.of());
+        } catch (RuntimeException ex) {
+            return emptyListResponse(safePageNum, safePageSize, true, List.of("notifications"));
+        }
+    }
+
+    private MessageCenterModels.ListResponse buildSystemListResponse(Long userId, int safePageNum, int safePageSize) {
+        try {
+            long totalNotifications = userNotificationRepository.countByRecipientUserId(userId);
+            long reminderTotal = userNotificationRepository.countReminderByRecipientUserId(userId);
+            long approvalTotal = userNotificationRepository.countApprovalLikeByRecipientUserId(userId);
+            long systemTotal = Math.max(totalNotifications - reminderTotal - approvalTotal, 0);
+            int endIndex = safePageNum * safePageSize;
+            NotificationCandidateResult notificationResult = loadSystemNotificationCandidates(userId, endIndex);
+            return pageItems(notificationResult.items(), Math.max(systemTotal, notificationResult.items().size()), safePageNum, safePageSize, false, List.of());
+        } catch (RuntimeException ex) {
+            return emptyListResponse(safePageNum, safePageSize, true, List.of("notifications"));
+        }
     }
 
     public MessageCenterModels.Item getMessageDetail(Long userId, String messageId) {
@@ -97,10 +380,7 @@ public class MessageCenterApplicationService {
             case "notification" -> userNotificationRepository.findByIdAndRecipientUserId(parsedMessageId.notificationId(), userId)
                     .map(this::toNotificationItem)
                     .orElseThrow(() -> new IllegalArgumentException("消息不存在或无权限访问"));
-            case "workflow" -> loadAllPendingWorkflowTasks(userId).stream()
-                    .filter(task -> Objects.equals(task.getInstanceId(), parsedMessageId.instanceId()))
-                    .filter(task -> Objects.equals(task.getTaskId(), parsedMessageId.sourceId()))
-                    .findFirst()
+            case "workflow" -> workflowReadModelService.findMyPendingTaskById(userId, parsedMessageId.sourceId())
                     .map(this::toWorkflowItem)
                     .orElseThrow(() -> new IllegalArgumentException("消息不存在或已完成处理"));
             default -> throw new IllegalArgumentException("暂不支持的消息类型: " + parsedMessageId.sourceType());
@@ -123,51 +403,6 @@ public class MessageCenterApplicationService {
         LocalDateTime timestamp = toLocalDateTime(result.get("timestamp"));
         long affectedCount = toLong(result.get("readCount"));
         return new MessageCenterModels.ReadResult("notification:*", true, READ_READ, timestamp, affectedCount);
-    }
-
-    private MessageCenterModels.Summary buildSummary(Aggregation aggregation) {
-        long todoCount = 0;
-        long approvalResultUnread = 0;
-        long reminderUnread = 0;
-        long systemUnread = 0;
-        long riskUnread = 0;
-
-        for (MessageCenterModels.Item item : aggregation.items()) {
-            String bizType = item.bizType();
-            boolean unread = READ_UNREAD.equalsIgnoreCase(item.readState());
-
-            if (BIZ_APPROVAL_TODO.equals(bizType)) {
-                todoCount++;
-            }
-            if (BIZ_APPROVAL_RESULT.equals(bizType) && unread) {
-                approvalResultUnread++;
-            }
-            if (BIZ_REMINDER_NOTICE.equals(bizType) && unread) {
-                reminderUnread++;
-            }
-            if ((BIZ_SYSTEM_NOTICE.equals(bizType) || BIZ_BUSINESS_NOTICE.equals(bizType)) && unread) {
-                systemUnread++;
-            }
-            if (CATEGORY_RISK.equals(item.category()) && unread) {
-                riskUnread++;
-            }
-        }
-
-        long approvalCount = todoCount + approvalResultUnread;
-        long totalCount = todoCount + approvalResultUnread + reminderUnread + systemUnread + riskUnread;
-
-        return new MessageCenterModels.Summary(
-                totalCount,
-                todoCount,
-                approvalCount,
-                reminderUnread,
-                systemUnread,
-                riskUnread,
-                aggregation.capabilities(),
-                aggregation.lastRefreshTime(),
-                aggregation.partialSuccess(),
-                aggregation.unavailableSources()
-        );
     }
 
     private Aggregation aggregate(Long userId) {
@@ -207,11 +442,48 @@ public class MessageCenterApplicationService {
 
         return new Aggregation(
                 List.copyOf(items),
-                new MessageCenterModels.Capabilities(false, true, true),
+                defaultCapabilities(),
                 partialSuccess,
                 List.copyOf(unavailableSources),
                 LocalDateTime.now()
         );
+    }
+
+    private MessageCenterModels.ListResponse buildLegacyListResponse(
+            Long userId,
+            String category,
+            int pageNum,
+            int pageSize,
+            String keyword,
+            Boolean includeRisk) {
+        Aggregation aggregation = aggregate(userId);
+        List<MessageCenterModels.Item> filteredItems = aggregation.items().stream()
+                .filter(item -> matchesCategory(item, category))
+                .filter(item -> matchesKeyword(item, keyword))
+                .filter(item -> shouldInclude(item, includeRisk))
+                .toList();
+        int startIndex = Math.min((pageNum - 1) * pageSize, filteredItems.size());
+        int endIndex = Math.min(startIndex + pageSize, filteredItems.size());
+        int totalPages = filteredItems.isEmpty() ? 0 : (int) Math.ceil((double) filteredItems.size() / pageSize);
+        return new MessageCenterModels.ListResponse(
+                filteredItems.subList(startIndex, endIndex),
+                filteredItems.size(),
+                pageNum,
+                pageSize,
+                totalPages,
+                aggregation.partialSuccess(),
+                aggregation.unavailableSources(),
+                aggregation.capabilities()
+        );
+    }
+
+    private boolean requiresKeywordOptimizedPath(String keyword, Boolean includeRisk) {
+        return StringUtils.hasText(keyword) && !Boolean.TRUE.equals(includeRisk);
+    }
+
+    private boolean requiresLegacyAggregation(String normalizedCategory, Boolean includeRisk) {
+        return CATEGORY_RISK.equals(normalizedCategory)
+                || (Boolean.TRUE.equals(includeRisk) && CATEGORY_RISK.equals(normalizedCategory));
     }
 
     private List<UserNotification> loadAllNotifications(Long userId) {
@@ -238,6 +510,267 @@ public class MessageCenterApplicationService {
             pageNum++;
         } while (currentPage.getPageNum() < currentPage.getTotalPages());
         return tasks;
+    }
+
+    private List<MessageCenterModels.Item> loadWorkflowCandidates(Long userId, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        int batchSize = Math.max(limit, 1);
+        PageResult<WorkflowTaskResponse> page = workflowReadModelService.getMyPendingTasks(userId, 1, batchSize);
+        if (page.getItems() == null || page.getItems().isEmpty()) {
+            return List.of();
+        }
+        return page.getItems().stream()
+                .map(this::toWorkflowItem)
+                .toList();
+    }
+
+    private NotificationCandidateResult loadNotificationCandidates(Long userId, int limit, WorkflowIdentityLookup workflowLookup) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        List<MessageCenterModels.Item> items = new ArrayList<>();
+        int pageNum = 0;
+        int batchSize = Math.max(limit * MERGE_BATCH_MULTIPLIER, NOTIFICATION_BATCH_SIZE);
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findByRecipientUserId(userId, PageRequest.of(pageNum, batchSize));
+            page.getContent().stream()
+                    .filter(notification -> !isDuplicateApprovalNotification(notification, workflowLookup))
+                    .map(this::toNotificationItem)
+                    .forEach(items::add);
+            pageNum++;
+        } while (page.hasNext() && items.size() < limit);
+        return new NotificationCandidateResult(List.copyOf(items), !page.hasNext());
+    }
+
+    private NotificationCandidateResult loadNotificationKeywordCandidates(Long userId, String keyword, int limit, WorkflowIdentityLookup workflowLookup) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        List<MessageCenterModels.Item> items = new ArrayList<>();
+        int pageNum = 0;
+        int batchSize = Math.max(limit * MERGE_BATCH_MULTIPLIER, NOTIFICATION_BATCH_SIZE);
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findByRecipientUserIdAndKeyword(userId, keyword, PageRequest.of(pageNum, batchSize));
+            page.getContent().stream()
+                    .filter(notification -> !isDuplicateApprovalNotification(notification, workflowLookup))
+                    .map(this::toNotificationItem)
+                    .forEach(items::add);
+            pageNum++;
+        } while (page.hasNext() && items.size() < limit);
+        return new NotificationCandidateResult(List.copyOf(items), !page.hasNext());
+    }
+
+    private NotificationCandidateResult loadApprovalNotificationCandidates(Long userId, int limit, WorkflowIdentityLookup workflowLookup) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        List<MessageCenterModels.Item> items = new ArrayList<>();
+        int pageNum = 0;
+        int batchSize = Math.max(limit * MERGE_BATCH_MULTIPLIER, NOTIFICATION_BATCH_SIZE);
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findApprovalLikeByRecipientUserId(userId, PageRequest.of(pageNum, batchSize));
+            page.getContent().stream()
+                    .filter(notification -> !isDuplicateApprovalNotification(notification, workflowLookup))
+                    .map(this::toNotificationItem)
+                    .forEach(items::add);
+            pageNum++;
+        } while (page.hasNext() && items.size() < limit);
+        return new NotificationCandidateResult(List.copyOf(items), !page.hasNext());
+    }
+
+    private NotificationCandidateResult loadApprovalNotificationKeywordCandidates(Long userId, String keyword, int limit, WorkflowIdentityLookup workflowLookup) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        List<MessageCenterModels.Item> items = new ArrayList<>();
+        int pageNum = 0;
+        int batchSize = Math.max(limit * MERGE_BATCH_MULTIPLIER, NOTIFICATION_BATCH_SIZE);
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findApprovalLikeByRecipientUserIdAndKeyword(userId, keyword, PageRequest.of(pageNum, batchSize));
+            page.getContent().stream()
+                    .filter(notification -> !isDuplicateApprovalNotification(notification, workflowLookup))
+                    .map(this::toNotificationItem)
+                    .forEach(items::add);
+            pageNum++;
+        } while (page.hasNext() && items.size() < limit);
+        return new NotificationCandidateResult(List.copyOf(items), !page.hasNext());
+    }
+
+    private NotificationCandidateResult loadReminderNotificationCandidates(Long userId, int limit) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        Page<UserNotification> page = userNotificationRepository.findReminderByRecipientUserId(
+                userId,
+                PageRequest.of(0, Math.max(limit, NOTIFICATION_BATCH_SIZE))
+        );
+        List<MessageCenterModels.Item> items = page.getContent().stream()
+                .map(this::toNotificationItem)
+                .toList();
+        return new NotificationCandidateResult(items, !page.hasNext());
+    }
+
+    private NotificationCandidateResult loadReminderNotificationKeywordCandidates(Long userId, String keyword, int limit) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        Page<UserNotification> page = userNotificationRepository.findReminderByRecipientUserIdAndKeyword(
+                userId,
+                keyword,
+                PageRequest.of(0, Math.max(limit, NOTIFICATION_BATCH_SIZE))
+        );
+        return new NotificationCandidateResult(page.getContent().stream().map(this::toNotificationItem).toList(), !page.hasNext());
+    }
+
+    private NotificationCandidateResult loadSystemNotificationCandidates(Long userId, int limit) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        List<MessageCenterModels.Item> items = new ArrayList<>();
+        int pageNum = 0;
+        int batchSize = Math.max(limit * MERGE_BATCH_MULTIPLIER, NOTIFICATION_BATCH_SIZE);
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findByRecipientUserId(userId, PageRequest.of(pageNum, batchSize));
+            page.getContent().stream()
+                    .filter(notification -> !isApprovalLikeNotification(notification))
+                    .filter(notification -> !BIZ_REMINDER_NOTICE.equals(resolveNotificationBizType(notification)))
+                    .map(this::toNotificationItem)
+                    .forEach(items::add);
+            pageNum++;
+        } while (page.hasNext() && items.size() < limit);
+        return new NotificationCandidateResult(List.copyOf(items), !page.hasNext());
+    }
+
+    private NotificationCandidateResult loadSystemNotificationKeywordCandidates(Long userId, String keyword, int limit) {
+        if (limit <= 0) {
+            return NotificationCandidateResult.empty();
+        }
+        List<MessageCenterModels.Item> items = new ArrayList<>();
+        int pageNum = 0;
+        int batchSize = Math.max(limit * MERGE_BATCH_MULTIPLIER, NOTIFICATION_BATCH_SIZE);
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findByRecipientUserIdAndKeyword(userId, keyword, PageRequest.of(pageNum, batchSize));
+            page.getContent().stream()
+                    .filter(notification -> !isApprovalLikeNotification(notification))
+                    .filter(notification -> !BIZ_REMINDER_NOTICE.equals(resolveNotificationBizType(notification)))
+                    .map(this::toNotificationItem)
+                    .forEach(items::add);
+            pageNum++;
+        } while (page.hasNext() && items.size() < limit);
+        return new NotificationCandidateResult(List.copyOf(items), !page.hasNext());
+    }
+
+    private long countDuplicateApprovalNotifications(Long userId, WorkflowIdentityLookup workflowLookup) {
+        long duplicates = 0;
+        int pageNum = 0;
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findApprovalLikeByRecipientUserId(userId, PageRequest.of(pageNum, NOTIFICATION_BATCH_SIZE));
+            duplicates += page.getContent().stream()
+                    .filter(notification -> isDuplicateApprovalNotification(notification, workflowLookup))
+                    .count();
+            pageNum++;
+        } while (page.hasNext());
+        return duplicates;
+    }
+
+    private long countDuplicateApprovalNotificationsByKeyword(Long userId, String keyword, WorkflowIdentityLookup workflowLookup) {
+        long duplicates = 0;
+        int pageNum = 0;
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findApprovalLikeByRecipientUserIdAndKeyword(userId, keyword, PageRequest.of(pageNum, NOTIFICATION_BATCH_SIZE));
+            duplicates += page.getContent().stream()
+                    .filter(notification -> isDuplicateApprovalNotification(notification, workflowLookup))
+                    .count();
+            pageNum++;
+        } while (page.hasNext());
+        return duplicates;
+    }
+
+    private WorkflowKeywordResult loadWorkflowKeywordMatches(Long userId, String keyword, int limit) {
+        if (limit <= 0) {
+            return WorkflowKeywordResult.empty();
+        }
+        List<MessageCenterModels.Item> matches = new ArrayList<>();
+        long totalMatches = 0;
+        int pageNum = 1;
+        PageResult<WorkflowTaskResponse> currentPage;
+        do {
+            currentPage = workflowReadModelService.getMyPendingTasks(userId, pageNum);
+            List<WorkflowTaskResponse> pageItems = currentPage.getItems() == null ? List.of() : currentPage.getItems();
+            for (WorkflowTaskResponse task : pageItems) {
+                MessageCenterModels.Item item = toWorkflowItem(task);
+                if (matchesKeyword(item, keyword)) {
+                    totalMatches++;
+                    if (matches.size() < limit) {
+                        matches.add(item);
+                    }
+                }
+            }
+            pageNum++;
+        } while (currentPage.getPageNum() < currentPage.getTotalPages());
+        return new WorkflowKeywordResult(mergeAndSortItems(matches, List.of()), totalMatches);
+    }
+
+    private MessageCenterModels.ListResponse pageItems(
+            List<MessageCenterModels.Item> items,
+            long total,
+            int safePageNum,
+            int safePageSize,
+            boolean partialSuccess,
+            List<String> unavailableSources) {
+        int startIndex = Math.min((safePageNum - 1) * safePageSize, items.size());
+        int endIndex = Math.min(startIndex + safePageSize, items.size());
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
+        return new MessageCenterModels.ListResponse(
+                items.subList(startIndex, endIndex),
+                total,
+                safePageNum,
+                safePageSize,
+                totalPages,
+                partialSuccess,
+                List.copyOf(unavailableSources),
+                defaultCapabilities()
+        );
+    }
+
+    private MessageCenterModels.ListResponse emptyListResponse(
+            int safePageNum,
+            int safePageSize,
+            boolean partialSuccess,
+            List<String> unavailableSources) {
+        return new MessageCenterModels.ListResponse(
+                List.of(),
+                0,
+                safePageNum,
+                safePageSize,
+                0,
+                partialSuccess,
+                List.copyOf(unavailableSources),
+                defaultCapabilities()
+        );
+    }
+
+    private List<MessageCenterModels.Item> mergeAndSortItems(
+            List<MessageCenterModels.Item> workflowItems,
+            List<MessageCenterModels.Item> notificationItems) {
+        List<MessageCenterModels.Item> items = new ArrayList<>(workflowItems.size() + notificationItems.size());
+        items.addAll(workflowItems);
+        items.addAll(notificationItems);
+        items.sort(Comparator
+                .comparing(MessageCenterModels.Item::createdAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(MessageCenterModels.Item::priority, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(MessageCenterModels.Item::messageId));
+        return List.copyOf(items);
     }
 
     private MessageCenterModels.Item toWorkflowItem(WorkflowTaskResponse task) {
@@ -329,11 +862,30 @@ public class MessageCenterApplicationService {
         );
     }
 
+    private boolean isDuplicateApprovalNotification(UserNotification notification, WorkflowIdentityLookup workflowLookup) {
+        if (!isApprovalLikeNotification(notification) || workflowLookup.isEmpty()) {
+            return false;
+        }
+        Long approvalInstanceId = extractApprovalInstanceId(notification.getActionUrl());
+        if (approvalInstanceId != null && workflowLookup.instanceIds().contains(approvalInstanceId)) {
+            return true;
+        }
+        String entityKey = buildEntityKey(notification.getRelatedEntityType(), notification.getRelatedEntityId());
+        return entityKey != null && workflowLookup.entityKeys().contains(entityKey);
+    }
+
     private boolean isDuplicateApprovalNotification(UserNotification notification, Set<String> workflowIdentityKeys) {
         if (!isApprovalLikeNotification(notification) || workflowIdentityKeys.isEmpty()) {
             return false;
         }
-        return buildNotificationIdentityKeys(notification).stream().anyMatch(workflowIdentityKeys::contains);
+        Long approvalInstanceId = extractApprovalInstanceId(notification.getActionUrl());
+        if (approvalInstanceId != null && workflowIdentityKeys.contains("instance:" + approvalInstanceId)) {
+            return true;
+        }
+        String entityType = normalize(notification.getRelatedEntityType());
+        return StringUtils.hasText(entityType)
+                && notification.getRelatedEntityId() != null
+                && workflowIdentityKeys.contains("entity:" + entityType + ":" + notification.getRelatedEntityId());
     }
 
     private Set<String> buildWorkflowIdentityKeys(WorkflowTaskResponse task) {
@@ -345,19 +897,6 @@ public class MessageCenterApplicationService {
         String entityType = normalize(task.getEntityType());
         if (StringUtils.hasText(entityType) && task.getEntityId() != null) {
             keys.add("entity:" + entityType + ":" + task.getEntityId());
-        }
-        return keys;
-    }
-
-    private Set<String> buildNotificationIdentityKeys(UserNotification notification) {
-        Set<String> keys = new LinkedHashSet<>();
-        Long approvalInstanceId = extractApprovalInstanceId(notification.getActionUrl());
-        if (approvalInstanceId != null) {
-            keys.add("instance:" + approvalInstanceId);
-        }
-        String entityType = normalize(notification.getRelatedEntityType());
-        if (StringUtils.hasText(entityType) && notification.getRelatedEntityId() != null) {
-            keys.add("entity:" + entityType + ":" + notification.getRelatedEntityId());
         }
         return keys;
     }
@@ -467,15 +1006,29 @@ public class MessageCenterApplicationService {
             return null;
         }
         try {
-            URI uri = URI.create(actionUrl);
-            String value = UriComponentsBuilder.fromUri(uri)
+            String value = UriComponentsBuilder.fromUriString(actionUrl.startsWith("/") ? "https://local.test" + actionUrl : actionUrl)
                     .build()
                     .getQueryParams()
                     .getFirst("approvalInstanceId");
-            return toLong(value);
+            Long parsed = toLong(value);
+            if (parsed != null) {
+                return parsed;
+            }
         } catch (IllegalArgumentException ex) {
+            // Fall through to a minimal parser for malformed or relative URLs.
+        }
+        int queryIndex = actionUrl.indexOf('?');
+        if (queryIndex < 0 || queryIndex == actionUrl.length() - 1) {
             return null;
         }
+        String query = actionUrl.substring(queryIndex + 1);
+        for (String pair : query.split("&")) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2 && "approvalInstanceId".equals(parts[0])) {
+                return toLong(parts[1]);
+            }
+        }
+        return null;
     }
 
     private String summarize(String content) {
@@ -520,6 +1073,14 @@ public class MessageCenterApplicationService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String buildEntityKey(String entityType, Long entityId) {
+        String normalizedEntityType = normalize(entityType);
+        if (!StringUtils.hasText(normalizedEntityType) || entityId == null) {
+            return null;
+        }
+        return normalizedEntityType + ":" + entityId;
     }
 
     private String firstNonBlank(String... candidates) {
@@ -571,6 +1132,10 @@ public class MessageCenterApplicationService {
         return null;
     }
 
+    private MessageCenterModels.Capabilities defaultCapabilities() {
+        return new MessageCenterModels.Capabilities(false, true, true);
+    }
+
     private record Aggregation(
             List<MessageCenterModels.Item> items,
             MessageCenterModels.Capabilities capabilities,
@@ -586,5 +1151,73 @@ public class MessageCenterApplicationService {
             String instanceId,
             Long notificationId
     ) {
+    }
+
+    private record NotificationCandidateResult(
+            List<MessageCenterModels.Item> items,
+            boolean exhausted
+    ) {
+        private static NotificationCandidateResult empty() {
+            return new NotificationCandidateResult(List.of(), true);
+        }
+    }
+
+    private record WorkflowKeywordResult(
+            List<MessageCenterModels.Item> items,
+            long total
+    ) {
+        private static WorkflowKeywordResult empty() {
+            return new WorkflowKeywordResult(List.of(), 0);
+        }
+    }
+
+    private record WorkflowIdentityLookup(
+            Set<Long> instanceIds,
+            Set<String> entityKeys
+    ) {
+        private static WorkflowIdentityLookup from(List<WorkflowQueryRepository.PendingTaskIdentity> taskIdentities) {
+            if (taskIdentities == null || taskIdentities.isEmpty()) {
+                return empty();
+            }
+            Set<Long> instanceIds = taskIdentities.stream()
+                    .map(WorkflowQueryRepository.PendingTaskIdentity::instanceId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            Set<String> entityKeys = taskIdentities.stream()
+                    .map(taskIdentity -> buildStaticEntityKey(taskIdentity.entityType(), taskIdentity.entityId()))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            return new WorkflowIdentityLookup(Set.copyOf(instanceIds), Set.copyOf(entityKeys));
+        }
+
+        private static WorkflowIdentityLookup fromItems(List<MessageCenterModels.Item> workflowItems) {
+            if (workflowItems == null || workflowItems.isEmpty()) {
+                return empty();
+            }
+            Set<Long> instanceIds = workflowItems.stream()
+                    .map(MessageCenterModels.Item::approvalInstanceId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            Set<String> entityKeys = workflowItems.stream()
+                    .map(item -> buildStaticEntityKey(item.entityType(), item.entityId()))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            return new WorkflowIdentityLookup(Set.copyOf(instanceIds), Set.copyOf(entityKeys));
+        }
+
+        private static WorkflowIdentityLookup empty() {
+            return new WorkflowIdentityLookup(Set.of(), Set.of());
+        }
+
+        private boolean isEmpty() {
+            return instanceIds.isEmpty() && entityKeys.isEmpty();
+        }
+
+        private static String buildStaticEntityKey(String entityType, Long entityId) {
+            if (entityType == null || entityType.isBlank() || entityId == null) {
+                return null;
+            }
+            return entityType.trim().toUpperCase(Locale.ROOT) + ":" + entityId;
+        }
     }
 }

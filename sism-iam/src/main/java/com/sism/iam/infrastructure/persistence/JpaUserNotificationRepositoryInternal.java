@@ -18,12 +18,143 @@ import java.util.Optional;
 @Repository
 public interface JpaUserNotificationRepositoryInternal extends JpaRepository<UserNotification, Long> {
 
+    String APPROVAL_LIKE_PREDICATE = """
+            (
+                upper(n.notificationType) like '%APPROVAL%'
+                or n.title like '%审批%'
+                or n.title like '%审核%'
+                or n.content like '%审批%'
+                or n.content like '%审核%'
+            )
+            """;
+
+    String KEYWORD_PREDICATE = """
+            (
+                lower(n.title) like lower(concat('%', :keyword, '%'))
+                or lower(n.content) like lower(concat('%', :keyword, '%'))
+            )
+            """;
+
     Page<UserNotification> findByRecipientUserIdOrderByCreatedAtDesc(Long recipientUserId, Pageable pageable);
 
     Page<UserNotification> findByRecipientUserIdAndStatusOrderByCreatedAtDesc(
             Long recipientUserId,
             String status,
             Pageable pageable
+    );
+
+    Page<UserNotification> findByRecipientUserIdAndNotificationTypeOrderByCreatedAtDesc(
+            Long recipientUserId,
+            String notificationType,
+            Pageable pageable
+    );
+
+    long countByRecipientUserId(Long recipientUserId);
+
+    long countByRecipientUserIdAndStatus(Long recipientUserId, String status);
+
+    long countByRecipientUserIdAndNotificationType(Long recipientUserId, String notificationType);
+
+    long countByRecipientUserIdAndNotificationTypeAndStatus(Long recipientUserId, String notificationType, String status);
+
+    @Query("""
+            select n
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and """ + KEYWORD_PREDICATE + """
+             order by n.createdAt desc
+            """)
+    Page<UserNotification> findByRecipientUserIdAndKeyword(
+            @Param("recipientUserId") Long recipientUserId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+            select count(n)
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and """ + KEYWORD_PREDICATE)
+    long countByRecipientUserIdAndKeyword(
+            @Param("recipientUserId") Long recipientUserId,
+            @Param("keyword") String keyword
+    );
+
+    @Query("""
+            select n
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and """ + APPROVAL_LIKE_PREDICATE + """
+             order by n.createdAt desc
+            """)
+    Page<UserNotification> findApprovalLikeByRecipientUserId(
+            @Param("recipientUserId") Long recipientUserId,
+            Pageable pageable
+    );
+
+    @Query("""
+            select count(n)
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and """ + APPROVAL_LIKE_PREDICATE)
+    long countApprovalLikeByRecipientUserId(@Param("recipientUserId") Long recipientUserId);
+
+    @Query("""
+            select n
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and """ + APPROVAL_LIKE_PREDICATE + """
+               and """ + KEYWORD_PREDICATE + """
+             order by n.createdAt desc
+            """)
+    Page<UserNotification> findApprovalLikeByRecipientUserIdAndKeyword(
+            @Param("recipientUserId") Long recipientUserId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+            select count(n)
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and """ + APPROVAL_LIKE_PREDICATE + """
+               and """ + KEYWORD_PREDICATE)
+    long countApprovalLikeByRecipientUserIdAndKeyword(
+            @Param("recipientUserId") Long recipientUserId,
+            @Param("keyword") String keyword
+    );
+
+    @Query("""
+            select count(n)
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and n.status = 'UNREAD'
+               and """ + APPROVAL_LIKE_PREDICATE)
+    long countApprovalLikeUnreadByRecipientUserId(@Param("recipientUserId") Long recipientUserId);
+
+    @Query("""
+            select n
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and n.notificationType = 'REMINDER'
+               and """ + KEYWORD_PREDICATE + """
+             order by n.createdAt desc
+            """)
+    Page<UserNotification> findReminderByRecipientUserIdAndKeyword(
+            @Param("recipientUserId") Long recipientUserId,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
+
+    @Query("""
+            select count(n)
+              from UserNotification n
+             where n.recipientUserId = :recipientUserId
+               and n.notificationType = 'REMINDER'
+               and """ + KEYWORD_PREDICATE)
+    long countReminderByRecipientUserIdAndKeyword(
+            @Param("recipientUserId") Long recipientUserId,
+            @Param("keyword") String keyword
     );
 
     Optional<UserNotification> findByIdAndRecipientUserId(Long id, Long recipientUserId);

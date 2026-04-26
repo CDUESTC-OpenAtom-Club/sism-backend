@@ -6,6 +6,8 @@ import com.sism.shared.domain.exception.AuthenticationException;
 import com.sism.shared.domain.exception.AuthorizationException;
 import com.sism.shared.domain.exception.TechnicalException;
 import com.sism.shared.infrastructure.nplusone.NPlusOneQueryException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -47,6 +49,16 @@ public class GlobalExceptionHandler {
 
     private static final String TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss";
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern(TIMESTAMP_FORMAT);
+    private static final String MESSAGE_VALIDATION_FAILED = "参数验证失败";
+    private static final String MESSAGE_INVALID_REQUEST = "请求参数不合法";
+    private static final String MESSAGE_INVALID_STATE = "当前请求状态不合法";
+    private static final String MESSAGE_UNAUTHORIZED = "未授权访问";
+    private static final String MESSAGE_CONFLICT = "资源冲突";
+    private static final String MESSAGE_RESOURCE_NOT_FOUND = "资源不存在";
+    private static final String MESSAGE_AUTHENTICATION_FAILED = "认证失败";
+    private static final String MESSAGE_AUTHORIZATION_FAILED = "无权限访问";
+    private static final String MESSAGE_INTERNAL_ERROR = "系统错误";
+    private static final String MESSAGE_REQUEST_PROCESSING_FAILED = "请求处理失败";
 
     /**
      * Handle unauthorized exceptions.
@@ -59,7 +71,7 @@ public class GlobalExceptionHandler {
         log.warn("Unauthorized access: message={}, requestId={}, context=[{}]", 
                 e.getMessage(), requestId, requestContext);
         
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INVALID_TOKEN, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INVALID_TOKEN, MESSAGE_UNAUTHORIZED);
         
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
@@ -77,7 +89,7 @@ public class GlobalExceptionHandler {
         log.warn("Conflict: message={}, requestId={}, context=[{}]", 
                 e.getMessage(), requestId, requestContext);
         
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.DATA_ALREADY_EXISTS, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.DATA_ALREADY_EXISTS, MESSAGE_CONFLICT);
         
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
@@ -109,7 +121,37 @@ public class GlobalExceptionHandler {
         log.warn("Validation failed: errors={}, requestId={}, context=[{}]",
                 fieldErrors, requestId, requestContext);
 
-        ApiResponse<Object> response = ApiResponse.error(1001, "参数验证失败", fieldErrors, timestamp);
+        ApiResponse<Object> response = ApiResponse.error(1001, MESSAGE_VALIDATION_FAILED, fieldErrors, timestamp);
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    /**
+     * Handle validation exceptions thrown by @Validated method constraints.
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Object>> handleConstraintViolationException(
+            ConstraintViolationException e) {
+        String requestId = getOrGenerateRequestId();
+        String requestContext = getRequestContext();
+
+        List<Map<String, String>> fieldErrors = new ArrayList<>();
+        for (ConstraintViolation<?> violation : e.getConstraintViolations()) {
+            Map<String, String> fieldError = new HashMap<>();
+            fieldError.put("field", violation.getPropertyPath() != null
+                    ? violation.getPropertyPath().toString()
+                    : "request");
+            fieldError.put("message", violation.getMessage());
+            fieldErrors.add(fieldError);
+        }
+
+        String timestamp = LocalDateTime.now().format(FORMATTER);
+        log.warn("Constraint validation failed: errors={}, requestId={}, context=[{}]",
+                fieldErrors, requestId, requestContext);
+
+        ApiResponse<Object> response = ApiResponse.error(1001, MESSAGE_VALIDATION_FAILED, fieldErrors, timestamp);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -127,7 +169,7 @@ public class GlobalExceptionHandler {
         log.warn("Validation error: message={}, requestId={}, context=[{}]", 
                 e.getMessage(), requestId, requestContext);
         
-        ApiResponse<Void> response = ApiResponse.error(1001, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(1001, MESSAGE_VALIDATION_FAILED);
         
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -164,7 +206,7 @@ public class GlobalExceptionHandler {
         log.warn("Illegal argument: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(1001, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(1001, MESSAGE_INVALID_REQUEST);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -182,7 +224,7 @@ public class GlobalExceptionHandler {
         log.warn("Illegal state: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, MESSAGE_INVALID_STATE);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -200,7 +242,9 @@ public class GlobalExceptionHandler {
         log.warn("Shared business exception: code={}, message={}, requestId={}, context=[{}]",
                 e.getCode(), e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(mapBusinessCodeToApiErrorCode(e.getCode()), e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(
+                mapBusinessCodeToApiErrorCode(e.getCode()),
+                mapBusinessMessage(e.getCode()));
 
         return ResponseEntity
                 .status(getHttpStatus(e.getCode()))
@@ -218,7 +262,7 @@ public class GlobalExceptionHandler {
         log.warn("Shared resource not found: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.DATA_NOT_FOUND, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.DATA_NOT_FOUND, MESSAGE_RESOURCE_NOT_FOUND);
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
@@ -236,7 +280,7 @@ public class GlobalExceptionHandler {
         log.warn("Authentication failed: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INVALID_CREDENTIALS, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INVALID_CREDENTIALS, MESSAGE_AUTHENTICATION_FAILED);
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
@@ -254,7 +298,7 @@ public class GlobalExceptionHandler {
         log.warn("Authorization failed: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INSUFFICIENT_PERMISSION, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INSUFFICIENT_PERMISSION, MESSAGE_AUTHORIZATION_FAILED);
 
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
@@ -272,7 +316,7 @@ public class GlobalExceptionHandler {
         log.error("Technical error: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext, e);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INTERNAL_ERROR, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INTERNAL_ERROR, MESSAGE_INTERNAL_ERROR);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -290,7 +334,7 @@ public class GlobalExceptionHandler {
         log.warn("Workflow exception: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, MESSAGE_INVALID_STATE);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -308,7 +352,7 @@ public class GlobalExceptionHandler {
         log.warn("N+1 query detected: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, e.getMessage());
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.BAD_REQUEST, MESSAGE_REQUEST_PROCESSING_FAILED);
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -384,7 +428,7 @@ public class GlobalExceptionHandler {
                 requestContext,
                 e);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INTERNAL_ERROR, "系统错误");
+        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INTERNAL_ERROR, MESSAGE_INTERNAL_ERROR);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -449,6 +493,17 @@ public class GlobalExceptionHandler {
         }
         
         return context.toString();
+    }
+
+    private String mapBusinessMessage(String code) {
+        return switch (mapBusinessCodeToApiErrorCode(code)) {
+            case ErrorCodes.DATA_ALREADY_EXISTS -> MESSAGE_CONFLICT;
+            case ErrorCodes.DATA_NOT_FOUND -> MESSAGE_RESOURCE_NOT_FOUND;
+            case ErrorCodes.INVALID_CREDENTIALS, ErrorCodes.INVALID_TOKEN -> MESSAGE_AUTHENTICATION_FAILED;
+            case ErrorCodes.INSUFFICIENT_PERMISSION -> MESSAGE_AUTHORIZATION_FAILED;
+            case ErrorCodes.INTERNAL_ERROR -> MESSAGE_INTERNAL_ERROR;
+            default -> MESSAGE_INVALID_REQUEST;
+        };
     }
     
     /**

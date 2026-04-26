@@ -11,9 +11,15 @@ public interface WorkflowQueryRepository {
 
     Optional<AuditInstance> findAuditInstanceById(Long instanceId);
 
+    Optional<AuditInstance> findPendingAuditInstanceByStepIdAndUserId(Long stepInstanceId, Long userId);
+
     List<AuditInstance> findPendingAuditInstancesByUserId(Long userId);
 
     Page<AuditInstance> findPendingAuditInstancesByUserId(Long userId, Pageable pageable);
+
+    long countPendingTasksByUserId(Long userId);
+
+    List<PendingTaskIdentity> findPendingTaskIdentitiesByUserId(Long userId);
 
     List<AuditInstance> findApprovedAuditInstancesByUserId(Long userId);
 
@@ -25,4 +31,11 @@ public interface WorkflowQueryRepository {
 
     List<AuditInstance> findAuditInstanceHistory(Long instanceId);
 
+    record PendingTaskIdentity(
+            Long stepInstanceId,
+            Long instanceId,
+            String entityType,
+            Long entityId
+    ) {
+    }
 }

@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -201,6 +202,59 @@ class WorkflowReadModelServiceTest {
         assertEquals(1, result.getTotal());
         assertEquals("PLAN_REPORT", result.getItems().get(0).getEntityType());
         assertEquals("approver201", result.getItems().get(0).getAssigneeName());
+    }
+
+    @Test
+    void findMyPendingTaskById_shouldReturnDirectTaskMatch() {
+        AuditInstance instance = new AuditInstance();
+        instance.setId(33L);
+        instance.setFlowDefId(2L);
+        instance.setEntityType("PLAN");
+        instance.setEntityId(901L);
+        instance.setRequesterOrgId(44L);
+
+        AuditStepInstance pending = new AuditStepInstance();
+        pending.setId(330L);
+        pending.setStepDefId(8L);
+        pending.setStepNo(2);
+        pending.setStepName("部门审批");
+        pending.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        pending.setApproverId(120L);
+        pending.setApproverOrgId(44L);
+        pending.setCreatedAt(LocalDateTime.now().minusMinutes(5));
+        instance.addStepInstance(pending);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setFlowCode("PLAN_APPROVAL");
+        flowDef.setFlowName("计划审批");
+        User approver = new User();
+        approver.setId(120L);
+        approver.setRealName("审批人120");
+
+        when(workflowQueryRepository.findPendingAuditInstanceByStepIdAndUserId(330L, 120L))
+                .thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
+        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
+        when(planRepository.findById(901L)).thenReturn(Optional.of(namedPlan(901L, 44L, 55L)));
+        when(organizationRepository.findById(55L)).thenReturn(Optional.of(namedOrg(55L, "计算机学院")));
+        when(userRepository.findById(120L)).thenReturn(Optional.of(approver));
+
+        Optional<WorkflowTaskResponse> result = newService().findMyPendingTaskById(120L, "330");
+
+        assertTrue(result.isPresent());
+        assertEquals("330", result.get().getTaskId());
+        assertEquals("部门审批", result.get().getCurrentStepName());
+        assertEquals("审批人120", result.get().getAssigneeName());
+    }
+
+    @Test
+    void findMyPendingTaskById_shouldReturnEmptyWhenTaskNotOwnedByUser() {
+        when(workflowQueryRepository.findPendingAuditInstanceByStepIdAndUserId(330L, 120L))
+                .thenReturn(Optional.empty());
+
+        Optional<WorkflowTaskResponse> result = newService().findMyPendingTaskById(120L, "330");
+
+        assertTrue(result.isEmpty());
     }
 
     @Test

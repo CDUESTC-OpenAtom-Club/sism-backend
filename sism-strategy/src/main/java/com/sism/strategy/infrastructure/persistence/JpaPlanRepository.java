@@ -23,6 +23,14 @@ public class JpaPlanRepository implements PlanRepository {
     }
 
     @Override
+    public List<Plan> findAllByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByIdIn(ids);
+    }
+
+    @Override
     public List<Plan> findAll() {
         return jpaRepository.findAll();
     }

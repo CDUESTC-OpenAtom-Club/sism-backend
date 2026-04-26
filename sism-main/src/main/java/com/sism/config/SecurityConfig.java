@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -40,6 +41,12 @@ import java.util.Collections;
 @EnableMethodSecurity
 @Slf4j
 public class SecurityConfig {
+
+    @Value("${app.security.public-docs-enabled:false}")
+    private boolean publicDocsEnabled;
+
+    @Value("${app.security.public-actuator-enabled:false}")
+    private boolean publicActuatorEnabled;
 
     /**
      * Password encoder bean for hashing passwords
@@ -110,12 +117,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
                                  "/api/v1/auth/validate", "/api/v1/auth/logout",
                                  "/api/v1/auth/refresh", "/api/v1/auth/health").permitAll()
-                // Public endpoints - Swagger/OpenAPI
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
-                                 "/api-docs/**", "/v3/api-docs/**").permitAll()
-                // Public endpoints - Health check & Actuator
-                .requestMatchers("/actuator/**", "/api/v1/actuator/**",
-                                 "/health", "/error").permitAll()
+                // Public endpoints - Health check
+                .requestMatchers("/api/v1/actuator/health", "/health", "/error").permitAll()
                 // Public endpoints - WebSocket
                 .requestMatchers("/ws/**").permitAll()
                 // Allow OPTIONS for CORS preflight
@@ -125,6 +128,17 @@ public class SecurityConfig {
             )
             // Add JWT filter before Spring Security's UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        if (publicDocsEnabled) {
+            http.authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
+                            "/api-docs/**", "/v3/api-docs/**").permitAll());
+        }
+
+        if (publicActuatorEnabled) {
+            http.authorizeHttpRequests(auth -> auth
+                    .requestMatchers("/actuator/**", "/api/v1/actuator/**").permitAll());
+        }
 
         return http.build();
     }

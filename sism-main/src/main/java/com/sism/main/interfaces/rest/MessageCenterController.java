@@ -69,7 +69,7 @@ public class MessageCenterController {
                     messageCenterApplicationService.getMessageDetail(currentUser.getId(), messageId)
             ));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(404, ex.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(404, "消息不存在"));
         }
     }
 
@@ -87,7 +87,7 @@ public class MessageCenterController {
                     messageCenterApplicationService.markMessageAsRead(currentUser.getId(), messageId)
             ));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "当前消息不支持该操作"));
         }
     }
 
