@@ -12,7 +12,7 @@ set -e
 SISM_HOME="/opt/sism"
 JAR_NAME="${1:-sism-backend-1.0.0.jar}"
 SERVICE_NAME="sism-backend"
-HEALTH_URL="http://localhost:8080/api/actuator/health"
+HEALTH_URL="http://localhost:8080/api/v1/actuator/health"
 MAX_RETRIES=10
 RETRY_DELAY=10
 STARTUP_WAIT=30

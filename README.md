@@ -149,7 +149,7 @@ GRANT ALL PRIVILEGES ON DATABASE sism_dev TO sism_user;
 说明：
 
 - 当前仓库仅保留最小化的本地 seed 重置脚本
-- 如果要执行约束型迁移或重置种子，请先阅读 [DATABASE-SAFETY-CONFIG.md](DATABASE-SAFETY-CONFIG.md)
+- 如果要执行约束型迁移、重置种子或重建老库 Flyway 历史，请先阅读 `sism-main/src/main/resources/db/migration/README.md` 与 `database/scripts/README.md`
 - 当前 clean seed 的装载总入口是 `database/seeds/reset-and-load-clean-seeds.sql`
 - 推荐先看 `database/seeds/seed-review-order.md`，再看以下关键种子文件：
   - 账号：`database/seeds/sys_user-data.sql`
@@ -234,7 +234,7 @@ java -jar target/sism-backend-1.0.1.jar --spring.profiles.active=dev
 - **前端兼容健康检查**: http://localhost:8080/api/v1/actuator/health
 - **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 - **OpenAPI JSON**: http://localhost:8080/api-docs
-- **本地 OpenAPI 快照**: `./openapi.json` 与 `./openapi-latest.json`
+- **权威 OpenAPI 快照**: `./openapi.json`
 
 ### 默认测试账号
 
@@ -366,7 +366,7 @@ curl -X GET "http://localhost:8080/api/v1/workflows/my-tasks?pageNum=1" \
 应用启动后，访问 Swagger UI 查看完整 API 文档:
 - **Swagger UI**: http://localhost:8080/swagger-ui/index.html
 - **OpenAPI JSON**: http://localhost:8080/api-docs
-- **本地快照说明**: 见 `docs/openapi/README.md`
+- **权威本地快照**: 项目根目录 `openapi.json`
 
 > 注意: 生产环境默认禁用 Swagger。如需启用，在 `.env` 文件中设置 `SWAGGER_ENABLED=true`
 
@@ -466,24 +466,17 @@ copy .env.example .env
 ./database/scripts/reset-clean-seeds.sh
 ```
 
-### 数据同步
-
-```bash
-# 同步所有数据
-node scripts/sync/sync-all.js
-
-# 验证数据一致性
-node scripts/sync/verify.js
-```
-
 ### 数据维护
 
 ```bash
-# 验证前后端数据一致性
-node scripts/maintenance/verify-data-consistency.cjs
+# 本地重置并加载 clean seeds
+./database/scripts/reset-clean-seeds.sh
+
+# 检查 Flyway 迁移版本是否冲突
+./scripts/testing/check-flyway-version-collisions.sh
 ```
 
-**注意**: 一次性修复脚本（fix-*、add-*、update-*）已归档到 `scripts/archive/2026-02-one-time-fixes/`
+**注意**: `scripts/` 目录现在只保留长期可复用的部署、报告重建和校验脚本；历史一次性同步/修复脚本已清理，不再作为公共脚本保留。
 
 ## 测试
 

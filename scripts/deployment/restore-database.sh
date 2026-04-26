@@ -390,7 +390,7 @@ verify_restore() {
     local fk_errors
     fk_errors=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "
         SELECT COUNT(*) FROM indicator i 
-        LEFT JOIN org o ON i.owner_org_id = o.org_id 
+        LEFT JOIN sys_org o ON i.owner_org_id = o.org_id 
         WHERE i.owner_org_id IS NOT NULL AND o.org_id IS NULL;
     " 2>/dev/null || echo "0")
     

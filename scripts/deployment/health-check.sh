@@ -110,7 +110,7 @@ check_backend_health() {
     local http_code
     
     # 调用健康检查端点
-    response=$(curl -s -w "\n%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL/actuator/health" 2>/dev/null || echo -e "\n000")
+    response=$(curl -s -w "\n%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL/api/v1/actuator/health" 2>/dev/null || echo -e "\n000")
     http_code=$(echo "$response" | tail -n1)
     local body=$(echo "$response" | sed '$d')
     
@@ -253,8 +253,8 @@ check_api_response() {
     local start_time=$(date +%s%3N)
     local http_code
     
-    # 测试一个简单的 API 端点
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL/actuator/info" 2>/dev/null || echo "000")
+    # 测试当前公开的 Actuator 健康端点响应时间
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL/api/v1/actuator/health" 2>/dev/null || echo "000")
     
     local end_time=$(date +%s%3N)
     local response_time=$((end_time - start_time))

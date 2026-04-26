@@ -15,9 +15,11 @@
 - 不要把这里的脚本当成可直接上线的正式迁移
 - 任何会改数据的脚本都应先确认目标环境，默认只建议在本地或受控测试环境执行
 - 如需把某项修复纳入正式发布流程，应把它转成 `sism-main/src/main/resources/db/migration/` 下的 Flyway 迁移
+- 对约束型迁移，先做数据审计，再执行迁移；不要假设目标库数据天然满足约束
+- 如果老库需要重建 Flyway 历史，先确认目标库结构已与当前基线一致，再按活跃迁移目录执行 baseline / migrate
 
 推荐执行顺序：
 
 1. 优先看活跃 Flyway 迁移目录
-2. 再看 `DATABASE-SAFETY-CONFIG.md`
+2. 再看 `sism-main/src/main/resources/db/migration/README.md`
 3. 最后才评估是否需要执行本目录脚本

@@ -1,0 +1,16 @@
+{
+  "reportId": "message-center-performance-2026-04-26",
+  "title": "消息中心模块后端性能排查报告",
+  "module": "消息中心模块",
+  "category": "performance-report",
+  "createdAt": "2026-04-26T00:33:00+08:00",
+  "source": "基于 sism-main、sism-iam、sism-workflow 的静态代码排查结论生成",
+  "tags": [
+    "后端",
+    "性能排查",
+    "消息中心",
+    "MessageCenter",
+    "工作流",
+    "通知"
+  ]
+}
