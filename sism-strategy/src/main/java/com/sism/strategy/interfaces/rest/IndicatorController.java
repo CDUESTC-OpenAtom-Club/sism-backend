@@ -62,7 +62,7 @@ public class IndicatorController {
     private static final String INDICATOR_WRITE_ACCESS =
             "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
     private static final String INDICATOR_DELETE_ACCESS =
-            "hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
 
     private record CurrentMonthIndicatorRoundState(Integer progress, boolean hasCurrentMonthFill) {}
 
