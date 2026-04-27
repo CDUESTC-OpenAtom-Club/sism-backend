@@ -26,6 +26,12 @@
 - 数据库连接可用
 - 磁盘空间未达到危险阈值
 
+### 当前生产 Gate 要求
+
+- CI 中 `mvn test` 必须阻塞失败
+- 发布前必须执行 Flyway `validate` 和 `migrate`
+- 发布成功判定必须基于健康端点 `HTTP 200` 且返回 `status=UP`
+
 ### `backup-database.sh`
 PostgreSQL 备份脚本，适用于生产或受控测试环境的例行备份。
 
@@ -54,6 +60,8 @@ PostgreSQL 恢复脚本，适用于从备份文件恢复数据库；内部校验
 # 一次性初始化部署账号
 sudo ./scripts/deployment/setup-server.sh <deploy-user>
 
+# 确保 /opt/sism/.env 已提供 DB_URL / DB_USERNAME / DB_PASSWORD
+
 # 服务器上完成 JAR 替换后执行部署
 ./scripts/deployment/deploy.sh sism-backend-1.0.0.jar
 ```
@@ -67,6 +75,6 @@ sudo ./scripts/deployment/setup-server.sh <deploy-user>
 ## 维护原则
 
 1. 本目录只放可重复执行的部署/运维脚本。
-2. 新脚本不得写死服务器、数据库或账号信息。
+2. 新脚本不得写死密码、固定业务 ID 或历史库表结构；目录、服务名等仓库级约定可保留为默认值，但需支持环境变量覆盖。
 3. 任何一次性排障脚本都不应长期留在这里。
 4. 如果部署流程变化，优先同步更新本目录 README 与 CI 工作流。

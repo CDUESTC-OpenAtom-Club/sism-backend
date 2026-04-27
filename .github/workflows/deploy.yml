@@ -12,6 +12,7 @@ env:
   JAR_NAME: sism-backend-1.0.0.jar
   SERVER_USER: root
   SERVER_HOST: 175.24.139.148
+  HEALTH_URL: http://localhost:8080/api/v1/actuator/health
 
 jobs:
   build-and-deploy:
@@ -81,9 +82,40 @@ jobs:
           java -version
           mvn -version
 
+      - name: Load deployment environment
+        if: env.SKIP_DEPLOY != 'true'
+        run: |
+          if [ -f /opt/sism/.env ]; then
+            echo "[INFO] Loading deployment environment from /opt/sism/.env"
+            set -a
+            source /opt/sism/.env
+            set +a
+          else
+            echo "[ERROR] Missing deployment environment file: /opt/sism/.env"
+            exit 1
+          fi
+
+          : "${DB_URL:?DB_URL is required for deployment}"
+          : "${DB_USERNAME:?DB_USERNAME is required for deployment}"
+          : "${DB_PASSWORD:?DB_PASSWORD is required for deployment}"
+
+          {
+            echo "DB_URL=$DB_URL"
+            echo "DB_USERNAME=$DB_USERNAME"
+            echo "DB_PASSWORD=$DB_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - name: Build with Maven
         if: env.SKIP_DEPLOY != 'true'
         run: mvn clean package -B -DskipTests -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
+
+      - name: Validate Flyway migrations
+        if: env.SKIP_DEPLOY != 'true'
+        run: mvn -B -pl sism-main -am flyway:validate
+
+      - name: Apply Flyway migrations
+        if: env.SKIP_DEPLOY != 'true'
+        run: mvn -B -pl sism-main -am flyway:migrate
 
       - name: Stop backend service
         if: env.SKIP_DEPLOY != 'true'
@@ -113,17 +145,16 @@ jobs:
           echo "[INFO] Starting health check (max 60 seconds)..."
           MAX_ATTEMPTS=12
           ATTEMPT=0
-          HEALTH_URL="http://localhost:8080/api/users/me"
 
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "[INFO] Health check attempt $ATTEMPT/$MAX_ATTEMPTS..."
 
-            # Check if server responds (any valid API endpoint)
-            HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || true)"
+            RESPONSE="$(curl -sS --connect-timeout 5 --max-time 10 "${HEALTH_URL}" 2>/dev/null || true)"
+            HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" "${HEALTH_URL}" 2>/dev/null || true)"
             echo "[INFO] Health check HTTP status: ${HTTP_CODE:-curl_failed}"
-            if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
-              echo "[SUCCESS] Backend is healthy! (HTTP $HTTP_CODE)"
+            if [ "$HTTP_CODE" = "200" ] && echo "$RESPONSE" | grep -q '"status":"UP"'; then
+              echo "[SUCCESS] Backend health check passed"
               exit 0
             fi
 
