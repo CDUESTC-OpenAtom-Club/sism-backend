@@ -38,6 +38,12 @@ PostgreSQL 备份脚本，适用于生产或受控测试环境的例行备份。
 ### `restore-database.sh`
 PostgreSQL 恢复脚本，适用于从备份文件恢复数据库；内部校验已对齐当前 `sys_* / cycle / indicator / sys_task` 表结构。
 
+配套文档：
+
+- [DATABASE-ROLLBACK-SOP.md](/Users/blackevil/战略开发/sism-backend/scripts/deployment/DATABASE-ROLLBACK-SOP.md)
+- [PRODUCTION-RELEASE-CHECKLIST.md](/Users/blackevil/战略开发/sism-backend/scripts/deployment/PRODUCTION-RELEASE-CHECKLIST.md)
+- [PREPROD-READINESS.md](/Users/blackevil/战略开发/sism-backend/scripts/deployment/PREPROD-READINESS.md)
+
 ## 不再保留的脚本
 
 以下脚本已从本目录移除，因为它们已经不符合长期维护标准：
@@ -70,6 +76,22 @@ sudo ./scripts/deployment/setup-server.sh <deploy-user>
 
 ```bash
 ./scripts/deployment/health-check.sh
+```
+
+### 回滚 SOP
+
+发生数据库级回滚时，不要口头执行或临场决策，必须按以下文档操作：
+
+```bash
+cat ./scripts/deployment/DATABASE-ROLLBACK-SOP.md
+```
+
+### 正式发布检查清单
+
+每次正式发布或回滚前，必须逐项勾选：
+
+```bash
+cat ./scripts/deployment/PRODUCTION-RELEASE-CHECKLIST.md
 ```
 
 ## 维护原则
