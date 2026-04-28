@@ -7,7 +7,6 @@ import com.sism.execution.domain.model.report.ReportOrgType;
 import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
 import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.execution.domain.repository.PlanReportRepository;
-import com.sism.execution.domain.repository.PlanStatusSyncGateway;
 import com.sism.execution.domain.repository.WorkflowApprovalMetadata;
 import com.sism.execution.domain.repository.WorkflowApprovalMetadataQuery;
 import com.sism.execution.domain.repository.WorkflowAuditSyncGateway;
@@ -59,9 +58,6 @@ class ReportApplicationServiceTest {
     private WorkflowAuditSyncGateway workflowAuditSyncGateway;
 
     @Mock
-    private PlanStatusSyncGateway planStatusSyncGateway;
-
-    @Mock
     private WorkflowApprovalMetadataQuery workflowApprovalMetadataQuery;
 
     private ReportApplicationService reportApplicationService;
@@ -74,8 +70,7 @@ class ReportApplicationServiceTest {
                 indicatorRepository,
                 eventPublisher,
                 workflowApprovalMetadataQuery,
-                workflowAuditSyncGateway,
-                planStatusSyncGateway
+                workflowAuditSyncGateway
         );
     }
 
@@ -358,26 +353,6 @@ class ReportApplicationServiceTest {
     }
 
     @Test
-    void markWorkflowWithdrawn_shouldFailWhenPlanStatusSyncFails() {
-        PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
-        report.setId(39L);
-        report.setStatus(PlanReport.STATUS_SUBMITTED);
-        report.setAuditInstanceId(9040L);
-        report.setSubmittedAt(java.time.LocalDateTime.now());
-
-        when(planReportRepository.findById(39L)).thenReturn(Optional.of(report));
-        when(planReportRepository.save(any(PlanReport.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        org.mockito.Mockito.doThrow(new RuntimeException("plan sync unavailable"))
-                .when(planStatusSyncGateway).syncBackToDraft(111L);
-
-        assertThatThrownBy(() -> reportApplicationService.markWorkflowWithdrawn(39L))
-                .isInstanceOf(TechnicalException.class)
-                .hasMessageContaining("Failed to sync plan status back to DRAFT");
-
-        verify(planStatusSyncGateway).syncBackToDraft(111L);
-    }
-
-    @Test
     void markWorkflowWithdrawn_shouldResetDraftStateAndClearAuditLink() {
         PlanReport report = PlanReport.createDraft("202603", 39L, ReportOrgType.FUNC_DEPT, 111L);
         report.setId(19L);
@@ -393,7 +368,6 @@ class ReportApplicationServiceTest {
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
         assertThat(updated.getAuditInstanceId()).isNull();
         assertThat(updated.getSubmittedAt()).isNull();
-        verify(planStatusSyncGateway).syncBackToDraft(111L);
     }
 
     @Test
@@ -412,7 +386,6 @@ class ReportApplicationServiceTest {
         assertThat(updated.getStatus()).isEqualTo(PlanReport.STATUS_DRAFT);
         assertThat(updated.getAuditInstanceId()).isEqualTo(902L);
         assertThat(updated.getSubmittedAt()).isNull();
-        verify(planStatusSyncGateway).syncBackToDraft(111L);
     }
 
     @Test

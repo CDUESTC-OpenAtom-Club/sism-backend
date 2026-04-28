@@ -10,7 +10,6 @@ import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
 import com.sism.execution.domain.repository.PlanReportRepository;
 import com.sism.execution.domain.repository.WorkflowApprovalMetadata;
 import com.sism.execution.domain.repository.WorkflowApprovalMetadataQuery;
-import com.sism.execution.domain.repository.PlanStatusSyncGateway;
 import com.sism.execution.domain.repository.WorkflowAuditSyncGateway;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import com.sism.execution.interfaces.dto.UpdatePlanReportIndicatorDetailRequest;
@@ -58,7 +57,6 @@ public class ReportApplicationService {
     private final DomainEventPublisher eventPublisher;
     private final WorkflowApprovalMetadataQuery workflowApprovalMetadataQuery;
     private final WorkflowAuditSyncGateway workflowAuditSyncGateway;
-    private final PlanStatusSyncGateway planStatusSyncGateway;
 
     /**
      * 创建报告（草稿）
@@ -349,9 +347,7 @@ public class ReportApplicationService {
         report.setRejectionReason(null);
         report.setAuditInstanceId(null);
         report.setUpdatedAt(LocalDateTime.now());
-        PlanReport saved = enrichReportMetadata(planReportRepository.save(report));
-        syncPlanStatusToDraft(saved.getPlanId());
-        return saved;
+        return enrichReportMetadata(planReportRepository.save(report));
     }
 
     @Transactional
@@ -368,22 +364,7 @@ public class ReportApplicationService {
             report.setAuditInstanceId(auditInstanceId);
         }
         report.setUpdatedAt(LocalDateTime.now());
-        PlanReport saved = enrichReportMetadata(planReportRepository.save(report));
-        syncPlanStatusToDraft(saved.getPlanId());
-        return saved;
-    }
-
-    private void syncPlanStatusToDraft(Long planId) {
-        if (planId == null || planId <= 0) {
-            return;
-        }
-
-        bestEffortSync(
-                "sync plan status back to DRAFT",
-                null,
-                planId,
-                () -> planStatusSyncGateway.syncBackToDraft(planId)
-        );
+        return enrichReportMetadata(planReportRepository.save(report));
     }
 
     private void createNextMonthlyDraftAfterTerminalApproval(PlanReport approvedReport) {
@@ -711,14 +692,7 @@ public class ReportApplicationService {
     }
 
     public List<PlanReport> findReportsByPlanIdForOrg(Long planId, Long reportOrgId) {
-        return enrichReportList(planReportRepository.findByConditions(
-                null,
-                reportOrgId,
-                null,
-                planId,
-                (PlanReportStatus) null,
-                Pageable.unpaged()
-        ).getContent());
+        return enrichReportList(planReportRepository.findByPlanId(planId));
     }
 
     /**
