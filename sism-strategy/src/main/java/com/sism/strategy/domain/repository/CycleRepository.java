@@ -1,6 +1,6 @@
 package com.sism.strategy.domain.repository;
 
-import com.sism.strategy.domain.Cycle;
+import com.sism.strategy.domain.cycle.Cycle;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

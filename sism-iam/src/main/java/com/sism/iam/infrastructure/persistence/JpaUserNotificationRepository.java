@@ -1,7 +1,7 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.UserNotification;
-import com.sism.iam.domain.repository.UserNotificationRepository;
+import com.sism.iam.domain.notification.UserNotification;
+import com.sism.iam.domain.notification.UserNotificationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

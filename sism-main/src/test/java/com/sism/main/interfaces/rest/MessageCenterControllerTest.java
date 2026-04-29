@@ -1,7 +1,7 @@
 package com.sism.main.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.main.application.MessageCenterApplicationService;
 import com.sism.main.interfaces.dto.MessageCenterModels;
 import org.junit.jupiter.api.DisplayName;

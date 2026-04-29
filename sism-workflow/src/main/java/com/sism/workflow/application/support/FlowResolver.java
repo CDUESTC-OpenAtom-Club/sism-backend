@@ -1,7 +1,7 @@
 package com.sism.workflow.application.support;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.repository.FlowDefinitionRepository;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.FlowDefinitionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +19,7 @@ public class FlowResolver {
      * PlanReport 类型不参与自动解析——月报虽然复用了 Plan 审批模板，
      * 但仍需由业务入口按组织类型显式指定 workflowCode。
      */
-    public void resolveAndAttachFlow(com.sism.workflow.domain.runtime.model.AuditInstance instance) {
+    public void resolveAndAttachFlow(com.sism.workflow.domain.runtime.AuditInstance instance) {
         if (instance.getFlowDefId() != null) {
             return;
         }

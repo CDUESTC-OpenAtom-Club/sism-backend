@@ -1,11 +1,11 @@
 package com.sism.task.interfaces.rest;
 
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.common.PageResult;
 import com.sism.task.application.TaskApplicationService;
 import com.sism.task.application.dto.CreateTaskRequest;
 import com.sism.task.application.dto.TaskResponse;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.TaskType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

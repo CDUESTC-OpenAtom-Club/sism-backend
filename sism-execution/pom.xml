@@ -33,9 +33,8 @@
         </dependency>
         <dependency>
             <groupId>com.sism</groupId>
-            <artifactId>sism-iam</artifactId>
+            <artifactId>sism-workflow</artifactId>
         </dependency>
-
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -1,7 +1,7 @@
 package com.sism.strategy.domain.plan;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
-import com.sism.strategy.domain.event.PlanStatusChangedEvent;
+import com.sism.strategy.domain.plan.event.PlanStatusChangedEvent;
 import jakarta.persistence.Access;
 import jakarta.persistence.AccessType;
 import jakarta.persistence.Column;

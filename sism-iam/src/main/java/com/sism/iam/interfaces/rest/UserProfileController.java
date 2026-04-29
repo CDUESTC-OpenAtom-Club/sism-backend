@@ -2,9 +2,9 @@ package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.iam.application.service.UserProfileService;
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.User;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.user.User;
+import com.sism.organization.domain.OrganizationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

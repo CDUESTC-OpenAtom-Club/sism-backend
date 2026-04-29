@@ -1,8 +1,8 @@
 package com.sism.main.application;
 
 import com.sism.iam.application.service.UserNotificationService;
-import com.sism.iam.domain.UserNotification;
-import com.sism.iam.domain.repository.UserNotificationRepository;
+import com.sism.iam.domain.notification.UserNotification;
+import com.sism.iam.domain.notification.UserNotificationRepository;
 import com.sism.main.interfaces.dto.MessageCenterModels;
 import com.sism.workflow.application.query.WorkflowReadModelService;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;

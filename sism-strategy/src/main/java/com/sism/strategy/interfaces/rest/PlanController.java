@@ -2,7 +2,7 @@ package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.strategy.application.PlanApplicationService;
 import com.sism.strategy.application.StrategyApplicationService;
 import com.sism.strategy.interfaces.dto.PlanResponse;

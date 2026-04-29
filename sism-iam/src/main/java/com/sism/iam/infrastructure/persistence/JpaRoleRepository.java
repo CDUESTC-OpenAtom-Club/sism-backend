@@ -1,7 +1,7 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.RoleRepository;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.access.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

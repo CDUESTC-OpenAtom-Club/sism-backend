@@ -1,10 +1,10 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.Permission;
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.PermissionRepository;
-import com.sism.iam.domain.repository.RoleRepository;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.access.Permission;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.access.PermissionRepository;
+import com.sism.iam.domain.access.RoleRepository;
+import com.sism.iam.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

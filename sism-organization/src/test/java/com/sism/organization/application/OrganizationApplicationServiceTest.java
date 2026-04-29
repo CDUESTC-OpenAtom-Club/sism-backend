@@ -7,7 +7,7 @@ import com.sism.organization.application.port.OrganizationUserQueryPort;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.event.OrgCreatedEvent;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import com.sism.organization.interfaces.dto.OrgUserResponse;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;

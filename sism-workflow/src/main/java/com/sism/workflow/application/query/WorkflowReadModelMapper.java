@@ -1,8 +1,8 @@
 package com.sism.workflow.application.query;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.AuditStepInstance;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditStepInstance;
 import com.sism.workflow.interfaces.dto.WorkflowDefinitionResponse;
 import com.sism.workflow.interfaces.dto.WorkflowHistoryResponse;
 import com.sism.workflow.interfaces.dto.WorkflowInstanceResponse;

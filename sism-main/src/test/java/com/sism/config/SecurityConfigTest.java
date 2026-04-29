@@ -2,7 +2,7 @@ package com.sism.config;
 
 import com.sism.iam.application.JwtTokenService;
 import com.sism.iam.application.UserDetailsServiceImpl;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

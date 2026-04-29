@@ -1,11 +1,10 @@
 package com.sism.workflow.application;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.execution.application.ReportApplicationService;
+import com.sism.shared.domain.user.UserIdentity;
+import com.sism.shared.domain.user.UserProvider;
+import com.sism.shared.domain.workflow.WorkflowBusinessContextPort;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
-import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.application.runtime.StartWorkflowUseCase;
 import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.application.support.FlowResolver;
@@ -13,11 +12,11 @@ import com.sism.workflow.application.support.StepInstanceFactory;
 import com.sism.workflow.application.support.SubmissionStepAutoCompletePolicy;
 import com.sism.workflow.application.support.WorkflowApproverProperties;
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
-import com.sism.workflow.domain.definition.repository.FlowDefinitionRepository;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.domain.definition.FlowDefinitionRepository;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -50,13 +49,10 @@ class StartWorkflowUseCaseTest {
     private AuditInstanceRepository auditInstanceRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserProvider userProvider;
 
     @Mock
-    private PlanRepository planRepository;
-
-    @Mock
-    private ReportApplicationService reportApplicationService;
+    private WorkflowBusinessContextPort workflowBusinessContextPort;
 
     @Test
     void startAuditInstance_shouldAutoCompleteSubmitterStepAndActivateNextApprover() {
@@ -78,22 +74,18 @@ class StartWorkflowUseCaseTest {
         flowDef.setFlowName("Plan下发审批（战略发展部）");
         flowDef.setSteps(List.of(submitStep, approvalStep));
 
-        User approver = new User();
-        approver.setId(301L);
-        approver.setOrgId(35L);
-        approver.setIsActive(true);
+        UserIdentity approver = new UserIdentity(301L, "u301", "审批人301", 35L, true);
 
         when(flowDefinitionRepository.findById(1L)).thenReturn(Optional.of(flowDef));
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(flowDefinitionRepository.findByCode(any())).thenReturn(Optional.empty());
         lenient().when(flowDefinitionRepository.findByEntityType(any())).thenReturn(List.of());
-        when(userRepository.findByRoleId(3L)).thenReturn(List.of(approver));
+        when(userProvider.findActiveIdentitiesByRole(3L)).thenReturn(List.of(approver));
 
         FlowResolver flowResolver = new FlowResolver(flowDefinitionRepository);
         ApproverResolver approverResolver = new ApproverResolver(
-                userRepository,
-                planRepository,
-                reportApplicationService,
+                userProvider,
+                workflowBusinessContextPort,
                 workflowApproverProperties()
         );
         SubmissionStepAutoCompletePolicy autoCompletePolicy = new SubmissionStepAutoCompletePolicy();

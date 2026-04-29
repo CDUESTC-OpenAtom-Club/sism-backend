@@ -2,13 +2,13 @@ package com.sism.iam.interfaces.rest;
 
 import com.sism.iam.application.service.AuthService;
 import com.sism.iam.application.service.UserService;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
-import com.sism.iam.domain.User;
+import com.sism.iam.domain.user.User;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -455,7 +455,7 @@ public class AuthController {
     }
 
     private UserListItemResponse toUserListItemResponse(User user) {
-        List<UserRoleItemResponse> roles = (user.getRoles() == null ? List.<com.sism.iam.domain.Role>of() : user.getRoles()).stream()
+        List<UserRoleItemResponse> roles = (user.getRoles() == null ? List.<com.sism.iam.domain.access.Role>of() : user.getRoles()).stream()
                 .map(role -> new UserRoleItemResponse(role.getRoleCode(), role.getRoleName()))
                 .toList();
         var organization = findOrganization(user.getOrgId());

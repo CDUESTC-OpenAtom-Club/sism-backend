@@ -1,6 +1,6 @@
 package com.sism.strategy.application;
 
-import com.sism.strategy.domain.Cycle;
+import com.sism.strategy.domain.cycle.Cycle;
 import com.sism.strategy.domain.repository.CycleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

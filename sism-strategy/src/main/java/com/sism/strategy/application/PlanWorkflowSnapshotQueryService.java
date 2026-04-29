@@ -1,6 +1,6 @@
 package com.sism.strategy.application;
 
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.user.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.AllArgsConstructor;

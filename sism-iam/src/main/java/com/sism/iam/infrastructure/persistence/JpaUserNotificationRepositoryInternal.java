@@ -1,6 +1,6 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.UserNotification;
+import com.sism.iam.domain.notification.UserNotification;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

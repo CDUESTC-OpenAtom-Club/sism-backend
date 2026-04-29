@@ -1,13 +1,13 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.service.AuthService;
 import com.sism.iam.application.service.UserService;
-import com.sism.iam.domain.User;
+import com.sism.iam.domain.user.User;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

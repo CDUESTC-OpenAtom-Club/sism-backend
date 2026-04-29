@@ -1,8 +1,8 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.Permission;
-import com.sism.iam.domain.repository.RoleRepository;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.access.Permission;
+import com.sism.iam.domain.access.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

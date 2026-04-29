@@ -1,18 +1,19 @@
 package com.sism.workflow.application;
 
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.shared.domain.notification.NotificationProvider;
+import com.sism.shared.domain.user.UserProvider;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.definition.WorkflowPreviewQueryService;
 import com.sism.workflow.application.query.WorkflowReadModelMapper;
 import com.sism.workflow.application.query.WorkflowReadModelService;
 import com.sism.workflow.application.support.ApproverResolver;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.AuditStepInstance;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
-import com.sism.workflow.domain.runtime.repository.WorkflowTaskRepository;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditStepInstance;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
+import com.sism.workflow.domain.runtime.WorkflowTaskRepository;
 import com.sism.workflow.interfaces.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,7 +55,8 @@ public class BusinessWorkflowApplicationService {
     private final WorkflowPreviewQueryService workflowPreviewQueryService;
     private final WorkflowTaskRepository workflowTaskRepository;
     private final ApproverResolver approverResolver;
-    private final UserRepository userRepository;
+    private final UserProvider userProvider;
+    private final NotificationProvider notificationProvider;
 
     // ==================== 工作流启动 ====================
 
@@ -231,6 +233,8 @@ public class BusinessWorkflowApplicationService {
         AuditStepInstance currentStep = instance.resolveCurrentPendingStep()
                 .orElseThrow(() -> new SecurityException("You are not authorized to approve this task"));
         AuditStepDef currentStepDef = resolveStepDefinition(instance, currentStep);
+        WorkflowInstanceDetailResponse detailBeforeApproval =
+                workflowReadModelService.getInstanceDetail(String.valueOf(instance.getId()));
 
         if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId(), instance)) {
             throw new SecurityException("You are not authorized to approve this task");
@@ -239,6 +243,14 @@ public class BusinessWorkflowApplicationService {
 
         AuditInstance approved = workflowApplicationService.approveAuditInstance(
                 instance, userId, request.getComment());
+        createApprovalResultNotification(
+                approved,
+                userId,
+                detailBeforeApproval,
+                currentStepDef,
+                true,
+                request.getComment()
+        );
 
         return workflowReadModelMapper.toInstanceResponse(approved);
     }
@@ -271,6 +283,8 @@ public class BusinessWorkflowApplicationService {
         AuditStepInstance currentStep = instance.resolveCurrentPendingStep()
                 .orElseThrow(() -> new SecurityException("You are not authorized to reject this task"));
         AuditStepDef currentStepDef = resolveStepDefinition(instance, currentStep);
+        WorkflowInstanceDetailResponse detailBeforeRejection =
+                workflowReadModelService.getInstanceDetail(String.valueOf(instance.getId()));
 
         if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId(), instance)) {
             throw new SecurityException("You are not authorized to reject this task");
@@ -279,6 +293,14 @@ public class BusinessWorkflowApplicationService {
 
         AuditInstance rejected = workflowApplicationService.rejectAuditInstance(
                 instance, userId, request.getReason());
+        createApprovalResultNotification(
+                rejected,
+                userId,
+                detailBeforeRejection,
+                currentStepDef,
+                false,
+                request.getReason()
+        );
 
         return workflowReadModelMapper.toInstanceResponse(rejected);
     }
@@ -338,7 +360,7 @@ public class BusinessWorkflowApplicationService {
             return;
         }
 
-        List<String> permissionCodes = userRepository.findPermissionCodesByUserId(userId);
+        List<String> permissionCodes = userProvider.getUserPermissionCodes(userId);
         boolean hasPermission = requiredPermissions.stream().anyMatch(permissionCodes::contains);
         if (!hasPermission) {
             throw new SecurityException("You are not authorized to operate this approval task");
@@ -478,6 +500,51 @@ public class BusinessWorkflowApplicationService {
     }
 
     // ==================== 私有方法 ====================
+
+    private void createApprovalResultNotification(
+            AuditInstance instance,
+            Long userId,
+            WorkflowInstanceDetailResponse detailSnapshot,
+            AuditStepDef currentStepDef,
+            boolean approved,
+            String comment
+    ) {
+        Long senderOrgId = userProvider.getUserOrgId(userId).orElse(null);
+        String businessName = firstNonBlank(
+                detailSnapshot == null ? null : detailSnapshot.getPlanName(),
+                instance.getEntityId() == null ? null : "业务对象#" + instance.getEntityId()
+        );
+        String stepName = firstNonBlank(
+                currentStepDef == null ? null : currentStepDef.getStepName(),
+                detailSnapshot == null ? null : detailSnapshot.getCurrentStepName(),
+                "当前审批环节"
+        );
+
+        notificationProvider.createApprovalResultNotification(
+                userId,
+                userId,
+                senderOrgId,
+                instance.getId(),
+                instance.getEntityType(),
+                instance.getEntityId(),
+                businessName,
+                stepName,
+                approved,
+                comment
+        );
+    }
+
+    private String firstNonBlank(String... candidates) {
+        if (candidates == null) {
+            return null;
+        }
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()) {
+                return candidate.trim();
+            }
+        }
+        return null;
+    }
 
     private long parseRequiredLong(String value, String fieldName) {
         if (value == null || value.isBlank()) {

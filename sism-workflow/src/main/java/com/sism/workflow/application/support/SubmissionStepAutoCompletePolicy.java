@@ -1,8 +1,8 @@
 package com.sism.workflow.application.support;
 
-import com.sism.workflow.domain.definition.model.AuditStepDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.AuditStepInstance;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditStepInstance;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;

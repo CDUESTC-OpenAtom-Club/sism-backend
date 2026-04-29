@@ -1,11 +1,10 @@
 package com.sism.workflow.application.support;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.execution.application.ReportApplicationService;
-import com.sism.strategy.domain.repository.PlanRepository;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.shared.domain.user.UserIdentity;
+import com.sism.shared.domain.user.UserProvider;
+import com.sism.shared.domain.workflow.WorkflowBusinessContextPort;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
 import com.sism.workflow.interfaces.dto.ApproverCandidateResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,20 +22,17 @@ public class ApproverResolver {
     private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
     private static final String COLLEGE_FINAL_APPROVAL_STEP_NAME = "职能部门终审";
 
-    private final UserRepository userRepository;
-    private final PlanRepository planRepository;
-    private final ReportApplicationService reportApplicationService;
+    private final UserProvider userProvider;
+    private final WorkflowBusinessContextPort workflowBusinessContextPort;
     private final WorkflowApproverProperties workflowApproverProperties;
 
     public ApproverResolver(
-            UserRepository userRepository,
-            PlanRepository planRepository,
-            ReportApplicationService reportApplicationService,
+            UserProvider userProvider,
+            WorkflowBusinessContextPort workflowBusinessContextPort,
             WorkflowApproverProperties workflowApproverProperties
     ) {
-        this.userRepository = userRepository;
-        this.planRepository = planRepository;
-        this.reportApplicationService = reportApplicationService;
+        this.userProvider = userProvider;
+        this.workflowBusinessContextPort = workflowBusinessContextPort;
         this.workflowApproverProperties = workflowApproverProperties;
     }
 
@@ -55,13 +51,13 @@ public class ApproverResolver {
     }
 
     private Long resolveByRoleId(Long roleId, Long requesterOrgId, String stepName) {
-        List<User> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId);
+        List<UserIdentity> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId);
         if (candidates.isEmpty()) {
             throw new IllegalStateException("No available approver candidates for step: " + stepName);
         }
 
         return candidates.stream()
-                .map(User::getId)
+                .map(UserIdentity::id)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No available approver candidates for step: " + stepName));
     }
@@ -70,12 +66,12 @@ public class ApproverResolver {
         if (userId == null || userId <= 0) {
             return "Unknown";
         }
-        return userRepository.findById(userId)
+        return userProvider.findIdentity(userId)
                 .map(user -> {
-                    if (user.getRealName() != null && !user.getRealName().isBlank()) {
-                        return user.getRealName();
+                    if (user.realName() != null && !user.realName().isBlank()) {
+                        return user.realName();
                     }
-                    return user.getUsername() != null ? user.getUsername() : "User-" + userId;
+                    return user.username() != null ? user.username() : "User-" + userId;
                 })
                 .orElse("User-" + userId);
     }
@@ -84,8 +80,7 @@ public class ApproverResolver {
         if (userId == null || userId <= 0) {
             return null;
         }
-        return userRepository.findById(userId)
-                .map(User::getOrgId)
+        return userProvider.getUserOrgId(userId)
                 .orElse(null);
     }
 
@@ -115,12 +110,12 @@ public class ApproverResolver {
         }
 
         List<ApproverCandidateResponse> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId).stream()
-                .sorted(Comparator.comparing(User::getId))
+                .sorted(Comparator.comparing(UserIdentity::id))
                 .map(user -> ApproverCandidateResponse.builder()
-                        .userId(user.getId())
-                        .username(user.getUsername())
-                        .realName(user.getRealName())
-                        .orgId(user.getOrgId())
+                        .userId(user.id())
+                        .username(user.username())
+                        .realName(user.realName())
+                        .orgId(user.orgId())
                         .build())
                 .toList();
         if (candidates.isEmpty()) {
@@ -144,10 +139,10 @@ public class ApproverResolver {
         }
 
         Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
-        List<Long> roleIds = userRepository.findRoleIdsByUserId(userId);
+        List<Long> roleIds = userProvider.getUserRoleIds(userId);
 
-        return userRepository.findById(userId)
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+        return userProvider.findIdentity(userId)
+                .filter(user -> Boolean.TRUE.equals(user.isActive()))
                 .filter(user -> roleIds.contains(roleId))
                 .filter(user -> matchesRoleScope(user, roleId, scopeOrgId))
                 .isPresent();
@@ -167,24 +162,24 @@ public class ApproverResolver {
 
         Long roleId = stepDef.getRoleId();
         if (roleId == null || roleId <= 0) {
-            userRepository.findById(approverId)
-                    .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+            userProvider.findIdentity(approverId)
+                    .filter(user -> Boolean.TRUE.equals(user.isActive()))
                     .orElseThrow(() -> new IllegalArgumentException("Invalid approver for step: " + stepDef.getStepName()));
             return;
         }
 
         boolean valid = findScopedActiveUsersByRole(roleId, requesterOrgId).stream()
-                .anyMatch(user -> approverId.equals(user.getId()));
+                .anyMatch(user -> approverId.equals(user.id()));
         if (!valid) {
             throw new IllegalArgumentException("Selected approver does not match step role: " + stepDef.getStepName());
         }
     }
 
-    private List<User> findScopedActiveUsersByRole(Long roleId, Long requesterOrgId) {
-        return userRepository.findByRoleId(roleId).stream()
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+    private List<UserIdentity> findScopedActiveUsersByRole(Long roleId, Long requesterOrgId) {
+        return userProvider.findActiveIdentitiesByRole(roleId).stream()
+                .filter(user -> Boolean.TRUE.equals(user.isActive()))
                 .filter(user -> matchesRoleScope(user, roleId, requesterOrgId))
-                .sorted(Comparator.comparing(User::getId))
+                .sorted(Comparator.comparing(UserIdentity::id))
                 .toList();
     }
 
@@ -192,27 +187,9 @@ public class ApproverResolver {
         if (!isCollegeFinalApprovalStep(stepDef, instance)) {
             return requesterOrgId;
         }
-
-        if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            return planRepository.findById(instance.getEntityId())
-                    .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
-                    .orElse(requesterOrgId);
-        }
-
-        if (PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            Long planId = reportApplicationService.findReportById(instance.getEntityId())
-                    .map(report -> report.getPlanId())
-                    .orElse(null);
-            if (planId == null || planId <= 0) {
-                return requesterOrgId;
-            }
-
-            return planRepository.findById(planId)
-                    .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
-                    .orElse(requesterOrgId);
-        }
-
-        return requesterOrgId;
+        return workflowBusinessContextPort.getBusinessSummary(instance.getEntityType(), instance.getEntityId())
+                .map(summary -> summary.sourceOrgId() != null ? summary.sourceOrgId() : requesterOrgId)
+                .orElse(requesterOrgId);
     }
 
     private boolean isCollegeFinalApprovalStep(AuditStepDef stepDef, AuditInstance instance) {
@@ -240,8 +217,8 @@ public class ApproverResolver {
         return fallbackMatched;
     }
 
-    private boolean matchesRoleScope(User user, Long roleId, Long requesterOrgId) {
-        Long userOrgId = user.getOrgId();
+    private boolean matchesRoleScope(UserIdentity user, Long roleId, Long requesterOrgId) {
+        Long userOrgId = user.orgId();
 
         if (getApproverRoleId().equals(roleId)) {
             return requesterOrgId != null && requesterOrgId.equals(userOrgId);

@@ -1,15 +1,15 @@
 package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.service.UserNotificationService;
 import com.sism.common.PageResult;
-import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import com.sism.strategy.application.MilestoneApplicationService;
 import com.sism.strategy.application.StrategyApplicationService;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
 import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsRequest;
 import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsResponse;

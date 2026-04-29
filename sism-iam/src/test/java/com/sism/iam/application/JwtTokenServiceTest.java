@@ -1,8 +1,8 @@
 package com.sism.iam.application;
 
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.user.UserRepository;
 import com.sism.util.TokenBlacklistService;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.security.Keys;

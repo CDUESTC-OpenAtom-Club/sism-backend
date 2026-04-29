@@ -8,7 +8,7 @@ import com.sism.analytics.interfaces.dto.GenerateReportRequest;
 import com.sism.analytics.interfaces.dto.ReportDTO;
 import com.sism.analytics.interfaces.dto.UpdateReportRequest;
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

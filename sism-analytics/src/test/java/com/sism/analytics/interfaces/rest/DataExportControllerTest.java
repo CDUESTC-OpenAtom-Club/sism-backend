@@ -6,7 +6,7 @@ import com.sism.analytics.application.ExportService;
 import com.sism.analytics.domain.DataExport;
 import com.sism.analytics.interfaces.dto.CompleteDataExportRequest;
 import com.sism.analytics.interfaces.dto.CreateDataExportRequest;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;

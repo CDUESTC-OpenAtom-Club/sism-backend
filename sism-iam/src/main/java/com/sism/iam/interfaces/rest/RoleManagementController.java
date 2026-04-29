@@ -1,14 +1,14 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.common.PageResult;
 import com.sism.iam.application.service.PaginationPolicy;
 import com.sism.iam.application.service.RoleManagementService;
-import com.sism.iam.domain.Permission;
-import com.sism.iam.domain.Role;
+import com.sism.iam.domain.access.Permission;
+import com.sism.iam.domain.access.Role;
 import com.sism.organization.domain.OrgType;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;

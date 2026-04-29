@@ -1,9 +1,9 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.model.report.PlanReportStatus;
-import com.sism.execution.domain.model.report.ReportOrgType;
-import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.domain.report.PlanReport;
+import com.sism.execution.domain.report.PlanReportRepository;
+import com.sism.execution.domain.report.PlanReportStatus;
+import com.sism.execution.domain.report.ReportOrgType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

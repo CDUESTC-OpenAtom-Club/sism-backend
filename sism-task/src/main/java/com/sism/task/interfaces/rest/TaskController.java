@@ -2,11 +2,11 @@ package com.sism.task.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.shared.domain.exception.AuthorizationException;
 import com.sism.task.application.TaskApplicationService;
 import com.sism.task.application.dto.*;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.TaskType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

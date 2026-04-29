@@ -283,7 +283,7 @@ public class EventStoreDatabase implements EventStore {
         String[] searchPackages = {
             "com.sism.shared.infrastructure.event",  // 测试事件
             "com.sism.strategy.domain.model.indicator.event",
-            "com.sism.execution.domain.model.report.event",
+            "com.sism.execution.domain.report.event",
             "com.sism.shared.domain.model.event"
         };
 

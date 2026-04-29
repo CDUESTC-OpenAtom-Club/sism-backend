@@ -1,6 +1,6 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.repository.PlanStatusSyncGateway;
+import com.sism.execution.domain.report.PlanStatusSyncGateway;
 import com.sism.strategy.domain.repository.PlanRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;

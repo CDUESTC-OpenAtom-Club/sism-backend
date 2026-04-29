@@ -5,7 +5,7 @@ import com.sism.alert.domain.enums.AlertSeverity;
 import com.sism.alert.domain.enums.AlertStatus;
 import com.sism.alert.domain.repository.AlertRepository;
 import com.sism.alert.interfaces.dto.AlertStatsDTO;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.shared.domain.exception.AuthorizationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

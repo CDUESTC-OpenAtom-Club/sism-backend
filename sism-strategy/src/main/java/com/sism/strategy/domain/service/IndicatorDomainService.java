@@ -1,9 +1,9 @@
 package com.sism.strategy.domain.service;
 
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

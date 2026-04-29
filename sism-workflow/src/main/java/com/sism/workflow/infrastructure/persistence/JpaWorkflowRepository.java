@@ -1,8 +1,8 @@
 package com.sism.workflow.infrastructure.persistence;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.WorkflowTask;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

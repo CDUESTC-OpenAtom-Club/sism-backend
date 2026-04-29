@@ -1,7 +1,7 @@
 package com.sism.execution.interfaces.dto;
 
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.model.report.ReportOrgType;
+import com.sism.execution.domain.report.PlanReport;
+import com.sism.execution.domain.report.ReportOrgType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

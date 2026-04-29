@@ -10,7 +10,7 @@ import com.sism.alert.interfaces.dto.AlertResponse;
 import com.sism.alert.interfaces.dto.AlertStatsDTO;
 import com.sism.alert.interfaces.dto.ResolveAlertRequest;
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.shared.domain.exception.AuthorizationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

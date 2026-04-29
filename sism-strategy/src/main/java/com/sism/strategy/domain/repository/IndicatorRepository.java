@@ -1,6 +1,6 @@
 package com.sism.strategy.domain.repository;
 
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.organization.domain.SysOrg;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

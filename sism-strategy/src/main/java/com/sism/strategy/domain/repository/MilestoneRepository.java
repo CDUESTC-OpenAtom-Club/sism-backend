@@ -1,6 +1,6 @@
 package com.sism.strategy.domain.repository;
 
-import com.sism.strategy.domain.model.milestone.Milestone;
+import com.sism.strategy.domain.milestone.Milestone;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

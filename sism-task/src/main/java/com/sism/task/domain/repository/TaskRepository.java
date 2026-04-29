@@ -1,7 +1,7 @@
 package com.sism.task.domain.repository;
 
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.StrategicTask;
+import com.sism.task.domain.task.TaskType;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

@@ -4,10 +4,10 @@ import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
 import com.sism.exception.ResourceNotFoundException;
 import com.sism.execution.application.ReportApplicationService;
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.model.report.ReportOrgType;
+import com.sism.execution.domain.report.PlanReport;
+import com.sism.execution.domain.report.ReportOrgType;
 import com.sism.execution.interfaces.dto.*;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -390,7 +390,8 @@ public class ReportController {
         }
         return currentUser.getAuthorities().stream()
                 .map(authority -> authority.getAuthority())
-                .anyMatch(authority -> "ROLE_VICE_PRESIDENT".equals(authority)
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority)
+                        || "ROLE_VICE_PRESIDENT".equals(authority)
                         || "ROLE_STRATEGY_DEPT_HEAD".equals(authority));
     }
 

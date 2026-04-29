@@ -1,6 +1,6 @@
 package com.sism.strategy.infrastructure.persistence;
 
-import com.sism.strategy.domain.Cycle;
+import com.sism.strategy.domain.cycle.Cycle;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

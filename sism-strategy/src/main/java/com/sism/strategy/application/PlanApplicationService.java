@@ -1,14 +1,14 @@
 package com.sism.strategy.application;
 
 import com.sism.exception.ConflictException;
-import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
-import com.sism.strategy.domain.Cycle;
-import com.sism.strategy.domain.Indicator;
-import com.sism.strategy.domain.event.IndicatorCreatedEvent;
-import com.sism.strategy.domain.event.PlanCreatedEvent;
-import com.sism.strategy.domain.event.PlanSubmittedForApprovalEvent;
+import com.sism.strategy.domain.cycle.Cycle;
+import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.strategy.domain.indicator.event.IndicatorCreatedEvent;
+import com.sism.strategy.domain.plan.event.PlanCreatedEvent;
+import com.sism.strategy.domain.plan.event.PlanSubmittedForApprovalEvent;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.plan.PlanStatus;
@@ -21,7 +21,7 @@ import com.sism.strategy.interfaces.dto.PlanResponse;
 import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
 import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
 import com.sism.strategy.infrastructure.StrategyOrgProperties;
-import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.task.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -459,7 +459,7 @@ public class PlanApplicationService {
     public Optional<PlanResponse> getPlanByTaskId(Long taskId) {
         planIntegrityService.ensurePlanMatrix();
         return taskRepository.findById(taskId)
-                .map(com.sism.task.domain.StrategicTask::getPlanId)
+                .map(com.sism.task.domain.task.StrategicTask::getPlanId)
                 .flatMap(planRepository::findById)
                 .map(plan -> enrichWorkflowFields(
                         convertToResponse(plan, null, loadOrgNamesById(plan), loadPlanMetrics(List.of(plan))),

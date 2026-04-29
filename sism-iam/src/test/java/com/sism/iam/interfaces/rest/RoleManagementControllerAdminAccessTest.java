@@ -2,12 +2,12 @@ package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.service.RoleManagementService;
-import com.sism.iam.domain.Role;
+import com.sism.iam.domain.access.Role;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

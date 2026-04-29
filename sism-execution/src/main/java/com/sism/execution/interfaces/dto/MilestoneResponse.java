@@ -1,6 +1,6 @@
 package com.sism.execution.interfaces.dto;
 
-import com.sism.execution.domain.model.milestone.Milestone;
+import com.sism.execution.domain.milestone.Milestone;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

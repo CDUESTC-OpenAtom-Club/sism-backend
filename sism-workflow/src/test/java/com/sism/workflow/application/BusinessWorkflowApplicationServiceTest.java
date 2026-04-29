@@ -1,18 +1,19 @@
 package com.sism.workflow.application;
 
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.shared.domain.notification.NotificationProvider;
+import com.sism.shared.domain.user.UserProvider;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.definition.WorkflowPreviewQueryService;
 import com.sism.workflow.application.query.WorkflowReadModelMapper;
 import com.sism.workflow.application.query.WorkflowReadModelService;
 import com.sism.workflow.application.support.ApproverResolver;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
-import com.sism.workflow.domain.runtime.repository.WorkflowTaskRepository;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.WorkflowTask;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
+import com.sism.workflow.domain.runtime.WorkflowTaskRepository;
 import com.sism.workflow.interfaces.dto.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,7 +62,10 @@ class BusinessWorkflowApplicationServiceTest {
     private ApproverResolver approverResolver;
 
     @Mock
-    private UserRepository userRepository;
+    private UserProvider userProvider;
+
+    @Mock
+    private NotificationProvider notificationProvider;
 
     @InjectMocks
     private BusinessWorkflowApplicationService businessWorkflowApplicationService;
@@ -166,7 +170,7 @@ class BusinessWorkflowApplicationServiceTest {
         resumable.setEntityId(9001L);
         resumable.setStatus(AuditInstance.STATUS_PENDING);
 
-        var withdrawnStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        var withdrawnStep = new com.sism.workflow.domain.runtime.AuditStepInstance();
         withdrawnStep.setId(601L);
         withdrawnStep.setStepNo(2);
         withdrawnStep.setStepName("部门审批");
@@ -206,7 +210,7 @@ class BusinessWorkflowApplicationServiceTest {
         resumable.setEntityId(77L);
         resumable.setStatus(AuditInstance.STATUS_REJECTED);
 
-        var withdrawnStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        var withdrawnStep = new com.sism.workflow.domain.runtime.AuditStepInstance();
         withdrawnStep.setId(701L);
         withdrawnStep.setStepNo(5);
         withdrawnStep.setStepName("填报人提交");
@@ -252,8 +256,8 @@ class BusinessWorkflowApplicationServiceTest {
         instance.setFlowDefId(3L);
         instance.setRequesterOrgId(35L);
 
-        com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
-                new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        com.sism.workflow.domain.runtime.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.AuditStepInstance();
         currentStep.setId(256L);
         currentStep.setStepDefId(9L);
         currentStep.setStepNo(2);
@@ -292,8 +296,8 @@ class BusinessWorkflowApplicationServiceTest {
         instance.setFlowDefId(1L);
         instance.setRequesterOrgId(35L);
 
-        com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
-                new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        com.sism.workflow.domain.runtime.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.AuditStepInstance();
         currentStep.setId(356L);
         currentStep.setStepDefId(2L);
         currentStep.setStepNo(2);
@@ -340,8 +344,8 @@ class BusinessWorkflowApplicationServiceTest {
         instance.setRequesterOrgId(36L);
         instance.setEntityType("PLAN");
 
-        com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
-                new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        com.sism.workflow.domain.runtime.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.AuditStepInstance();
         currentStep.setId(5L);
         currentStep.setStepDefId(8L);
         currentStep.setStepNo(2);
@@ -363,7 +367,7 @@ class BusinessWorkflowApplicationServiceTest {
         when(auditInstanceRepository.findByStepInstanceId(5L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 192L, 36L, instance)).thenReturn(true);
-        when(userRepository.findPermissionCodesByUserId(192L))
+        when(userProvider.getUserPermissionCodes(192L))
                 .thenReturn(List.of("BTN_INDICATOR_REPORT_APPROVE"));
         when(workflowApplicationService.approveAuditInstance(instance, 192L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
@@ -385,8 +389,8 @@ class BusinessWorkflowApplicationServiceTest {
         instance.setRequesterOrgId(22L);
         instance.setEntityType("PLAN");
 
-        com.sism.workflow.domain.runtime.model.AuditStepInstance currentStep =
-                new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        com.sism.workflow.domain.runtime.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.AuditStepInstance();
         currentStep.setId(400L);
         currentStep.setStepDefId(12L);
         currentStep.setStepNo(1);
@@ -406,7 +410,7 @@ class BusinessWorkflowApplicationServiceTest {
         when(auditInstanceRepository.findByStepInstanceId(400L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 9L, 22L, instance)).thenReturn(true);
-        when(userRepository.findPermissionCodesByUserId(9L)).thenReturn(List.of());
+        when(userProvider.getUserPermissionCodes(9L)).thenReturn(List.of());
 
         assertThrows(
                 SecurityException.class,
@@ -457,7 +461,7 @@ class BusinessWorkflowApplicationServiceTest {
         instance.setStatus(AuditInstance.STATUS_PENDING);
         instance.setFlowDefId(4L);
         instance.setRequesterOrgId(56L);
-        var currentStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        var currentStep = new com.sism.workflow.domain.runtime.AuditStepInstance();
         currentStep.setId(501L);
         currentStep.setStepDefId(13L);
         currentStep.setStepNo(2);
@@ -496,7 +500,7 @@ class BusinessWorkflowApplicationServiceTest {
         instance.setStatus(AuditInstance.STATUS_PENDING);
         instance.setFlowDefId(2L);
         instance.setRequesterOrgId(44L);
-        var currentStep = new com.sism.workflow.domain.runtime.model.AuditStepInstance();
+        var currentStep = new com.sism.workflow.domain.runtime.AuditStepInstance();
         currentStep.setId(601L);
         currentStep.setStepDefId(6L);
         currentStep.setStepNo(2);

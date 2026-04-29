@@ -1,12 +1,12 @@
 package com.sism.workflow.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.workflow.application.WorkflowApplicationService;
 import com.sism.workflow.application.query.WorkflowReadModelMapper;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.WorkflowTask;
 import com.sism.workflow.interfaces.assembler.LegacyWorkflowAssembler;
 import com.sism.workflow.interfaces.dto.*;
 import io.swagger.v3.oas.annotations.Operation;

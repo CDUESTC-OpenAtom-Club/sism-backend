@@ -3,7 +3,7 @@ package com.sism.analytics.interfaces.rest;
 import com.sism.analytics.application.DashboardApplicationService;
 import com.sism.analytics.domain.Dashboard;
 import com.sism.analytics.interfaces.dto.CreateDashboardRequest;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;

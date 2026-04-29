@@ -5,7 +5,7 @@ import com.sism.analytics.application.AnalyticsFileStorageService;
 import com.sism.analytics.domain.Report;
 import com.sism.analytics.interfaces.dto.CreateReportRequest;
 import com.sism.analytics.interfaces.dto.GenerateReportRequest;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;

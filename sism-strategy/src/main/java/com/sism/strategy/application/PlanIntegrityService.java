@@ -2,8 +2,8 @@ package com.sism.strategy.application;
 
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
-import com.sism.strategy.domain.Cycle;
+import com.sism.organization.domain.OrganizationRepository;
+import com.sism.strategy.domain.cycle.Cycle;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.repository.CycleRepository;

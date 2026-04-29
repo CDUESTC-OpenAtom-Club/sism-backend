@@ -2,8 +2,8 @@ package com.sism.strategy.infrastructure.persistence;
 
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.OrgType;
-import com.sism.strategy.domain.Indicator;
-import com.sism.strategy.domain.enums.IndicatorLevel;
+import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.strategy.domain.indicator.IndicatorLevel;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

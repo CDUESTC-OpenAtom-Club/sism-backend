@@ -1,8 +1,8 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
-import com.sism.execution.domain.repository.PlanReportAttachmentSnapshot;
-import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
+import com.sism.execution.domain.report.PlanReportAttachmentSnapshot;
+import com.sism.execution.domain.report.PlanReportIndicatorRepository;
+import com.sism.execution.domain.report.PlanReportIndicatorSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

@@ -2,7 +2,7 @@ package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.strategy.application.CycleApplicationService;
-import com.sism.strategy.domain.Cycle;
+import com.sism.strategy.domain.cycle.Cycle;
 import com.sism.strategy.interfaces.dto.CreateCycleRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

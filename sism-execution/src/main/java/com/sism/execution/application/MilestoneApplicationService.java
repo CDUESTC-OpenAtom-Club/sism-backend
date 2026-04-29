@@ -1,9 +1,9 @@
 package com.sism.execution.application;
 
 import com.sism.exception.ResourceNotFoundException;
-import com.sism.execution.domain.model.milestone.Milestone;
-import com.sism.execution.domain.model.milestone.MilestoneStatus;
-import com.sism.execution.domain.repository.ExecutionMilestoneRepository;
+import com.sism.execution.domain.milestone.ExecutionMilestoneRepository;
+import com.sism.execution.domain.milestone.Milestone;
+import com.sism.execution.domain.milestone.MilestoneStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;

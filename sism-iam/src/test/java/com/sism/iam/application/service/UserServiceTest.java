@@ -1,9 +1,9 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.iam.domain.repository.RoleRepository;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.user.UserRepository;
+import com.sism.iam.domain.access.RoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

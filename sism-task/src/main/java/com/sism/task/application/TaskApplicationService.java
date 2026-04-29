@@ -1,18 +1,18 @@
 package com.sism.task.application;
 
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import com.sism.shared.domain.exception.AuthorizationException;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
 import com.sism.task.application.dto.*;
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskStatus;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.StrategicTask;
+import com.sism.task.domain.task.TaskStatus;
+import com.sism.task.domain.task.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.task.infrastructure.persistence.PlanBindingRepository;
 import com.sism.task.infrastructure.persistence.TaskFlatView;

@@ -1,9 +1,9 @@
 package com.sism.workflow.interfaces.assembler;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.WorkflowTask;
 import com.sism.workflow.interfaces.dto.CreateLegacyFlowRequest;
 import com.sism.workflow.interfaces.dto.CreateLegacyFlowStepRequest;
 import com.sism.workflow.interfaces.dto.StartLegacyInstanceRequest;

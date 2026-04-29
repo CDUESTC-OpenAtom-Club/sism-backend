@@ -1,14 +1,13 @@
 package com.sism.execution.application;
 
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
-import com.sism.execution.domain.model.report.ReportOrgType;
-import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.domain.report.PlanReport;
+import com.sism.execution.domain.report.PlanReportIndicatorRepository;
+import com.sism.execution.domain.report.PlanReportRepository;
+import com.sism.execution.domain.report.ReportOrgType;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.strategy.domain.Indicator;
-import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +18,6 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
@@ -56,9 +54,6 @@ class ReportApplicationServiceIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;
-
-    @MockBean
-    private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {
@@ -356,22 +351,19 @@ class ReportApplicationServiceIntegrationTest {
     @EntityScan(basePackages = {
             "com.sism.execution.domain",
             "com.sism.strategy.domain",
-            "com.sism.organization.domain",
-            "com.sism.iam.domain"
+            "com.sism.organization.domain"
     })
     @EnableJpaRepositories(basePackages = {
             "com.sism.execution.infrastructure.persistence",
             "com.sism.strategy.infrastructure.persistence",
-            "com.sism.organization.infrastructure.persistence",
-            "com.sism.iam.domain.repository"
+            "com.sism.organization.infrastructure.persistence"
     })
     @ComponentScan(basePackages = {
             "com.sism.execution.application",
             "com.sism.execution.infrastructure.persistence",
             "com.sism.shared.infrastructure.event",
             "com.sism.strategy.infrastructure.persistence",
-            "com.sism.organization.infrastructure.persistence",
-            "com.sism.iam.domain.repository"
+            "com.sism.organization.infrastructure.persistence"
     })
     static class TestConfig {
     }

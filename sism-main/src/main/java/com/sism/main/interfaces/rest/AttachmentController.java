@@ -114,7 +114,7 @@ public class AttachmentController {
             return null;
         }
         Object principal = authentication.getPrincipal();
-        if (principal instanceof com.sism.iam.application.dto.CurrentUser currentUser) {
+        if (principal instanceof com.sism.shared.application.dto.CurrentUser currentUser) {
             return new UserIdentity(
                     currentUser.getId(),
                     currentUser.getAuthorities() == null ? java.util.List.of() : currentUser.getAuthorities()

@@ -1,6 +1,6 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.model.milestone.Milestone;
+import com.sism.execution.domain.milestone.Milestone;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

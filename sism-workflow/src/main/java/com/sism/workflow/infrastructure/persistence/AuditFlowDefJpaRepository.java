@@ -1,6 +1,6 @@
 package com.sism.workflow.infrastructure.persistence;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

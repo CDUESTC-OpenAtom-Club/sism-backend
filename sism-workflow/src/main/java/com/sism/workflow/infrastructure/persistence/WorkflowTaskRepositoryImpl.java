@@ -1,7 +1,7 @@
 package com.sism.workflow.infrastructure.persistence;
 
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
-import com.sism.workflow.domain.runtime.repository.WorkflowTaskRepository;
+import com.sism.workflow.domain.runtime.WorkflowTask;
+import com.sism.workflow.domain.runtime.WorkflowTaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

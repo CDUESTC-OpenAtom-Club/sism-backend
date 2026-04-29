@@ -2,7 +2,7 @@ package com.sism.strategy.application;
 
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;

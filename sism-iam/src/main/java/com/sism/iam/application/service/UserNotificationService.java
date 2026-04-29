@@ -2,10 +2,11 @@ package com.sism.iam.application.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.UserNotification;
-import com.sism.iam.domain.repository.UserNotificationRepository;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.notification.UserNotification;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.notification.UserNotificationRepository;
+import com.sism.iam.domain.user.UserRepository;
+import com.sism.shared.domain.notification.NotificationProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,10 +24,12 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class UserNotificationService {
+public class UserNotificationService implements NotificationProvider {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String TYPE_REMINDER = "REMINDER";
+    private static final String TYPE_APPROVAL_APPROVED = "APPROVAL_APPROVED";
+    private static final String TYPE_APPROVAL_REJECTED = "APPROVAL_REJECTED";
     private static final String ENTITY_TYPE_INDICATOR = "INDICATOR";
     private static final String STATUS_READ = "READ";
     private static final String STATUS_UNREAD = "UNREAD";
@@ -164,6 +167,78 @@ public class UserNotificationService {
     }
 
     @Transactional
+    @Override
+    public ApprovalResultNotification createApprovalResultNotification(
+            Long recipientUserId,
+            Long senderUserId,
+            Long senderOrgId,
+            Long approvalInstanceId,
+            String entityType,
+            Long entityId,
+            String businessName,
+            String stepName,
+            boolean approved,
+            String comment
+    ) {
+        if (recipientUserId == null) {
+            throw new IllegalArgumentException("Recipient user ID is required");
+        }
+
+        String normalizedEntityType = entityType == null ? null : entityType.trim().toUpperCase();
+        String resolvedBusinessName =
+                businessName == null || businessName.isBlank()
+                        ? (entityId == null ? "审批事项" : "业务对象#" + entityId)
+                        : businessName.trim();
+        String resolvedStepName =
+                stepName == null || stepName.isBlank() ? "当前审批环节" : stepName.trim();
+        String normalizedComment = comment == null ? "" : comment.trim();
+        String actionUrl = approvalInstanceId == null
+                ? "/messages"
+                : "/messages?approvalInstanceId=" + approvalInstanceId;
+
+        String title = resolveApprovalResultTitle(normalizedEntityType, approved);
+        String content = approved
+                ? "你已审批通过“" + resolvedBusinessName + "”，处理环节为“" + resolvedStepName + "”。"
+                : "你已审批驳回“" + resolvedBusinessName + "”，处理环节为“" + resolvedStepName + "”。";
+        if (!normalizedComment.isBlank()) {
+            content = content + " 审批意见：" + normalizedComment;
+        }
+
+        UserNotification notification = new UserNotification();
+        notification.setRecipientUserId(recipientUserId);
+        notification.setSenderUserId(senderUserId);
+        notification.setSenderOrgId(senderOrgId);
+        notification.setNotificationType(approved ? TYPE_APPROVAL_APPROVED : TYPE_APPROVAL_REJECTED);
+        notification.setTitle(title);
+        notification.setContent(content);
+        notification.setStatus(STATUS_UNREAD);
+        notification.setActionUrl(actionUrl);
+        notification.setRelatedEntityType(normalizedEntityType);
+        notification.setRelatedEntityId(entityId);
+        notification.setMetadataJson(buildApprovalResultMetadataJson(
+                approvalInstanceId,
+                normalizedEntityType,
+                entityId,
+                resolvedBusinessName,
+                resolvedStepName,
+                approved,
+                normalizedComment
+        ));
+        notification.validate();
+
+        UserNotification saved = userNotificationRepository.save(notification);
+        return new ApprovalResultNotification(
+                saved.getId(),
+                saved.getRecipientUserId(),
+                approvalInstanceId,
+                normalizedEntityType,
+                entityId,
+                saved.getNotificationType(),
+                saved.getCreatedAt()
+        );
+    }
+
+    @Transactional
     public Map<String, Object> markNotificationAsRead(Long id, Long currentUserId) {
         UserNotification notification = userNotificationRepository.findByIdAndRecipientUserId(id, currentUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found: " + id));
@@ -253,6 +328,41 @@ public class UserNotificationService {
             return OBJECT_MAPPER.writeValueAsString(metadata);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize notification metadata", e);
+        }
+    }
+
+    private String resolveApprovalResultTitle(String entityType, boolean approved) {
+        String subject = switch (entityType == null ? "" : entityType) {
+            case "PLAN" -> "计划审批";
+            case "PLAN_REPORT" -> "月报审批";
+            case "INDICATOR" -> "指标审批";
+            case "INDICATOR_DISTRIBUTION" -> "指标下发审批";
+            default -> "审批处理";
+        };
+        return subject + (approved ? "已通过" : "已驳回");
+    }
+
+    private static String buildApprovalResultMetadataJson(
+            Long approvalInstanceId,
+            String entityType,
+            Long entityId,
+            String businessName,
+            String stepName,
+            boolean approved,
+            String comment
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("approvalInstanceId", approvalInstanceId);
+        metadata.put("entityType", entityType);
+        metadata.put("entityId", entityId);
+        metadata.put("businessName", businessName);
+        metadata.put("stepName", stepName);
+        metadata.put("result", approved ? "APPROVED" : "REJECTED");
+        metadata.put("comment", comment);
+        try {
+            return OBJECT_MAPPER.writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize approval result metadata", e);
         }
     }
 }

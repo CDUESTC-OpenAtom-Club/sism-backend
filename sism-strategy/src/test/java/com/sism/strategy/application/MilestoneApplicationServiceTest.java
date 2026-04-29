@@ -1,6 +1,6 @@
 package com.sism.strategy.application;
 
-import com.sism.strategy.domain.model.milestone.Milestone;
+import com.sism.strategy.domain.milestone.Milestone;
 import com.sism.strategy.domain.repository.MilestoneRepository;
 import com.sism.strategy.interfaces.dto.CreateMilestoneRequest;
 import com.sism.strategy.interfaces.dto.BatchSaveMilestonesRequest;

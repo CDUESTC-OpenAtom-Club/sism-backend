@@ -1,6 +1,6 @@
 package com.sism.strategy.infrastructure.persistence;
 
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.organization.domain.OrgType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;

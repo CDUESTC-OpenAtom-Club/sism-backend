@@ -1,7 +1,7 @@
 package com.sism.task.infrastructure.persistence;
 
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.StrategicTask;
+import com.sism.task.domain.task.TaskType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

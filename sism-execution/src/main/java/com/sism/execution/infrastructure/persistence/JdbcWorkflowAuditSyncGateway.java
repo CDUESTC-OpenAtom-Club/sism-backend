@@ -1,6 +1,6 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.repository.WorkflowAuditSyncGateway;
+import com.sism.execution.domain.report.WorkflowAuditSyncGateway;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

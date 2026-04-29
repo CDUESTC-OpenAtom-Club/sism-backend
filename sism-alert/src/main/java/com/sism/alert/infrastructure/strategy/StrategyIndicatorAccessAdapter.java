@@ -1,7 +1,7 @@
 package com.sism.alert.infrastructure.strategy;
 
 import com.sism.alert.application.IndicatorAccessPort;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

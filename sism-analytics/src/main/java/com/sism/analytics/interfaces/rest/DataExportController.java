@@ -8,7 +8,7 @@ import com.sism.analytics.interfaces.dto.CompleteDataExportRequest;
 import com.sism.analytics.interfaces.dto.CreateDataExportRequest;
 import com.sism.analytics.interfaces.dto.DataExportDTO;
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

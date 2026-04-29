@@ -1,6 +1,6 @@
 package com.sism.task.application.dto;
 
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.TaskType;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,6 +1,6 @@
 package com.sism.strategy.application;
 
-import com.sism.strategy.domain.Cycle;
+import com.sism.strategy.domain.cycle.Cycle;
 import com.sism.strategy.domain.repository.CycleRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

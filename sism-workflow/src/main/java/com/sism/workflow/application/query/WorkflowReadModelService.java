@@ -1,18 +1,15 @@
 package com.sism.workflow.application.query;
 
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.organization.domain.repository.OrganizationRepository;
-import com.sism.execution.application.ReportApplicationService;
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.strategy.domain.plan.Plan;
-import com.sism.strategy.domain.repository.PlanRepository;
+import com.sism.shared.domain.user.UserIdentity;
+import com.sism.shared.domain.user.UserProvider;
+import com.sism.shared.domain.workflow.WorkflowBusinessContextPort;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.AuditStepInstance;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditStepInstance;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
 import com.sism.workflow.interfaces.dto.PageResult;
 import com.sism.workflow.interfaces.dto.WorkflowHistoryCardResponse;
 import com.sism.workflow.interfaces.dto.WorkflowHistoryResponse;
@@ -51,10 +48,8 @@ public class WorkflowReadModelService {
     private final AuditInstanceRepository auditInstanceRepository;
     private final WorkflowQueryRepository workflowQueryRepository;
     private final WorkflowReadModelMapper workflowReadModelMapper;
-    private final PlanRepository planRepository;
-    private final ReportApplicationService reportApplicationService;
-    private final OrganizationRepository organizationRepository;
-    private final UserRepository userRepository;
+    private final UserProvider userProvider;
+    private final java.util.List<WorkflowBusinessContextPort> workflowBusinessContextPorts;
 
     public PageResult<com.sism.workflow.interfaces.dto.WorkflowDefinitionResponse> listDefinitions(int pageNum, int pageSize) {
         int safePageNum = normalizePageNum(pageNum);
@@ -440,82 +435,27 @@ public class WorkflowReadModelService {
             return cached;
         }
 
-        WorkflowBusinessContext resolved;
-        if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            resolved = planRepository.findById(instance.getEntityId())
-                    .map(plan -> buildPlanContext(plan, orgNameCache))
-                    .orElseGet(() -> new WorkflowBusinessContext(
-                            instance.getEntityId(),
-                            "Plan " + instance.getEntityId(),
-                            null,
-                            null,
-                            null,
-                            null,
-                            null
-                    ));
-            businessContextCache.put(cacheKey, resolved);
-            return resolved;
-        }
-
-        if (isPlanReportEntityType(instance.getEntityType())) {
-            resolved = buildPlanReportContext(instance.getEntityId(), orgNameCache);
-            businessContextCache.put(cacheKey, resolved);
-            return resolved;
-        }
-
-        resolved = WorkflowBusinessContext.empty();
+        WorkflowBusinessContext resolved = resolveSummary(instance.getEntityType(), instance.getEntityId())
+                .map(summary -> {
+                    if (summary.sourceOrgId() != null && summary.sourceOrgName() != null) {
+                        orgNameCache.put(summary.sourceOrgId(), summary.sourceOrgName());
+                    }
+                    if (summary.targetOrgId() != null && summary.targetOrgName() != null) {
+                        orgNameCache.put(summary.targetOrgId(), summary.targetOrgName());
+                    }
+                    return new WorkflowBusinessContext(
+                            summary.planId(),
+                            summary.planName(),
+                            summary.sourceOrgId(),
+                            summary.sourceOrgName(),
+                            summary.targetOrgId(),
+                            summary.targetOrgName(),
+                            summary.displayName()
+                    );
+                })
+                .orElse(WorkflowBusinessContext.empty());
         businessContextCache.put(cacheKey, resolved);
         return resolved;
-    }
-
-    private WorkflowBusinessContext buildPlanContext(Plan plan, Map<Long, String> orgNameCache) {
-        Long sourceOrgId = plan.getCreatedByOrgId();
-        Long targetOrgId = plan.getTargetOrgId();
-        return new WorkflowBusinessContext(
-                plan.getId(),
-                "Plan " + plan.getId(),
-                sourceOrgId,
-                resolveOrgName(sourceOrgId, orgNameCache),
-                targetOrgId,
-                resolveOrgName(targetOrgId, orgNameCache),
-                null
-        );
-    }
-
-    private WorkflowBusinessContext buildPlanReportContext(Long reportId, Map<Long, String> orgNameCache) {
-        Long sourceOrgId = null;
-        String sourceOrgName = null;
-        Long targetOrgId = null;
-        String targetOrgName = null;
-        PlanReport report = reportApplicationService.findReportById(reportId).orElse(null);
-        Long planId = report == null ? null : report.getPlanId();
-        Long reportOrgId = report == null ? null : report.getReportOrgId();
-        String reportMonth = report == null ? null : report.getReportMonth();
-        String planName = planId == null ? null : "Plan " + planId;
-
-        if (planId != null) {
-            Optional<Plan> plan = planRepository.findById(planId);
-            if (plan.isPresent()) {
-                sourceOrgId = plan.get().getCreatedByOrgId();
-                sourceOrgName = resolveOrgName(sourceOrgId, orgNameCache);
-                targetOrgId = plan.get().getTargetOrgId();
-                targetOrgName = resolveOrgName(targetOrgId, orgNameCache);
-            }
-        }
-
-        String reportOrgName = resolveOrgName(reportOrgId, orgNameCache);
-        String displayName = (reportMonth == null ? "" : reportMonth + " ")
-                + (reportOrgName == null ? "月报" : reportOrgName + "月报");
-
-        return new WorkflowBusinessContext(
-                planId,
-                displayName.trim(),
-                sourceOrgId,
-                sourceOrgName,
-                targetOrgId,
-                targetOrgName,
-                displayName.trim()
-        );
     }
 
     private void primeReadModelCaches(
@@ -526,16 +466,6 @@ public class WorkflowReadModelService {
         if (instances == null || instances.isEmpty()) {
             return;
         }
-
-        List<Long> planIds = instances.stream()
-                .filter(Objects::nonNull)
-                .filter(instance -> PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType()))
-                .map(AuditInstance::getEntityId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        Map<Long, Plan> planById = planRepository.findAllByIds(planIds).stream()
-                .collect(Collectors.toMap(Plan::getId, plan -> plan, (left, right) -> left, LinkedHashMap::new));
 
         Set<Long> orgIds = new java.util.LinkedHashSet<>();
         Set<Long> userIds = new java.util.LinkedHashSet<>();
@@ -550,17 +480,6 @@ public class WorkflowReadModelService {
             if (instance.getRequesterOrgId() != null) {
                 orgIds.add(instance.getRequesterOrgId());
             }
-            if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-                Plan plan = planById.get(instance.getEntityId());
-                if (plan != null) {
-                    if (plan.getCreatedByOrgId() != null) {
-                        orgIds.add(plan.getCreatedByOrgId());
-                    }
-                    if (plan.getTargetOrgId() != null) {
-                        orgIds.add(plan.getTargetOrgId());
-                    }
-                }
-            }
             if (instance.getStepInstances() != null) {
                 for (AuditStepInstance step : instance.getStepInstances()) {
                     if (step.getApproverId() != null) {
@@ -573,30 +492,20 @@ public class WorkflowReadModelService {
             }
         }
 
-        organizationRepository.findAllByIds(List.copyOf(orgIds)).forEach(org -> {
-            if (org.getId() != null) {
-                String orgName = org.getName() != null && !org.getName().isBlank() ? org.getName() : "Org#" + org.getId();
-                orgNameCache.put(org.getId(), orgName);
+        userIds.forEach(userId -> userProvider.findIdentity(userId).ifPresent(user -> {
+            if (user.id() != null) {
+                String userName = user.realName() != null && !user.realName().isBlank()
+                        ? user.realName()
+                        : (user.username() == null || user.username().isBlank() ? "User#" + user.id() : user.username());
+                userNameCache.put(user.id(), userName);
             }
-        });
-
-        userRepository.findAllByIds(List.copyOf(userIds)).forEach(user -> {
-            if (user.getId() != null) {
-                String userName = user.getRealName() != null && !user.getRealName().isBlank()
-                        ? user.getRealName()
-                        : (user.getUsername() == null || user.getUsername().isBlank() ? "User#" + user.getId() : user.getUsername());
-                userNameCache.put(user.getId(), userName);
-            }
-        });
+        }));
 
         for (AuditInstance instance : instances) {
-            if (instance == null || !PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
+            if (instance == null) {
                 continue;
             }
-            Plan plan = planById.get(instance.getEntityId());
-            if (plan != null) {
-                businessContextCache.put(buildBusinessContextKey(instance.getEntityType(), instance.getEntityId()), buildPlanContext(plan, orgNameCache));
-            }
+            resolveBusinessContext(instance, orgNameCache, businessContextCache);
         }
     }
 
@@ -623,10 +532,10 @@ public class WorkflowReadModelService {
         if (userNameCache.containsKey(userId)) {
             return userNameCache.get(userId);
         }
-        String userName = userRepository.findById(userId)
-                .map(user -> user.getRealName() != null && !user.getRealName().isBlank()
-                        ? user.getRealName()
-                        : (user.getUsername() == null || user.getUsername().isBlank() ? "User#" + userId : user.getUsername()))
+        String userName = userProvider.findIdentity(userId)
+                .map(user -> user.realName() != null && !user.realName().isBlank()
+                        ? user.realName()
+                        : (user.username() == null || user.username().isBlank() ? "User#" + userId : user.username()))
                 .orElse("User#" + userId);
         userNameCache.put(userId, userName);
         return userName;
@@ -639,11 +548,19 @@ public class WorkflowReadModelService {
         if (orgNameCache.containsKey(orgId)) {
             return orgNameCache.get(orgId);
         }
-        String orgName = organizationRepository.findById(orgId)
-                .map(org -> org.getName() != null && !org.getName().isBlank() ? org.getName() : "Org#" + orgId)
-                .orElse("Org#" + orgId);
+        String orgName = "Org#" + orgId;
         orgNameCache.put(orgId, orgName);
         return orgName;
+    }
+
+    private Optional<WorkflowBusinessContextPort.BusinessSummary> resolveSummary(String entityType, Long entityId) {
+        for (WorkflowBusinessContextPort contextPort : workflowBusinessContextPorts) {
+            Optional<WorkflowBusinessContextPort.BusinessSummary> summary = contextPort.getBusinessSummary(entityType, entityId);
+            if (summary.isPresent()) {
+                return summary;
+            }
+        }
+        return Optional.empty();
     }
 
     private List<String> normalizeEntityTypes(String entityType) {

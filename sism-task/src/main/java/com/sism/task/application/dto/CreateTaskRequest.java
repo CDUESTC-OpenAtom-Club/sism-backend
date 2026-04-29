@@ -1,6 +1,6 @@
 package com.sism.task.application.dto;
 
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.TaskType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

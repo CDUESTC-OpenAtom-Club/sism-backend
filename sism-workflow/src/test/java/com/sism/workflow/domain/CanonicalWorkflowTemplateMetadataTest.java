@@ -1,7 +1,7 @@
 package com.sism.workflow.domain;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

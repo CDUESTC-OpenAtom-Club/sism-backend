@@ -1,6 +1,6 @@
 package com.sism.workflow.interfaces.rest;
 
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.workflow.application.BusinessWorkflowApplicationService;
 import com.sism.workflow.interfaces.dto.PageResult;
 import com.sism.workflow.interfaces.dto.StartInstanceRequest;

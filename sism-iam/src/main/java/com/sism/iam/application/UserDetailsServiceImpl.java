@@ -1,8 +1,8 @@
 package com.sism.iam.application;
 
-import com.sism.iam.application.dto.CurrentUser;
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.shared.application.dto.CurrentUser;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

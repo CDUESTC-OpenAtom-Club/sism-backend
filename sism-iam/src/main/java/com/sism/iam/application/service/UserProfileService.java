@@ -1,7 +1,7 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.user.UserRepository;
 import com.sism.shared.domain.exception.AuthorizationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;

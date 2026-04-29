@@ -1,10 +1,10 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.service.UserNotificationService;
 import com.sism.iam.application.service.NotificationService;
-import com.sism.iam.domain.Notification;
+import com.sism.iam.domain.notification.Notification;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

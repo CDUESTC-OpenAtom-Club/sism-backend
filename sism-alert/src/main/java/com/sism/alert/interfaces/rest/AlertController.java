@@ -9,7 +9,7 @@ import com.sism.alert.interfaces.dto.AlertStatsDTO;
 import com.sism.alert.interfaces.dto.ResolveAlertRequest;
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.shared.domain.exception.AuthorizationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

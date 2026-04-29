@@ -1,6 +1,6 @@
 package com.sism.execution.interfaces.dto;
 
-import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
+import com.sism.execution.domain.report.PlanReportIndicatorSnapshot;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

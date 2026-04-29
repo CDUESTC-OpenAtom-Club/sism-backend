@@ -2,14 +2,14 @@ package com.sism.execution.interfaces.rest;
 
 import com.sism.common.PageResult;
 import com.sism.execution.application.ReportApplicationService;
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.model.report.ReportOrgType;
-import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
+import com.sism.execution.domain.report.PlanReport;
+import com.sism.execution.domain.report.PlanReportIndicatorSnapshot;
+import com.sism.execution.domain.report.ReportOrgType;
 import com.sism.execution.interfaces.dto.CreatePlanReportRequest;
 import com.sism.execution.interfaces.dto.PlanReportQueryRequest;
 import com.sism.execution.interfaces.dto.RejectPlanReportRequest;
 import com.sism.execution.interfaces.dto.UpdatePlanReportRequest;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

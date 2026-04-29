@@ -1,7 +1,7 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

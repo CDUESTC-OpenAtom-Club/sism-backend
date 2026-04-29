@@ -1,8 +1,8 @@
 package com.sism.workflow.interfaces.rest;
 
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.workflow.application.WorkflowApplicationService;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditInstance;
 import com.sism.workflow.interfaces.dto.CreateLegacyFlowRequest;
 import com.sism.workflow.interfaces.dto.CreateLegacyFlowStepRequest;
 import com.sism.workflow.interfaces.dto.StartLegacyInstanceRequest;
@@ -56,7 +56,7 @@ class WorkflowControllerTest {
         step.setStepOrder(1);
         step.setStepName("填报人提交");
         request.setSteps(java.util.List.of(step));
-        com.sism.workflow.domain.definition.model.AuditFlowDef flowDef = new com.sism.workflow.domain.definition.model.AuditFlowDef();
+        com.sism.workflow.domain.definition.AuditFlowDef flowDef = new com.sism.workflow.domain.definition.AuditFlowDef();
         flowDef.setId(1L);
         flowDef.setFlowCode("FLOW-1");
         flowDef.setFlowName("Flow 1");

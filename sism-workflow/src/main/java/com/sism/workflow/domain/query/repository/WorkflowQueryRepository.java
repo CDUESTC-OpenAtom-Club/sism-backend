@@ -1,6 +1,6 @@
 package com.sism.workflow.domain.query.repository;
 
-import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditInstance;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

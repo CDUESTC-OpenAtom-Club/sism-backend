@@ -1,6 +1,6 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.Permission;
+import com.sism.iam.domain.access.Permission;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

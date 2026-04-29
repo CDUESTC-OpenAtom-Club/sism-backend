@@ -1,6 +1,6 @@
 package com.sism.iam.application.dto;
 
-import com.sism.iam.domain.User;
+import com.sism.iam.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -6,7 +6,7 @@ import com.sism.analytics.interfaces.dto.CopyDashboardRequest;
 import com.sism.analytics.interfaces.dto.CreateDashboardRequest;
 import com.sism.analytics.interfaces.dto.DashboardDTO;
 import com.sism.analytics.interfaces.dto.UpdateDashboardRequest;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.common.ApiResponse;
 import com.sism.common.PageResult;
 import io.swagger.v3.oas.annotations.Operation;

@@ -1,17 +1,17 @@
 package com.sism.strategy.application;
 
 import com.sism.exception.ConflictException;
-import com.sism.strategy.domain.enums.IndicatorStatus;
-import com.sism.strategy.domain.event.PlanCreatedEvent;
-import com.sism.strategy.domain.event.PlanStatusChangedEvent;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
+import com.sism.strategy.domain.plan.event.PlanCreatedEvent;
+import com.sism.strategy.domain.plan.event.PlanStatusChangedEvent;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.plan.PlanStatus;
 import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
-import com.sism.strategy.domain.Cycle;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.cycle.Cycle;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.interfaces.dto.PlanResponse;
@@ -19,7 +19,7 @@ import com.sism.strategy.interfaces.dto.CreatePlanRequest;
 import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
 import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
 import com.sism.strategy.infrastructure.StrategyOrgProperties;
-import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.task.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -321,7 +321,7 @@ class PlanApplicationServiceTest {
         verify(eventPublisher, times(2)).publish(eventCaptor.capture());
         List<DomainEvent> events = new ArrayList<>(eventCaptor.getAllValues());
         assertTrue(events.stream().anyMatch(event -> event instanceof PlanStatusChangedEvent));
-        assertTrue(events.stream().anyMatch(event -> event instanceof com.sism.strategy.domain.event.PlanSubmittedForApprovalEvent));
+        assertTrue(events.stream().anyMatch(event -> event instanceof com.sism.strategy.domain.plan.event.PlanSubmittedForApprovalEvent));
     }
 
     @Test
@@ -347,7 +347,7 @@ class PlanApplicationServiceTest {
         verify(eventPublisher, times(2)).publish(eventCaptor.capture());
         List<DomainEvent> events = eventCaptor.getAllValues();
         assertTrue(events.stream().anyMatch(event -> event instanceof PlanStatusChangedEvent));
-        assertTrue(events.stream().anyMatch(event -> event instanceof com.sism.strategy.domain.event.PlanSubmittedForApprovalEvent));
+        assertTrue(events.stream().anyMatch(event -> event instanceof com.sism.strategy.domain.plan.event.PlanSubmittedForApprovalEvent));
     }
 
     @Test

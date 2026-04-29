@@ -1,10 +1,10 @@
 package com.sism.strategy.application;
 
-import com.sism.strategy.domain.Indicator;
-import com.sism.strategy.domain.model.milestone.Milestone;
+import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.strategy.domain.milestone.Milestone;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.domain.repository.MilestoneRepository;
-import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.task.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import com.sism.strategy.interfaces.dto.BatchSaveMilestonesRequest;
 import com.sism.strategy.interfaces.dto.CreateMilestoneRequest;

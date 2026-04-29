@@ -1,20 +1,15 @@
 package com.sism.workflow.application.query;
 
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
-import com.sism.strategy.domain.plan.Plan;
-import com.sism.strategy.domain.repository.PlanRepository;
-import com.sism.execution.application.ReportApplicationService;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.shared.domain.user.UserIdentity;
+import com.sism.shared.domain.user.UserProvider;
+import com.sism.shared.domain.workflow.WorkflowBusinessContextPort;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import com.sism.workflow.domain.query.repository.WorkflowQueryRepository;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.AuditStepInstance;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditStepInstance;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
 import com.sism.workflow.interfaces.dto.PageResult;
 import com.sism.workflow.interfaces.dto.WorkflowInstanceDetailResponse;
 import com.sism.workflow.interfaces.dto.WorkflowInstanceResponse;
@@ -51,16 +46,10 @@ class WorkflowReadModelServiceTest {
     private WorkflowQueryRepository workflowQueryRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserProvider userProvider;
 
     @Mock
-    private PlanRepository planRepository;
-
-    @Mock
-    private ReportApplicationService reportApplicationService;
-
-    @Mock
-    private OrganizationRepository organizationRepository;
+    private WorkflowBusinessContextPort workflowBusinessContextPort;
 
     private WorkflowReadModelService newService() {
         WorkflowReadModelMapper mapper = new WorkflowReadModelMapper();
@@ -69,10 +58,8 @@ class WorkflowReadModelServiceTest {
                 auditInstanceRepository,
                 workflowQueryRepository,
                 mapper,
-                planRepository,
-                reportApplicationService,
-                organizationRepository,
-                userRepository
+                userProvider,
+                java.util.List.of(workflowBusinessContextPort)
         );
     }
 
@@ -136,16 +123,8 @@ class WorkflowReadModelServiceTest {
         stepDef.setRoleId(2L);
         flowDef.setSteps(List.of(stepDef));
 
-        User approver = new User();
-        approver.setId(101L);
-        approver.setRealName("审批人A");
-        approver.setIsActive(true);
-        approver.setOrgId(44L);
-        Role role = new Role();
-        role.setId(2L);
-        approver.setRoles(java.util.Set.of(role));
-        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
-        when(userRepository.findById(101L)).thenReturn(Optional.of(approver));
+        UserIdentity approver = new UserIdentity(101L, "approver101", "审批人A", 44L, true);
+        when(userProvider.findIdentity(101L)).thenReturn(Optional.of(approver));
         when(workflowQueryRepository.findPendingAuditInstancesByUserId(101L, PageRequest.of(0, 10)))
                 .thenReturn(new PageImpl<>(List.of(instance), PageRequest.of(0, 10), 1));
         when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
@@ -184,15 +163,8 @@ class WorkflowReadModelServiceTest {
         stepDef.setRoleId(3L);
         flowDef.setSteps(List.of(stepDef));
 
-        User approver = new User();
-        approver.setId(201L);
-        approver.setUsername("approver201");
-        approver.setIsActive(true);
-        approver.setOrgId(35L);
-        Role role = new Role();
-        role.setId(3L);
-        approver.setRoles(java.util.Set.of(role));
-        when(userRepository.findById(201L)).thenReturn(Optional.of(approver));
+        UserIdentity approver = new UserIdentity(201L, "approver201", null, 35L, true);
+        when(userProvider.findIdentity(201L)).thenReturn(Optional.of(approver));
         when(workflowQueryRepository.findPendingAuditInstancesByUserId(201L, PageRequest.of(0, 10)))
                 .thenReturn(new PageImpl<>(List.of(instance), PageRequest.of(0, 10), 1));
         when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
@@ -227,17 +199,14 @@ class WorkflowReadModelServiceTest {
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setFlowCode("PLAN_APPROVAL");
         flowDef.setFlowName("计划审批");
-        User approver = new User();
-        approver.setId(120L);
-        approver.setRealName("审批人120");
+        UserIdentity approver = new UserIdentity(120L, "approver120", "审批人120", 44L, true);
 
         when(workflowQueryRepository.findPendingAuditInstanceByStepIdAndUserId(330L, 120L))
                 .thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(2L)).thenReturn(flowDef);
-        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
-        when(planRepository.findById(901L)).thenReturn(Optional.of(namedPlan(901L, 44L, 55L)));
-        when(organizationRepository.findById(55L)).thenReturn(Optional.of(namedOrg(55L, "计算机学院")));
-        when(userRepository.findById(120L)).thenReturn(Optional.of(approver));
+        when(workflowBusinessContextPort.getBusinessSummary("PLAN", 901L))
+                .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(901L, "Plan 901", 44L, "教务处", 55L, "计算机学院", "Plan 901")));
+        when(userProvider.findIdentity(120L)).thenReturn(Optional.of(approver));
 
         Optional<WorkflowTaskResponse> result = newService().findMyPendingTaskById(120L, "330");
 
@@ -280,11 +249,9 @@ class WorkflowReadModelServiceTest {
         approved.setApprovedAt(LocalDateTime.now().minusHours(1));
         instance.addStepInstance(approved);
 
-        User approver = new User();
-        approver.setId(11L);
-        approver.setRealName("审批人");
-        when(userRepository.findById(11L)).thenReturn(Optional.of(approver));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(namedUser(1L, "发起人")));
+        UserIdentity approver = new UserIdentity(11L, "approver11", "审批人", null, true);
+        when(userProvider.findIdentity(11L)).thenReturn(Optional.of(approver));
+        when(userProvider.findIdentity(1L)).thenReturn(Optional.of(namedUser(1L, "发起人")));
         when(auditInstanceRepository.findById(9L)).thenReturn(Optional.of(instance));
 
         var detail = newService().getInstanceDetail("9");
@@ -321,11 +288,10 @@ class WorkflowReadModelServiceTest {
         instance.addStepInstance(pending);
 
         when(auditInstanceRepository.findById(19L)).thenReturn(Optional.of(instance));
-        when(planRepository.findById(701L)).thenReturn(Optional.of(namedPlan(701L, 35L, 44L)));
-        when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
-        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
-        when(userRepository.findById(1L)).thenReturn(Optional.of(namedUser(1L, "发起人")));
-        when(userRepository.findById(189L)).thenReturn(Optional.of(namedUser(189L, "战略发展部负责人1")));
+        when(workflowBusinessContextPort.getBusinessSummary("PLAN", 701L))
+                .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(701L, "Plan 701", 35L, "战略发展部", 44L, "教务处", "Plan 701")));
+        when(userProvider.findIdentity(1L)).thenReturn(Optional.of(namedUser(1L, "发起人")));
+        when(userProvider.findIdentity(189L)).thenReturn(Optional.of(namedUser(189L, "战略发展部负责人1")));
 
         WorkflowInstanceDetailResponse detail = newService().getInstanceDetail("19");
 
@@ -360,11 +326,6 @@ class WorkflowReadModelServiceTest {
         inReview.setStatus(AuditInstance.STATUS_PENDING);
         inReview.setStartedAt(LocalDateTime.of(2026, 3, 22, 8, 10));
 
-        Plan plan = new Plan();
-        plan.setId(7071L);
-        plan.setCreatedByOrgId(35L);
-        plan.setTargetOrgId(44L);
-
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(1L);
         flowDef.setFlowCode("PLAN_DISPATCH_STRATEGY");
@@ -373,10 +334,9 @@ class WorkflowReadModelServiceTest {
 
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN", 7071L))
                 .thenReturn(List.of(approved, inReview));
-        when(planRepository.findById(7071L)).thenReturn(Optional.of(plan));
-        when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
-        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
-        when(userRepository.findById(188L)).thenReturn(Optional.of(namedUser(188L, "战略部管理员")));
+        when(workflowBusinessContextPort.getBusinessSummary("PLAN", 7071L))
+                .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(7071L, "Plan 7071", 35L, "战略发展部", 44L, "教务处", "Plan 7071")));
+        when(userProvider.findIdentity(188L)).thenReturn(Optional.of(namedUser(188L, "战略部管理员")));
         when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
 
         WorkflowInstanceDetailResponse detail = newService().getInstanceDetailByBusiness("PLAN", 7071L);
@@ -401,11 +361,6 @@ class WorkflowReadModelServiceTest {
         instance.setStartedAt(LocalDateTime.of(2026, 3, 22, 8, 12));
         instance.setCompletedAt(LocalDateTime.of(2026, 3, 22, 8, 14));
 
-        Plan plan = new Plan();
-        plan.setId(7073L);
-        plan.setCreatedByOrgId(44L);
-        plan.setTargetOrgId(44L);
-
         AuditFlowDef flowDef = new AuditFlowDef();
         flowDef.setId(3L);
         flowDef.setFlowCode("PLAN_APPROVAL_FUNCDEPT");
@@ -414,9 +369,9 @@ class WorkflowReadModelServiceTest {
 
         when(workflowQueryRepository.findApprovedAuditInstancesByUserId(124L, PageRequest.of(0, 10)))
                 .thenReturn(new PageImpl<>(List.of(instance), PageRequest.of(0, 10), 1));
-        when(planRepository.findById(7073L)).thenReturn(Optional.of(plan));
-        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
-        when(userRepository.findById(223L)).thenReturn(Optional.of(namedUser(223L, "教务处填报人")));
+        when(workflowBusinessContextPort.getBusinessSummary("PLAN", 7073L))
+                .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(7073L, "Plan 7073", 44L, "教务处", 44L, "教务处", "Plan 7073")));
+        when(userProvider.findIdentity(223L)).thenReturn(Optional.of(namedUser(223L, "教务处填报人")));
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
 
         PageResult<WorkflowInstanceResponse> page = newService().getMyApprovedInstances(124L, 1, 10);
@@ -466,17 +421,11 @@ class WorkflowReadModelServiceTest {
         rejectedTerminal.setStatus(AuditInstance.STEP_STATUS_REJECTED);
         rejected.addStepInstance(rejectedTerminal);
 
-        Plan plan = new Plan();
-        plan.setId(77L);
-        plan.setCreatedByOrgId(35L);
-        plan.setTargetOrgId(44L);
-
         when(auditInstanceRepository.findByBusinessTypeAndBusinessId("PLAN", 77L))
                 .thenReturn(List.of(approved, rejected));
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
-        when(planRepository.findById(77L)).thenReturn(Optional.of(plan));
-        when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
-        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
+        when(workflowBusinessContextPort.getBusinessSummary("PLAN", 77L))
+                .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(77L, "Plan 77", 35L, "战略发展部", 44L, "教务处", "Plan 77")));
 
         List<WorkflowHistoryCardResponse> result = newService().listInstanceHistoryByBusiness("PLAN", 77L);
 
@@ -511,13 +460,8 @@ class WorkflowReadModelServiceTest {
         flowDef.setFlowName("Plan审批流程（职能部门）");
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
 
-        Plan plan = new Plan();
-        plan.setId(88L);
-        plan.setCreatedByOrgId(35L);
-        plan.setTargetOrgId(44L);
-        when(planRepository.findById(88L)).thenReturn(Optional.of(plan));
-        when(organizationRepository.findById(35L)).thenReturn(Optional.of(namedOrg(35L, "战略发展部")));
-        when(organizationRepository.findById(44L)).thenReturn(Optional.of(namedOrg(44L, "教务处")));
+        when(workflowBusinessContextPort.getBusinessSummary("PLAN", 88L))
+                .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(88L, "Plan 88", 35L, "战略发展部", 44L, "教务处", "Plan 88")));
 
         var detail = newService().getInstanceDetailByBusiness("PLAN", 88L);
 
@@ -527,25 +471,8 @@ class WorkflowReadModelServiceTest {
         assertEquals("PLAN_APPROVAL_FUNCDEPT", detail.getFlowCode());
     }
 
-    private SysOrg namedOrg(Long id, String name) {
-        SysOrg org = new SysOrg();
-        org.setId(id);
-        org.setName(name);
-        return org;
+    private UserIdentity namedUser(Long id, String realName) {
+        return new UserIdentity(id, realName, realName, null, true);
     }
 
-    private User namedUser(Long id, String realName) {
-        User user = new User();
-        user.setId(id);
-        user.setRealName(realName);
-        return user;
-    }
-
-    private Plan namedPlan(Long id, Long createdByOrgId, Long targetOrgId) {
-        Plan plan = new Plan();
-        plan.setId(id);
-        plan.setCreatedByOrgId(createdByOrgId);
-        plan.setTargetOrgId(targetOrgId);
-        return plan;
-    }
 }

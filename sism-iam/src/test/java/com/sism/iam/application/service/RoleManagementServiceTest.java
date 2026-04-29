@@ -1,9 +1,9 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.PermissionRepository;
-import com.sism.iam.domain.repository.RoleRepository;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.access.PermissionRepository;
+import com.sism.iam.domain.access.RoleRepository;
+import com.sism.iam.domain.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,7 +69,7 @@ class RoleManagementServiceTest {
         role.setRoleCode("ADMIN");
 
         when(roleRepository.findById(1L)).thenReturn(Optional.of(role));
-        when(userRepository.findByRoleId(1L)).thenReturn(List.of(new com.sism.iam.domain.User()));
+        when(userRepository.findByRoleId(1L)).thenReturn(List.of(new com.sism.iam.domain.user.User()));
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,

@@ -1,7 +1,7 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.repository.WorkflowApprovalMetadata;
-import com.sism.execution.domain.repository.WorkflowApprovalMetadataQuery;
+import com.sism.execution.domain.report.WorkflowApprovalMetadata;
+import com.sism.execution.domain.report.WorkflowApprovalMetadataQuery;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
