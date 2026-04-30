@@ -23,16 +23,16 @@ public class ApproverResolver {
     private static final String COLLEGE_FINAL_APPROVAL_STEP_NAME = "职能部门终审";
 
     private final UserProvider userProvider;
-    private final WorkflowBusinessContextPort workflowBusinessContextPort;
+    private final List<WorkflowBusinessContextPort> workflowBusinessContextPorts;
     private final WorkflowApproverProperties workflowApproverProperties;
 
     public ApproverResolver(
             UserProvider userProvider,
-            WorkflowBusinessContextPort workflowBusinessContextPort,
+            List<WorkflowBusinessContextPort> workflowBusinessContextPorts,
             WorkflowApproverProperties workflowApproverProperties
     ) {
         this.userProvider = userProvider;
-        this.workflowBusinessContextPort = workflowBusinessContextPort;
+        this.workflowBusinessContextPorts = workflowBusinessContextPorts;
         this.workflowApproverProperties = workflowApproverProperties;
     }
 
@@ -187,9 +187,23 @@ public class ApproverResolver {
         if (!isCollegeFinalApprovalStep(stepDef, instance)) {
             return requesterOrgId;
         }
-        return workflowBusinessContextPort.getBusinessSummary(instance.getEntityType(), instance.getEntityId())
+        return resolveBusinessSummary(instance.getEntityType(), instance.getEntityId())
                 .map(summary -> summary.sourceOrgId() != null ? summary.sourceOrgId() : requesterOrgId)
                 .orElse(requesterOrgId);
+    }
+
+    private java.util.Optional<WorkflowBusinessContextPort.BusinessSummary> resolveBusinessSummary(
+            String entityType,
+            Long entityId
+    ) {
+        for (WorkflowBusinessContextPort contextPort : workflowBusinessContextPorts) {
+            java.util.Optional<WorkflowBusinessContextPort.BusinessSummary> summary =
+                    contextPort.getBusinessSummary(entityType, entityId);
+            if (summary.isPresent()) {
+                return summary;
+            }
+        }
+        return java.util.Optional.empty();
     }
 
     private boolean isCollegeFinalApprovalStep(AuditStepDef stepDef, AuditInstance instance) {
