@@ -13,15 +13,21 @@ public final class PasswordPolicy {
 
     public static void validateLength(String password) {
         if (password == null) {
-            throw new IllegalArgumentException(lengthMessage());
+            throw new IllegalArgumentException(policyMessage());
         }
         int length = password.length();
         if (length < MIN_LENGTH || length > MAX_LENGTH) {
-            throw new IllegalArgumentException(lengthMessage());
+            throw new IllegalArgumentException(policyMessage());
+        }
+        if (!password.chars().anyMatch(Character::isLetter)) {
+            throw new IllegalArgumentException(policyMessage());
+        }
+        if (!password.chars().anyMatch(Character::isDigit)) {
+            throw new IllegalArgumentException(policyMessage());
         }
     }
 
-    public static String lengthMessage() {
-        return "Password length must be between " + MIN_LENGTH + " and " + MAX_LENGTH + " characters";
+    public static String policyMessage() {
+        return "Password must be at least 8 characters and contain at least one letter and one number";
     }
 }

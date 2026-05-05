@@ -76,4 +76,18 @@ class UserProfileServiceTest {
                 () -> userProfileService.changePassword(user, "wrong-pass", "new-pass-123", "new-pass-123")
         );
     }
+
+    @Test
+    @DisplayName("changePassword should reject password without letters")
+    void changePasswordShouldRejectPasswordWithoutLetters() {
+        User user = new User();
+        user.setPassword("encoded-old");
+
+        when(passwordEncoder.matches("old-pass", "encoded-old")).thenReturn(true);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> userProfileService.changePassword(user, "old-pass", "12345678", "12345678")
+        );
+    }
 }

@@ -9,14 +9,19 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -69,7 +74,7 @@ public class UserProfileController {
 
     @PostMapping("/password")
     @Operation(summary = "修改当前用户密码")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
+    public ResponseEntity<ApiResponse<Object>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication
     ) {
@@ -77,14 +82,18 @@ public class UserProfileController {
         if (user == null) {
             return ResponseEntity.notFound().build();
         }
-        userProfileService.changePassword(
-                user,
-                request.getOldPassword(),
-                request.getNewPassword(),
-                request.getConfirmPassword()
-        );
-
-        return ResponseEntity.ok(ApiResponse.success(null));
+        try {
+            userProfileService.changePassword(
+                    user,
+                    request.getOldPassword(),
+                    request.getNewPassword(),
+                    request.getConfirmPassword()
+            );
+            return ResponseEntity.ok(ApiResponse.success("密码修改成功", null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(buildPasswordValidationError(ex.getMessage()));
+        }
     }
 
     // ========== 第三方账号绑定 (TODO：需要相应的实体和服务) ==========
@@ -171,7 +180,8 @@ public class UserProfileController {
         private String oldPassword;
 
         @NotBlank(message = "New password is required")
-        @Size(min = 8, message = "Password must be at least 8 characters long")
+        @Size(min = 8, max = 20, message = "Password must be at least 8 characters and contain at least one letter and one number")
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "Password must be at least 8 characters and contain at least one letter and one number")
         private String newPassword;
 
         @NotBlank(message = "Confirm password is required")
@@ -193,5 +203,28 @@ public class UserProfileController {
         private String platform;
         private String platformNickname;
         private LocalDateTime bindTime;
+    }
+
+    private ApiResponse<Object> buildPasswordValidationError(String message) {
+        List<Map<String, String>> fieldErrors = new ArrayList<>();
+        fieldErrors.add(buildFieldError(resolvePasswordErrorField(message), message));
+        return ApiResponse.error(1001, "参数验证失败", fieldErrors);
+    }
+
+    private Map<String, String> buildFieldError(String field, String message) {
+        Map<String, String> fieldError = new HashMap<>();
+        fieldError.put("field", field);
+        fieldError.put("message", message);
+        return fieldError;
+    }
+
+    private String resolvePasswordErrorField(String message) {
+        if ("Current password is incorrect".equals(message)) {
+            return "oldPassword";
+        }
+        if ("New password and confirm password do not match".equals(message)) {
+            return "confirmPassword";
+        }
+        return "newPassword";
     }
 }
