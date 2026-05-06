@@ -89,77 +89,46 @@ jobs:
         run: |
           set -euo pipefail
           ssh "${SERVER_USER}@${SERVER_HOST}" \
-            "SERVER_HOST='${SERVER_HOST}' TARGET_ENV='${TARGET_ENV}' FRONTEND_IMAGE='${FRONTEND_IMAGE}' BACKEND_IMAGE='${BACKEND_IMAGE}' bash -se" <<'EOF'
-          set -euo pipefail
+            "SERVER_HOST='${SERVER_HOST}' TARGET_ENV='${TARGET_ENV}' FRONTEND_IMAGE='${FRONTEND_IMAGE}' BACKEND_IMAGE='${BACKEND_IMAGE}' bash -lc '
+              set -euo pipefail
+              REMOTE_DIR=\"/opt/sism-stack/${TARGET_ENV}\"
+              ENV_FILE=\"${REMOTE_DIR}/.env\"
+              mkdir -p \"${REMOTE_DIR}/nginx\"
 
-          REMOTE_DIR="/opt/sism-stack/${TARGET_ENV}"
-          ENV_FILE="${REMOTE_DIR}/.env"
+              generate_secret() { openssl rand -hex \"$1\"; }
+              upsert_env() {
+                key=\"$1\"
+                value=\"$2\"
+                if grep -q \"^${key}=\" \"${ENV_FILE}\" 2>/dev/null; then
+                  awk -v key=\"${key}\" -v value=\"${value}\" \"BEGIN { replaced = 0 } index(\\$0, key \\\"=\\\") == 1 { print key \\\"=\\\" value; replaced = 1; next } { print } END { if (!replaced) print key \\\"=\\\" value }\" \"${ENV_FILE}\" > \"${ENV_FILE}.tmp\"
+                  mv \"${ENV_FILE}.tmp\" \"${ENV_FILE}\"
+                else
+                  printf \"%s=%s\\n\" \"${key}\" \"${value}\" >> \"${ENV_FILE}\"
+                fi
+              }
 
-          mkdir -p "${REMOTE_DIR}/nginx"
+              if [[ ! -f \"${ENV_FILE}\" ]]; then
+                {
+                  printf \"%s=%s\\n\" POSTGRES_DB sism_prod
+                  printf \"%s=%s\\n\" POSTGRES_USER sism_prod_user
+                  printf \"%s=%s\\n\" POSTGRES_PASSWORD \"$(generate_secret 24)\"
+                  printf \"%s=%s\\n\" JWT_SECRET \"$(generate_secret 64)\"
+                  printf \"%s=%s\\n\" ALLOWED_ORIGINS \"http://${SERVER_HOST}\"
+                  printf \"%s=%s\\n\" FRONTEND_IMAGE \"${FRONTEND_IMAGE}\"
+                  printf \"%s=%s\\n\" BACKEND_IMAGE \"${BACKEND_IMAGE}\"
+                  printf \"%s=%s\\n\" SPRING_FLYWAY_ENABLED true
+                  printf \"%s=%s\\n\" BACKEND_PORT 8080
+                  printf \"%s=%s\\n\" FRONTEND_PORT 80
+                } > \"${ENV_FILE}\"
+              fi
 
-          generate_secret() {
-            openssl rand -hex "$1"
-          }
-
-          upsert_env() {
-            local key="$1"
-            local value="$2"
-
-            if grep -q "^${key}=" "${ENV_FILE}" 2>/dev/null; then
-              awk -v key="${key}" -v value="${value}" '
-                BEGIN { replaced = 0 }
-                index($0, key "=") == 1 {
-                  print key "=" value
-                  replaced = 1
-                  next
-                }
-                { print }
-                END {
-                  if (!replaced) {
-                    print key "=" value
-                  }
-                }
-              ' "${ENV_FILE}" > "${ENV_FILE}.tmp"
-              mv "${ENV_FILE}.tmp" "${ENV_FILE}"
-            else
-              printf '%s=%s\n' "${key}" "${value}" >> "${ENV_FILE}"
-            fi
-          }
-
-          if [[ ! -f "${ENV_FILE}" ]]; then
-            {
-              printf 'POSTGRES_DB=%s\n' 'sism_prod'
-              printf 'POSTGRES_USER=%s\n' 'sism_prod_user'
-              printf 'POSTGRES_PASSWORD=%s\n' "$(generate_secret 24)"
-              printf 'JWT_SECRET=%s\n' "$(generate_secret 64)"
-              printf 'ALLOWED_ORIGINS=%s\n' "http://${SERVER_HOST}"
-              printf 'FRONTEND_IMAGE=%s\n' "${FRONTEND_IMAGE}"
-              printf 'BACKEND_IMAGE=%s\n' "${BACKEND_IMAGE}"
-              printf 'SPRING_FLYWAY_ENABLED=%s\n' 'true'
-              printf 'BACKEND_PORT=%s\n' '8080'
-              printf 'FRONTEND_PORT=%s\n' '80'
-            } > "${ENV_FILE}"
-          fi
-
-          upsert_env FRONTEND_IMAGE "${FRONTEND_IMAGE}"
-          upsert_env BACKEND_IMAGE "${BACKEND_IMAGE}"
-
-          if ! grep -q '^SPRING_FLYWAY_ENABLED=' "${ENV_FILE}"; then
-            upsert_env SPRING_FLYWAY_ENABLED true
-          fi
-
-          if ! grep -q '^BACKEND_PORT=' "${ENV_FILE}"; then
-            upsert_env BACKEND_PORT 8080
-          fi
-
-          if ! grep -q '^FRONTEND_PORT=' "${ENV_FILE}"; then
-            upsert_env FRONTEND_PORT 80
-          fi
-
-          if ! grep -q '^ALLOWED_ORIGINS=' "${ENV_FILE}"; then
-            upsert_env ALLOWED_ORIGINS "http://${SERVER_HOST}"
-          fi
-EOF
+              upsert_env FRONTEND_IMAGE \"${FRONTEND_IMAGE}\"
+              upsert_env BACKEND_IMAGE \"${BACKEND_IMAGE}\"
+              grep -q \"^SPRING_FLYWAY_ENABLED=\" \"${ENV_FILE}\" || upsert_env SPRING_FLYWAY_ENABLED true
+              grep -q \"^BACKEND_PORT=\" \"${ENV_FILE}\" || upsert_env BACKEND_PORT 8080
+              grep -q \"^FRONTEND_PORT=\" \"${ENV_FILE}\" || upsert_env FRONTEND_PORT 80
+              grep -q \"^ALLOWED_ORIGINS=\" \"${ENV_FILE}\" || upsert_env ALLOWED_ORIGINS \"http://${SERVER_HOST}\"
+            '"
 
           if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
             ssh "${SERVER_USER}@${SERVER_HOST}" "docker login ghcr.io -u '${GHCR_USERNAME}' -p '${GHCR_TOKEN}'"
