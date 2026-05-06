@@ -1,6 +1,8 @@
 name: Deploy Container Stack
 
 on:
+  push:
+    branches: [codex/docker-deploy-test]
   workflow_dispatch:
     inputs:
       frontend_tag:
@@ -23,7 +25,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: stack-deploy-${{ inputs.target_env }}
+  group: stack-deploy-${{ github.event_name == 'workflow_dispatch' && inputs.target_env || 'production' }}
   cancel-in-progress: false
 
 jobs:
@@ -31,7 +33,7 @@ jobs:
     name: Deploy Stack
     runs-on: ubuntu-latest
     environment:
-      name: ${{ inputs.target_env }}
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.target_env || 'production' }}
 
     steps:
       - name: Checkout code
@@ -58,8 +60,10 @@ jobs:
         id: image
         run: |
           OWNER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          echo "frontend=ghcr.io/${OWNER}/strategic-task-management:${{ inputs.frontend_tag }}" >> "$GITHUB_OUTPUT"
-          echo "backend=ghcr.io/${OWNER}/sism-backend:${{ inputs.backend_tag }}" >> "$GITHUB_OUTPUT"
+          FRONTEND_TAG="${{ github.event_name == 'workflow_dispatch' && inputs.frontend_tag || 'main' }}"
+          BACKEND_TAG="${{ github.event_name == 'workflow_dispatch' && inputs.backend_tag || 'main' }}"
+          echo "frontend=ghcr.io/${OWNER}/strategic-task-management:${FRONTEND_TAG}" >> "$GITHUB_OUTPUT"
+          echo "backend=ghcr.io/${OWNER}/sism-backend:${BACKEND_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Upload compose stack
         env:
@@ -67,7 +71,8 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           set -euo pipefail
-          REMOTE_DIR="/opt/sism-stack/${{ inputs.target_env }}"
+          TARGET_ENV="${{ github.event_name == 'workflow_dispatch' && inputs.target_env || 'production' }}"
+          REMOTE_DIR="/opt/sism-stack/${TARGET_ENV}"
           ssh "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '${REMOTE_DIR}/nginx'"
           scp deploy/compose/docker-compose.yml "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/docker-compose.yml"
           scp deploy/compose/nginx/frontend.conf "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/nginx/frontend.conf"
@@ -80,7 +85,7 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           FRONTEND_IMAGE: ${{ steps.image.outputs.frontend }}
           BACKEND_IMAGE: ${{ steps.image.outputs.backend }}
-          TARGET_ENV: ${{ inputs.target_env }}
+          TARGET_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.target_env || 'production' }}
         run: |
           set -euo pipefail
           ssh "${SERVER_USER}@${SERVER_HOST}" \
@@ -168,7 +173,8 @@ EOF
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           set -euo pipefail
-          REMOTE_DIR="/opt/sism-stack/${{ inputs.target_env }}"
+          TARGET_ENV="${{ github.event_name == 'workflow_dispatch' && inputs.target_env || 'production' }}"
+          REMOTE_DIR="/opt/sism-stack/${TARGET_ENV}"
           ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose pull && docker compose up -d"
 
       - name: Verify stack health
@@ -177,7 +183,8 @@ EOF
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           set -euo pipefail
-          REMOTE_DIR="/opt/sism-stack/${{ inputs.target_env }}"
+          TARGET_ENV="${{ github.event_name == 'workflow_dispatch' && inputs.target_env || 'production' }}"
+          REMOTE_DIR="/opt/sism-stack/${TARGET_ENV}"
           ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose ps"
           ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 30); do if curl -fsS http://localhost:8080/api/v1/actuator/health | grep '\"status\":\"UP\"'; then exit 0; fi; sleep 5; done; exit 1"
           ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 20); do if curl -fsS http://localhost/ >/dev/null; then exit 0; fi; sleep 3; done; exit 1"
