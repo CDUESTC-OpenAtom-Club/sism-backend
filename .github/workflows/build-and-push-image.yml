@@ -38,7 +38,7 @@ jobs:
 
       - name: Build backend package for deployment branch
         if: github.ref_name == 'codex/docker-deploy-test'
-        run: mvn -B -pl sism-main -am clean package -DskipTests
+        run: mvn -B -pl sism-main -am clean package -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
       - name: Validate Flyway migration naming
         run: |
