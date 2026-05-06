@@ -2,7 +2,7 @@ name: Build and Push Backend Image
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/docker-deploy-test]
   workflow_dispatch:
 
 permissions:
