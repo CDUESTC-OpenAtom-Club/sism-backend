@@ -18,7 +18,7 @@ RUN mvn -B -pl sism-main -am dependency:go-offline
 
 COPY . .
 
-RUN mvn -B -pl sism-main -am package -DskipTests
+RUN mvn -B -pl sism-main -am package -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
