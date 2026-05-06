@@ -5,4 +5,4 @@
 -- =====================================================
 
 -- 删除 level 字段
-ALTER TABLE public.indicator DROP COLUMN level;
+ALTER TABLE public.indicator DROP COLUMN IF EXISTS level;

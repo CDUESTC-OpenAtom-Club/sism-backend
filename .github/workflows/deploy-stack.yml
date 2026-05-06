@@ -1,0 +1,183 @@
+name: Deploy Container Stack
+
+on:
+  workflow_dispatch:
+    inputs:
+      frontend_tag:
+        description: Frontend image tag
+        required: true
+        default: main
+        type: string
+      backend_tag:
+        description: Backend image tag
+        required: true
+        default: main
+        type: string
+      target_env:
+        description: Target environment name
+        required: true
+        default: production
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stack-deploy-${{ inputs.target_env }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy Stack
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.target_env }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          : "${SERVER_HOST:?Missing SERVER_HOST secret}"
+          : "${SERVER_USER:?Missing SERVER_USER secret}"
+          : "${SERVER_SSH_KEY:?Missing SERVER_SSH_KEY secret}"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Normalize image names
+        id: image
+        run: |
+          OWNER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "frontend=ghcr.io/${OWNER}/strategic-task-management:${{ inputs.frontend_tag }}" >> "$GITHUB_OUTPUT"
+          echo "backend=ghcr.io/${OWNER}/sism-backend:${{ inputs.backend_tag }}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload compose stack
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE_DIR="/opt/sism-stack/${{ inputs.target_env }}"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '${REMOTE_DIR}/nginx'"
+          scp deploy/compose/docker-compose.yml "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/docker-compose.yml"
+          scp deploy/compose/nginx/frontend.conf "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/nginx/frontend.conf"
+
+      - name: Bootstrap runtime env file
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          FRONTEND_IMAGE: ${{ steps.image.outputs.frontend }}
+          BACKEND_IMAGE: ${{ steps.image.outputs.backend }}
+          TARGET_ENV: ${{ inputs.target_env }}
+        run: |
+          set -euo pipefail
+          ssh "${SERVER_USER}@${SERVER_HOST}" \
+            "SERVER_HOST='${SERVER_HOST}' TARGET_ENV='${TARGET_ENV}' FRONTEND_IMAGE='${FRONTEND_IMAGE}' BACKEND_IMAGE='${BACKEND_IMAGE}' bash -se" <<'EOF'
+          set -euo pipefail
+
+          REMOTE_DIR="/opt/sism-stack/${TARGET_ENV}"
+          ENV_FILE="${REMOTE_DIR}/.env"
+
+          mkdir -p "${REMOTE_DIR}/nginx"
+
+          generate_secret() {
+            openssl rand -hex "$1"
+          }
+
+          upsert_env() {
+            local key="$1"
+            local value="$2"
+
+            if grep -q "^${key}=" "${ENV_FILE}" 2>/dev/null; then
+              awk -v key="${key}" -v value="${value}" '
+                BEGIN { replaced = 0 }
+                index($0, key "=") == 1 {
+                  print key "=" value
+                  replaced = 1
+                  next
+                }
+                { print }
+                END {
+                  if (!replaced) {
+                    print key "=" value
+                  }
+                }
+              ' "${ENV_FILE}" > "${ENV_FILE}.tmp"
+              mv "${ENV_FILE}.tmp" "${ENV_FILE}"
+            else
+              printf '%s=%s\n' "${key}" "${value}" >> "${ENV_FILE}"
+            fi
+          }
+
+          if [[ ! -f "${ENV_FILE}" ]]; then
+            cat > "${ENV_FILE}" <<EOCONFIG
+POSTGRES_DB=sism_prod
+POSTGRES_USER=sism_prod_user
+POSTGRES_PASSWORD=$(generate_secret 24)
+JWT_SECRET=$(generate_secret 64)
+ALLOWED_ORIGINS=http://${SERVER_HOST}
+FRONTEND_IMAGE=${FRONTEND_IMAGE}
+BACKEND_IMAGE=${BACKEND_IMAGE}
+SPRING_FLYWAY_ENABLED=true
+BACKEND_PORT=8080
+FRONTEND_PORT=80
+EOCONFIG
+          fi
+
+          upsert_env FRONTEND_IMAGE "${FRONTEND_IMAGE}"
+          upsert_env BACKEND_IMAGE "${BACKEND_IMAGE}"
+
+          if ! grep -q '^SPRING_FLYWAY_ENABLED=' "${ENV_FILE}"; then
+            upsert_env SPRING_FLYWAY_ENABLED true
+          fi
+
+          if ! grep -q '^BACKEND_PORT=' "${ENV_FILE}"; then
+            upsert_env BACKEND_PORT 8080
+          fi
+
+          if ! grep -q '^FRONTEND_PORT=' "${ENV_FILE}"; then
+            upsert_env FRONTEND_PORT 80
+          fi
+
+          if ! grep -q '^ALLOWED_ORIGINS=' "${ENV_FILE}"; then
+            upsert_env ALLOWED_ORIGINS "http://${SERVER_HOST}"
+          fi
+EOF
+
+          if [[ -n "${GHCR_USERNAME:-}" && -n "${GHCR_TOKEN:-}" ]]; then
+            ssh "${SERVER_USER}@${SERVER_HOST}" "docker login ghcr.io -u '${GHCR_USERNAME}' -p '${GHCR_TOKEN}'"
+          else
+            echo "GHCR credentials are not configured in GitHub secrets; assuming public images or existing server login."
+          fi
+
+      - name: Deploy stack on server
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE_DIR="/opt/sism-stack/${{ inputs.target_env }}"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose pull && docker compose up -d"
+
+      - name: Verify stack health
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE_DIR="/opt/sism-stack/${{ inputs.target_env }}"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose ps"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 30); do if curl -fsS http://localhost:8080/api/v1/actuator/health | grep '\"status\":\"UP\"'; then exit 0; fi; sleep 5; done; exit 1"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 20); do if curl -fsS http://localhost/ >/dev/null; then exit 0; fi; sleep 3; done; exit 1"

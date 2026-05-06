@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.mvn
+**/target
+**/.DS_Store
+docs
+database
+scripts
+deploy/compose/.env

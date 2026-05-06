@@ -272,7 +272,8 @@
                     <user>${env.DB_USERNAME}</user>
                     <password>${env.DB_PASSWORD}</password>
                     <locations>
-                        <location>filesystem:src/main/resources/db/migration</location>
+                        <location>filesystem:sism-main/src/main/resources/db/migration</location>
+                        <location>filesystem:sism-analytics/src/main/resources/db/migration</location>
                     </locations>
                     <baselineOnMigrate>true</baselineOnMigrate>
                     <baselineVersion>1</baselineVersion>
