@@ -127,18 +127,18 @@ jobs:
           }
 
           if [[ ! -f "${ENV_FILE}" ]]; then
-            cat > "${ENV_FILE}" <<EOCONFIG
-POSTGRES_DB=sism_prod
-POSTGRES_USER=sism_prod_user
-POSTGRES_PASSWORD=$(generate_secret 24)
-JWT_SECRET=$(generate_secret 64)
-ALLOWED_ORIGINS=http://${SERVER_HOST}
-FRONTEND_IMAGE=${FRONTEND_IMAGE}
-BACKEND_IMAGE=${BACKEND_IMAGE}
-SPRING_FLYWAY_ENABLED=true
-BACKEND_PORT=8080
-FRONTEND_PORT=80
-EOCONFIG
+            {
+              printf 'POSTGRES_DB=%s\n' 'sism_prod'
+              printf 'POSTGRES_USER=%s\n' 'sism_prod_user'
+              printf 'POSTGRES_PASSWORD=%s\n' "$(generate_secret 24)"
+              printf 'JWT_SECRET=%s\n' "$(generate_secret 64)"
+              printf 'ALLOWED_ORIGINS=%s\n' "http://${SERVER_HOST}"
+              printf 'FRONTEND_IMAGE=%s\n' "${FRONTEND_IMAGE}"
+              printf 'BACKEND_IMAGE=%s\n' "${BACKEND_IMAGE}"
+              printf 'SPRING_FLYWAY_ENABLED=%s\n' 'true'
+              printf 'BACKEND_PORT=%s\n' '8080'
+              printf 'FRONTEND_PORT=%s\n' '80'
+            } > "${ENV_FILE}"
           fi
 
           upsert_env FRONTEND_IMAGE "${FRONTEND_IMAGE}"
