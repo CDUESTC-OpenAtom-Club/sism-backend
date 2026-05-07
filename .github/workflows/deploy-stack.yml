@@ -1,17 +1,14 @@
 name: Deploy Container Stack
 
 on:
-  push:
-    branches: [codex/docker-deploy-test]
+  workflow_run:
+    workflows: ["Build and Push Backend Image"]
+    types: [completed]
+    branches: [main, codex/docker-deploy-test]
   workflow_dispatch:
     inputs:
       frontend_tag:
         description: Frontend image tag
-        required: true
-        default: main
-        type: string
-      backend_tag:
-        description: Backend image tag
         required: true
         default: main
         type: string
@@ -31,6 +28,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy Stack
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.event.inputs.target_env || 'production' }}
@@ -38,6 +36,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Configure SSH
         env:
@@ -61,7 +61,7 @@ jobs:
         run: |
           OWNER="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           FRONTEND_TAG="${{ github.event.inputs.frontend_tag || 'main' }}"
-          BACKEND_TAG="${{ github.event.inputs.backend_tag || 'main' }}"
+          BACKEND_TAG="${{ github.event.workflow_run.head_sha || github.sha }}"
           echo "frontend=ghcr.io/${OWNER}/strategic-task-management:${FRONTEND_TAG}" >> "$GITHUB_OUTPUT"
           echo "backend=ghcr.io/${OWNER}/sism-backend:${BACKEND_TAG}" >> "$GITHUB_OUTPUT"
 
@@ -179,5 +179,5 @@ jobs:
           TARGET_ENV="${{ github.event.inputs.target_env || 'production' }}"
           REMOTE_DIR="/opt/sism-stack/${TARGET_ENV}"
           ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose ps"
-          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 30); do if curl -fsS http://localhost:8080/api/v1/actuator/health | grep '\"status\":\"UP\"'; then exit 0; fi; sleep 5; done; exit 1"
-          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 20); do if curl -fsS http://localhost/ >/dev/null; then exit 0; fi; sleep 3; done; exit 1"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 30); do if curl -fsS http://127.0.0.1:8080/api/v1/actuator/health | grep '\"status\":\"UP\"'; then exit 0; fi; sleep 5; done; exit 1"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 20); do if curl -fsS http://127.0.0.1/ >/dev/null; then exit 0; fi; sleep 3; done; exit 1"
