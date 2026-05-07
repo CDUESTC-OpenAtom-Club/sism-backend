@@ -161,7 +161,7 @@ jobs:
             DEPLOY_MODE="${{ github.event.inputs.deploy_mode || 'full-stack' }}"
             FRONTEND_TAG="${{ github.event.inputs.frontend_tag || 'main' }}"
           else
-            DEPLOY_MODE="backend-only"
+            DEPLOY_MODE="full-stack"
             FRONTEND_TAG="main"
           fi
           echo "target_env=${TARGET_ENV}" >> "$GITHUB_OUTPUT"
