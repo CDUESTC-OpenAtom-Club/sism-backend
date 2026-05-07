@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: ["Build and Push Backend Image"]
     types: [completed]
-    branches: [main, codex/docker-deploy-test]
+    branches: [main, baseline/backend-verified-20260426]
   workflow_dispatch:
     inputs:
       frontend_tag:

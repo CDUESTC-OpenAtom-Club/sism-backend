@@ -2,7 +2,7 @@ name: Build and Push Backend Image
 
 on:
   push:
-    branches: [main, codex/docker-deploy-test]
+    branches: [main, baseline/backend-verified-20260426]
   workflow_dispatch:
 
 permissions:
@@ -33,11 +33,11 @@ jobs:
           cache: maven
 
       - name: Run backend verification
-        if: github.ref_name != 'codex/docker-deploy-test'
+        if: github.ref_name != 'baseline/backend-verified-20260426'
         run: mvn -B clean verify
 
       - name: Build backend package for deployment branch
-        if: github.ref_name == 'codex/docker-deploy-test'
+        if: github.ref_name == 'baseline/backend-verified-20260426'
         run: mvn -B -pl sism-main -am clean package -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
       - name: Validate Flyway migration naming
