@@ -270,13 +270,58 @@ jobs:
           fi
 
       - name: Deploy stack on server
+        id: deploy_stack
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           set -euo pipefail
           REMOTE_DIR="/opt/sism-stack/${{ steps.meta.outputs.target_env }}"
-          ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose pull && docker compose up -d"
+          START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "deploy_start_utc=${START_TS}" >> "$GITHUB_OUTPUT"
+          cat > /tmp/run-remote-deploy.sh <<'SCRIPT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          REMOTE_DIR="$1"
+          LOG_FILE="${REMOTE_DIR}/deploy-run.log"
+          STATUS_FILE="${REMOTE_DIR}/deploy-status.env"
+          START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          {
+            echo "DEPLOY_START_UTC=${START_TS}"
+            echo "FRONTEND_PULL_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > "${STATUS_FILE}"
+          {
+            echo "[deploy] start ${START_TS}"
+            cd "${REMOTE_DIR}"
+            docker compose pull frontend
+            FRONTEND_PULL_END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "FRONTEND_PULL_END_UTC=${FRONTEND_PULL_END}" >> "${STATUS_FILE}"
+            echo "BACKEND_PULL_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${STATUS_FILE}"
+            docker compose pull backend
+            BACKEND_PULL_END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "BACKEND_PULL_END_UTC=${BACKEND_PULL_END}" >> "${STATUS_FILE}"
+            echo "STACK_UP_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${STATUS_FILE}"
+            docker compose up -d
+            STACK_UP_END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            {
+              echo "STACK_UP_END_UTC=${STACK_UP_END}"
+              echo "DEPLOY_STATE=success"
+              echo "DEPLOY_END_UTC=${STACK_UP_END}"
+            } >> "${STATUS_FILE}"
+            echo "[deploy] success ${STACK_UP_END}"
+          } >> "${LOG_FILE}" 2>&1 || {
+            FAIL_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            {
+              echo "DEPLOY_STATE=failure"
+              echo "DEPLOY_END_UTC=${FAIL_TS}"
+            } >> "${STATUS_FILE}"
+            echo "[deploy] failure ${FAIL_TS}" >> "${LOG_FILE}" 2>&1
+            exit 1
+          }
+          SCRIPT
+          chmod +x /tmp/run-remote-deploy.sh
+          scp /tmp/run-remote-deploy.sh "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/run-remote-deploy.sh"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && nohup bash ./run-remote-deploy.sh '${REMOTE_DIR}' >/dev/null 2>&1 &"
 
       - name: Verify stack health
         env:
@@ -285,9 +330,23 @@ jobs:
         run: |
           set -euo pipefail
           REMOTE_DIR="/opt/sism-stack/${{ steps.meta.outputs.target_env }}"
+          for i in $(seq 1 120); do
+            STATUS_RAW="$(ssh "${SERVER_USER}@${SERVER_HOST}" "test -f '${REMOTE_DIR}/deploy-status.env' && cat '${REMOTE_DIR}/deploy-status.env' || true")"
+            if printf '%s\n' "$STATUS_RAW" | grep -q '^DEPLOY_STATE=success$'; then
+              break
+            fi
+            if printf '%s\n' "$STATUS_RAW" | grep -q '^DEPLOY_STATE=failure$'; then
+              echo "$STATUS_RAW"
+              ssh "${SERVER_USER}@${SERVER_HOST}" "tail -200 '${REMOTE_DIR}/deploy-run.log' || true"
+              exit 1
+            fi
+            sleep 5
+          done
+          STATUS_RAW="$(ssh "${SERVER_USER}@${SERVER_HOST}" "cat '${REMOTE_DIR}/deploy-status.env'")"
+          echo "$STATUS_RAW"
           ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose ps"
-          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 30); do if curl -fsS http://127.0.0.1:8080/api/v1/actuator/health | grep '\"status\":\"UP\"'; then exit 0; fi; sleep 5; done; exit 1"
-          ssh "${SERVER_USER}@${SERVER_HOST}" "for i in \$(seq 1 20); do if curl -fsS http://127.0.0.1/ >/dev/null; then exit 0; fi; sleep 3; done; exit 1"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "curl -fsS http://127.0.0.1:8080/api/v1/actuator/health | grep '\"status\":\"UP\"'"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "curl -fsS http://127.0.0.1/ >/dev/null"
 
       - name: Mark deployment success
         if: ${{ success() }}
