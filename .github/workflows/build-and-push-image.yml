@@ -293,11 +293,23 @@ jobs:
           {
             echo "[deploy] start ${START_TS}"
             cd "${REMOTE_DIR}"
-            docker compose pull frontend
+            FRONTEND_IMAGE="$(awk -F= '/^FRONTEND_IMAGE=/{print $2}' .env)"
+            BACKEND_IMAGE="$(awk -F= '/^BACKEND_IMAGE=/{print $2}' .env)"
+            if podman image exists "${FRONTEND_IMAGE}"; then
+              echo "FRONTEND_PULL_MODE=cache-hit" >> "${STATUS_FILE}"
+            else
+              echo "FRONTEND_PULL_MODE=pulled" >> "${STATUS_FILE}"
+              podman pull "${FRONTEND_IMAGE}"
+            fi
             FRONTEND_PULL_END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "FRONTEND_PULL_END_UTC=${FRONTEND_PULL_END}" >> "${STATUS_FILE}"
             echo "BACKEND_PULL_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${STATUS_FILE}"
-            docker compose pull backend
+            if podman image exists "${BACKEND_IMAGE}"; then
+              echo "BACKEND_PULL_MODE=cache-hit" >> "${STATUS_FILE}"
+            else
+              echo "BACKEND_PULL_MODE=pulled" >> "${STATUS_FILE}"
+              podman pull "${BACKEND_IMAGE}"
+            fi
             BACKEND_PULL_END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "BACKEND_PULL_END_UTC=${BACKEND_PULL_END}" >> "${STATUS_FILE}"
             echo "STACK_UP_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${STATUS_FILE}"
