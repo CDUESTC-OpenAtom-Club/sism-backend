@@ -23,3 +23,32 @@
 1. 优先看活跃 Flyway 迁移目录
 2. 再看 `sism-main/src/main/resources/db/migration/README.md`
 3. 最后才评估是否需要执行本目录脚本
+
+当前可直接复用的本地校验：
+
+- `check-seed-schema-drift.js`
+- `rebuild-local-db.sh`
+
+该脚本会读取 `reset-and-load-clean-seeds.sql` 实际纳入的 seed 文件，并用 `.env` 指向的 PostgreSQL 数据库做表 / 字段对齐检查：
+
+- seed 目标表是否存在
+- seed `INSERT` 字段是否存在
+- 当前表里 `NOT NULL` 且无默认值的字段是否被 seed 漏掉
+
+运行方式：
+
+```bash
+cd sism-backend
+node ./database/scripts/check-seed-schema-drift.js
+```
+
+脚本是只读检查，不会改数据库数据；发现漂移时会返回非零退出码。
+
+本地重建脚本：
+
+```bash
+cd sism-backend
+./database/scripts/rebuild-local-db.sh --yes
+```
+
+该脚本会先备份 `.env` 指向的本地数据库到 `/tmp`，然后重建数据库、执行当前活跃 Flyway 迁移链、重新导入 clean seeds，并在最后再次做 seed/schema 对齐检查。

@@ -1,0 +1,1 @@
+-- Cleanup is handled centrally by reset-and-load-clean-seeds.sql.

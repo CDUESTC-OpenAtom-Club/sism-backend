@@ -34,6 +34,12 @@ public class User extends AggregateRoot<Long> {
     @Column(name = "real_name", nullable = false)
     private String realName;
 
+    @Column(name = "email", length = 100, unique = true)
+    private String email;
+
+    @Column(name = "phone", length = 20, unique = true)
+    private String phone;
+
     @Column(name = "sso_id")
     private String ssoId;
 

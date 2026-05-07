@@ -37,6 +37,7 @@ TRUNCATE TABLE
     public.audit_flow_def,
     public.sys_permission,
     public.sys_role,
+    public.password_reset_tokens,
     public.sys_user,
     public.sys_org,
     public.progress_report,
@@ -71,8 +72,12 @@ COMMIT;
 \i alert_event-data.sql
 \i audit_instance-data.sql
 \i audit_step_instance-data.sql
+\i adhoc_task-data.sql
+\i adhoc_task_indicator_map-data.sql
+\i adhoc_task_target-data.sql
 \i workflow_task-data.sql
 \i workflow_task_history-data.sql
+\i progress_report-data.sql
 
 DO $$
 DECLARE
@@ -102,7 +107,8 @@ BEGIN
                 ('public.plan_report_indicator_attachment', 'id'),
                 ('public.alert_event', 'event_id'),
                 ('public.audit_instance', 'id'),
-                ('public.audit_step_instance', 'id')
+                ('public.audit_step_instance', 'id'),
+                ('public.adhoc_task', 'adhoc_task_id')
         ) AS t(tbl, col)
     LOOP
         IF pg_get_serial_sequence(rec.tbl, rec.col) IS NOT NULL THEN

@@ -10,10 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -39,7 +36,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties()),
+                new ApproverResolver(userProvider, List.of(workflowBusinessContextPort), workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -63,7 +60,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties()),
+                new ApproverResolver(userProvider, List.of(workflowBusinessContextPort), workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -85,7 +82,7 @@ class StepInstanceFactoryTest {
         flowDef.setSteps(List.of(stepDef));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties()),
+                new ApproverResolver(userProvider, List.of(workflowBusinessContextPort), workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 
@@ -119,7 +116,7 @@ class StepInstanceFactoryTest {
         when(userProvider.findActiveIdentitiesByRole(3L)).thenReturn(List.of(approver));
 
         StepInstanceFactory factory = new StepInstanceFactory(
-                new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties()),
+                new ApproverResolver(userProvider, List.of(workflowBusinessContextPort), workflowApproverProperties()),
                 new SubmissionStepAutoCompletePolicy()
         );
 

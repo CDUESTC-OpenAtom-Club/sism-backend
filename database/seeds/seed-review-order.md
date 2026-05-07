@@ -29,8 +29,9 @@
 25. `workflow_task_history-data.sql`
 26. `progress_report-data.sql`
 27. `audit_log-clean.sql`
-28. `progress_report-clean.sql`
-29. `refresh_tokens-clean.sql`
+28. `password_reset_tokens-clean.sql`
+29. `progress_report-clean.sql`
+30. `refresh_tokens-clean.sql`
 
 说明：
 
@@ -40,3 +41,4 @@
 - `audit_log` 仍然属于历史审计痕迹，默认不纳入主链路种子；如需重置历史痕迹，可执行 `audit_log-clean.sql`。
 - `progress_report` 在当前代码中实际对应 analytics 模块的分析报告实体，和 `plan_report` 不是同一个业务概念；如需重置分析报告输出数据，可先执行 `progress_report-clean.sql` 再执行 `progress_report-data.sql`。
 - `refresh_tokens` 属于登录态运行时表，不建议生成固定种子；如需清空认证会话残留，可执行 `refresh_tokens-clean.sql`。
+- `password_reset_tokens` 属于运行时密码找回验证码表，不建议生成固定种子；如需清空找回验证码残留，可执行 `password_reset_tokens-clean.sql`。

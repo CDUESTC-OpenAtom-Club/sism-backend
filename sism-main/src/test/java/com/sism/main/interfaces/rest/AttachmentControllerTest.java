@@ -161,7 +161,7 @@ class AttachmentControllerTest {
                 "Admin " + id,
                 null,
                 100L,
-                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                List.of(new SimpleGrantedAuthority("ROLE_VICE_PRESIDENT"))
         );
     }
 

@@ -10,7 +10,9 @@ JAR_PATH="sism-main/target/sism-main-1.0.0.jar"
 LOG_FILE="/tmp/sism-backend.log"
 HEALTH_URL="http://localhost:8080/api/v1/auth/health"
 MAX_RETRIES=30
-DEFAULT_APP_JAVA_OPTS="-Xms256m -Xmx768m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError"
+# Default JVM sizing for a 4GB single-host deployment (Java + PostgreSQL + Redis).
+# Override with APP_JAVA_OPTS or JAVA_OPTS when needed.
+DEFAULT_APP_JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError"
 
 cleanup_backend_processes() {
     local pids=""

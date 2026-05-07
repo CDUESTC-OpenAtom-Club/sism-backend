@@ -97,7 +97,7 @@ class AlertAccessServiceTest {
 
     @Test
     void getAccessibleUnresolvedAlertsForAdminShouldUseStatusInPageQuery() {
-        Authentication authentication = authentication(11L, 35L, "ROLE_ADMIN");
+        Authentication authentication = authentication(11L, 35L, "ROLE_VICE_PRESIDENT");
         PageRequest pageRequest = PageRequest.of(0, 10);
 
         when(alertRepository.findByStatusIn(List.of(AlertStatus.OPEN, AlertStatus.IN_PROGRESS), pageRequest))

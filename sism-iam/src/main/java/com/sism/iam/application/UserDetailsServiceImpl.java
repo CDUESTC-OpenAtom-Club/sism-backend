@@ -1,5 +1,6 @@
 package com.sism.iam.application;
 
+import com.sism.iam.application.service.ContactInfoPolicy;
 import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.domain.user.User;
 import com.sism.iam.domain.user.UserRepository;
@@ -22,7 +23,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
+        String account = ContactInfoPolicy.normalizeAccount(username);
+        User user = findUserByAccount(account)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         List<SimpleGrantedAuthority> authorities = userRepository.findRoleCodesByUserId(user.getId()).stream()
@@ -34,10 +36,20 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 user.getId(),
                 user.getUsername(),
                 user.getRealName(),
-                null, // email 字段在新版本中已移除，使用 null
+                user.getEmail(),
                 user.getOrgId(),
                 authorities
         );
+    }
+
+    private java.util.Optional<User> findUserByAccount(String account) {
+        if (ContactInfoPolicy.looksLikeEmail(account)) {
+            return userRepository.findByEmail(account);
+        }
+        if (ContactInfoPolicy.looksLikePhone(account)) {
+            return userRepository.findByPhone(account);
+        }
+        return userRepository.findByUsername(account);
     }
 
     private SimpleGrantedAuthority toAuthority(String roleCode) {

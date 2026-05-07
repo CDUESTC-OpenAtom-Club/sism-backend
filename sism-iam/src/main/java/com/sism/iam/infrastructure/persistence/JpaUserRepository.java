@@ -48,6 +48,16 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        return jpaRepository.findByEmail(email);
+    }
+
+    @Override
+    public Optional<User> findByPhone(String phone) {
+        return jpaRepository.findByPhone(phone);
+    }
+
+    @Override
     public List<User> findByOrgId(Long orgId) {
         return jpaRepository.findByOrgId(orgId);
     }
@@ -108,5 +118,15 @@ public class JpaUserRepository implements UserRepository {
     @Override
     public boolean existsByUsername(String username) {
         return jpaRepository.existsByUsername(username);
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return jpaRepository.existsByEmail(email);
+    }
+
+    @Override
+    public boolean existsByPhone(String phone) {
+        return jpaRepository.existsByPhone(phone);
     }
 }

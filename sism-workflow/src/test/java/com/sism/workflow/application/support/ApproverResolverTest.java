@@ -31,7 +31,11 @@ class ApproverResolverTest {
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setStepName("战略发展部负责人审批");
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertThrows(IllegalStateException.class, () -> resolver.resolveApproverId(stepDef, 1L, 2L));
     }
@@ -46,7 +50,11 @@ class ApproverResolverTest {
 
         when(userProvider.findActiveIdentitiesByRole(2L)).thenReturn(List.of(user));
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertEquals(202L, resolver.resolveApproverId(stepDef, 1L, 30L));
     }
@@ -62,7 +70,11 @@ class ApproverResolverTest {
 
         when(userProvider.findActiveIdentitiesByRole(4L)).thenReturn(List.of(otherCollegeLeader, sameCollegeLeader));
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertEquals(369L, resolver.resolveApproverId(stepDef, 188L, 56L));
     }
@@ -73,7 +85,11 @@ class ApproverResolverTest {
         stepDef.setRoleId(4L);
         stepDef.setStepName("分管校领导审批");
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         when(userProvider.findActiveIdentitiesByRole(4L)).thenReturn(List.of());
 
@@ -91,7 +107,11 @@ class ApproverResolverTest {
 
         when(userProvider.findActiveIdentitiesByRole(4L)).thenReturn(List.of(sameOrgLeader, strategyLeader));
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertEquals(300L, resolver.resolveApproverId(stepDef, 223L, 44L));
     }
@@ -107,7 +127,11 @@ class ApproverResolverTest {
 
         when(userProvider.findActiveIdentitiesByRole(4L)).thenReturn(List.of(functionalLeader, strategyLeader));
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertEquals(124L, resolver.resolveApproverId(stepDef, 188L, 35L));
     }
@@ -117,7 +141,11 @@ class ApproverResolverTest {
         UserIdentity user = new UserIdentity(300L, "u300", "审批人", 35L, true);
         when(userProvider.findIdentity(300L)).thenReturn(Optional.of(user));
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertEquals("审批人", resolver.resolveApproverName(300L));
     }
@@ -140,7 +168,11 @@ class ApproverResolverTest {
                 .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(7057L, "Plan 7057", 44L, "教务处", 57L, "学院", "Plan 7057")));
         when(userProvider.findActiveIdentitiesByRole(2L)).thenReturn(List.of(collegeApprover, functionalApprover));
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertEquals(267L, resolver.resolveApproverId(stepDef, 188L, 57L, instance));
     }
@@ -163,7 +195,11 @@ class ApproverResolverTest {
                 .thenReturn(Optional.of(new WorkflowBusinessContextPort.BusinessSummary(8088L, "Plan 8088", 44L, "教务处", 57L, "学院", "Plan 8088")));
         when(userProvider.findActiveIdentitiesByRole(2L)).thenReturn(List.of(requesterOrgApprover, creatorOrgApprover));
 
-        ApproverResolver resolver = new ApproverResolver(userProvider, workflowBusinessContextPort, workflowApproverProperties());
+        ApproverResolver resolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
 
         assertEquals(267L, resolver.resolveApproverId(stepDef, 188L, 57L, instance));
     }

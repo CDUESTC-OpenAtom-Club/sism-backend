@@ -1,6 +1,7 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
+import com.sism.iam.application.service.ContactInfoPolicy;
 import com.sism.iam.application.service.UserProfileService;
 import com.sism.iam.domain.access.Role;
 import com.sism.iam.domain.user.User;
@@ -63,11 +64,17 @@ public class UserProfileController {
             return ResponseEntity.notFound().build();
         }
 
-        user = userProfileService.updateProfile(user, request.getRealName());
-        if (request.getAvatar() != null && !request.getAvatar().isBlank()) {
-            user = userProfileService.updateAvatar(user, request.getAvatar());
+        try {
+            user = userProfileService.updateProfile(user, request.getRealName());
+            user = userProfileService.updateContact(user, request.getEmail(), request.getPhone());
+            if (request.getAvatar() != null && !request.getAvatar().isBlank()) {
+                user = userProfileService.updateAvatar(user, request.getAvatar());
+            }
+            return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(1001, ex.getMessage()));
         }
-        return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
     }
 
     // ========== 密码修改 ==========
@@ -139,6 +146,8 @@ public class UserProfileController {
         response.setOrgName(organization != null ? organization.getName() : null);
         response.setOrgType(organization != null ? organization.getType().name() : null);
         response.setIsActive(user.getIsActive());
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
         response.setRoles(user.getRoles() == null
                 ? List.of()
                 : user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
@@ -156,6 +165,8 @@ public class UserProfileController {
         private Long id;
         private String username;
         private String realName;
+        private String email;
+        private String phone;
         private Long orgId;
         private String orgName;
         private String orgType;
@@ -170,6 +181,12 @@ public class UserProfileController {
     public static class UpdateProfileRequest {
         @NotBlank(message = "Real name is required")
         private String realName;
+
+        @Pattern(regexp = ContactInfoPolicy.EMAIL_REGEX, message = "邮箱格式不正确")
+        private String email;
+
+        @Pattern(regexp = ContactInfoPolicy.PHONE_REGEX, message = "手机号格式不正确")
+        private String phone;
 
         private String avatar;
     }

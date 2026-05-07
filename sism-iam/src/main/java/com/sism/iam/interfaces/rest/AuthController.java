@@ -1,6 +1,12 @@
 package com.sism.iam.interfaces.rest;
 
+import com.sism.iam.application.dto.PasswordResetConfirmRequest;
+import com.sism.iam.application.dto.PasswordResetRequest;
+import com.sism.iam.application.dto.PasswordResetVerifyRequest;
+import com.sism.iam.application.dto.UpdateContactRequest;
 import com.sism.iam.application.service.AuthService;
+import com.sism.iam.application.service.ContactInfoPolicy;
+import com.sism.iam.application.service.PasswordResetService;
 import com.sism.iam.application.service.UserService;
 import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.dto.LoginRequest;
@@ -14,12 +20,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +50,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserService userService;
     private final OrganizationRepository organizationRepository;
+    private final PasswordResetService passwordResetService;
 
     /**
      * 用户登录
@@ -51,6 +60,85 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PutMapping("/users/me/contact")
+    @Operation(summary = "更新当前用户联系信息")
+    public ResponseEntity<ApiResponse<UserSummaryResponse>> updateMyContact(
+            @AuthenticationPrincipal CurrentUser currentUser,
+            @Valid @RequestBody UpdateContactRequest request) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        try {
+            User user = userService.updateCurrentUserContact(currentUser.getId(), request.getEmail(), request.getPhone());
+            return ResponseEntity.ok(ApiResponse.success(toUserSummaryResponse(user)));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(1001, ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/password-reset/send")
+    @Operation(summary = "发送密码找回验证码")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> sendPasswordResetCode(
+            @Valid @RequestBody PasswordResetRequest request,
+            HttpServletRequest httpServletRequest) {
+        try {
+            PasswordResetService.SendResult result = passwordResetService.sendResetCode(
+                    request.getEmail(),
+                    extractIpAddress(httpServletRequest),
+                    httpServletRequest.getHeader("User-Agent")
+            );
+            return ResponseEntity.ok(ApiResponse.success(Map.of(
+                    "message", result.getMessage(),
+                    "expiresIn", result.getExpiresIn()
+            )));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(404, ex.getMessage()));
+        } catch (IllegalStateException ex) {
+            HttpStatus status = ex.getMessage() != null && ex.getMessage().contains("邮件发送失败")
+                    ? HttpStatus.INTERNAL_SERVER_ERROR
+                    : HttpStatus.TOO_MANY_REQUESTS;
+            int code = status == HttpStatus.INTERNAL_SERVER_ERROR ? 500 : 429;
+            return ResponseEntity.status(status).body(ApiResponse.error(code, ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/password-reset/verify")
+    @Operation(summary = "校验密码找回验证码")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> verifyPasswordResetCode(
+            @Valid @RequestBody PasswordResetVerifyRequest request) {
+        try {
+            passwordResetService.verifyCode(request.getEmail(), request.getCode());
+            return ResponseEntity.ok(ApiResponse.success(Map.of(
+                    "valid", true,
+                    "message", "验证码正确"
+            )));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(400, ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @Operation(summary = "确认密码重置")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request,
+            HttpServletRequest httpServletRequest) {
+        try {
+            passwordResetService.resetPassword(
+                    request.getEmail(),
+                    request.getCode(),
+                    request.getNewPassword(),
+                    extractIpAddress(httpServletRequest),
+                    httpServletRequest.getHeader("User-Agent")
+            );
+            return ResponseEntity.ok(ApiResponse.success(Map.of(
+                    "message", "密码重置成功，请使用新密码登录"
+            )));
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(400, ex.getMessage()));
+        }
     }
 
     /**
@@ -212,7 +300,7 @@ public class AuthController {
     @Operation(summary = "创建用户")
     public ResponseEntity<ApiResponse<UserSummaryResponse>> createUser(
             @AuthenticationPrincipal CurrentUser currentUser,
-            @RequestBody CreateUserRequest request) {
+            @Valid @RequestBody CreateUserRequest request) {
         ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
         if (denied != null) {
             return denied;
@@ -222,6 +310,7 @@ public class AuthController {
                 request.getPassword(),
                 request.getRealName(),
                 request.getEmail(),
+                request.getPhone(),
                 request.getOrgId(),
                 request.getRoles()
         );
@@ -236,7 +325,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserSummaryResponse>> updateUser(
             @AuthenticationPrincipal CurrentUser currentUser,
             @PathVariable Long id,
-            @RequestBody UpdateUserRequest request) {
+            @Valid @RequestBody UpdateUserRequest request) {
         ResponseEntity<ApiResponse<UserSummaryResponse>> denied = denyIfNoAdminOrgAccess(currentUser);
         if (denied != null) {
             return denied;
@@ -245,6 +334,7 @@ public class AuthController {
                 id,
                 request.getRealName(),
                 request.getEmail(),
+                request.getPhone(),
                 request.getOrgId(),
                 request.getRoles()
         );
@@ -355,7 +445,10 @@ public class AuthController {
         private String username;
         private String password;
         private String realName;
+        @Pattern(regexp = ContactInfoPolicy.EMAIL_REGEX, message = "邮箱格式不正确")
         private String email;
+        @Pattern(regexp = ContactInfoPolicy.PHONE_REGEX, message = "手机号格式不正确")
+        private String phone;
         private Long orgId;
         private List<String> roles;
     }
@@ -363,7 +456,10 @@ public class AuthController {
     @lombok.Data
     public static class UpdateUserRequest {
         private String realName;
+        @Pattern(regexp = ContactInfoPolicy.EMAIL_REGEX, message = "邮箱格式不正确")
         private String email;
+        @Pattern(regexp = ContactInfoPolicy.PHONE_REGEX, message = "手机号格式不正确")
+        private String phone;
         private Long orgId;
         private List<String> roles;
     }
@@ -381,6 +477,8 @@ public class AuthController {
         private Long id;
         private String username;
         private String realName;
+        private String email;
+        private String phone;
         private Long orgId;
         private String orgName;
         private String orgType;
@@ -396,6 +494,8 @@ public class AuthController {
                     user.getId(),
                     user.getUsername(),
                     user.getRealName(),
+                    user.getEmail(),
+                    user.getPhone(),
                     user.getOrgId(),
                     orgName,
                     orgType,
@@ -464,8 +564,8 @@ public class AuthController {
                 user.getId(),
                 user.getUsername(),
                 user.getRealName(),
-                null,
-                null,
+                user.getEmail(),
+                user.getPhone(),
                 user.getOrgId(),
                 organization != null ? organization.getName() : null,
                 roles,
@@ -489,5 +589,13 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, "刷新令牌无效或已过期"));
         }
+    }
+
+    private String extractIpAddress(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

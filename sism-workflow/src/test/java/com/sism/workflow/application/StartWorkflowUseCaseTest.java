@@ -21,11 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -85,7 +82,7 @@ class StartWorkflowUseCaseTest {
         FlowResolver flowResolver = new FlowResolver(flowDefinitionRepository);
         ApproverResolver approverResolver = new ApproverResolver(
                 userProvider,
-                workflowBusinessContextPort,
+                List.of(workflowBusinessContextPort),
                 workflowApproverProperties()
         );
         SubmissionStepAutoCompletePolicy autoCompletePolicy = new SubmissionStepAutoCompletePolicy();

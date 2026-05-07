@@ -41,6 +41,10 @@ public interface UserRepository extends UserProvider {
      */
     Optional<User> findByUsername(String username);
 
+    Optional<User> findByEmail(String email);
+
+    Optional<User> findByPhone(String phone);
+
     /**
      * 根据组织ID查询用户
      */
@@ -139,4 +143,8 @@ public interface UserRepository extends UserProvider {
      * 检查用户名是否存在
      */
     boolean existsByUsername(String username);
+
+    boolean existsByEmail(String email);
+
+    boolean existsByPhone(String phone);
 }

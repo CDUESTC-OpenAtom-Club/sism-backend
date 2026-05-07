@@ -2,6 +2,7 @@ package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.shared.application.dto.CurrentUser;
+import com.sism.iam.application.service.PasswordResetService;
 import com.sism.iam.application.service.AuthService;
 import com.sism.iam.application.service.UserService;
 import com.sism.iam.domain.user.User;
@@ -41,12 +42,15 @@ class AuthControllerAdminAccessTest {
     private OrganizationRepository organizationRepository;
 
     @Mock
+    private PasswordResetService passwordResetService;
+
+    @Mock
     private CurrentUser currentUser;
 
     @Test
     @DisplayName("getAllUsers should allow admin org users")
     void getAllUsersShouldAllowAdminOrgUsers() {
-        AuthController controller = new AuthController(authService, userService, organizationRepository);
+        AuthController controller = controller();
         SysOrg adminOrg = SysOrg.create("新管理员组织", OrgType.admin);
         adminOrg.setId(999L);
 
@@ -64,7 +68,7 @@ class AuthControllerAdminAccessTest {
     @Test
     @DisplayName("getAllUsers should include organization name in list response")
     void getAllUsersShouldIncludeOrganizationNameInListResponse() {
-        AuthController controller = new AuthController(authService, userService, organizationRepository);
+        AuthController controller = controller();
         SysOrg adminOrg = SysOrg.create("管理员组织", OrgType.admin);
         adminOrg.setId(501L);
         User user = mock(User.class);
@@ -89,7 +93,7 @@ class AuthControllerAdminAccessTest {
     @Test
     @DisplayName("getAllUsers should deny non-admin org users")
     void getAllUsersShouldDenyNonAdminOrgUsers() {
-        AuthController controller = new AuthController(authService, userService, organizationRepository);
+        AuthController controller = controller();
         SysOrg nonAdminOrg = SysOrg.create("教务处", OrgType.functional);
         nonAdminOrg.setId(44L);
 
@@ -106,7 +110,7 @@ class AuthControllerAdminAccessTest {
     @Test
     @DisplayName("getUserById should deny access when current user org is missing")
     void getUserByIdShouldDenyAccessWhenCurrentUserOrgIsMissing() {
-        AuthController controller = new AuthController(authService, userService, organizationRepository);
+        AuthController controller = controller();
 
         when(currentUser.getOrgId()).thenReturn(404L);
         when(organizationRepository.findById(404L)).thenReturn(Optional.empty());
@@ -121,7 +125,7 @@ class AuthControllerAdminAccessTest {
     @Test
     @DisplayName("getUserById should allow admin org access regardless of org id value")
     void getUserByIdShouldAllowAdminOrgAccessRegardlessOfOrgIdValue() {
-        AuthController controller = new AuthController(authService, userService, organizationRepository);
+        AuthController controller = controller();
         SysOrg adminOrg = SysOrg.create("管理员组织", OrgType.admin);
         adminOrg.setId(501L);
         User user = mock(User.class);
@@ -141,5 +145,9 @@ class AuthControllerAdminAccessTest {
 
         assertEquals(200, response.getStatusCodeValue());
         assertEquals(124L, response.getBody().getData().getId());
+    }
+
+    private AuthController controller() {
+        return new AuthController(authService, userService, organizationRepository, passwordResetService);
     }
 }

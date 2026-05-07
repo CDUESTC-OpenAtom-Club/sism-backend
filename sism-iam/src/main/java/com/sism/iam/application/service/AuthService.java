@@ -33,21 +33,22 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        if (request.getUsername() == null || request.getUsername().isBlank()) {
-            throw new IllegalArgumentException("请输入用户名");
+        String account = ContactInfoPolicy.normalizeAccount(request.getAccount());
+        if (account == null) {
+            throw new IllegalArgumentException("请输入账号");
         }
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new IllegalArgumentException("请输入密码");
         }
 
         String clientKey = "global";
-        loginAttemptService.assertNotBlocked(request.getUsername(), clientKey);
+        loginAttemptService.assertNotBlocked(account, clientKey);
 
-        User user = userRepository.findByUsername(request.getUsername())
+        User user = findUserByAccount(account)
                 .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            loginAttemptService.recordFailure(request.getUsername(), clientKey);
+            loginAttemptService.recordFailure(account, clientKey);
             throw new IllegalArgumentException("用户名或密码错误");
         }
 
@@ -55,7 +56,7 @@ public class AuthService {
             throw new IllegalStateException("账号已被禁用，请联系管理员");
         }
 
-        loginAttemptService.recordSuccess(request.getUsername(), clientKey);
+        loginAttemptService.recordSuccess(account, clientKey);
 
         List<String> roleCodes = userRepository.findRoleCodesByUserId(user.getId());
 
@@ -133,5 +134,15 @@ public class AuthService {
             return List.of();
         }
         return userRepository.findPermissionCodesByUserId(userId);
+    }
+
+    private java.util.Optional<User> findUserByAccount(String account) {
+        if (ContactInfoPolicy.looksLikeEmail(account)) {
+            return userRepository.findByEmail(account);
+        }
+        if (ContactInfoPolicy.looksLikePhone(account)) {
+            return userRepository.findByPhone(account);
+        }
+        return userRepository.findByUsername(account);
     }
 }

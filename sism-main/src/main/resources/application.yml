@@ -42,9 +42,29 @@ spring:
   # Flyway Configuration
   flyway:
     enabled: true
-    baseline-on-migrate: true
+    baseline-on-migrate: false
     baseline-version: 1
+    connect-retries: 10
     locations: classpath:db/migration
+
+  mail:
+    host: ${MAIL_HOST:${SPRING_MAIL_HOST:}}
+    port: ${MAIL_PORT:${SPRING_MAIL_PORT:25}}
+    username: ${MAIL_USERNAME:${SPRING_MAIL_USERNAME:}}
+    password: ${MAIL_PASSWORD:${SPRING_MAIL_PASSWORD:}}
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:true}}
+          starttls:
+            enable: ${MAIL_USE_STARTTLS:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:true}}
+            required: ${MAIL_STARTTLS_REQUIRED:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED:false}}
+          ssl:
+            enable: ${MAIL_USE_SSL:${SPRING_MAIL_PROPERTIES_MAIL_SMTP_SSL_ENABLE:false}}
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT:5000}
+          timeout: ${MAIL_TIMEOUT:5000}
+          writetimeout: ${MAIL_WRITE_TIMEOUT:5000}
 
   servlet:
     multipart:
@@ -98,6 +118,13 @@ auth:
   login:
     max-failures: ${AUTH_LOGIN_MAX_FAILURES:5}
     lock-duration-seconds: ${AUTH_LOGIN_LOCK_DURATION_SECONDS:900}
+  password-reset:
+    code-expiration-seconds: ${AUTH_PASSWORD_RESET_CODE_EXPIRATION_SECONDS:600}
+    resend-cooldown-seconds: ${AUTH_PASSWORD_RESET_RESEND_COOLDOWN_SECONDS:60}
+    daily-limit: ${AUTH_PASSWORD_RESET_DAILY_LIMIT:10}
+    ip-hourly-limit: ${AUTH_PASSWORD_RESET_IP_HOURLY_LIMIT:20}
+    max-failed-attempts: ${AUTH_PASSWORD_RESET_MAX_FAILED_ATTEMPTS:5}
+    lock-duration-seconds: ${AUTH_PASSWORD_RESET_LOCK_DURATION_SECONDS:1800}
 
 # WebSocket Configuration
 websocket:

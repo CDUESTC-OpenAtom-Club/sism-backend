@@ -60,6 +60,8 @@ public class LoginResponse {
                 user.getId(),
                 user.getUsername(),
                 user.getRealName(),
+                user.getEmail(),
+                user.getPhone(),
                 user.getOrgId(),
                 orgName,
                 orgType,
@@ -75,6 +77,8 @@ public class LoginResponse {
         private Long id;
         private String username;
         private String realName;
+        private String email;
+        private String phone;
         private Long orgId;
         private String orgName;
         private String orgType;

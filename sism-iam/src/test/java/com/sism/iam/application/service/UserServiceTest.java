@@ -44,6 +44,8 @@ class UserServiceTest {
     @BeforeEach
     void setUp() {
         userService = new UserService(userRepository, roleRepository, passwordEncoder);
+        lenient().when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        lenient().when(userRepository.findByPhone(anyString())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -59,7 +61,7 @@ class UserServiceTest {
                 .thenReturn(mockUser);
         when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
-        User created = userService.createUser("john_doe", "password", "John Doe", "john@example.com", 10L, List.of());
+        User created = userService.createUser("john_doe", "password", "John Doe", "john@example.com", "13800138000", 10L, List.of());
 
         assertNotNull(created);
         assertEquals("john_doe", created.getUsername());
@@ -226,6 +228,7 @@ class UserServiceTest {
                 "password",
                 "John Doe",
                 "john@example.com",
+                "13800138000",
                 10L,
                 List.of()
         );
@@ -252,6 +255,7 @@ class UserServiceTest {
                 "jane_doe",
                 "password",
                 "Jane Doe",
+                null,
                 null,
                 20L,
                 List.of()
@@ -284,6 +288,7 @@ class UserServiceTest {
                 "password",
                 "Admin User",
                 "admin@example.com",
+                "13800138000",
                 10L,
                 List.of("ADMIN")
         );

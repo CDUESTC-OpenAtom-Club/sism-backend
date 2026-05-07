@@ -28,6 +28,12 @@ public interface JpaUserRepositoryInternal extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
 
     @EntityGraph(attributePaths = "roles")
+    Optional<User> findByEmail(String email);
+
+    @EntityGraph(attributePaths = "roles")
+    Optional<User> findByPhone(String phone);
+
+    @EntityGraph(attributePaths = "roles")
     List<User> findByOrgId(Long orgId);
 
     @Query("SELECT DISTINCT u FROM User u JOIN FETCH u.roles allRoles JOIN u.roles filterRole WHERE filterRole.id = :roleId")
@@ -68,4 +74,6 @@ public interface JpaUserRepositoryInternal extends JpaRepository<User, Long> {
     @EntityGraph(attributePaths = "roles")
     List<User> findByIsActive(Boolean isActive);
     boolean existsByUsername(String username);
+    boolean existsByEmail(String email);
+    boolean existsByPhone(String phone);
 }

@@ -62,7 +62,7 @@ class AuthServiceTest {
     @DisplayName("Should login successfully with valid credentials")
     void shouldLoginSuccessfully() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("password123");
 
         User user = new User();
@@ -101,7 +101,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with blank username")
     void shouldThrowExceptionWhenLoginWithBlankUsername() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("");
+        request.setAccount("");
         request.setPassword("password123");
 
         IllegalArgumentException exception = assertThrows(
@@ -109,7 +109,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("请输入用户名", exception.getMessage());
+        assertEquals("请输入账号", exception.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
     }
 
@@ -117,7 +117,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with null username")
     void shouldThrowExceptionWhenLoginWithNullUsername() {
         LoginRequest request = new LoginRequest();
-        request.setUsername(null);
+        request.setAccount(null);
         request.setPassword("password123");
 
         IllegalArgumentException exception = assertThrows(
@@ -125,14 +125,14 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("请输入用户名", exception.getMessage());
+        assertEquals("请输入账号", exception.getMessage());
     }
 
     @Test
     @DisplayName("Should throw exception when login with blank password")
     void shouldThrowExceptionWhenLoginWithBlankPassword() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("");
 
         IllegalArgumentException exception = assertThrows(
@@ -148,7 +148,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with non-existent user")
     void shouldThrowExceptionWhenLoginWithNonExistentUser() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("nonexistent");
+        request.setAccount("nonexistent");
         request.setPassword("password123");
 
         when(userRepository.findByUsername("nonexistent"))
@@ -167,7 +167,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with wrong password")
     void shouldThrowExceptionWhenLoginWithWrongPassword() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("wrongpassword");
 
         User user = new User();
@@ -195,7 +195,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with inactive account")
     void shouldThrowExceptionWhenLoginWithInactiveAccount() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("password123");
 
         User user = new User();

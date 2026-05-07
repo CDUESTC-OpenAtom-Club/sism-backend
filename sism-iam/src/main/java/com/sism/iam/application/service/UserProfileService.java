@@ -64,6 +64,35 @@ public class UserProfileService {
         return userRepository.save(user);
     }
 
+    @Transactional
+    public User updateContact(User user, String email, String phone) {
+        requireUser(user);
+
+        String normalizedEmail = ContactInfoPolicy.normalizeEmail(email);
+        String normalizedPhone = ContactInfoPolicy.normalizePhone(phone);
+
+        if (normalizedEmail != null) {
+            userRepository.findByEmail(normalizedEmail)
+                    .filter(existing -> !existing.getId().equals(user.getId()))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("邮箱已被其他用户使用");
+                    });
+        }
+
+        if (normalizedPhone != null) {
+            userRepository.findByPhone(normalizedPhone)
+                    .filter(existing -> !existing.getId().equals(user.getId()))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("手机号已被其他用户使用");
+                    });
+        }
+
+        user.setEmail(normalizedEmail);
+        user.setPhone(normalizedPhone);
+        user.setUpdatedAt(LocalDateTime.now());
+        return userRepository.save(user);
+    }
+
     private void requireUser(User user) {
         if (user == null) {
             throw new AuthorizationException("未登录");
