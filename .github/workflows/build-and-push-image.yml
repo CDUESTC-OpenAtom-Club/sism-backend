@@ -431,10 +431,32 @@ jobs:
           echo "$STATUS_RAW"
           ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose ps"
           if [[ "${DEPLOY_MODE}" != "frontend-only" ]]; then
-            ssh "${SERVER_USER}@${SERVER_HOST}" "curl -fsS http://127.0.0.1:8080/api/v1/actuator/health | grep '\"status\":\"UP\"'"
+            ssh "${SERVER_USER}@${SERVER_HOST}" '
+              set -euo pipefail
+              for i in $(seq 1 24); do
+                if curl -fsS http://127.0.0.1:8080/api/v1/actuator/health | grep -q "\"status\":\"UP\""; then
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "Backend health check did not become UP in time" >&2
+              podman ps --format "table {{.Names}}\t{{.Status}}" >&2 || true
+              exit 1
+            '
           fi
           if [[ "${DEPLOY_MODE}" != "backend-only" ]]; then
-            ssh "${SERVER_USER}@${SERVER_HOST}" "curl -fsS http://127.0.0.1/ >/dev/null"
+            ssh "${SERVER_USER}@${SERVER_HOST}" '
+              set -euo pipefail
+              for i in $(seq 1 12); do
+                if curl -fsS http://127.0.0.1/ >/dev/null; then
+                  exit 0
+                fi
+                sleep 5
+              done
+              echo "Frontend health check did not become ready in time" >&2
+              podman ps --format "table {{.Names}}\t{{.Status}}" >&2 || true
+              exit 1
+            '
           fi
 
       - name: Mark deployment success
