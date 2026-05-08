@@ -22,6 +22,8 @@
   - 数据库删列执行前检查与回归清单
 - `flyway-migration-guide.md`
   - Flyway 迁移执行说明
+- `architecture/main-branch-release-and-deploy-runbook.md`
+  - 主线发布、自动部署、分支职责、服务器验证与故障排查手册
 - `API接口文档.md`
   - 后端接口说明补充文档
 - `流程.md`
