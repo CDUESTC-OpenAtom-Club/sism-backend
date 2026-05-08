@@ -1,10 +1,9 @@
-name: Build and Deploy Backend Baseline
+name: Build and Deploy Backend
 
 on:
   push:
     branches:
       - main
-      - baseline/backend-verified-20260426
   workflow_dispatch:
     inputs:
       deploy_mode:
@@ -33,7 +32,7 @@ permissions:
   deployments: write
 
 concurrency:
-  group: backend-baseline-${{ github.ref_name || github.run_id }}
+  group: backend-deploy-${{ github.ref_name || github.run_id }}
   cancel-in-progress: false
 
 env:
@@ -57,11 +56,11 @@ jobs:
           cache: maven
 
       - name: Run backend verification
-        if: ${{ github.ref_name != 'baseline/backend-verified-20260426' }}
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         run: mvn -B clean verify
 
-      - name: Build backend package for baseline branch
-        if: ${{ github.ref_name == 'baseline/backend-verified-20260426' || github.event_name == 'workflow_dispatch' }}
+      - name: Build backend package
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: mvn -B -pl sism-main -am clean package -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
 
       - name: Validate Flyway migration naming
@@ -138,7 +137,7 @@ jobs:
     if: >-
       ${{
         always() &&
-        (github.ref_name == 'baseline/backend-verified-20260426' || github.event_name == 'workflow_dispatch') &&
+        (github.ref_name == 'main' || github.event_name == 'workflow_dispatch') &&
         !contains(join(needs.*.result, ','), 'failure')
       }}
     needs:
