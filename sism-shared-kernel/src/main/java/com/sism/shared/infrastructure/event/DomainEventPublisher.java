@@ -3,7 +3,9 @@ package com.sism.shared.infrastructure.event;
 import com.sism.shared.domain.model.base.DomainEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -22,6 +24,13 @@ public class DomainEventPublisher {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final EventStore eventStore;
 
+    @Autowired
+    public DomainEventPublisher(ApplicationEventPublisher applicationEventPublisher,
+                                ObjectProvider<EventStore> eventStoreProvider) {
+        this.applicationEventPublisher = applicationEventPublisher;
+        this.eventStore = eventStoreProvider.getIfAvailable();
+    }
+
     public DomainEventPublisher(ApplicationEventPublisher applicationEventPublisher, EventStore eventStore) {
         this.applicationEventPublisher = applicationEventPublisher;
         this.eventStore = eventStore;
@@ -38,11 +47,13 @@ public class DomainEventPublisher {
 
         log.debug("Publishing domain event: {}", event.getEventType());
 
-        try {
-            eventStore.save(event);
-        } catch (Exception e) {
-            log.warn("Failed to persist event {}, continuing with in-process publish: {}",
-                    event.getEventId(), e.getMessage());
+        if (eventStore != null) {
+            try {
+                eventStore.save(event);
+            } catch (Exception e) {
+                log.warn("Failed to persist event {}, continuing with in-process publish: {}",
+                        event.getEventId(), e.getMessage());
+            }
         }
 
         applicationEventPublisher.publishEvent(event);

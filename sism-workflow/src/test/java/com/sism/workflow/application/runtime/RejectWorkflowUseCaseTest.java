@@ -1,13 +1,13 @@
 package com.sism.workflow.application.runtime;
 
-import com.sism.workflow.application.PlanWorkflowSyncService;
+import com.sism.workflow.application.WorkflowBusinessStatusSyncService;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.AuditStepInstance;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditStepInstance;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,7 +30,7 @@ class RejectWorkflowUseCaseTest {
     private WorkflowEventDispatcher workflowEventDispatcher;
 
     @Mock
-    private PlanWorkflowSyncService planWorkflowSyncService;
+    private WorkflowBusinessStatusSyncService workflowBusinessStatusSyncService;
 
     @Mock
     private WorkflowDefinitionQueryService workflowDefinitionQueryService;

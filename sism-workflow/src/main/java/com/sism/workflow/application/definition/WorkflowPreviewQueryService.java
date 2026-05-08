@@ -1,8 +1,8 @@
 package com.sism.workflow.application.definition;
 
 import com.sism.workflow.application.support.ApproverResolver;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import com.sism.workflow.interfaces.dto.WorkflowDefinitionPreviewResponse;
 import com.sism.workflow.interfaces.dto.WorkflowStepPreviewResponse;
 import lombok.RequiredArgsConstructor;

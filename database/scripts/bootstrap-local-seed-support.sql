@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS public.sys_task (
     cycle_id BIGINT,
     org_id BIGINT,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    task_category VARCHAR(64) NOT NULL DEFAULT 'STRATEGIC',
+    status VARCHAR(64) NOT NULL DEFAULT 'DRAFT',
     plan_id BIGINT
 );
 
@@ -137,6 +139,54 @@ CREATE TABLE IF NOT EXISTS public.refresh_tokens (
     device_info VARCHAR(255),
     ip_address VARCHAR(45)
 );
+
+CREATE TABLE IF NOT EXISTS public.idempotency_records (
+    id BIGSERIAL PRIMARY KEY,
+    created_at TIMESTAMP(6) NOT NULL,
+    expires_at TIMESTAMP(6) NOT NULL,
+    http_method VARCHAR(10),
+    idempotency_key VARCHAR(64) NOT NULL,
+    request_path VARCHAR(255),
+    response_body TEXT,
+    status VARCHAR(20),
+    status_code INTEGER,
+    CONSTRAINT uk_ol0gjg0uap11mq1y9ug506f1i UNIQUE (idempotency_key),
+    CONSTRAINT idempotency_records_status_check CHECK (status IN ('PENDING', 'COMPLETED', 'FAILED'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_idempotency_key
+    ON public.idempotency_records (idempotency_key);
+
+CREATE INDEX IF NOT EXISTS idx_idempotency_expires_at
+    ON public.idempotency_records (expires_at);
+
+CREATE TABLE IF NOT EXISTS public.sys_user_notification (
+    id BIGSERIAL PRIMARY KEY,
+    recipient_user_id BIGINT NOT NULL,
+    sender_user_id BIGINT,
+    sender_org_id BIGINT,
+    notification_type VARCHAR(64) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'UNREAD',
+    action_url VARCHAR(500),
+    related_entity_type VARCHAR(64),
+    related_entity_id BIGINT,
+    metadata_json JSONB,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    batch_key VARCHAR(64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sys_user_notification_recipient_created
+    ON public.sys_user_notification (recipient_user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sys_user_notification_related_entity
+    ON public.sys_user_notification (related_entity_type, related_entity_id);
+
+CREATE INDEX IF NOT EXISTS idx_sys_user_notification_batch_key
+    ON public.sys_user_notification (batch_key);
 
 ALTER TABLE public.sys_role
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMP,

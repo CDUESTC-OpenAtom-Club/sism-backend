@@ -1,27 +1,26 @@
 package com.sism.workflow.application;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.shared.domain.user.UserIdentity;
+import com.sism.shared.domain.user.UserProvider;
+import com.sism.shared.domain.workflow.WorkflowBusinessContextPort;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
-import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.workflow.application.runtime.StartWorkflowUseCase;
 import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.application.support.FlowResolver;
 import com.sism.workflow.application.support.StepInstanceFactory;
 import com.sism.workflow.application.support.SubmissionStepAutoCompletePolicy;
+import com.sism.workflow.application.support.WorkflowApproverProperties;
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
-import com.sism.workflow.domain.definition.repository.FlowDefinitionRepository;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.domain.definition.FlowDefinitionRepository;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -47,13 +46,10 @@ class StartWorkflowUseCaseTest {
     private AuditInstanceRepository auditInstanceRepository;
 
     @Mock
-    private UserRepository userRepository;
+    private UserProvider userProvider;
 
     @Mock
-    private PlanRepository planRepository;
-
-    @Mock
-    private JdbcTemplate jdbcTemplate;
+    private WorkflowBusinessContextPort workflowBusinessContextPort;
 
     @Test
     void startAuditInstance_shouldAutoCompleteSubmitterStepAndActivateNextApprover() {
@@ -75,13 +71,20 @@ class StartWorkflowUseCaseTest {
         flowDef.setFlowName("Plan下发审批（战略发展部）");
         flowDef.setSteps(List.of(submitStep, approvalStep));
 
+        UserIdentity approver = new UserIdentity(301L, "u301", "审批人301", 35L, true);
+
         when(flowDefinitionRepository.findById(1L)).thenReturn(Optional.of(flowDef));
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(flowDefinitionRepository.findByCode(any())).thenReturn(Optional.empty());
         lenient().when(flowDefinitionRepository.findByEntityType(any())).thenReturn(List.of());
+        when(userProvider.findActiveIdentitiesByRole(3L)).thenReturn(List.of(approver));
 
         FlowResolver flowResolver = new FlowResolver(flowDefinitionRepository);
-        ApproverResolver approverResolver = new ApproverResolver(userRepository, planRepository, jdbcTemplate);
+        ApproverResolver approverResolver = new ApproverResolver(
+                userProvider,
+                List.of(workflowBusinessContextPort),
+                workflowApproverProperties()
+        );
         SubmissionStepAutoCompletePolicy autoCompletePolicy = new SubmissionStepAutoCompletePolicy();
         StepInstanceFactory stepInstanceFactory = new StepInstanceFactory(approverResolver, autoCompletePolicy);
         WorkflowEventDispatcher workflowEventDispatcher = new WorkflowEventDispatcher(eventPublisher, eventStore);
@@ -110,8 +113,17 @@ class StartWorkflowUseCaseTest {
 
         var secondStep = result.getStepInstances().get(1);
         assertEquals(AuditInstance.STEP_STATUS_PENDING, secondStep.getStatus());
-        assertEquals(null, secondStep.getApproverId());
+        assertEquals(301L, secondStep.getApproverId());
         assertEquals(35L, secondStep.getApproverOrgId());
         assertEquals(2, result.resolveCurrentPendingStep().orElseThrow().getStepNo());
+    }
+    private WorkflowApproverProperties workflowApproverProperties() {
+        WorkflowApproverProperties properties = new WorkflowApproverProperties();
+        properties.setApproverRoleId(2L);
+        properties.setStrategyDeptHeadRoleId(3L);
+        properties.setVicePresidentRoleId(4L);
+        properties.setStrategyOrgId(35L);
+        properties.setFunctionalVicePresidentScopeByOrg(java.util.Map.of());
+        return properties;
     }
 }

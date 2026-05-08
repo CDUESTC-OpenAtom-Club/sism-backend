@@ -39,11 +39,6 @@ public interface WriteRepository<T, ID> {
     void deleteAll(List<T> entities);
     
     /**
-     * Execute update query
-     */
-    int executeUpdate(String jpql, Object... params);
-    
-    /**
      * Flush all pending changes to database
      */
     void flush();

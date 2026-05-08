@@ -1,6 +1,6 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.Notification;
+import com.sism.iam.domain.notification.Notification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

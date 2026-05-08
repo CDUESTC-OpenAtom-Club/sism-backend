@@ -4,10 +4,10 @@ import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.StrategicTask;
+import com.sism.task.domain.task.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -108,8 +109,8 @@ class StrategyApplicationServiceTest {
         StrategicTask sourceTask = StrategicTask.create(
                 "既有任务",
                 TaskType.BASIC,
-                7001L,
-                2026L,
+                Long.valueOf(7001L),
+                Long.valueOf(2026L),
                 sourceTargetOrg,
                 ownerOrg
         );
@@ -127,5 +128,21 @@ class StrategyApplicationServiceTest {
         assertEquals(902L, indicatorCaptor.getValue().getTaskId());
         verify(taskRepository, never()).findByPlanId(any());
         verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should throw when indicator is missing instead of returning null")
+    void shouldThrowWhenIndicatorMissing() {
+        StrategyApplicationService service = new StrategyApplicationService(
+                eventPublisher,
+                eventStore,
+                indicatorRepository,
+                taskRepository,
+                basicTaskWeightValidationService
+        );
+
+        when(indicatorRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> service.getIndicatorById(999L));
     }
 }

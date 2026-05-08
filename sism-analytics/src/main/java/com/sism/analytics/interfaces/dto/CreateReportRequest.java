@@ -2,7 +2,6 @@ package com.sism.analytics.interfaces.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
@@ -24,10 +23,6 @@ public class CreateReportRequest {
     @Schema(description = "报告格式", requiredMode = Schema.RequiredMode.REQUIRED, example = "PDF")
     @NotBlank(message = "报告格式不能为空")
     private String format;
-
-    @Schema(description = "生成者ID", requiredMode = Schema.RequiredMode.REQUIRED)
-    @NotNull(message = "生成者ID不能为空")
-    private Long generatedBy;
 
     @Schema(description = "报告参数(JSON格式)")
     private String parameters;

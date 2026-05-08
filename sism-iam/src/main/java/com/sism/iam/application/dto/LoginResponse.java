@@ -1,6 +1,6 @@
 package com.sism.iam.application.dto;
 
-import com.sism.iam.domain.User;
+import com.sism.iam.domain.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,6 +29,8 @@ public class LoginResponse {
         return fromUser(
                 user,
                 user.getRoles().stream().map(role -> role.getRoleCode()).toList(),
+                null,
+                null,
                 accessToken,
                 refreshToken,
                 expiresIn
@@ -38,6 +40,8 @@ public class LoginResponse {
     public static LoginResponse fromUser(
             User user,
             List<String> roleCodes,
+            String orgName,
+            String orgType,
             String accessToken,
             String refreshToken,
             long expiresIn
@@ -56,7 +60,11 @@ public class LoginResponse {
                 user.getId(),
                 user.getUsername(),
                 user.getRealName(),
+                user.getEmail(),
+                user.getPhone(),
                 user.getOrgId(),
+                orgName,
+                orgType,
                 roleCodes
         ));
         return response;
@@ -69,7 +77,11 @@ public class LoginResponse {
         private Long id;
         private String username;
         private String realName;
+        private String email;
+        private String phone;
         private Long orgId;
+        private String orgName;
+        private String orgType;
         private List<String> roles;
     }
 }

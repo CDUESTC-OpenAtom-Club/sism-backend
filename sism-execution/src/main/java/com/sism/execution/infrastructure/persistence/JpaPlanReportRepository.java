@@ -1,8 +1,9 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.model.report.PlanReport;
-import com.sism.execution.domain.model.report.ReportOrgType;
-import com.sism.execution.domain.repository.PlanReportRepository;
+import com.sism.execution.domain.report.PlanReport;
+import com.sism.execution.domain.report.PlanReportRepository;
+import com.sism.execution.domain.report.PlanReportStatus;
+import com.sism.execution.domain.report.ReportOrgType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,31 +23,43 @@ import java.util.Optional;
 public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>, PlanReportRepository {
 
     @Override
-    List<PlanReport> findByReportOrgId(Long reportOrgId);
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportOrgId = :reportOrgId AND pr.isDeleted = false")
+    List<PlanReport> findByReportOrgId(@Param("reportOrgId") Long reportOrgId);
 
     @Override
-    List<PlanReport> findByReportOrgType(ReportOrgType reportOrgType);
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportOrgType = :reportOrgType AND pr.isDeleted = false")
+    List<PlanReport> findByReportOrgType(@Param("reportOrgType") ReportOrgType reportOrgType);
 
     @Override
-    List<PlanReport> findByReportMonth(String reportMonth);
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportMonth = :reportMonth AND pr.isDeleted = false")
+    List<PlanReport> findByReportMonth(@Param("reportMonth") String reportMonth);
 
     @Override
-    List<PlanReport> findByStatus(String status);
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.status = :status AND pr.isDeleted = false")
+    List<PlanReport> findByStatus(@Param("status") PlanReportStatus status);
 
     @Override
-    List<PlanReport> findByReportOrgIdAndStatus(Long reportOrgId, String status);
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportOrgId = :reportOrgId AND pr.status = :status AND pr.isDeleted = false")
+    List<PlanReport> findByReportOrgIdAndStatus(@Param("reportOrgId") Long reportOrgId,
+                                                @Param("status") PlanReportStatus status);
 
     @Override
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.reportOrgId = :orgId AND pr.reportMonth BETWEEN :startMonth AND :endMonth")
+    @Query(value = """
+            SELECT *
+            FROM plan_report pr
+            WHERE pr.report_org_id = :orgId
+              AND pr.is_deleted = false
+              AND to_date(pr.report_month, 'YYYYMM') BETWEEN to_date(:startMonth, 'YYYYMM') AND to_date(:endMonth, 'YYYYMM')
+            """, nativeQuery = true)
     List<PlanReport> findByOrgIdAndMonthRange(
             @Param("orgId") Long orgId,
             @Param("startMonth") String startMonth,
             @Param("endMonth") String endMonth);
 
     @Override
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.status = :status AND pr.reportOrgType = :orgType")
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.status = :status AND pr.reportOrgType = :orgType AND pr.isDeleted = false")
     List<PlanReport> findByStatusAndOrgType(
-            @Param("status") String status,
+            @Param("status") PlanReportStatus status,
             @Param("orgType") ReportOrgType orgType);
 
     @Override
@@ -58,19 +71,22 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
     Page<PlanReport> findAllActive(Pageable pageable);
 
     @Override
-    @Query("SELECT pr FROM PlanReport pr WHERE " +
-           "(:reportMonth IS NULL OR pr.reportMonth = :reportMonth) AND " +
-           "(:reportOrgId IS NULL OR pr.reportOrgId = :reportOrgId) AND " +
-           "(:reportOrgType IS NULL OR pr.reportOrgType = :reportOrgType) AND " +
-           "(:planId IS NULL OR pr.planId = :planId) AND " +
-           "(:status IS NULL OR pr.status = :status) AND " +
-           "pr.isDeleted = false")
+    @Query(value = """
+            SELECT * FROM plan_report pr
+            WHERE (CAST(:reportMonth AS text) IS NULL OR pr.report_month = CAST(:reportMonth AS text))
+              AND (CAST(:reportOrgId AS bigint) IS NULL OR pr.report_org_id = CAST(:reportOrgId AS bigint))
+              AND (CAST(:reportOrgType AS text) IS NULL OR pr.report_org_type = CAST(:reportOrgType AS text))
+              AND (CAST(:planId AS bigint) IS NULL OR pr.plan_id = CAST(:planId AS bigint))
+              AND (CAST(:status AS text) IS NULL OR pr.status = CAST(:status AS text))
+              AND pr.is_deleted = false
+            ORDER BY pr.created_at DESC
+            """, nativeQuery = true)
     Page<PlanReport> findByConditions(
             @Param("reportMonth") String reportMonth,
             @Param("reportOrgId") Long reportOrgId,
             @Param("reportOrgType") ReportOrgType reportOrgType,
             @Param("planId") Long planId,
-            @Param("status") String status,
+            @Param("status") PlanReportStatus status,
             Pageable pageable);
 
     @Override
@@ -79,7 +95,7 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
 
     @Override
     @Query("SELECT pr FROM PlanReport pr WHERE pr.status = :status AND pr.isDeleted = false")
-    Page<PlanReport> findByStatus(@Param("status") String status, Pageable pageable);
+    Page<PlanReport> findByStatus(@Param("status") PlanReportStatus status, Pageable pageable);
 
     @Override
     @Query("SELECT pr FROM PlanReport pr WHERE pr.planId = :planId AND pr.isDeleted = false")
@@ -87,7 +103,11 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
 
     @Override
     @Query("SELECT COUNT(pr) FROM PlanReport pr WHERE pr.status = :status AND pr.isDeleted = false")
-    long countByStatus(@Param("status") String status);
+    long countByStatus(@Param("status") PlanReportStatus status);
+
+    @Query("SELECT COUNT(pr) FROM PlanReport pr WHERE pr.status = :status AND pr.reportOrgId = :reportOrgId AND pr.isDeleted = false")
+    long countByStatusAndReportOrgId(@Param("status") PlanReportStatus status,
+                                     @Param("reportOrgId") Long reportOrgId);
 
     @Override
     @Query("SELECT pr FROM PlanReport pr WHERE pr.reportMonth = :month AND pr.reportOrgId = :orgId AND pr.isDeleted = false")
@@ -96,7 +116,7 @@ public interface JpaPlanReportRepository extends JpaRepository<PlanReport, Long>
             @Param("orgId") Long orgId);
 
     @Override
-    @Query("SELECT pr FROM PlanReport pr WHERE pr.planId = :planId AND pr.reportMonth = :reportMonth AND pr.reportOrgType = :reportOrgType AND pr.reportOrgId = :reportOrgId")
+    @Query("SELECT pr FROM PlanReport pr WHERE pr.planId = :planId AND pr.reportMonth = :reportMonth AND pr.reportOrgType = :reportOrgType AND pr.reportOrgId = :reportOrgId AND pr.isDeleted = false")
     Optional<PlanReport> findByUniqueKey(
             @Param("planId") Long planId,
             @Param("reportMonth") String reportMonth,

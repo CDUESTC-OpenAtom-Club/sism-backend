@@ -1,6 +1,7 @@
 package com.sism.analytics.domain;
 
 import com.sism.shared.domain.model.base.AggregateRoot;
+import com.sism.shared.domain.model.base.DomainEvent;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -20,6 +21,8 @@ import java.util.Objects;
 @Table(name = "analytics_dashboards")
 @Access(AccessType.FIELD)
 public class Dashboard extends AggregateRoot<Long> {
+
+    private static final int MAX_CONFIG_LENGTH = 10_000;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -88,6 +91,15 @@ public class Dashboard extends AggregateRoot<Long> {
         if (description != null && description.length() > 1000) {
             throw new IllegalArgumentException("Description cannot exceed 1000 characters");
         }
+        if (description != null && description.isBlank()) {
+            throw new IllegalArgumentException("Description cannot be blank");
+        }
+        if (config != null && config.length() > MAX_CONFIG_LENGTH) {
+            throw new IllegalArgumentException("Config cannot exceed " + MAX_CONFIG_LENGTH + " characters");
+        }
+        if (config != null && config.isBlank()) {
+            throw new IllegalArgumentException("Config cannot be blank");
+        }
     }
 
     /**
@@ -114,6 +126,12 @@ public class Dashboard extends AggregateRoot<Long> {
      */
     public void updateConfig(String config) {
         this.config = Objects.requireNonNull(config, "Config cannot be null");
+        if (this.config.isBlank()) {
+            throw new IllegalArgumentException("Config cannot be blank");
+        }
+        if (this.config.length() > MAX_CONFIG_LENGTH) {
+            throw new IllegalArgumentException("Config cannot exceed " + MAX_CONFIG_LENGTH + " characters");
+        }
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -139,6 +157,7 @@ public class Dashboard extends AggregateRoot<Long> {
     public void delete() {
         this.deleted = true;
         this.updatedAt = LocalDateTime.now();
+        addEvent(new DashboardDeletedEvent(getId(), userId, updatedAt));
     }
 
     /**
@@ -146,6 +165,9 @@ public class Dashboard extends AggregateRoot<Long> {
      */
     public Dashboard copyToUser(Long targetUserId) {
         Objects.requireNonNull(targetUserId, "Target user ID cannot be null");
+        if (targetUserId <= 0) {
+            throw new IllegalArgumentException("Target user ID must be a positive number");
+        }
 
         Dashboard copied = new Dashboard();
         copied.name = this.name + " (副本)";
@@ -173,5 +195,35 @@ public class Dashboard extends AggregateRoot<Long> {
     @Override
     public int hashCode() {
         return Objects.hash(getId(), name, userId, isPublic, deleted);
+    }
+}
+
+class DashboardDeletedEvent implements DomainEvent {
+
+    private final Long dashboardId;
+    private final Long userId;
+    private final LocalDateTime occurredAt;
+
+    DashboardDeletedEvent(Long dashboardId, Long userId, LocalDateTime occurredAt) {
+        this.dashboardId = dashboardId;
+        this.userId = userId;
+        this.occurredAt = occurredAt;
+    }
+
+    public Long getDashboardId() {
+        return dashboardId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public LocalDateTime getOccurredAt() {
+        return occurredAt;
+    }
+
+    @Override
+    public String getEventType() {
+        return "DashboardDeleted";
     }
 }

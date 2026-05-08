@@ -34,7 +34,11 @@ public class EntityId<T> {
     }
 
     public Long getLongValue() {
-        return Long.parseLong(value);
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException("EntityId value is not numeric: " + value, e);
+        }
     }
 
     public Class<T> getEntityType() {
@@ -50,12 +54,13 @@ public class EntityId<T> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         EntityId<?> entityId = (EntityId<?>) o;
-        return Objects.equals(value, entityId.value);
+        return Objects.equals(value, entityId.value)
+                && Objects.equals(entityType, entityId.entityType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(value);
+        return Objects.hash(value, entityType);
     }
 
     @Override

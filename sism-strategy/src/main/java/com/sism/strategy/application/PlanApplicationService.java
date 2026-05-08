@@ -1,13 +1,14 @@
 package com.sism.strategy.application;
 
 import com.sism.exception.ConflictException;
-import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
+import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
-import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
-import com.sism.strategy.domain.Cycle;
-import com.sism.strategy.domain.Indicator;
-import com.sism.strategy.domain.event.PlanSubmittedForApprovalEvent;
+import com.sism.strategy.domain.cycle.Cycle;
+import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.strategy.domain.indicator.event.IndicatorCreatedEvent;
+import com.sism.strategy.domain.plan.event.PlanCreatedEvent;
+import com.sism.strategy.domain.plan.event.PlanSubmittedForApprovalEvent;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.plan.PlanStatus;
@@ -15,15 +16,20 @@ import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.domain.repository.PlanRepository;
 import com.sism.strategy.interfaces.dto.CreatePlanRequest;
+import com.sism.strategy.interfaces.dto.MilestoneResponse;
 import com.sism.strategy.interfaces.dto.PlanResponse;
 import com.sism.strategy.interfaces.dto.SubmitPlanApprovalRequest;
 import com.sism.strategy.interfaces.dto.UpdatePlanRequest;
-import com.sism.task.domain.StrategicTask;
+import com.sism.strategy.infrastructure.StrategyOrgProperties;
+import com.sism.task.domain.task.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,17 +37,17 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
-import java.time.Duration;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -50,28 +56,112 @@ import java.util.stream.Stream;
  * 处理计划的业务逻辑，包括计划的创建、更新、查询等操作
  */
 @Service("strategyPlanApplicationService")
-@RequiredArgsConstructor
 @Slf4j
 public class PlanApplicationService {
-    private static final String PLAN_APPROVAL_WORKFLOW_CODE_FUNCDEPT = "PLAN_APPROVAL_FUNCDEPT";
-    private static final String PLAN_APPROVAL_WORKFLOW_CODE_COLLEGE = "PLAN_APPROVAL_COLLEGE";
-    private static final Long ROLE_APPROVER = 2L;
-    private static final Long ROLE_STRATEGY_DEPT_HEAD = 3L;
-    private static final Long ROLE_VICE_PRESIDENT = 4L;
-    private static final Long STRATEGY_ORG_ID = 35L;
-
-
     private final PlanRepository planRepository;
     private final CycleRepository cycleRepository;
     private final IndicatorRepository indicatorRepository;
-    private final OrganizationRepository organizationRepository;
     private final BasicTaskWeightValidationService basicTaskWeightValidationService;
     private final TaskRepository taskRepository;
     private final DomainEventPublisher eventPublisher;
     private final PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService;
     private final JdbcTemplate jdbcTemplate;
-    private final PlatformTransactionManager transactionManager;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final PlanIntegrityService planIntegrityService;
+    private final StrategyOrgProperties strategyOrgProperties;
+    private final PlanWorkflowRuntimeService planWorkflowRuntimeService;
+    private final MilestoneApplicationService milestoneApplicationService;
+    private final ObjectProvider<PlanApplicationService> selfProvider;
+
+    @Autowired
+    public PlanApplicationService(
+            PlanRepository planRepository,
+            CycleRepository cycleRepository,
+            IndicatorRepository indicatorRepository,
+            BasicTaskWeightValidationService basicTaskWeightValidationService,
+            TaskRepository taskRepository,
+            DomainEventPublisher eventPublisher,
+            PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService,
+            JdbcTemplate jdbcTemplate,
+            NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+            PlanIntegrityService planIntegrityService,
+            StrategyOrgProperties strategyOrgProperties,
+            PlanWorkflowRuntimeService planWorkflowRuntimeService,
+            MilestoneApplicationService milestoneApplicationService,
+            ObjectProvider<PlanApplicationService> selfProvider
+    ) {
+        this.planRepository = planRepository;
+        this.cycleRepository = cycleRepository;
+        this.indicatorRepository = indicatorRepository;
+        this.basicTaskWeightValidationService = basicTaskWeightValidationService;
+        this.taskRepository = taskRepository;
+        this.eventPublisher = eventPublisher;
+        this.planWorkflowSnapshotQueryService = planWorkflowSnapshotQueryService;
+        this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.planIntegrityService = planIntegrityService;
+        this.strategyOrgProperties = strategyOrgProperties;
+        this.planWorkflowRuntimeService = planWorkflowRuntimeService;
+        this.milestoneApplicationService = milestoneApplicationService;
+        this.selfProvider = selfProvider;
+    }
+
+    public PlanApplicationService(PlanRepository planRepository,
+                                  CycleRepository cycleRepository,
+                                  IndicatorRepository indicatorRepository,
+                                  BasicTaskWeightValidationService basicTaskWeightValidationService,
+                                  TaskRepository taskRepository,
+                                  DomainEventPublisher eventPublisher,
+                                  PlanWorkflowSnapshotQueryService planWorkflowSnapshotQueryService,
+                                  JdbcTemplate jdbcTemplate,
+                                  NamedParameterJdbcTemplate namedParameterJdbcTemplate,
+                                  PlatformTransactionManager ignoredTransactionManager,
+                                  PlanIntegrityService planIntegrityService,
+                                  StrategyOrgProperties strategyOrgProperties) {
+        this.planRepository = planRepository;
+        this.cycleRepository = cycleRepository;
+        this.indicatorRepository = indicatorRepository;
+        this.basicTaskWeightValidationService = basicTaskWeightValidationService;
+        this.taskRepository = taskRepository;
+        this.eventPublisher = eventPublisher;
+        this.planWorkflowSnapshotQueryService = planWorkflowSnapshotQueryService;
+        this.jdbcTemplate = jdbcTemplate;
+        this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.planIntegrityService = planIntegrityService;
+        this.strategyOrgProperties = strategyOrgProperties;
+        this.planWorkflowRuntimeService = new PlanWorkflowRuntimeService(
+                jdbcTemplate,
+                planRepository,
+                strategyOrgProperties
+        );
+        this.milestoneApplicationService = null;
+        this.selfProvider = new ObjectProvider<>() {
+            @Override
+            public PlanApplicationService getObject(Object... args) {
+                return PlanApplicationService.this;
+            }
+
+            @Override
+            public PlanApplicationService getIfAvailable() {
+                return PlanApplicationService.this;
+            }
+
+            @Override
+            public PlanApplicationService getIfUnique() {
+                return PlanApplicationService.this;
+            }
+
+            @Override
+            public PlanApplicationService getObject() {
+                return PlanApplicationService.this;
+            }
+
+            @Override
+            public java.util.Iterator<PlanApplicationService> iterator() {
+                return Collections.singletonList(PlanApplicationService.this).iterator();
+            }
+        };
+    }
 
     /**
      * 创建计划
@@ -79,8 +169,7 @@ public class PlanApplicationService {
     @Transactional
     public PlanResponse createPlan(CreatePlanRequest request) {
         // 验证周期是否存在
-        Cycle cycle = cycleRepository.findById(request.getCycleId())
-                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + request.getCycleId()));
+        Cycle cycle = requireCycle(request.getCycleId());
 
         // 确定计划层级
         PlanLevel planLevel = determinePlanLevel(request.getPlanType());
@@ -104,7 +193,12 @@ public class PlanApplicationService {
         );
 
         Plan saved = savePlanHandlingConflict(plan);
-        return convertToResponse(saved, cycle.getYear().toString());
+        eventPublisher.publish(new PlanCreatedEvent(
+                saved.getId(),
+                saved.getPlanLevel().name(),
+                saved.getTargetOrgId()
+        ));
+        return convertToResponse(saved, cycle.getYear().toString(), loadOrgNamesById(saved), loadPlanMetrics(List.of(saved)));
     }
 
     /**
@@ -112,8 +206,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse updatePlan(Long id, UpdatePlanRequest request) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         Long nextTargetOrgId = request.getTargetOrgId() != null ? request.getTargetOrgId() : plan.getTargetOrgId();
         Long nextCreatedByOrgId = request.getCreatedByOrgId() != null ? request.getCreatedByOrgId() : plan.getCreatedByOrgId();
@@ -128,7 +221,7 @@ public class PlanApplicationService {
         }
 
         Plan updated = savePlanHandlingConflict(plan);
-        return convertToResponse(updated, null);
+        return convertToResponse(updated, null, loadOrgNamesById(updated), loadPlanMetrics(List.of(updated)));
     }
 
     /**
@@ -136,8 +229,7 @@ public class PlanApplicationService {
      */
     @Transactional
     public void deletePlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         planRepository.delete(plan);
     }
@@ -148,17 +240,17 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse publishPlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
         plan.activate();
         Plan saved = planRepository.save(plan);
+        publishAndClearEvents(saved);
 
         // 同步所有关联指标的状态
         syncIndicatorStatusWithPlan(saved);
 
-        return convertToResponse(saved, null);
+        return convertToResponse(saved, null, loadOrgNamesById(saved), loadPlanMetrics(List.of(saved)));
     }
 
     /**
@@ -168,26 +260,29 @@ public class PlanApplicationService {
                                               SubmitPlanApprovalRequest request,
                                               Long currentUserId,
                                               Long currentOrgId) {
-        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-        Plan saved = transactionTemplate.execute(status ->
-                submitPlanForApprovalInTransaction(id, request, currentUserId, currentOrgId));
+        Plan saved = selfProvider.getObject().submitPlanForApprovalInTransaction(
+                id,
+                request,
+                currentUserId,
+                currentOrgId);
         PlanWorkflowSnapshotQueryService.WorkflowSnapshot refreshedSnapshot =
-                awaitWorkflowSnapshot(saved.getId(), Duration.ofSeconds(5));
-        return enrichWorkflowFields(convertToResponse(saved, null), refreshedSnapshot);
+                awaitWorkflowSnapshot(saved.getId());
+        return enrichWorkflowFields(convertToResponse(saved, null, loadOrgNamesById(saved), loadPlanMetrics(List.of(saved))), refreshedSnapshot);
     }
 
-    private Plan submitPlanForApprovalInTransaction(Long id,
-                                                    SubmitPlanApprovalRequest request,
-                                                    Long currentUserId,
-                                                    Long currentOrgId) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+    @Transactional
+    public Plan submitPlanForApprovalInTransaction(Long id,
+                                                   SubmitPlanApprovalRequest request,
+                                                   Long currentUserId,
+                                                   Long currentOrgId) {
+        Plan plan = requirePlan(id);
         PlanWorkflowSnapshotQueryService.WorkflowSnapshot existingSnapshot =
                 planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(id);
 
         plan.submitForApproval(allowsDistributedSubmission(request));
         Plan saved = planRepository.save(plan);
-        boolean resumedWithdrawnWorkflow = reactivateWithdrawnWorkflowCurrentStep(
+        publishAndClearEvents(saved);
+        boolean resumedWithdrawnWorkflow = planWorkflowRuntimeService.reactivateWithdrawnWorkflowCurrentStep(
                 existingSnapshot == null ? null : existingSnapshot.getWorkflowInstanceId());
         if (!resumedWithdrawnWorkflow) {
             eventPublisher.publish(new PlanSubmittedForApprovalEvent(
@@ -205,8 +300,16 @@ public class PlanApplicationService {
             return false;
         }
 
-        return PLAN_APPROVAL_WORKFLOW_CODE_FUNCDEPT.equals(request.getWorkflowCode())
-                || PLAN_APPROVAL_WORKFLOW_CODE_COLLEGE.equals(request.getWorkflowCode());
+        return isApprovalWorkflowCode(request.getWorkflowCode());
+    }
+
+    private boolean isApprovalWorkflowCode(String workflowCode) {
+        if (workflowCode == null) {
+            return false;
+        }
+
+        String normalized = workflowCode.trim().toUpperCase(Locale.ROOT);
+        return normalized.startsWith("PLAN_APPROVAL_");
     }
 
     /**
@@ -215,17 +318,17 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse approvePlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
         plan.approve();
         Plan saved = planRepository.save(plan);
+        publishAndClearEvents(saved);
 
         // 同步所有关联指标的状态
         syncIndicatorStatusWithPlan(saved);
 
-        return convertToResponse(saved, null);
+        return convertToResponse(saved, null, loadOrgNamesById(saved), loadPlanMetrics(List.of(saved)));
     }
 
     /**
@@ -233,12 +336,12 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse rejectPlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         plan.returnForRevision();
         Plan saved = planRepository.save(plan);
-        return convertToResponse(saved, null);
+        publishAndClearEvents(saved);
+        return convertToResponse(saved, null, loadOrgNamesById(saved), loadPlanMetrics(List.of(saved)));
     }
 
     /**
@@ -255,13 +358,14 @@ public class PlanApplicationService {
             throw new IllegalStateException("Plan is not in a withdrawable workflow state");
         }
 
-        withdrawWorkflowCurrentStep(workflowSnapshot.getWorkflowInstanceId());
+        planWorkflowRuntimeService.withdrawWorkflowCurrentStep(workflowSnapshot.getWorkflowInstanceId());
         plan.withdraw();
         Plan saved = planRepository.save(plan);
+        publishAndClearEvents(saved);
         syncIndicatorStatusWithPlan(saved);
         PlanWorkflowSnapshotQueryService.WorkflowSnapshot refreshedSnapshot =
                 planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(id);
-        return enrichWorkflowFields(convertToResponse(saved, null), refreshedSnapshot);
+        return enrichWorkflowFields(convertToResponse(saved, null, loadOrgNamesById(saved), loadPlanMetrics(List.of(saved))), refreshedSnapshot);
     }
 
     @Transactional
@@ -270,6 +374,7 @@ public class PlanApplicationService {
             basicTaskWeightValidationService.validatePlanBasicWeight(plan.getId(), plan.getTargetOrgId());
             plan.approve();
             Plan saved = planRepository.save(plan);
+            publishAndClearEvents(saved);
             syncIndicatorStatusWithPlan(saved);
         });
     }
@@ -279,7 +384,8 @@ public class PlanApplicationService {
         planRepository.findById(planId).ifPresent(plan -> {
             if (!PlanStatus.PENDING.value().equals(plan.getStatus())) {
                 plan.submitForApproval(true);
-                planRepository.save(plan);
+                Plan saved = planRepository.save(plan);
+                publishAndClearEvents(saved);
             }
         });
     }
@@ -288,7 +394,8 @@ public class PlanApplicationService {
     public void markWorkflowRejected(Long planId, String reason) {
         planRepository.findById(planId).ifPresent(plan -> {
             plan.returnForRevision();
-            planRepository.save(plan);
+            Plan saved = planRepository.save(plan);
+            publishAndClearEvents(saved);
         });
     }
 
@@ -297,371 +404,16 @@ public class PlanApplicationService {
         planRepository.findById(planId).ifPresent(plan -> {
             plan.withdraw();
             Plan saved = planRepository.save(plan);
+            publishAndClearEvents(saved);
             syncIndicatorStatusWithPlan(saved);
         });
     }
 
-    private void withdrawWorkflowCurrentStep(Long workflowInstanceId) {
-        if (workflowInstanceId == null) {
-            return;
-        }
-
-        List<WorkflowStepRow> submitterSteps = jdbcTemplate.query(
-                """
-                SELECT asi.id, asi.step_no
-                FROM public.audit_step_instance asi
-                JOIN public.audit_instance ai ON ai.id = asi.instance_id
-                LEFT JOIN public.audit_step_def asd ON asd.id = asi.step_def_id
-                WHERE asi.instance_id = ?
-                  AND asi.status = 'APPROVED'
-                  AND (
-                        COALESCE(UPPER(asd.step_type), '') = 'SUBMIT'
-                        OR asi.step_name LIKE '%提交%'
-                        OR (ai.requester_id IS NOT NULL AND ai.requester_id = asi.approver_id)
-                  )
-                ORDER BY asi.step_no DESC NULLS LAST, asi.approved_at DESC NULLS LAST, asi.id DESC
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepRow(rs.getLong(1), rs.getInt(2), null, true, null, null),
-                workflowInstanceId
-        );
-
-        if (!submitterSteps.isEmpty()) {
-            jdbcTemplate.update("""
-                    UPDATE public.audit_step_instance
-                    SET status = 'WITHDRAWN',
-                        approved_at = CURRENT_TIMESTAMP,
-                        comment = '提交人撤回'
-                    WHERE id = ?
-                    """, submitterSteps.get(0).id());
-        }
-
-        jdbcTemplate.update("""
-                UPDATE public.audit_step_instance
-                SET status = 'WAITING'
-                WHERE instance_id = ?
-                  AND status = 'PENDING'
-                  AND step_no > 1
-                """, workflowInstanceId);
-
-        jdbcTemplate.update("""
-                UPDATE public.audit_instance
-                SET status = 'WITHDRAWN',
-                    completed_at = CURRENT_TIMESTAMP,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """, workflowInstanceId);
-    }
-
-    private boolean reactivateWithdrawnWorkflowCurrentStep(Long workflowInstanceId) {
-        if (workflowInstanceId == null) {
-            return false;
-        }
-
-        List<WorkflowStepRow> withdrawnSteps = jdbcTemplate.query(
-                """
-                SELECT asi.id,
-                       asi.step_no,
-                       asi.step_def_id,
-                       COALESCE(UPPER(asd.step_type), '') = 'SUBMIT' AS is_submit,
-                       ai.requester_id,
-                       ai.requester_org_id
-                FROM public.audit_step_instance asi
-                JOIN public.audit_instance ai ON ai.id = asi.instance_id
-                LEFT JOIN public.audit_step_def asd ON asd.id = asi.step_def_id
-                WHERE asi.instance_id = ?
-                  AND asi.status = 'WITHDRAWN'
-                ORDER BY asi.step_no DESC NULLS LAST, asi.id DESC
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepRow(
-                        rs.getLong(1),
-                        rs.getInt(2),
-                        rs.getLong(3),
-                        rs.getBoolean(4),
-                        rs.getLong(5),
-                        rs.getLong(6)
-                ),
-                workflowInstanceId
-        );
-
-        if (withdrawnSteps.isEmpty()) {
-            return false;
-        }
-
-        WorkflowStepRow withdrawnStep = withdrawnSteps.get(0);
-        WorkflowInstanceContext workflowContext = loadWorkflowInstanceContext(workflowInstanceId);
-        if (withdrawnStep.isSubmitStep()) {
-            jdbcTemplate.update("""
-                    UPDATE public.audit_step_instance
-                    SET status = 'APPROVED',
-                        approved_at = CURRENT_TIMESTAMP,
-                        comment = '系统自动完成提交流程节点'
-                    WHERE id = ?
-                    """, withdrawnStep.id());
-
-            WorkflowStepRow waitingStep = loadFirstWaitingWorkflowStep(workflowInstanceId);
-            int restoredWaitingRows = 0;
-            if (waitingStep != null) {
-                WorkflowStepDefinition waitingStepDef = loadWorkflowStepDefinition(waitingStep.stepDefId());
-                ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(waitingStepDef, workflowContext);
-                restoredWaitingRows = jdbcTemplate.update("""
-                        UPDATE public.audit_step_instance
-                        SET status = 'PENDING',
-                            approver_id = ?,
-                            approver_org_id = ?,
-                            approved_at = NULL,
-                            comment = NULL
-                        WHERE id = ?
-                        """,
-                        resolvedApprover.approverId(),
-                        resolvedApprover.approverOrgId(),
-                        waitingStep.id());
-            }
-
-            if (restoredWaitingRows == 0) {
-                WorkflowStepDefinition nextStepDef = loadNextWorkflowStepDefinition(
-                        workflowContext.flowDefId(),
-                        withdrawnStep.stepDefId()
-                );
-                if (nextStepDef != null) {
-                    ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(nextStepDef, workflowContext);
-                    jdbcTemplate.update("""
-                            INSERT INTO public.audit_step_instance (
-                                instance_id,
-                                step_no,
-                                step_name,
-                                step_def_id,
-                                status,
-                                approver_id,
-                                approver_org_id,
-                                comment,
-                                approved_at,
-                                created_at
-                            )
-                            VALUES (?, ?, ?, ?, 'PENDING', ?, ?, NULL, NULL, CURRENT_TIMESTAMP)
-                            """,
-                            workflowInstanceId,
-                            withdrawnStep.stepNo() + 1,
-                            nextStepDef.stepName(),
-                            nextStepDef.id(),
-                            resolvedApprover.approverId(),
-                            resolvedApprover.approverOrgId()
-                    );
-                }
-            }
-        } else {
-            WorkflowStepDefinition returnedStepDef = loadWorkflowStepDefinition(withdrawnStep.stepDefId());
-            ResolvedWorkflowApprover resolvedApprover = resolveWorkflowApprover(returnedStepDef, workflowContext);
-            jdbcTemplate.update("""
-                    UPDATE public.audit_step_instance
-                    SET status = 'PENDING',
-                        approver_id = ?,
-                        approver_org_id = ?,
-                        approved_at = NULL,
-                        comment = NULL
-                    WHERE id = ?
-                    """,
-                    resolvedApprover.approverId(),
-                    resolvedApprover.approverOrgId(),
-                    withdrawnStep.id());
-        }
-        jdbcTemplate.update("""
-                UPDATE public.audit_instance
-                SET status = 'IN_REVIEW',
-                    completed_at = NULL,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-                """, workflowInstanceId);
-        return true;
-    }
-
-    private WorkflowInstanceContext loadWorkflowInstanceContext(Long workflowInstanceId) {
-        List<WorkflowInstanceContext> rows = jdbcTemplate.query(
-                """
-                SELECT id, flow_def_id, requester_id, requester_org_id, entity_type, entity_id
-                FROM public.audit_instance
-                WHERE id = ?
-                """,
-                (rs, _rowNum) -> new WorkflowInstanceContext(
-                        rs.getLong("id"),
-                        rs.getLong("flow_def_id"),
-                        rs.getLong("requester_id"),
-                        rs.getLong("requester_org_id"),
-                        rs.getString("entity_type"),
-                        rs.getLong("entity_id")
-                ),
-                workflowInstanceId
-        );
-        if (rows.isEmpty()) {
-            throw new IllegalStateException("Workflow instance not found: " + workflowInstanceId);
-        }
-        return rows.get(0);
-    }
-
-    private WorkflowStepRow loadFirstWaitingWorkflowStep(Long workflowInstanceId) {
-        List<WorkflowStepRow> rows = jdbcTemplate.query(
-                """
-                SELECT id, step_no, step_def_id
-                FROM public.audit_step_instance
-                WHERE instance_id = ?
-                  AND status = 'WAITING'
-                  AND step_no > 1
-                ORDER BY step_no ASC, id ASC
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepRow(
-                        rs.getLong("id"),
-                        rs.getInt("step_no"),
-                        rs.getLong("step_def_id"),
-                        false,
-                        null,
-                        null
-                ),
-                workflowInstanceId
-        );
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    private WorkflowStepDefinition loadWorkflowStepDefinition(Long stepDefId) {
-        if (stepDefId == null) {
-            return null;
-        }
-        List<WorkflowStepDefinition> rows = jdbcTemplate.query(
-                """
-                SELECT id, step_name, step_no, step_type, role_id
-                FROM public.audit_step_def
-                WHERE id = ?
-                """,
-                (rs, _rowNum) -> new WorkflowStepDefinition(
-                        rs.getLong("id"),
-                        rs.getString("step_name"),
-                        rs.getInt("step_no"),
-                        rs.getString("step_type"),
-                        rs.getObject("role_id") == null ? null : rs.getLong("role_id")
-                ),
-                stepDefId
-        );
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    private WorkflowStepDefinition loadNextWorkflowStepDefinition(Long flowDefId, Long currentStepDefId) {
-        List<WorkflowStepDefinition> rows = jdbcTemplate.query(
-                """
-                SELECT next_def.id, next_def.step_name, next_def.step_no, next_def.step_type, next_def.role_id
-                FROM public.audit_step_def current_def
-                JOIN public.audit_step_def next_def
-                  ON next_def.flow_id = current_def.flow_id
-                 AND next_def.step_no = current_def.step_no + 1
-                WHERE current_def.id = ?
-                  AND current_def.flow_id = ?
-                LIMIT 1
-                """,
-                (rs, _rowNum) -> new WorkflowStepDefinition(
-                        rs.getLong("id"),
-                        rs.getString("step_name"),
-                        rs.getInt("step_no"),
-                        rs.getString("step_type"),
-                        rs.getObject("role_id") == null ? null : rs.getLong("role_id")
-                ),
-                currentStepDefId,
-                flowDefId
-        );
-        return rows.isEmpty() ? null : rows.get(0);
-    }
-
-    private ResolvedWorkflowApprover resolveWorkflowApprover(
-            WorkflowStepDefinition stepDef,
-            WorkflowInstanceContext context
-    ) {
-        if (stepDef == null) {
-            return new ResolvedWorkflowApprover(null, context.requesterOrgId());
-        }
-        if (stepDef.isSubmitStep()) {
-            return new ResolvedWorkflowApprover(context.requesterId(), context.requesterOrgId());
-        }
-
-        Long approverOrgId = resolveWorkflowApproverOrgId(stepDef, context);
-        Long approverId = resolveWorkflowApproverId(stepDef, approverOrgId);
-        return new ResolvedWorkflowApprover(approverId, approverOrgId);
-    }
-
-    private Long resolveWorkflowApproverOrgId(
-            WorkflowStepDefinition stepDef,
-            WorkflowInstanceContext context
-    ) {
-        Long roleId = stepDef.roleId();
-        if (Objects.equals(roleId, ROLE_STRATEGY_DEPT_HEAD)) {
-            return STRATEGY_ORG_ID;
-        }
-        if (Objects.equals(roleId, ROLE_VICE_PRESIDENT)) {
-            if (stepDef.stepName() != null && stepDef.stepName().contains("学院院长")) {
-                return context.requesterOrgId();
-            }
-            return switch (String.valueOf(context.requesterOrgId())) {
-                case "35","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51","52","53","54" ->
-                        context.requesterOrgId();
-                default -> context.requesterOrgId();
-            };
-        }
-        if (Objects.equals(roleId, ROLE_APPROVER) && stepDef.stepName() != null && stepDef.stepName().contains("职能部门终审")) {
-            return planRepository.findById(context.entityId())
-                    .map(Plan::getCreatedByOrgId)
-                    .orElse(context.requesterOrgId());
-        }
-        return context.requesterOrgId();
-    }
-
-    private Long resolveWorkflowApproverId(WorkflowStepDefinition stepDef, Long approverOrgId) {
-        if (stepDef.roleId() == null || approverOrgId == null) {
-            return null;
-        }
-        List<Long> approverIds = jdbcTemplate.query(
-                """
-                SELECT u.id
-                FROM public.sys_user u
-                JOIN public.sys_user_role ur ON ur.user_id = u.id
-                WHERE ur.role_id = ?
-                  AND u.org_id = ?
-                  AND COALESCE(u.is_active, false) = true
-                ORDER BY u.id ASC
-                """,
-                (rs, _rowNum) -> rs.getLong(1),
-                stepDef.roleId(),
-                approverOrgId
-        );
-        return approverIds.isEmpty() ? null : approverIds.get(0);
-    }
-
-    private record WorkflowStepRow(
-            Long id,
-            Integer stepNo,
-            Long stepDefId,
-            boolean isSubmitStep,
-            Long requesterId,
-            Long requesterOrgId
-    ) {}
-
-    private record WorkflowInstanceContext(
-            Long id,
-            Long flowDefId,
-            Long requesterId,
-            Long requesterOrgId,
-            String entityType,
-            Long entityId
-    ) {}
-
-    private record ResolvedWorkflowApprover(Long approverId, Long approverOrgId) {}
-
-    private record WorkflowStepDefinition(
-            Long id,
-            String stepName,
-            Integer stepOrder,
-            String stepType,
-            Long roleId
-    ) {
-        private boolean isSubmitStep() {
-            return "SUBMIT".equalsIgnoreCase(String.valueOf(stepType));
+    private record PlanMetrics(Map<Long, Integer> indicatorCounts,
+                               Map<Long, Integer> milestoneCounts,
+                               Map<Long, Integer> completionPercentages) {
+        private static PlanMetrics empty() {
+            return new PlanMetrics(Map.of(), Map.of(), Map.of());
         }
     }
 
@@ -670,12 +422,23 @@ public class PlanApplicationService {
      */
     @Transactional
     public PlanResponse archivePlan(Long id) {
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
-        plan.setIsDeleted(true);
+        plan.archive();
         Plan saved = planRepository.save(plan);
-        return convertToResponse(saved, null);
+        publishAndClearEvents(saved);
+        return convertToResponse(saved, null, loadOrgNamesById(saved), loadPlanMetrics(List.of(saved)));
+    }
+
+    private void publishAndClearEvents(Plan plan) {
+        if (plan == null) {
+            return;
+        }
+        List<DomainEvent> events = plan.getDomainEvents();
+        for (DomainEvent event : events) {
+            eventPublisher.publish(event);
+        }
+        plan.clearEvents();
     }
 
     /**
@@ -683,9 +446,10 @@ public class PlanApplicationService {
      */
     public Optional<PlanResponse> getPlanById(Long id) {
         planIntegrityService.ensurePlanMatrix();
-        Map<Long, String> orgNamesById = loadOrgNamesById();
         return planRepository.findById(id)
-                .map(plan -> enrichWorkflowFields(convertToResponse(plan, null, orgNamesById), plan));
+                .map(plan -> enrichWorkflowFields(
+                        convertToResponse(plan, null, loadOrgNamesById(plan), loadPlanMetrics(List.of(plan))),
+                        plan));
     }
 
     /**
@@ -694,11 +458,12 @@ public class PlanApplicationService {
      */
     public Optional<PlanResponse> getPlanByTaskId(Long taskId) {
         planIntegrityService.ensurePlanMatrix();
-        Map<Long, String> orgNamesById = loadOrgNamesById();
         return taskRepository.findById(taskId)
-                .map(com.sism.task.domain.StrategicTask::getPlanId)
+                .map(com.sism.task.domain.task.StrategicTask::getPlanId)
                 .flatMap(planRepository::findById)
-                .map(plan -> enrichWorkflowFields(convertToResponse(plan, null, orgNamesById), plan));
+                .map(plan -> enrichWorkflowFields(
+                        convertToResponse(plan, null, loadOrgNamesById(plan), loadPlanMetrics(List.of(plan))),
+                        plan));
     }
 
     /**
@@ -706,15 +471,16 @@ public class PlanApplicationService {
      */
     public List<PlanResponse> getAllPlans() {
         planIntegrityService.ensurePlanMatrix();
-        Map<Long, String> orgNamesById = loadOrgNamesById();
         List<Plan> plans = planRepository.findAll();
+        Map<Long, String> orgNamesById = loadOrgNamesById(plans);
+        PlanMetrics planMetrics = loadPlanMetrics(plans);
         Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
                 planWorkflowSnapshotQueryService.getWorkflowSnapshotsByPlanIds(
                         plans.stream().map(Plan::getId).toList()
                 );
         return plans.stream()
                 .map(plan -> enrichWorkflowFields(
-                        convertToResponse(plan, null, orgNamesById),
+                        convertToResponse(plan, null, orgNamesById, planMetrics),
                         workflowSnapshotsByPlanId.get(plan.getId())))
                 .collect(Collectors.toList());
     }
@@ -749,12 +515,13 @@ public class PlanApplicationService {
                 : PlanStatus.expandQueryStatuses(status);
 
         Page<Plan> planPage = planRepository.findPage(cycleIds, queryStatuses, pageable);
-        Map<Long, String> orgNamesById = loadOrgNamesById();
+        Map<Long, String> orgNamesById = loadOrgNamesById(planPage.getContent());
+        PlanMetrics planMetrics = loadPlanMetrics(planPage.getContent());
         Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
                 safeLoadWorkflowSnapshotsByPlanIds(planPage.getContent().stream().map(Plan::getId).toList());
         Page<PlanResponse> responsePage = planPage.map(
                 plan -> enrichWorkflowFields(
-                        convertToResponse(plan, null, orgNamesById),
+                        convertToResponse(plan, null, orgNamesById, planMetrics),
                         workflowSnapshotsByPlanId.get(plan.getId())));
 
         log.info(
@@ -775,16 +542,16 @@ public class PlanApplicationService {
      */
     public List<PlanResponse> getPlansByCycle(Long cycleId) {
         planIntegrityService.ensurePlanMatrix();
-        Cycle cycle = cycleRepository.findById(cycleId)
-                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
+        Cycle cycle = requireCycle(cycleId);
 
-        Map<Long, String> orgNamesById = loadOrgNamesById();
         List<Plan> plans = planRepository.findByCycleId(cycleId);
+        Map<Long, String> orgNamesById = loadOrgNamesById(plans);
+        PlanMetrics planMetrics = loadPlanMetrics(plans);
         Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> workflowSnapshotsByPlanId =
                 safeLoadWorkflowSnapshotsByPlanIds(plans.stream().map(Plan::getId).toList());
         return plans.stream()
                 .map(plan -> enrichWorkflowFields(
-                        convertToResponse(plan, cycle.getYear().toString(), orgNamesById),
+                        convertToResponse(plan, cycle.getYear().toString(), orgNamesById, planMetrics),
                         workflowSnapshotsByPlanId.get(plan.getId())))
                 .collect(Collectors.toList());
     }
@@ -795,15 +562,16 @@ public class PlanApplicationService {
     public PlanDetailsResponse getPlanDetails(Long id) {
         planIntegrityService.ensurePlanMatrix();
         long startedAt = System.currentTimeMillis();
-        Plan plan = planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + id));
+        Plan plan = requirePlan(id);
 
         Cycle cycle = cycleRepository.findById(plan.getCycleId()).orElse(null);
 
+        PlanMetrics planMetrics = loadPlanMetrics(List.of(plan));
         PlanResponse planResponse = convertToResponse(
                 plan,
                 cycle != null ? cycle.getYear().toString() : null,
-                loadOrgNamesById()
+                loadOrgNamesById(plan),
+                planMetrics
         );
         planResponse = enrichWorkflowFields(planResponse, plan);
 
@@ -835,38 +603,35 @@ public class PlanApplicationService {
         details.setCurrentApproverId(planResponse.getCurrentApproverId());
         details.setCurrentApproverName(planResponse.getCurrentApproverName());
         details.setCanWithdraw(planResponse.getCanWithdraw());
+        List<MilestoneResponse> milestones = milestoneApplicationService == null
+                ? List.of()
+                : milestoneApplicationService.getMilestonesByPlanId(plan.getId());
+        details.setMilestones(milestones.stream()
+                .map(this::toInternalMilestoneResponse)
+                .collect(Collectors.toList()));
 
         String planStatus = PlanStatus.fromRaw(plan.getStatus()).value();
         List<Indicator> planIndicators = loadPlanIndicators(plan);
-        Map<Long, Integer> reportProgressByIndicatorId = getLatestReportProgressByIndicatorIds(
-                planIndicators.stream()
-                        .map(Indicator::getId)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toCollection(LinkedHashSet::new))
-                        .stream()
-                        .toList()
-        );
-        CurrentReportContext currentReportContext = getCurrentReportContext(
-                plan.getId(),
-                planIndicators.stream()
-                        .map(Indicator::getId)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toCollection(LinkedHashSet::new))
-                        .stream()
-                        .toList()
-        );
+        Map<Long, String> taskNamesById = loadTaskNamesById(planIndicators);
+        List<Long> indicatorIds = planIndicators.stream()
+                .map(Indicator::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new))
+                .stream()
+                .toList();
+        Map<Long, Integer> reportProgressByIndicatorId = getLatestReportProgressByIndicatorIds(indicatorIds);
+        CurrentReportContext currentReportContext = getCurrentReportContext(plan.getId(), indicatorIds);
 
         List<InternalIndicatorResponse> indicators = planIndicators.stream()
                 .map(indicator -> convertIndicatorToResponse(
                         indicator,
                         planStatus,
                         reportProgressByIndicatorId.get(indicator.getId()),
-                        currentReportContext))
+                        currentReportContext,
+                        taskNamesById))
                 .collect(Collectors.toList());
         details.setIndicators(indicators);
         details.setWorkflowHistory(planWorkflowSnapshotQueryService.getWorkflowHistoryByPlanId(plan.getId()));
-
-        // TODO: 查询相关里程碑（需要扩展MilestoneRepository支持按planId查询）
 
         log.info(
                 "Loaded plan details id={}, indicators={}, durationMs={}",
@@ -899,12 +664,22 @@ public class PlanApplicationService {
      * 将Plan实体转换为响应DTO
      */
     private PlanResponse convertToResponse(Plan plan, String year) {
-        return convertToResponse(plan, year, loadOrgNamesById());
+        return convertToResponse(plan, year, loadOrgNamesById(plan), loadPlanMetrics(plan == null ? List.of() : List.of(plan)));
     }
 
     private PlanResponse convertToResponse(Plan plan, String year, Map<Long, String> orgNamesById) {
+        return convertToResponse(plan, year, orgNamesById, loadPlanMetrics(plan == null ? List.of() : List.of(plan)));
+    }
+
+    private PlanResponse convertToResponse(Plan plan,
+                                           String year,
+                                           Map<Long, String> orgNamesById,
+                                           PlanMetrics metricsByPlanId) {
         String targetOrgName = plan.getTargetOrgId() == null ? null : orgNamesById.get(plan.getTargetOrgId());
         String createdByOrgName = plan.getCreatedByOrgId() == null ? null : orgNamesById.get(plan.getCreatedByOrgId());
+        int indicatorCount = metricsByPlanId.indicatorCounts().getOrDefault(plan.getId(), 0);
+        int milestoneCount = metricsByPlanId.milestoneCounts().getOrDefault(plan.getId(), 0);
+        int completionPercentage = metricsByPlanId.completionPercentages().getOrDefault(plan.getId(), 0);
 
         return PlanResponse.builder()
                 .id(plan.getId())
@@ -915,9 +690,9 @@ public class PlanApplicationService {
                 .startDate(plan.getCreatedAt())
                 .endDate(plan.getUpdatedAt())
                 .ownerDepartment(createdByOrgName)
-                .completionPercentage(0)
-                .indicatorCount(0) // 需要查询关联的指标数量
-                .milestoneCount(0) // 需要查询关联的里程碑数量
+                .completionPercentage(completionPercentage)
+                .indicatorCount(indicatorCount)
+                .milestoneCount(milestoneCount)
                 .createTime(plan.getCreatedAt())
                 .year(year)
                 .cycleId(plan.getCycleId())
@@ -968,34 +743,17 @@ public class PlanApplicationService {
         return response;
     }
 
-    private PlanWorkflowSnapshotQueryService.WorkflowSnapshot awaitWorkflowSnapshot(Long planId, Duration timeout) {
+    private PlanWorkflowSnapshotQueryService.WorkflowSnapshot awaitWorkflowSnapshot(Long planId) {
         if (planId == null) {
             return null;
         }
 
-        PlanWorkflowSnapshotQueryService.WorkflowSnapshot latestSnapshot = null;
-        long timeoutMs = timeout == null ? 0L : Math.max(timeout.toMillis(), 0L);
-        long deadline = System.currentTimeMillis() + timeoutMs;
-
-        do {
-            latestSnapshot = planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(planId);
-            if (isReadyForSubmitResponse(latestSnapshot)) {
-                return latestSnapshot;
-            }
-
-            if (System.currentTimeMillis() >= deadline) {
-                break;
-            }
-
-            try {
-                Thread.sleep(200L);
-            } catch (InterruptedException interruptedException) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        } while (true);
-
-        return latestSnapshot;
+        PlanWorkflowSnapshotQueryService.WorkflowSnapshot latestSnapshot =
+                planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(planId);
+        if (isReadyForSubmitResponse(latestSnapshot)) {
+            return latestSnapshot;
+        }
+        return planWorkflowSnapshotQueryService.getWorkflowSnapshotByPlanId(planId);
     }
 
     private boolean isReadyForSubmitResponse(PlanWorkflowSnapshotQueryService.WorkflowSnapshot snapshot) {
@@ -1005,9 +763,113 @@ public class PlanApplicationService {
                 && Boolean.TRUE.equals(snapshot.getCanWithdraw());
     }
 
-    private Map<Long, String> loadOrgNamesById() {
-        return organizationRepository.findAll().stream()
-                .collect(Collectors.toMap(SysOrg::getId, SysOrg::getOrgName, (existing, replacement) -> existing));
+    private Map<Long, String> loadOrgNamesById(Plan plan) {
+        return plan == null ? Map.of() : loadOrgNamesById(List.of(plan));
+    }
+
+    private Map<Long, String> loadOrgNamesById(Collection<Plan> plans) {
+        if (plans == null || plans.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> orgIds = plans.stream()
+                .flatMap(plan -> Stream.<Long>of(plan.getTargetOrgId(), plan.getCreatedByOrgId()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (orgIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(
+                """
+                SELECT id, name
+                FROM public.sys_org
+                WHERE id IN (:orgIds)
+                """,
+                new MapSqlParameterSource("orgIds", orgIds)
+        );
+        return rows.stream()
+                .filter(row -> row.get("id") instanceof Number)
+                .collect(Collectors.toMap(
+                        row -> ((Number) row.get("id")).longValue(),
+                        row -> row.get("name") == null ? null : String.valueOf(row.get("name")),
+                        (existing, replacement) -> existing,
+                        HashMap::new
+                ));
+    }
+
+    private PlanMetrics loadPlanMetrics(Collection<Plan> plans) {
+        if (plans == null || plans.isEmpty()) {
+            return PlanMetrics.empty();
+        }
+
+        List<Long> planIds = plans.stream()
+                .map(Plan::getId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (planIds.isEmpty()) {
+            return PlanMetrics.empty();
+        }
+
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(
+                """
+                SELECT t.plan_id AS plan_id,
+                       COUNT(DISTINCT i.id) AS indicator_count,
+                       COUNT(DISTINCT m.id) AS milestone_count,
+                       COUNT(DISTINCT CASE
+                           WHEN UPPER(COALESCE(m.status, '')) = 'COMPLETED' THEN m.id
+                       END) AS completed_milestone_count
+                FROM public.sys_task t
+                LEFT JOIN public.indicator i
+                  ON i.task_id = t.task_id
+                 AND COALESCE(i.is_deleted, false) = false
+                LEFT JOIN public.indicator_milestone m
+                  ON m.indicator_id = i.id
+                WHERE t.plan_id IN (:planIds)
+                  AND COALESCE(t.is_deleted, false) = false
+                GROUP BY t.plan_id
+                """,
+                new MapSqlParameterSource("planIds", planIds)
+        );
+
+        Map<Long, Integer> indicatorCounts = new HashMap<>();
+        Map<Long, Integer> milestoneCounts = new HashMap<>();
+        Map<Long, Integer> completionPercentages = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Long planId = asLong(row.get("plan_id"));
+            if (planId == null) {
+                continue;
+            }
+            int indicatorCount = asInt(row.get("indicator_count"));
+            int milestoneCount = asInt(row.get("milestone_count"));
+            int completedMilestoneCount = asInt(row.get("completed_milestone_count"));
+            indicatorCounts.put(planId, indicatorCount);
+            milestoneCounts.put(planId, milestoneCount);
+            completionPercentages.put(planId, calculateCompletionPercentage(milestoneCount, completedMilestoneCount));
+        }
+
+        return new PlanMetrics(indicatorCounts, milestoneCounts, completionPercentages);
+    }
+
+    private int calculateCompletionPercentage(int milestoneCount, int completedMilestoneCount) {
+        if (milestoneCount <= 0) {
+            return 0;
+        }
+
+        double percentage = (completedMilestoneCount * 100.0) / milestoneCount;
+        return (int) Math.round(Math.max(0.0, Math.min(100.0, percentage)));
+    }
+
+    private static Long asLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String str && !str.isBlank()) {
+            return Long.parseLong(str);
+        }
+        return null;
     }
 
     private Map<Long, PlanWorkflowSnapshotQueryService.WorkflowSnapshot> safeLoadWorkflowSnapshotsByPlanIds(List<Long> planIds) {
@@ -1021,6 +883,25 @@ public class PlanApplicationService {
                     planIds.size(), ex.getMessage());
             return Map.of();
         }
+    }
+
+    private static int asInt(Object value) {
+        return value instanceof Number number ? number.intValue() : 0;
+    }
+
+    private InternalMilestoneResponse toInternalMilestoneResponse(MilestoneResponse response) {
+        if (response == null) {
+            return null;
+        }
+        return InternalMilestoneResponse.builder()
+                .id(response.getId())
+                .milestoneName(response.getMilestoneName())
+                .description(response.getDescription())
+                .targetDate(response.getDueDate())
+                .status(response.getStatus())
+                .completionPercentage(response.getTargetProgress())
+                .createTime(response.getCreatedAt())
+                .build();
     }
 
     private void assertNoActivePlanConflict(Long cycleId,
@@ -1061,6 +942,16 @@ public class PlanApplicationService {
         }
     }
 
+    private Plan requirePlan(Long planId) {
+        return planRepository.findById(planId)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found: " + planId));
+    }
+
+    private Cycle requireCycle(Long cycleId) {
+        return cycleRepository.findById(cycleId)
+                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + cycleId));
+    }
+
     /**
      * 将Indicator实体转换为响应DTO
      * 指标状态统一使用 Plan 的状态
@@ -1068,19 +959,15 @@ public class PlanApplicationService {
     private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator,
                                                                 String planStatus,
                                                                 Integer reportProgress,
-                                                                CurrentReportContext currentReportContext) {
+                                                                CurrentReportContext currentReportContext,
+                                                                Map<Long, String> taskNamesById) {
         // 使用 Plan 的状态作为指标状态
         String effectiveStatus = planStatus != null ? planStatus :
                 (indicator.getStatus() != null ? indicator.getStatus().name() : "DRAFT");
         PendingIndicatorState pendingIndicatorState = currentReportContext.getPendingState(indicator.getId());
         String ownerOrgName = indicator.getOwnerOrg() != null ? indicator.getOwnerOrg().getName() : null;
         String targetOrgName = indicator.getTargetOrg() != null ? indicator.getTargetOrg().getName() : null;
-        String taskName = null;
-        if (indicator.getTaskId() != null) {
-            taskName = taskRepository.findById(indicator.getTaskId())
-                    .map(StrategicTask::getName)
-                    .orElse(null);
-        }
+        String taskName = indicator.getTaskId() == null ? null : taskNamesById.get(indicator.getTaskId());
 
         return InternalIndicatorResponse.builder()
                 .id(indicator.getId())
@@ -1113,7 +1000,33 @@ public class PlanApplicationService {
      * 将Indicator实体转换为响应DTO（兼容旧方法，用于非Plan关联场景）
      */
     private InternalIndicatorResponse convertIndicatorToResponse(Indicator indicator) {
-        return convertIndicatorToResponse(indicator, null, null, CurrentReportContext.empty());
+        return convertIndicatorToResponse(indicator, null, null, CurrentReportContext.empty(), Map.of());
+    }
+
+    private Map<Long, String> loadTaskNamesById(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> taskIds = indicators.stream()
+                .map(Indicator::getTaskId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return taskIds.stream()
+                .map(taskRepository::findById)
+                .flatMap(Optional::stream)
+                .filter(task -> task.getId() != null)
+                .collect(Collectors.toMap(
+                        StrategicTask::getId,
+                        StrategicTask::getName,
+                        (left, right) -> left,
+                        HashMap::new
+                ));
     }
 
     private CurrentReportContext getCurrentReportContext(Long planId, List<Long> indicatorIds) {
@@ -1150,21 +1063,19 @@ public class PlanApplicationService {
             return new CurrentReportContext(currentReportId, progressApprovalStatus, Map.of());
         }
 
-        String indicatorPlaceholders = indicatorIds.stream()
-                .map(id -> "?")
-                .collect(Collectors.joining(","));
-
-        List<Map<String, Object>> pendingRows = jdbcTemplate.queryForList(
+        List<Map<String, Object>> pendingRows = namedParameterJdbcTemplate.queryForList(
                 """
                 SELECT pri.id AS plan_report_indicator_id,
                        pri.indicator_id AS indicator_id,
                        pri.progress AS pending_progress,
                        pri.comment AS pending_remark
                 FROM public.plan_report_indicator pri
-                WHERE pri.report_id = ?
-                  AND pri.indicator_id IN (%s)
-                """.formatted(indicatorPlaceholders),
-                Stream.concat(Stream.of(currentReportId), indicatorIds.stream()).toArray()
+                WHERE pri.report_id = :reportId
+                  AND pri.indicator_id IN (:indicatorIds)
+                """,
+                new MapSqlParameterSource()
+                        .addValue("reportId", currentReportId)
+                        .addValue("indicatorIds", indicatorIds)
         );
 
         if (pendingRows.isEmpty()) {
@@ -1200,21 +1111,17 @@ public class PlanApplicationService {
 
         if (!reportIndicatorIdByIndicatorId.isEmpty()) {
             List<Long> planReportIndicatorIds = new ArrayList<>(reportIndicatorIdByIndicatorId.values());
-            String reportIndicatorPlaceholders = planReportIndicatorIds.stream()
-                    .map(id -> "?")
-                    .collect(Collectors.joining(","));
-
-            List<Map<String, Object>> attachmentRows = jdbcTemplate.queryForList(
+            List<Map<String, Object>> attachmentRows = namedParameterJdbcTemplate.queryForList(
                     """
                     SELECT pria.plan_report_indicator_id AS plan_report_indicator_id,
                            COALESCE(NULLIF(a.public_url, ''), NULLIF(a.object_key, ''), a.original_name) AS attachment_value
                     FROM public.plan_report_indicator_attachment pria
                     JOIN public.attachment a ON a.id = pria.attachment_id
-                    WHERE pria.plan_report_indicator_id IN (%s)
+                    WHERE pria.plan_report_indicator_id IN (:reportIndicatorIds)
                       AND COALESCE(a.is_deleted, false) = false
                     ORDER BY pria.sort_order ASC, pria.id ASC
-                    """.formatted(reportIndicatorPlaceholders),
-                    planReportIndicatorIds.toArray()
+                    """,
+                    new MapSqlParameterSource("reportIndicatorIds", planReportIndicatorIds)
             );
 
             Map<Long, List<String>> attachmentsByReportIndicatorId = new HashMap<>();
@@ -1273,11 +1180,7 @@ public class PlanApplicationService {
             return Map.of();
         }
 
-        String placeholders = indicatorIds.stream()
-                .map(id -> "?")
-                .collect(Collectors.joining(","));
-
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(
                 """
                 SELECT pri.indicator_id AS indicator_id, pri.progress AS report_progress
                 FROM public.plan_report_indicator pri
@@ -1286,15 +1189,15 @@ public class PlanApplicationService {
                     FROM public.plan_report_indicator pri2
                     INNER JOIN public.plan_report pr ON pri2.report_id = pr.id
                     WHERE pr.is_deleted = false
-                    AND pri2.indicator_id IN (%s)
+                    AND pri2.indicator_id IN (:indicatorIds)
                     GROUP BY pri2.indicator_id
                 ) latest ON latest.indicator_id = pri.indicator_id
                 INNER JOIN public.plan_report pr ON pri.report_id = pr.id
                 WHERE pr.is_deleted = false
-                AND pri.indicator_id IN (%s)
+                AND pri.indicator_id IN (:indicatorIds)
                 AND pr.created_at = latest.latest_created_at
-                """.formatted(placeholders, placeholders),
-                Stream.concat(indicatorIds.stream(), indicatorIds.stream()).toArray()
+                """,
+                new MapSqlParameterSource("indicatorIds", indicatorIds)
         );
 
         Map<Long, Integer> reportProgressByIndicatorId = new HashMap<>();
@@ -1323,11 +1226,11 @@ public class PlanApplicationService {
 
         List<Indicator> indicators = loadPlanIndicators(plan);
 
-        // 更新所有指标的状态
+        // 更新所有指标的状态后一次性批量保存，避免逐条写库
         for (Indicator indicator : indicators) {
             indicator.setStatus(targetStatus);
-            indicatorRepository.save(indicator);
         }
+        indicatorRepository.saveAll(indicators);
     }
 
     /**
@@ -1341,34 +1244,62 @@ public class PlanApplicationService {
     }
 
     private List<Indicator> loadPlanIndicators(Plan plan) {
-        List<Indicator> taskBoundIndicators = taskRepository.findByPlanId(plan.getId()).stream()
-                .flatMap(task -> indicatorRepository.findByTaskId(task.getId()).stream())
+        List<StrategicTask> tasks = taskRepository.findByPlanId(plan.getId());
+        List<Long> taskIds = tasks.stream()
+                .filter(Objects::nonNull)
+                .map(StrategicTask::getId)
+                .filter(Objects::nonNull)
+                .distinct()
                 .collect(Collectors.toCollection(ArrayList::new));
 
-        if (!taskBoundIndicators.isEmpty()) {
-            return taskBoundIndicators;
+        if (!taskIds.isEmpty()) {
+            List<Indicator> taskBoundIndicators = indicatorRepository.findByTaskIds(taskIds);
+            if (!taskBoundIndicators.isEmpty()) {
+                return taskBoundIndicators;
+            }
         }
 
         if (plan.getPlanLevel() != PlanLevel.FUNC_TO_COLLEGE) {
-            return taskBoundIndicators;
+            return List.of();
         }
 
         Long ownerOrgId = plan.getCreatedByOrgId();
         Long targetOrgId = plan.getTargetOrgId();
         if (ownerOrgId == null || targetOrgId == null) {
-            return taskBoundIndicators;
+            return List.of();
         }
 
         Long cycleId = plan.getCycleId();
-        return indicatorRepository.findByOwnerOrgIdAndTargetOrgId(ownerOrgId, targetOrgId).stream()
+        List<Indicator> fallbackIndicators = indicatorRepository.findByOwnerOrgIdAndTargetOrgId(ownerOrgId, targetOrgId);
+        if (fallbackIndicators.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> fallbackTaskIds = fallbackIndicators.stream()
+                .map(Indicator::getTaskId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toCollection(ArrayList::new));
+        if (fallbackTaskIds.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, Long> taskIdToCycle = taskRepository.findAllById(fallbackTaskIds).stream()
+                .filter(task -> task != null && task.getId() != null)
+                .collect(Collectors.toMap(
+                        StrategicTask::getId,
+                        StrategicTask::getCycleId,
+                        (existing, ignored) -> existing
+                ));
+
+        return fallbackIndicators.stream()
                 .filter(indicator -> {
                     Long taskId = indicator.getTaskId();
                     if (taskId == null) {
                         return false;
                     }
-                    return taskRepository.findById(taskId)
-                            .map(task -> Objects.equals(task.getCycleId(), cycleId))
-                            .orElse(false);
+                    Long taskCycleId = taskIdToCycle.get(taskId);
+                    return Objects.equals(taskCycleId, cycleId);
                 })
                 .collect(Collectors.toCollection(ArrayList::new));
     }

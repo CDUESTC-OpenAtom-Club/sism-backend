@@ -23,12 +23,14 @@ public class PageResult<T> {
     private int totalPages;
 
     public static <T> PageResult<T> of(List<T> items, long total, int pageNum, int pageSize) {
-        int totalPages = (int) Math.ceil((double) total / pageSize);
+        int safePageSize = Math.max(pageSize, 1);
+        int safePageNum = Math.max(pageNum, 1);
+        int totalPages = total <= 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
         return PageResult.<T>builder()
-                .items(items)
+                .items(items != null ? items : List.of())
                 .total(total)
-                .pageNum(pageNum)
-                .pageSize(pageSize)
+                .pageNum(safePageNum)
+                .pageSize(safePageSize)
                 .totalPages(totalPages)
                 .build();
     }

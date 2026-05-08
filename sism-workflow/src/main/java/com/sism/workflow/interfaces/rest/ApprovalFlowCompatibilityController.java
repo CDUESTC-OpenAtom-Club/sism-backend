@@ -2,8 +2,8 @@ package com.sism.workflow.interfaces.rest;
 
 import com.sism.common.ApiResponse;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import com.sism.workflow.interfaces.dto.ApprovalFlowStepResponse;
 import com.sism.workflow.interfaces.dto.ApprovalFlowTemplateResponse;
 import lombok.RequiredArgsConstructor;

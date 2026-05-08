@@ -3,21 +3,13 @@ package com.sism.shared.domain.exception;
 /**
  * 授权异常
  */
-public class AuthorizationException extends RuntimeException {
-
-    private final String code;
+public class AuthorizationException extends BusinessException {
 
     public AuthorizationException(String message) {
-        super(message);
-        this.code = "AUTHORIZATION_FAILED";
+        super("AUTHORIZATION_FAILED", message);
     }
 
     public AuthorizationException(String code, String message) {
-        super(message);
-        this.code = code;
-    }
-
-    public String getCode() {
-        return code;
+        super(code, message);
     }
 }

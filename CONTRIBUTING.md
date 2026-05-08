@@ -40,7 +40,10 @@ cp .env.example .env
 # 编辑 .env 文件，填入你的数据库配置
 
 # 5. 初始化数据库
-node database/scripts/db-setup.js
+./mvnw flyway:migrate
+
+# 如需本地 clean seeds
+./database/scripts/reset-clean-seeds.sh
 
 # 6. 运行项目
 ./mvnw spring-boot:run

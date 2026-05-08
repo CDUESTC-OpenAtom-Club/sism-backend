@@ -1,15 +1,18 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.iam.domain.repository.RoleRepository;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.user.UserRepository;
+import com.sism.iam.domain.access.RoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,11 +36,16 @@ class UserServiceTest {
     @Mock
     private RoleRepository roleRepository;
 
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository, roleRepository);
+        userService = new UserService(userRepository, roleRepository, passwordEncoder);
+        lenient().when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        lenient().when(userRepository.findByPhone(anyString())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -51,8 +59,9 @@ class UserServiceTest {
 
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
-        User created = userService.createUser("john_doe", "password", "John Doe", "john@example.com", 10L, List.of());
+        User created = userService.createUser("john_doe", "password", "John Doe", "john@example.com", "13800138000", 10L, List.of());
 
         assertNotNull(created);
         assertEquals("john_doe", created.getUsername());
@@ -91,6 +100,22 @@ class UserServiceTest {
 
         assertTrue(found.isPresent());
         assertEquals(username, found.get().getUsername());
+    }
+
+    @Test
+    @DisplayName("Should find users by page without loading all data")
+    void shouldFindUsersByPage() {
+        User user = new User();
+        user.setId(1L);
+        user.setUsername("paged_user");
+
+        when(userRepository.findAll(PageRequest.of(0, 20)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(user), PageRequest.of(0, 20), 1));
+
+        Page<User> page = userService.findPage(0, 20);
+
+        assertEquals(1, page.getTotalElements());
+        assertEquals("paged_user", page.getContent().get(0).getUsername());
     }
 
     @Test
@@ -196,12 +221,14 @@ class UserServiceTest {
 
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         User created = userService.createUser(
                 "john_doe",
                 "password",
                 "John Doe",
                 "john@example.com",
+                "13800138000",
                 10L,
                 List.of()
         );
@@ -222,11 +249,13 @@ class UserServiceTest {
 
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         User created = userService.createUser(
                 "jane_doe",
                 "password",
                 "Jane Doe",
+                null,
                 null,
                 20L,
                 List.of()
@@ -252,12 +281,14 @@ class UserServiceTest {
                 .thenReturn(Optional.of(adminRole));
         when(userRepository.save(any(User.class)))
                 .thenReturn(mockUser);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         User created = userService.createUser(
                 "admin_user",
                 "password",
                 "Admin User",
                 "admin@example.com",
+                "13800138000",
                 10L,
                 List.of("ADMIN")
         );

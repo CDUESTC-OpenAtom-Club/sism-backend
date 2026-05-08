@@ -19,11 +19,12 @@ NC='\033[0m'
 
 # 配置
 BACKEND_URL="${BACKEND_URL:-http://localhost:8080}"
+BACKEND_HEALTH_PATH="${BACKEND_HEALTH_PATH:-/api/v1/actuator/health}"
 FRONTEND_URL="${FRONTEND_URL:-http://localhost}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-sism_prod}"
-DB_USER="${DB_USER:-sism_user}"
+DB_USER="${DB_USER:-postgres}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 
 # 选项
@@ -110,7 +111,7 @@ check_backend_health() {
     local http_code
     
     # 调用健康检查端点
-    response=$(curl -s -w "\n%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL/actuator/health" 2>/dev/null || echo -e "\n000")
+    response=$(curl -s -w "\n%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL$BACKEND_HEALTH_PATH" 2>/dev/null || echo -e "\n000")
     http_code=$(echo "$response" | tail -n1)
     local body=$(echo "$response" | sed '$d')
     
@@ -118,7 +119,7 @@ check_backend_health() {
     local response_time=$((end_time - start_time))
     
     if [[ "$http_code" == "200" ]]; then
-        local status=$(echo "$body" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+        local status=$(echo "$body" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | cut -d'"' -f4)
         
         if [[ "$status" == "UP" ]]; then
             log_success "后端服务健康 (响应时间: ${response_time}ms)"
@@ -253,8 +254,8 @@ check_api_response() {
     local start_time=$(date +%s%3N)
     local http_code
     
-    # 测试一个简单的 API 端点
-    http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL/actuator/info" 2>/dev/null || echo "000")
+    # 测试当前公开的健康端点响应时间
+    http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 --max-time 10 "$BACKEND_URL$BACKEND_HEALTH_PATH" 2>/dev/null || echo "000")
     
     local end_time=$(date +%s%3N)
     local response_time=$((end_time - start_time))

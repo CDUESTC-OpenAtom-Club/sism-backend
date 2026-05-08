@@ -1,14 +1,17 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.RoleRepository;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.access.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
@@ -19,6 +22,11 @@ public class JpaRoleRepository implements RoleRepository {
     @Override
     public Optional<Role> findById(Long id) {
         return jpaRepository.findById(id);
+    }
+
+    @Override
+    public Page<Role> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable);
     }
 
     @Override
@@ -43,6 +51,19 @@ public class JpaRoleRepository implements RoleRepository {
     }
 
     @Override
+    public Map<Long, Long> countPermissionsByRoleIds(Set<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Long> counts = new LinkedHashMap<>();
+        for (Object[] row : jpaRepository.countPermissionsByRoleIds(List.copyOf(roleIds))) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
+    }
+
+    @Override
     public Role save(Role role) {
         return jpaRepository.save(role);
     }
@@ -62,7 +83,4 @@ public class JpaRoleRepository implements RoleRepository {
         return jpaRepository.existsByRoleCode(roleCode);
     }
 
-    public Page<Role> findAll(Pageable pageable) {
-        return jpaRepository.findAll(pageable);
-    }
 }

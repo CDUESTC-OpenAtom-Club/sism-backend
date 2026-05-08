@@ -1,12 +1,17 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Repository
 @RequiredArgsConstructor
@@ -20,13 +25,36 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public List<User> findAllByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByIdIn(ids);
+    }
+
+    @Override
     public List<User> findAll() {
         return jpaRepository.findAll();
     }
 
     @Override
+    public Page<User> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable);
+    }
+
+    @Override
     public Optional<User> findByUsername(String username) {
         return jpaRepository.findByUsername(username);
+    }
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return jpaRepository.findByEmail(email);
+    }
+
+    @Override
+    public Optional<User> findByPhone(String phone) {
+        return jpaRepository.findByPhone(phone);
     }
 
     @Override
@@ -55,6 +83,19 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public Map<Long, Long> countUsersByRoleIds(Set<Long> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Long> counts = new LinkedHashMap<>();
+        for (Object[] row : jpaRepository.countUsersByRoleIds(List.copyOf(roleIds))) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
+    }
+
+    @Override
     public List<User> findByIsActive(Boolean isActive) {
         return jpaRepository.findByIsActive(isActive);
     }
@@ -77,5 +118,15 @@ public class JpaUserRepository implements UserRepository {
     @Override
     public boolean existsByUsername(String username) {
         return jpaRepository.existsByUsername(username);
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return jpaRepository.existsByEmail(email);
+    }
+
+    @Override
+    public boolean existsByPhone(String phone) {
+        return jpaRepository.existsByPhone(phone);
     }
 }

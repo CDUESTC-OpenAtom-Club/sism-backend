@@ -33,12 +33,7 @@ jobs:
         run: mvn clean compile -B
 
       - name: Run tests
-        run: mvn test -B || true
-        
-      - name: Check test results
-        run: |
-          echo "[INFO] Test execution completed"
-          echo "[INFO] Test failures are non-blocking in CI"
+        run: mvn test -B
 
       - name: Generate test coverage report
         run: mvn jacoco:report -B
@@ -48,25 +43,65 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: target/surefire-reports/
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
 
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: target/site/jacoco/
+          path: |
+            **/target/site/jacoco/**
 
   validate-migrations:
     name: Validate Flyway Migrations
     runs-on: ubuntu-latest
     needs: build-and-test
-    continue-on-error: true
 
     steps:
-      - name: Skip Flyway migration validation
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Validate migration naming and duplicates
         run: |
-          echo "[INFO] Flyway migration validation skipped in CI to improve performance"
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          migration_dir = pathlib.Path("sism-main/src/main/resources/db/migration")
+          pattern = re.compile(r"^V([0-9]+(?:\.[0-9]+)?)__.+\.sql$")
+
+          versions = {}
+          errors = []
+
+          for file in sorted(migration_dir.glob("V*__*.sql")):
+            match = pattern.match(file.name)
+            if not match:
+              errors.append(f"Invalid migration filename: {file.name}")
+              continue
+            version = match.group(1)
+            if version in versions:
+              errors.append(
+                f"Duplicate migration version {version}: {versions[version]} and {file.name}"
+              )
+            versions[version] = file.name
+
+          if errors:
+            print("\\n".join(errors))
+            sys.exit(1)
+
+          print(f"Validated {len(versions)} Flyway migration filenames.")
+          PY
 
   code-quality:
     name: Code Quality Checks
@@ -92,7 +127,7 @@ jobs:
           echo "[INFO] Checking for compilation warnings..."
           mvn clean compile -B 2>&1 | tee compile.log
           if grep -i "warning" compile.log; then
-            echo "[WARN] Compilation warnings found (non-blocking)"
+            echo "[WARN] Compilation warnings found"
           else
             echo "[INFO] No compilation warnings"
           fi

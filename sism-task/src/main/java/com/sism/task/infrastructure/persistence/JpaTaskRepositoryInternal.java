@@ -1,7 +1,7 @@
 package com.sism.task.infrastructure.persistence;
 
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.StrategicTask;
+import com.sism.task.domain.task.TaskType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,6 +28,16 @@ import java.util.Optional;
  */
 @Repository
 public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, Long> {
+
+    @Override
+    @Query("""
+            SELECT t FROM StrategicTask t
+            LEFT JOIN FETCH t.org
+            LEFT JOIN FETCH t.createdByOrg
+            WHERE t.id = :id
+              AND t.isDeleted = false
+            """)
+    Optional<StrategicTask> findById(@Param("id") Long id);
 
     /**
      * 根据组织ID查找任务
@@ -101,7 +111,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                'DRAFT' AS taskStatus,
+                COALESCE(p.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -125,7 +135,7 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                'DRAFT' AS taskStatus,
+                COALESCE(p.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt
@@ -160,7 +170,114 @@ public interface JpaTaskRepositoryInternal extends JpaRepository<StrategicTask, 
                 t.created_by_org_id AS createdByOrgId,
                 t.sort_order AS sortOrder,
                 COALESCE(p.status, 'DRAFT') AS planStatus,
-                'DRAFT' AS taskStatus,
+                COALESCE(p.status, 'DRAFT') AS taskStatus,
+                t.remark AS remark,
+                t.created_at AS createdAt,
+                t.updated_at AS updatedAt
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE COALESCE(t.is_deleted, false) = false
+              AND (t.org_id = :accessibleOrgId OR t.created_by_org_id = :accessibleOrgId)
+            ORDER BY
+                CASE WHEN t.org_id = :accessibleOrgId THEN 0 ELSE 1 END,
+                t.sort_order ASC,
+                t.task_id ASC
+            """, nativeQuery = true)
+    List<TaskFlatView> findFlatViewsByAccessibleOrgId(@Param("accessibleOrgId") Long accessibleOrgId);
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.name AS name,
+                t."desc" AS desc,
+                t.task_type AS taskType,
+                t.plan_id AS planId,
+                t.cycle_id AS cycleId,
+                t.org_id AS orgId,
+                t.created_by_org_id AS createdByOrgId,
+                t.sort_order AS sortOrder,
+                COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(p.status, 'DRAFT') AS taskStatus,
+                t.remark AS remark,
+                t.created_at AS createdAt,
+                t.updated_at AS updatedAt
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE COALESCE(t.is_deleted, false) = false
+            ORDER BY t.sort_order ASC, t.task_id ASC
+            """, nativeQuery = true)
+    List<TaskFlatView> findAllFlatViews();
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.name AS name,
+                t."desc" AS desc,
+                t.task_type AS taskType,
+                t.plan_id AS planId,
+                t.cycle_id AS cycleId,
+                t.org_id AS orgId,
+                t.created_by_org_id AS createdByOrgId,
+                t.sort_order AS sortOrder,
+                COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(p.status, 'DRAFT') AS taskStatus,
+                t.remark AS remark,
+                t.created_at AS createdAt,
+                t.updated_at AS updatedAt
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE COALESCE(t.is_deleted, false) = false
+              AND (:planId IS NULL OR t.plan_id = :planId)
+              AND (:cycleId IS NULL OR t.cycle_id = :cycleId)
+              AND (:orgId IS NULL OR t.org_id = :orgId)
+              AND (:createdByOrgId IS NULL OR t.created_by_org_id = :createdByOrgId)
+              AND (:accessibleOrgId IS NULL OR t.org_id = :accessibleOrgId OR t.created_by_org_id = :accessibleOrgId)
+              AND (COALESCE(:taskType, '') = '' OR t.task_type = :taskType)
+              AND (COALESCE(:name, '') = '' OR t.name ILIKE CONCAT('%', :name, '%'))
+              AND (COALESCE(:planStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:planStatus))
+              AND (COALESCE(:taskStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:taskStatus))
+            """,
+            countQuery = """
+            SELECT COUNT(*)
+            FROM sys_task t
+            LEFT JOIN plan p ON p.id = t.plan_id
+            WHERE COALESCE(t.is_deleted, false) = false
+              AND (:planId IS NULL OR t.plan_id = :planId)
+              AND (:cycleId IS NULL OR t.cycle_id = :cycleId)
+              AND (:orgId IS NULL OR t.org_id = :orgId)
+              AND (:createdByOrgId IS NULL OR t.created_by_org_id = :createdByOrgId)
+              AND (:accessibleOrgId IS NULL OR t.org_id = :accessibleOrgId OR t.created_by_org_id = :accessibleOrgId)
+              AND (COALESCE(:taskType, '') = '' OR t.task_type = :taskType)
+              AND (COALESCE(:name, '') = '' OR t.name ILIKE CONCAT('%', :name, '%'))
+              AND (COALESCE(:planStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:planStatus))
+              AND (COALESCE(:taskStatus, '') = '' OR LOWER(COALESCE(p.status, 'DRAFT')) = LOWER(:taskStatus))
+            """,
+            nativeQuery = true)
+    Page<TaskFlatView> findPagedFlatViewsByCriteria(
+            @Param("planId") Long planId,
+            @Param("cycleId") Long cycleId,
+            @Param("orgId") Long orgId,
+            @Param("createdByOrgId") Long createdByOrgId,
+            @Param("taskType") String taskType,
+            @Param("name") String name,
+            @Param("planStatus") String planStatus,
+            @Param("taskStatus") String taskStatus,
+            @Param("accessibleOrgId") Long accessibleOrgId,
+            Pageable pageable);
+
+    @Query(value = """
+            SELECT
+                t.task_id AS id,
+                t.name AS name,
+                t."desc" AS desc,
+                t.task_type AS taskType,
+                t.plan_id AS planId,
+                t.cycle_id AS cycleId,
+                t.org_id AS orgId,
+                t.created_by_org_id AS createdByOrgId,
+                t.sort_order AS sortOrder,
+                COALESCE(p.status, 'DRAFT') AS planStatus,
+                COALESCE(p.status, 'DRAFT') AS taskStatus,
                 t.remark AS remark,
                 t.created_at AS createdAt,
                 t.updated_at AS updatedAt

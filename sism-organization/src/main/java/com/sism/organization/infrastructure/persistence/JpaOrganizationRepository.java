@@ -1,9 +1,11 @@
 package com.sism.organization.infrastructure.persistence;
 
+import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.enums.OrgType;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,6 +20,14 @@ public class JpaOrganizationRepository implements OrganizationRepository {
     @Override
     public Optional<SysOrg> findById(Long id) {
         return jpaRepository.findById(id);
+    }
+
+    @Override
+    public List<SysOrg> findAllByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findAllById(ids);
     }
 
     @Override
@@ -36,6 +46,16 @@ public class JpaOrganizationRepository implements OrganizationRepository {
     }
 
     @Override
+    public List<SysOrg> findByTypes(List<OrgType> types) {
+        return jpaRepository.findByTypeIn(types);
+    }
+
+    @Override
+    public List<SysOrg> findByTypesAndIsActive(List<OrgType> types, Boolean isActive) {
+        return jpaRepository.findByTypeInAndIsActive(types, isActive);
+    }
+
+    @Override
     public List<SysOrg> findByIsActive(Boolean isActive) {
         return jpaRepository.findByIsActive(isActive);
     }
@@ -48,6 +68,11 @@ public class JpaOrganizationRepository implements OrganizationRepository {
     @Override
     public List<SysOrg> findByNameContaining(String name) {
         return jpaRepository.findByNameContaining(name);
+    }
+
+    @Override
+    public Page<SysOrg> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable);
     }
 
     @Override

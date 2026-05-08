@@ -13,6 +13,8 @@ import java.util.List;
 
 @Repository
 public interface JpaPlanRepositoryInternal extends JpaRepository<Plan, Long> {
+    List<Plan> findByIdIn(List<Long> ids);
+
     List<Plan> findByTargetOrgId(Long targetOrgId);
 
     List<Plan> findByCreatedByOrgId(Long createdByOrgId);

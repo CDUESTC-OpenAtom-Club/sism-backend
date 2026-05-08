@@ -33,6 +33,10 @@
         </dependency>
         <dependency>
             <groupId>com.sism</groupId>
+            <artifactId>sism-workflow</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.sism</groupId>
             <artifactId>sism-iam</artifactId>
         </dependency>
 

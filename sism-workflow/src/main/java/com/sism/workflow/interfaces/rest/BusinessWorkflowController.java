@@ -1,7 +1,7 @@
 package com.sism.workflow.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.workflow.application.BusinessWorkflowApplicationService;
 import com.sism.workflow.interfaces.dto.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -176,6 +176,9 @@ public class BusinessWorkflowController {
             @PathVariable String instanceId,
             @AuthenticationPrincipal CurrentUser currentUser
     ) {
+        if (currentUser == null) {
+            return ResponseEntity.ok(ApiResponse.error(401, "未登录或登录已过期"));
+        }
         workflowService.cancelInstance(instanceId, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.success(null));
     }

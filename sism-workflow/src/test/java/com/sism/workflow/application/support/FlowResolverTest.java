@@ -1,7 +1,7 @@
 package com.sism.workflow.application.support;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.repository.FlowDefinitionRepository;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.FlowDefinitionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -40,7 +40,7 @@ class FlowResolverTest {
         // PlanReport 仍需按组织类型显式选取复用的 PLAN_* 审批模板，
         // resolver 无法仅凭 entityType 自动区分。
         FlowResolver resolver = new FlowResolver(flowDefinitionRepository);
-        var instance = new com.sism.workflow.domain.runtime.model.AuditInstance();
+        var instance = new com.sism.workflow.domain.runtime.AuditInstance();
         instance.setEntityType("PlanReport");
         instance.setEntityId(10L);
 
@@ -52,7 +52,7 @@ class FlowResolverTest {
     @Test
     void resolveAndAttachFlow_shouldPreserveExplicitFlowDefIdForPlanReport() {
         FlowResolver resolver = new FlowResolver(flowDefinitionRepository);
-        var instance = new com.sism.workflow.domain.runtime.model.AuditInstance();
+        var instance = new com.sism.workflow.domain.runtime.AuditInstance();
         instance.setEntityType("PlanReport");
         instance.setEntityId(10L);
         instance.setFlowDefId(5L); // 由 ReportWorkflowEventListener 显式设置

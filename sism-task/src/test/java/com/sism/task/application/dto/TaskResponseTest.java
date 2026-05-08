@@ -1,6 +1,6 @@
 package com.sism.task.application.dto;
 
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.TaskType;
 import com.sism.task.infrastructure.persistence.TaskFlatView;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,7 +16,7 @@ class TaskResponseTest {
     @Test
     @DisplayName("Should map Chinese development task type from flat view")
     void shouldMapChineseDevelopmentTaskTypeFromFlatView() {
-        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("发展性"));
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("发展性", "DRAFT"));
 
         assertEquals(TaskType.DEVELOPMENT, response.getTaskType());
         assertEquals("DISTRIBUTED", response.getPlanStatus());
@@ -26,20 +26,38 @@ class TaskResponseTest {
     @Test
     @DisplayName("Should keep blank task type as null")
     void shouldKeepBlankTaskTypeAsNull() {
-        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView(" "));
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView(" ", "DRAFT"));
 
         assertNull(response.getTaskType());
     }
 
     @Test
-    @DisplayName("Should keep unknown task type as null")
-    void shouldKeepUnknownTaskTypeAsNull() {
-        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("mystery"));
-
-        assertNull(response.getTaskType());
+    @DisplayName("Should fail fast for unknown task type")
+    void shouldFailFastForUnknownTaskType() {
+        IllegalStateException error = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> TaskResponse.fromView(new StubTaskFlatView("mystery", "DRAFT"))
+        );
+        assertEquals("不支持的任务类型: mystery", error.getMessage());
     }
 
-    private record StubTaskFlatView(String taskType) implements TaskFlatView {
+    @Test
+    @DisplayName("Should default missing flat view task status to draft")
+    void shouldDefaultMissingFlatViewTaskStatusToDraft() {
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("BASIC", null));
+
+        assertEquals("DRAFT", response.getTaskStatus());
+    }
+
+    @Test
+    @DisplayName("Should default blank flat view task status to draft")
+    void shouldDefaultBlankFlatViewTaskStatusToDraft() {
+        TaskResponse response = TaskResponse.fromView(new StubTaskFlatView("BASIC", " "));
+
+        assertEquals("DRAFT", response.getTaskStatus());
+    }
+
+    private record StubTaskFlatView(String taskType, String taskStatus) implements TaskFlatView {
 
         @Override
         public Long getId() {
@@ -93,7 +111,7 @@ class TaskResponseTest {
 
         @Override
         public String getTaskStatus() {
-            return "DRAFT";
+            return taskStatus;
         }
 
         @Override

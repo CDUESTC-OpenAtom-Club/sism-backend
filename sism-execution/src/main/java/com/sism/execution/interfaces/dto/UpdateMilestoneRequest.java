@@ -3,6 +3,7 @@ package com.sism.execution.interfaces.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -27,6 +28,10 @@ public class UpdateMilestoneRequest {
     @Max(value = 100, message = "目标进度不能大于100")
     private Integer targetProgress;
 
+    @Pattern(
+            regexp = "^(?i)(PLANNED|NOT_STARTED|IN_PROGRESS|COMPLETED|DELAYED|CANCELLED)$",
+            message = "里程碑状态不合法"
+    )
     private String status;
 
     private Integer sortOrder;

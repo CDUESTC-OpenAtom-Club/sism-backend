@@ -3,7 +3,6 @@ package com.sism.shared.domain.model.workflow;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
@@ -15,7 +14,6 @@ import java.util.List;
  * Represents an active approval workflow instance
  */
 @Getter
-@Setter
 @Entity
 @Table(name = "audit_instance")
 @Where(clause = "is_deleted = false")
@@ -77,6 +75,17 @@ public class AuditInstance extends AggregateRoot<Long> {
     }
 
     @Override
+    public Long getId() {
+        return id;
+    }
+
+    @Override
+    public void setId(Long id) {
+        assertIdUnchanged(this.id, id);
+        this.id = id;
+    }
+
+    @Override
     public void validate() {
         if (entityType == null || entityType.trim().isEmpty()) {
             throw new IllegalArgumentException("Entity type is required");
@@ -90,6 +99,20 @@ public class AuditInstance extends AggregateRoot<Long> {
         if (!STATUS_PENDING.equals(status)) {
             throw new IllegalStateException("Cannot approve: workflow is not pending");
         }
+        AuditStepInstance currentStep = getCurrentStepInstance();
+        if (currentStep != null) {
+            currentStep.setStatus(STATUS_APPROVED);
+            currentStep.setApproverId(userId);
+            currentStep.setComment(comment);
+            currentStep.setApprovedAt(LocalDateTime.now());
+        }
+
+        if (hasNextStep()) {
+            this.currentStepIndex = this.currentStepIndex + 1;
+            this.result = "Step approved by user " + userId + (comment != null ? ": " + comment : "");
+            return;
+        }
+
         this.status = STATUS_APPROVED;
         this.result = "Approved by user " + userId + (comment != null ? ": " + comment : "");
         this.completedAt = LocalDateTime.now();
@@ -98,6 +121,13 @@ public class AuditInstance extends AggregateRoot<Long> {
     public void reject(Long userId, String comment) {
         if (!STATUS_PENDING.equals(status)) {
             throw new IllegalStateException("Cannot reject: workflow is not pending");
+        }
+        AuditStepInstance currentStep = getCurrentStepInstance();
+        if (currentStep != null) {
+            currentStep.setStatus(STATUS_REJECTED);
+            currentStep.setApproverId(userId);
+            currentStep.setComment(comment);
+            currentStep.setApprovedAt(LocalDateTime.now());
         }
         this.status = STATUS_REJECTED;
         this.result = "Rejected by user " + userId + (comment != null ? ": " + comment : "");
@@ -118,14 +148,72 @@ public class AuditInstance extends AggregateRoot<Long> {
         this.startedAt = LocalDateTime.now();
     }
 
+    public void setFlowDefId(Long flowDefId) {
+        this.flowDefId = flowDefId;
+    }
+
+    public void setEntityType(String entityType) {
+        this.entityType = entityType;
+    }
+
+    public void setEntityId(Long entityId) {
+        this.entityId = entityId;
+    }
+
+    @Deprecated
+    public void setStatus(String status) {
+        validateStatus(status);
+        this.status = status;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setRequesterId(Long requesterId) {
+        this.requesterId = requesterId;
+    }
+
+    public void setRequesterOrgId(Long requesterOrgId) {
+        this.requesterOrgId = requesterOrgId;
+    }
+
+    public void setCurrentStepIndex(Integer currentStepIndex) {
+        if (currentStepIndex != null && currentStepIndex < 0) {
+            throw new IllegalArgumentException("Current step index cannot be negative");
+        }
+        this.currentStepIndex = currentStepIndex;
+    }
+
+    public void setStartedAt(LocalDateTime startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public void setResult(String result) {
+        this.result = result;
+    }
+
+    public void setIsDeleted(Boolean deleted) {
+        isDeleted = deleted;
+    }
+
+    public void setStepInstances(List<AuditStepInstance> stepInstances) {
+        this.stepInstances.clear();
+        if (stepInstances != null) {
+            stepInstances.forEach(this::addStepInstance);
+        }
+    }
+
     public void transfer(Long targetUserId) {
-        // 转交审批逻辑 - 这里只是一个占位符
-        // 实际应该更新当前审批人等信息
+        throw new UnsupportedOperationException("Transfer operation is not implemented");
     }
 
     public void addApprover(Long approverId) {
-        // 添加审批人逻辑 - 这里只是一个占位符
-        // 实际应该添加到 stepInstances 或其他关联表
+        throw new UnsupportedOperationException("Add approver operation is not implemented");
     }
 
     public void addStepInstance(AuditStepInstance stepInstance) {
@@ -140,6 +228,36 @@ public class AuditInstance extends AggregateRoot<Long> {
         }
         if (isDeleted == null) {
             isDeleted = false;
+        }
+    }
+
+    private AuditStepInstance getCurrentStepInstance() {
+        if (stepInstances == null || stepInstances.isEmpty()) {
+            return null;
+        }
+        return stepInstances.stream()
+                .filter(step -> step.getStepIndex() != null && step.getStepIndex().equals(currentStepIndex))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean hasNextStep() {
+        if (stepInstances == null || stepInstances.isEmpty()) {
+            return false;
+        }
+        return stepInstances.stream()
+                .anyMatch(step -> step.getStepIndex() != null && step.getStepIndex() > currentStepIndex);
+    }
+
+    private void validateStatus(String nextStatus) {
+        if (nextStatus == null) {
+            throw new IllegalArgumentException("Status cannot be null");
+        }
+        if (!STATUS_PENDING.equals(nextStatus)
+                && !STATUS_APPROVED.equals(nextStatus)
+                && !STATUS_REJECTED.equals(nextStatus)
+                && !STATUS_CANCELLED.equals(nextStatus)) {
+            throw new IllegalArgumentException("Unsupported audit instance status: " + nextStatus);
         }
     }
 }

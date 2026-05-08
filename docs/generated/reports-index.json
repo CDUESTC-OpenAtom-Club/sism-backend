@@ -1,0 +1,20 @@
+[
+  {
+    "reportId": "message-center-performance-2026-04-26",
+    "module": "消息中心模块",
+    "category": "performance-report",
+    "path": "performance-reports/message-center/2026-04-26",
+    "manifest": "performance-reports/message-center/2026-04-26/manifest.json",
+    "createdAt": "2026-04-26T00:33:00+08:00",
+    "tags": ["后端", "性能排查", "消息中心", "MessageCenter"]
+  },
+  {
+    "reportId": "backend-security-injection-audit-2026-04-26",
+    "module": "后端安全与注入防护",
+    "category": "audit-report",
+    "path": "audit-reports/security-injection/2026-04-26",
+    "manifest": "audit-reports/security-injection/2026-04-26/manifest.json",
+    "createdAt": "2026-04-26T08:00:00+08:00",
+    "tags": ["后端", "安全审计", "注入防护", "输入校验"]
+  }
+]

@@ -3,6 +3,7 @@ package com.sism.util;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
  * This is a one-time migration utility
  */
 @Component
+@ConditionalOnProperty(name = "app.sys-task-migration.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class SysTaskMigration implements CommandLineRunner {

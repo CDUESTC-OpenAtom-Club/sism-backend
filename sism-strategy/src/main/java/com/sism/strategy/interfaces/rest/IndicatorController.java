@@ -1,15 +1,15 @@
 package com.sism.strategy.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.service.UserNotificationService;
 import com.sism.common.PageResult;
-import com.sism.strategy.domain.enums.IndicatorStatus;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import com.sism.strategy.application.MilestoneApplicationService;
 import com.sism.strategy.application.StrategyApplicationService;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.task.infrastructure.persistence.JpaTaskRepositoryInternal;
 import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsRequest;
 import com.sism.strategy.interfaces.dto.BatchDistributeIndicatorsResponse;
@@ -19,6 +19,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -27,9 +31,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -46,8 +54,15 @@ import java.util.stream.Stream;
 @RestController
 @RequestMapping("/api/v1/indicators")
 @RequiredArgsConstructor
+@Validated
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "指标管理", description = "指标管理相关接口")
 public class IndicatorController {
+
+    private static final String INDICATOR_WRITE_ACCESS =
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
+    private static final String INDICATOR_DELETE_ACCESS =
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
 
     private record CurrentMonthIndicatorRoundState(Integer progress, boolean hasCurrentMonthFill) {}
 
@@ -60,6 +75,7 @@ public class IndicatorController {
     private final OrganizationRepository organizationRepository;
     private final JpaTaskRepositoryInternal jpaTaskRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
     private final UserNotificationService userNotificationService;
 
     @GetMapping
@@ -105,8 +121,10 @@ public class IndicatorController {
     @GetMapping("/{id}")
     @Operation(summary = "根据ID获取指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> getIndicatorById(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(indicator)));
@@ -114,23 +132,23 @@ public class IndicatorController {
 
     @PostMapping("/{id}/reminders")
     @Operation(summary = "发送指标催办", description = "对滞后指标发送站内催办通知")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     public ResponseEntity<ApiResponse<Map<String, Object>>> sendIndicatorReminder(
             @PathVariable Long id,
-            @RequestBody(required = false) ReminderRequest request,
+            @Valid @RequestBody(required = false) ReminderRequest request,
             @AuthenticationPrincipal CurrentUser currentUser) {
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
 
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(404, "Indicator not found"));
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorByIdAndOwnerOrgId(id, currentUser.getOrgId());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权催办该指标"));
         }
         if (indicator.getOwnerOrg() == null || indicator.getTargetOrg() == null) {
             return ResponseEntity.badRequest().body(ApiResponse.error(400, "指标缺少组织信息，无法催办"));
-        }
-        if (!Objects.equals(indicator.getOwnerOrg().getId(), currentUser.getOrgId())) {
-            return ResponseEntity.status(403).body(ApiResponse.error(403, "当前用户无权催办该指标"));
         }
         Integer progress = indicator.getProgress() != null ? indicator.getProgress() : 0;
         if (progress >= 50) {
@@ -159,16 +177,16 @@ public class IndicatorController {
             response.put("cooldownUntil", result.cooldownUntil());
             return ResponseEntity.ok(ApiResponse.success("催办通知发送成功", response));
         } catch (IllegalStateException ex) {
-            return ResponseEntity.status(409).body(ApiResponse.error(409, ex.getMessage()));
+            return ResponseEntity.status(409).body(ApiResponse.error(409, "当前指标暂不允许催办"));
         } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, ex.getMessage()));
+            return ResponseEntity.badRequest().body(ApiResponse.error(400, "催办请求不合法"));
         }
     }
 
     @PostMapping("/reminders/statuses")
     @Operation(summary = "批量查询指标催办状态", description = "按当前用户维度查询指标最近一次催办状态")
     public ResponseEntity<ApiResponse<List<ReminderStatusResponse>>> getIndicatorReminderStatuses(
-            @RequestBody ReminderStatusQueryRequest request,
+            @Valid @RequestBody ReminderStatusQueryRequest request,
             @AuthenticationPrincipal CurrentUser currentUser) {
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
@@ -195,6 +213,7 @@ public class IndicatorController {
     }
 
     @PostMapping
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "创建新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> createIndicator(
             @Valid @RequestBody CreateIndicatorRequest request) {
@@ -242,10 +261,11 @@ public class IndicatorController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "更新指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> updateIndicator(
             @PathVariable Long id,
-            @RequestBody UpdateIndicatorRequest request) {
+            @Valid @RequestBody UpdateIndicatorRequest request) {
         SysOrg ownerOrg = request.getOwnerOrgId() != null
                 ? organizationRepository.findById(request.getOwnerOrgId())
                     .orElseThrow(() -> new IllegalArgumentException("责任组织未找到: " + request.getOwnerOrgId()))
@@ -273,6 +293,7 @@ public class IndicatorController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize(INDICATOR_DELETE_ACCESS)
     @Operation(summary = "删除指标")
     public ResponseEntity<ApiResponse<Void>> deleteIndicator(@PathVariable Long id) {
         strategyApplicationService.deleteIndicator(id);
@@ -280,10 +301,13 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/submit")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "提交指标审核")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReview(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         Indicator submitted = strategyApplicationService.submitIndicatorForReview(indicator);
@@ -291,16 +315,20 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/submit-review")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "提交指标审核(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> submitForReviewAlias(@PathVariable Long id) {
         return submitForReview(id);
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "审核通过指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicator(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         Indicator approved = strategyApplicationService.approveIndicator(indicator);
@@ -308,18 +336,22 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/approve-review")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "审核通过指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> approveIndicatorAlias(@PathVariable Long id) {
         return approveIndicator(id);
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "拒绝指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicator(
             @PathVariable Long id,
-            @RequestBody RejectRequest request) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+            @Valid @RequestBody RejectRequest request) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
         // The current service doesn't accept a reason, we'll use a simple version
@@ -328,14 +360,16 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/reject-review")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "拒绝指标(旧版别名)")
     public ResponseEntity<ApiResponse<IndicatorResponse>> rejectIndicatorAlias(
             @PathVariable Long id,
-            @RequestBody(required = false) RejectRequest request) {
+            @Valid @RequestBody(required = false) RejectRequest request) {
         return rejectIndicator(id, request != null ? request : new RejectRequest());
     }
 
     @PostMapping("/{id}/distribute")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "分发指标到目标组织")
     public ResponseEntity<ApiResponse<IndicatorResponse>> distributeIndicator(
             @PathVariable Long id,
@@ -371,6 +405,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/withdraw")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "撤回已分发的指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> withdrawIndicator(
             @PathVariable Long id,
@@ -383,6 +418,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/batch-withdraw")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "批量撤回指标(按所属和目标组织)")
     public ResponseEntity<ApiResponse<BatchWithdrawResponse>> batchWithdrawIndicators(
             @RequestBody @Valid BatchWithdrawRequest request) {
@@ -395,6 +431,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/actions/batch-distribute")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "批量分发指标(分发页面专用)")
     public ResponseEntity<ApiResponse<BatchDistributeIndicatorsResponse>> batchDistributeIndicators(
             @RequestBody @Valid BatchDistributeIndicatorsRequest request) {
@@ -472,9 +509,7 @@ public class IndicatorController {
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> searchIndicators(
             @RequestParam String keyword) {
         List<Indicator> result = strategyApplicationService.searchIndicators(keyword);
-        List<IndicatorResponse> responses = result.stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(result);
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
@@ -482,44 +517,38 @@ public class IndicatorController {
     @Operation(summary = "根据任务ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByTaskId(@PathVariable Long taskId) {
         List<Indicator> indicators = strategyApplicationService.getIndicatorsByTaskId(taskId);
-        List<IndicatorResponse> responses = indicators.stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(indicators);
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/task/{taskId}/root")
     @Operation(summary = "根据任务ID获取根指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getRootIndicatorsByTaskId(@PathVariable Long taskId) {
-        List<IndicatorResponse> responses = strategyApplicationService.getRootIndicatorsByTaskId(taskId).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getRootIndicatorsByTaskId(taskId));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/owner/{orgId}")
     @Operation(summary = "根据所属组织ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByOwnerOrg(@PathVariable Long orgId) {
-        List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByOwnerOrgId(orgId).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getIndicatorsByOwnerOrgId(orgId));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/target/{orgId}")
     @Operation(summary = "根据目标组织ID获取指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getIndicatorsByTargetOrg(@PathVariable Long orgId) {
-        List<IndicatorResponse> responses = strategyApplicationService.getIndicatorsByTargetOrgId(orgId).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getIndicatorsByTargetOrgId(orgId));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/{id}/distribution-eligibility")
     @Operation(summary = "检查指标分发 eligibility")
     public ResponseEntity<ApiResponse<DistributionEligibilityResponse>> getDistributionEligibility(@PathVariable Long id) {
-        Indicator indicator = strategyApplicationService.getIndicatorById(id);
-        if (indicator == null) {
+        Indicator indicator;
+        try {
+            indicator = strategyApplicationService.getIndicatorById(id);
+        } catch (IllegalArgumentException ex) {
             return ResponseEntity.ok(ApiResponse.error(404, "Indicator not found"));
         }
 
@@ -542,13 +571,12 @@ public class IndicatorController {
     @GetMapping("/{id}/distributed")
     @Operation(summary = "获取已分发的子指标")
     public ResponseEntity<ApiResponse<List<IndicatorResponse>>> getDistributedIndicators(@PathVariable Long id) {
-        List<IndicatorResponse> responses = strategyApplicationService.getDistributedIndicators(id).stream()
-                .map(this::toIndicatorResponse)
-                .toList();
+        List<IndicatorResponse> responses = toIndicatorResponses(strategyApplicationService.getDistributedIndicators(id));
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @PostMapping("/{id}/breakdown")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "分解指标为子指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> breakdownIndicator(@PathVariable Long id) {
         Indicator brokenDown = strategyApplicationService.breakdownIndicator(id);
@@ -556,6 +584,7 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/activate")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "激活指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> activateIndicator(@PathVariable Long id) {
         Indicator activated = strategyApplicationService.activateIndicator(id);
@@ -563,10 +592,11 @@ public class IndicatorController {
     }
 
     @PostMapping("/{id}/terminate")
+    @PreAuthorize(INDICATOR_WRITE_ACCESS)
     @Operation(summary = "终止指标")
     public ResponseEntity<ApiResponse<IndicatorResponse>> terminateIndicator(
             @PathVariable Long id,
-            @RequestBody TerminateRequest request) {
+            @Valid @RequestBody TerminateRequest request) {
         Indicator terminated = strategyApplicationService.terminateIndicator(id, request.getReason());
         return ResponseEntity.ok(ApiResponse.success(toIndicatorResponse(terminated)));
     }
@@ -574,12 +604,27 @@ public class IndicatorController {
     // ==================== Helper Methods ====================
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator) {
-        return toIndicatorResponse(
-                indicator,
-                buildTaskMetaMap(List.of(indicator)),
-                buildMilestoneMap(List.of(indicator)),
-                buildCurrentMonthIndicatorRoundStateMap(List.of(indicator))
-        );
+        return toIndicatorResponses(List.of(indicator)).stream()
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found"));
+    }
+
+    private List<IndicatorResponse> toIndicatorResponses(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, TaskMetaSnapshot> taskMetaMap = buildTaskMetaMap(indicators);
+        Map<Long, List<MilestoneResponse>> milestoneMap = buildMilestoneMap(indicators);
+        Map<Long, CurrentMonthIndicatorRoundState> currentMonthRoundStateMap =
+                buildCurrentMonthIndicatorRoundStateMap(indicators);
+        return indicators.stream()
+                .map(indicator -> toIndicatorResponse(
+                        indicator,
+                        taskMetaMap,
+                        milestoneMap,
+                        currentMonthRoundStateMap))
+                .toList();
     }
 
     private IndicatorResponse toIndicatorResponse(Indicator indicator,
@@ -651,8 +696,7 @@ public class IndicatorController {
             return Map.of();
         }
 
-        String placeholders = taskIds.stream().map(id -> "?").collect(Collectors.joining(","));
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(
                 """
                 SELECT t.task_id AS task_id,
                        t.name AS task_name,
@@ -662,9 +706,9 @@ public class IndicatorController {
                 FROM public.sys_task t
                 LEFT JOIN public.plan p ON p.id = t.plan_id
                 LEFT JOIN public.cycle c ON c.id = p.cycle_id
-                WHERE t.task_id IN (%s)
-                """.formatted(placeholders),
-                taskIds.toArray()
+                WHERE t.task_id IN (:taskIds)
+                """,
+                new MapSqlParameterSource("taskIds", taskIds)
         );
 
         Map<Long, TaskMetaSnapshot> taskMetaMap = new LinkedHashMap<>();
@@ -705,13 +749,7 @@ public class IndicatorController {
             return Map.of();
         }
 
-        return milestoneApplicationService.getAllMilestones().stream()
-                .filter(milestone -> milestone.getIndicatorId() != null && indicatorIds.contains(milestone.getIndicatorId()))
-                .collect(java.util.stream.Collectors.groupingBy(
-                        MilestoneResponse::getIndicatorId,
-                        java.util.LinkedHashMap::new,
-                        java.util.stream.Collectors.toList()
-                ));
+        return milestoneApplicationService.getMilestonesByIndicatorIds(indicatorIds);
     }
 
     private Map<Long, String> buildTaskTypeMap(List<Indicator> indicators) {
@@ -764,12 +802,9 @@ public class IndicatorController {
             return Map.of();
         }
 
-        String placeholders = indicatorIds.stream()
-                .map(id -> "?")
-                .collect(Collectors.joining(","));
         String currentMonth = currentReportMonth();
 
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+        List<Map<String, Object>> rows = namedParameterJdbcTemplate.queryForList(
                 """
                 SELECT latest.indicator_id AS indicator_id,
                        latest.report_progress AS report_progress,
@@ -785,12 +820,14 @@ public class IndicatorController {
                     FROM public.plan_report_indicator pri
                     INNER JOIN public.plan_report pr ON pri.report_id = pr.id
                     WHERE pr.is_deleted = false
-                      AND pr.report_month = ?
-                      AND pri.indicator_id IN (%s)
+                      AND pr.report_month = :reportMonth
+                      AND pri.indicator_id IN (:indicatorIds)
                 ) latest
                 WHERE latest.row_no = 1
-                """.formatted(placeholders),
-                Stream.concat(Stream.of(currentMonth), indicatorIds.stream()).toArray()
+                """,
+                new MapSqlParameterSource()
+                        .addValue("reportMonth", currentMonth)
+                        .addValue("indicatorIds", indicatorIds)
         );
 
         Map<Long, CurrentMonthIndicatorRoundState> roundStateByIndicatorId = new HashMap<>();
@@ -972,51 +1009,84 @@ public class IndicatorController {
 
     @Data
     public static class CreateIndicatorRequest {
+        @Size(max = 255, message = "指标名称长度不能超过255个字符")
         private String indicatorName;
 
+        @Size(max = 64, message = "指标编码长度不能超过64个字符")
         private String indicatorCode;
 
+        @Size(max = 1000, message = "指标描述长度不能超过1000个字符")
         private String description;
+        @Size(max = 1000, message = "指标描述长度不能超过1000个字符")
         private String indicatorDesc;
+        @Size(max = 64, message = "指标类型长度不能超过64个字符")
         private String type;
+        @Size(max = 64, message = "指标类型长度不能超过64个字符")
         private String indicatorType;
+        @Size(max = 64, message = "指标类型长度不能超过64个字符")
         private String type1;
+        @Positive(message = "任务ID必须为正数")
         private Long taskId;
+        @Positive(message = "父指标ID必须为正数")
         private Long parentIndicatorId;
+        @Positive(message = "责任组织ID必须为正数")
         private Long ownerOrgId;
+        @Positive(message = "目标组织ID必须为正数")
         private Long targetOrgId;
+        @DecimalMin(value = "0", message = "权重不能小于0")
+        @DecimalMax(value = "100", message = "权重不能大于100")
         private BigDecimal weightPercent;
+        @jakarta.validation.constraints.Min(value = 0, message = "排序值不能小于0")
         private Integer sortOrder;
+        @Size(max = 500, message = "备注长度不能超过500个字符")
         private String remark;
+        @jakarta.validation.constraints.Min(value = 0, message = "进度不能小于0")
+        @jakarta.validation.constraints.Max(value = 100, message = "进度不能大于100")
         private Integer progress;
 
+        @Positive(message = "周期ID必须为正数")
         private Long cycleId;
 
+        @Positive(message = "部门ID必须为正数")
         private Long departmentId;
 
         @DecimalMin(value = "0", message = "Target value must be positive")
         @DecimalMax(value = "100", message = "Target value cannot exceed 100")
         private BigDecimal targetValue;
 
+        @Size(max = 32, message = "单位长度不能超过32个字符")
         private String unit;
+        @Size(max = 64, message = "维度长度不能超过64个字符")
         private String dimension; // FINANCIAL, OPERATION, etc.
     }
 
     @Data
     public static class RejectRequest {
+        @Size(max = 500, message = "驳回原因长度不能超过500个字符")
         private String reason;
     }
 
     @Data
     public static class UpdateIndicatorRequest {
+        @Size(max = 255, message = "指标名称长度不能超过255个字符")
         private String indicatorName;
+        @Size(max = 1000, message = "指标描述长度不能超过1000个字符")
         private String indicatorDesc;
+        @Positive(message = "任务ID必须为正数")
         private Long taskId;
+        @Positive(message = "责任组织ID必须为正数")
         private Long ownerOrgId;
+        @Positive(message = "目标组织ID必须为正数")
         private Long targetOrgId;
+        @DecimalMin(value = "0", message = "权重不能小于0")
+        @DecimalMax(value = "100", message = "权重不能大于100")
         private BigDecimal weightPercent;
+        @jakarta.validation.constraints.Min(value = 0, message = "进度不能小于0")
+        @jakarta.validation.constraints.Max(value = 100, message = "进度不能大于100")
         private Integer progress;
+        @jakarta.validation.constraints.Min(value = 0, message = "排序值不能小于0")
         private Integer sortOrder;
+        @Size(max = 500, message = "备注长度不能超过500个字符")
         private String remark;
     }
 
@@ -1037,6 +1107,7 @@ public class IndicatorController {
 
     @Data
     public static class TerminateRequest {
+        @Size(max = 500, message = "终止原因长度不能超过500个字符")
         private String reason;
     }
 
@@ -1079,7 +1150,10 @@ public class IndicatorController {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ReminderRequest {
+        @Size(max = 500, message = "催办原因长度不能超过500个字符")
         private String reason;
+        @NotBlank(message = "催办来源不能为空")
+        @Size(max = 32, message = "催办来源长度不能超过32个字符")
         private String source = "DASHBOARD";
     }
 
@@ -1087,7 +1161,8 @@ public class IndicatorController {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ReminderStatusQueryRequest {
-        private List<Long> indicatorIds;
+        @NotEmpty(message = "indicatorIds不能为空")
+        private List<@Positive(message = "指标ID必须为正数") Long> indicatorIds;
     }
 
     @Data
@@ -1100,4 +1175,5 @@ public class IndicatorController {
         private long remindCount;
         private LocalDateTime cooldownUntil;
     }
+
 }

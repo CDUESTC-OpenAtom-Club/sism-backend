@@ -1,7 +1,7 @@
 package com.sism.task.infrastructure.persistence;
 
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.StrategicTask;
+import com.sism.task.domain.task.TaskType;
 import com.sism.task.domain.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -34,6 +34,63 @@ public class JpaTaskRepository implements TaskRepository {
     @Override
     public Optional<StrategicTask> findById(Long id) {
         return jpaRepository.findById(id);
+    }
+
+    @Override
+    public Optional<TaskFlatView> findFlatViewById(Long id) {
+        return jpaRepository.findFlatViewById(id);
+    }
+
+    @Override
+    public List<TaskFlatView> findAllFlatViews() {
+        return jpaRepository.findAllFlatViews();
+    }
+
+    @Override
+    public List<TaskFlatView> findFlatViewsByCriteria(
+            Long planId,
+            Long cycleId,
+            Long orgId,
+            Long createdByOrgId,
+            String taskType,
+            String name) {
+        return jpaRepository.findFlatViewsByCriteria(planId, cycleId, orgId, createdByOrgId, taskType, name);
+    }
+
+    @Override
+    public List<TaskFlatView> findFlatViewsByCycleId(Long cycleId) {
+        return jpaRepository.findFlatViewsByCycleId(cycleId);
+    }
+
+    @Override
+    public List<TaskFlatView> findFlatViewsByAccessibleOrgId(Long accessibleOrgId) {
+        return jpaRepository.findFlatViewsByAccessibleOrgId(accessibleOrgId);
+    }
+
+    @Override
+    public Page<TaskFlatView> findPagedFlatViewsByCriteria(
+            Long planId,
+            Long cycleId,
+            Long orgId,
+            Long createdByOrgId,
+            String taskType,
+            String name,
+            String planStatus,
+            String taskStatus,
+            Long accessibleOrgId,
+            Pageable pageable) {
+        return jpaRepository.findPagedFlatViewsByCriteria(
+                planId,
+                cycleId,
+                orgId,
+                createdByOrgId,
+                taskType,
+                name,
+                planStatus,
+                taskStatus,
+                accessibleOrgId,
+                pageable
+        );
     }
 
     @Override

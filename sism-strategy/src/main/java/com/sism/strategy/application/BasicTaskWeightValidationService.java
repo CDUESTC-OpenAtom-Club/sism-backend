@@ -1,6 +1,6 @@
 package com.sism.strategy.application;
 
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
@@ -48,10 +48,9 @@ public class BasicTaskWeightValidationService {
             return;
         }
 
-        BigDecimal totalWeight = indicatorRepository.findAll().stream()
+        BigDecimal totalWeight = indicatorRepository.findByTaskIds(List.copyOf(basicTaskIds)).stream()
                 .filter(indicator -> !Boolean.TRUE.equals(indicator.getIsDeleted()))
                 .filter(indicator -> indicator.getParentIndicatorId() == null)
-                .filter(indicator -> indicator.getTaskId() != null && basicTaskIds.contains(indicator.getTaskId()))
                 .filter(indicator -> indicator.getTargetOrg() != null)
                 .filter(indicator -> targetOrgId.equals(indicator.getTargetOrg().getId()))
                 .map(Indicator::getWeightPercent)
@@ -73,12 +72,30 @@ public class BasicTaskWeightValidationService {
             throw new IllegalStateException("当前计划不存在基础性任务，不能下发");
         }
 
-        BigDecimal totalWeight = indicatorRepository.findByOwnerOrgIdAndTargetOrgId(
-                        plan.getCreatedByOrgId(),
-                        targetOrgId
-                ).stream()
+        Set<Long> basicTaskIds = jdbcTemplate.queryForList("""
+                        SELECT t.task_id
+                        FROM public.sys_task t
+                        WHERE t.org_id = ?
+                          AND t.cycle_id = ?
+                          AND COALESCE(t.is_deleted, false) = false
+                          AND t.task_type = 'BASIC'
+                        """,
+                Long.class,
+                plan.getCreatedByOrgId(),
+                plan.getCycleId()
+        ).stream().collect(Collectors.toSet());
+
+        if (basicTaskIds.isEmpty()) {
+            throw new IllegalStateException("当前计划不存在基础性任务，不能下发");
+        }
+
+        BigDecimal totalWeight = indicatorRepository.findByTaskIds(List.copyOf(basicTaskIds)).stream()
                 .filter(indicator -> !Boolean.TRUE.equals(indicator.getIsDeleted()))
                 .filter(indicator -> indicator.getParentIndicatorId() != null)
+                .filter(indicator -> indicator.getOwnerOrg() != null)
+                .filter(indicator -> plan.getCreatedByOrgId().equals(indicator.getOwnerOrg().getId()))
+                .filter(indicator -> indicator.getTargetOrg() != null)
+                .filter(indicator -> targetOrgId.equals(indicator.getTargetOrg().getId()))
                 .map(Indicator::getWeightPercent)
                 .filter(weight -> weight != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);

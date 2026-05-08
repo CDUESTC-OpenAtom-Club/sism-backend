@@ -25,6 +25,18 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class AttachmentApplicationService {
+    private static final long MAX_UPLOAD_SIZE_BYTES = 20L * 1024 * 1024;
+    private static final List<String> ALLOWED_CONTENT_TYPES = List.of(
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "image/gif",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/msword",
+            "application/vnd.ms-excel",
+            "text/plain"
+    );
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -38,6 +50,12 @@ public class AttachmentApplicationService {
         }
         if (uploadedBy == null || uploadedBy <= 0) {
             throw new IllegalArgumentException("uploadedBy 必填");
+        }
+        if (file.getSize() > MAX_UPLOAD_SIZE_BYTES) {
+            throw new IllegalArgumentException("上传文件大小不能超过20MB");
+        }
+        if (file.getContentType() == null || ALLOWED_CONTENT_TYPES.stream().noneMatch(file.getContentType()::equalsIgnoreCase)) {
+            throw new IllegalArgumentException("不支持的文件类型");
         }
 
         Path uploadRoot = resolveUploadRoot();
@@ -60,24 +78,16 @@ public class AttachmentApplicationService {
                     storage_driver, bucket, object_key, public_url, original_name,
                     content_type, file_ext, size_bytes, uploaded_by, uploaded_at, remark, is_deleted
                 )
-                VALUES ('FILE', NULL, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, false)
+                VALUES ('FILE', NULL, ?, NULL, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL, false)
                 RETURNING id
                 """,
                 Long.class,
                 objectKey,
-                "/api/v1/attachments/__TEMP__/download",
                 originalName,
                 file.getContentType(),
                 extension.isBlank() ? null : extension,
                 file.getSize(),
                 uploadedBy
-        );
-
-        String publicUrl = "/api/v1/attachments/" + id + "/download";
-        jdbcTemplate.update(
-                "UPDATE public.attachment SET public_url = ? WHERE id = ?",
-                publicUrl,
-                id
         );
 
         return getMetadata(id);
@@ -140,17 +150,26 @@ public class AttachmentApplicationService {
     }
 
     private Path resolveFilePath(String objectKey) {
-        List<Path> candidates = new ArrayList<>();
+        List<Path> candidateRoots = new ArrayList<>();
         Path uploadRoot = resolveUploadRoot();
-        candidates.add(uploadRoot.resolve(objectKey).normalize());
+        candidateRoots.add(uploadRoot);
 
         Path workingDirectory = Paths.get("").toAbsolutePath().normalize();
-        candidates.add(workingDirectory.resolve("uploads").resolve(objectKey).normalize());
-        candidates.add(workingDirectory.resolve("sism-main").resolve("uploads").resolve(objectKey).normalize());
+        candidateRoots.add(workingDirectory.resolve("uploads").normalize());
+        candidateRoots.add(workingDirectory.resolve("sism-main").resolve("uploads").normalize());
 
         Path parentDirectory = workingDirectory.getParent();
         if (parentDirectory != null) {
-            candidates.add(parentDirectory.resolve("uploads").resolve(objectKey).normalize());
+            candidateRoots.add(parentDirectory.resolve("uploads").normalize());
+        }
+
+        List<Path> candidates = new ArrayList<>();
+        for (Path root : candidateRoots) {
+            Path candidate = root.resolve(objectKey).normalize();
+            if (!candidate.startsWith(root)) {
+                throw new SecurityException("Invalid attachment object key");
+            }
+            candidates.add(candidate);
         }
 
         for (Path candidate : candidates) {
@@ -159,6 +178,6 @@ public class AttachmentApplicationService {
             }
         }
 
-        return candidates.get(0);
+        throw new IllegalArgumentException("Attachment file not found: " + objectKey);
     }
 }

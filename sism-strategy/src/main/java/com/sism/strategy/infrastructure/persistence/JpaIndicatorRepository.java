@@ -1,8 +1,9 @@
 package com.sism.strategy.infrastructure.persistence;
 
 import com.sism.organization.domain.SysOrg;
-import com.sism.strategy.domain.Indicator;
-import com.sism.strategy.domain.enums.IndicatorLevel;
+import com.sism.organization.domain.OrgType;
+import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.strategy.domain.indicator.IndicatorLevel;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -11,7 +12,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -22,6 +22,14 @@ public class JpaIndicatorRepository implements IndicatorRepository {
     @Override
     public Optional<Indicator> findById(Long id) {
         return jpaRepository.findByIdAndIsDeletedFalse(id);
+    }
+
+    @Override
+    public Optional<Indicator> findByIdAndOwnerOrgId(Long id, Long ownerOrgId) {
+        if (id == null || ownerOrgId == null) {
+            return Optional.empty();
+        }
+        return jpaRepository.findByIdAndOwnerOrgIdAndIsDeletedFalse(id, ownerOrgId);
     }
 
     @Override
@@ -81,8 +89,24 @@ public class JpaIndicatorRepository implements IndicatorRepository {
     }
 
     @Override
+    public List<Indicator> findByTaskIds(List<Long> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByTaskIds(taskIds);
+    }
+
+    @Override
     public Indicator save(Indicator indicator) {
         return jpaRepository.save(indicator);
+    }
+
+    @Override
+    public List<Indicator> saveAll(List<Indicator> indicators) {
+        if (indicators == null || indicators.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.saveAll(indicators);
     }
 
     @Override
@@ -97,16 +121,16 @@ public class JpaIndicatorRepository implements IndicatorRepository {
 
     @Override
     public List<Indicator> findFirstLevelIndicators() {
-        return findAll().stream()
+        return jpaRepository.findFirstLevelIndicators(OrgType.functional).stream()
                 .filter(indicator -> indicator.getLevel() == IndicatorLevel.FIRST)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     public List<Indicator> findSecondLevelIndicators() {
-        return findAll().stream()
+        return jpaRepository.findSecondLevelIndicators(OrgType.functional).stream()
                 .filter(indicator -> indicator.getLevel() == IndicatorLevel.SECOND)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -114,13 +138,7 @@ public class JpaIndicatorRepository implements IndicatorRepository {
         if (keyword == null || keyword.trim().isEmpty()) {
             return List.of();
         }
-        String lowerKeyword = keyword.toLowerCase();
-        return findAll().stream()
-                .filter(indicator -> {
-                    String desc = indicator.getIndicatorDesc();
-                    return desc != null && desc.toLowerCase().contains(lowerKeyword);
-                })
-                .collect(Collectors.toList());
+        return jpaRepository.findByIndicatorDescContainingIgnoreCaseAndIsDeletedFalse(keyword.trim());
     }
 
     @Override
@@ -136,5 +154,13 @@ public class JpaIndicatorRepository implements IndicatorRepository {
     @Override
     public List<Indicator> findByOwnerOrgIdAndTargetOrgId(Long ownerOrgId, Long targetOrgId) {
         return jpaRepository.findByOwnerOrgIdAndTargetOrgIdAndIsDeletedFalse(ownerOrgId, targetOrgId);
+    }
+
+    @Override
+    public List<Indicator> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByIdInAndIsDeletedFalse(ids);
     }
 }

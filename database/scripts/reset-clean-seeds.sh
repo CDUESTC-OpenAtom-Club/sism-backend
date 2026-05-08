@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# CLASSIFICATION: local only, destructive
+# RISK: resets business tables and reloads clean seeds
+#
+# WARNING:
+# This script is destructive. It resets business tables and reloads clean seeds.
+# Use it only for local or explicitly approved test databases.
+
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"

@@ -1,14 +1,17 @@
 package com.sism.shared.infrastructure.event;
 
 import com.sism.shared.domain.model.base.DomainEvent;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 
 @Component
+@ConditionalOnMissingBean(EventStore.class)
 public class EventStoreInMemory implements EventStore {
 
     private final Map<String, DomainEvent> events = new ConcurrentHashMap<>();
@@ -25,7 +28,7 @@ public class EventStoreInMemory implements EventStore {
 
         if (event instanceof AggregateEvent) {
             String aggregateId = ((AggregateEvent) event).getAggregateId();
-            aggregateEvents.computeIfAbsent(aggregateId, k -> new ArrayList<>()).add(event);
+            aggregateEvents.computeIfAbsent(aggregateId, k -> new CopyOnWriteArrayList<>()).add(event);
         }
     }
 

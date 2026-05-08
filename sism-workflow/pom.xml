@@ -24,22 +24,6 @@
             <artifactId>sism-shared-kernel</artifactId>
         </dependency>
 
-        <!-- IAM Context for CurrentUser -->
-        <dependency>
-            <groupId>com.sism</groupId>
-            <artifactId>sism-iam</artifactId>
-        </dependency>
-
-        <!-- Execution Context for Report Events -->
-        <dependency>
-            <groupId>com.sism</groupId>
-            <artifactId>sism-execution</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.sism</groupId>
-            <artifactId>sism-strategy</artifactId>
-        </dependency>
-
         <!-- Spring Boot Starters -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

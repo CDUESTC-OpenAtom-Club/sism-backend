@@ -1,6 +1,6 @@
 package com.sism.strategy.domain.repository;
 
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.organization.domain.SysOrg;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +18,12 @@ public interface IndicatorRepository {
      * 根据ID查询指标
      */
     Optional<Indicator> findById(Long id);
+
+    /**
+     * 根据指标ID和拥有组织ID查询指标
+     * 用于需要先做权限过滤的安全查询场景
+     */
+    Optional<Indicator> findByIdAndOwnerOrgId(Long id, Long ownerOrgId);
 
     /**
      * 查询所有指标
@@ -76,9 +82,19 @@ public interface IndicatorRepository {
     List<Indicator> findByTaskId(Long taskId);
 
     /**
+     * 根据任务ID列表查询指标
+     */
+    List<Indicator> findByTaskIds(List<Long> taskIds);
+
+    /**
      * 保存指标
      */
     Indicator save(Indicator indicator);
+
+    /**
+     * 批量保存指标
+     */
+    List<Indicator> saveAll(List<Indicator> indicators);
 
     /**
      * 删除指标
@@ -114,4 +130,9 @@ public interface IndicatorRepository {
      * 根据年份获取指标（通过 Cycle -> Plan -> Task -> Indicator 关系链）
      */
     Page<Indicator> findByYear(Integer year, Pageable pageable);
+
+    /**
+     * 根据 ID 列表批量查询指标
+     */
+    List<Indicator> findByIds(List<Long> ids);
 }

@@ -1,8 +1,8 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.repository.PlanReportIndicatorRepository;
-import com.sism.execution.domain.repository.PlanReportAttachmentSnapshot;
-import com.sism.execution.domain.repository.PlanReportIndicatorSnapshot;
+import com.sism.execution.domain.report.PlanReportAttachmentSnapshot;
+import com.sism.execution.domain.report.PlanReportIndicatorRepository;
+import com.sism.execution.domain.report.PlanReportIndicatorSnapshot;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -103,83 +104,105 @@ public class JdbcPlanReportIndicatorRepository implements PlanReportIndicatorRep
 
     @Override
     public List<PlanReportIndicatorSnapshot> findByReportId(Long reportId) {
-        List<IndexedSnapshot> indexedSnapshots = jdbcTemplate.query(
-                """
-                SELECT id, indicator_id, progress, comment, milestone_note
-                FROM public.plan_report_indicator
-                WHERE report_id = ?
-                ORDER BY id ASC
-                """,
-                (rs, rowNum) -> new IndexedSnapshot(
-                        rs.getLong("id"),
-                        new PlanReportIndicatorSnapshot(
-                                rs.getLong("indicator_id"),
-                                rs.getInt("progress"),
-                                rs.getString("comment"),
-                                rs.getString("milestone_note"),
-                                List.of()
-                        )
-                ),
-                reportId
-        );
+        return findByReportIds(List.of(reportId)).getOrDefault(reportId, List.of());
+    }
 
-        if (indexedSnapshots.isEmpty()) {
-            return List.of();
+    @Override
+    public Map<Long, List<PlanReportIndicatorSnapshot>> findByReportIds(List<Long> reportIds) {
+        return fetchSnapshots(reportIds);
+    }
+
+    private Map<Long, List<PlanReportIndicatorSnapshot>> fetchSnapshots(List<Long> reportIds) {
+        if (reportIds == null || reportIds.isEmpty()) {
+            return Map.of();
         }
 
-        Map<Long, List<PlanReportAttachmentSnapshot>> attachmentsByPriId = new HashMap<>();
-        String placeholders = indexedSnapshots.stream()
-                .map(ignored -> "?")
-                .reduce((left, right) -> left + "," + right)
-                .orElse("?");
+        String placeholders = buildPlaceholders(reportIds.size());
+        List<Object> params = new ArrayList<>(reportIds.size());
+        params.addAll(reportIds);
 
-        Object[] params = indexedSnapshots.stream()
-                .map(IndexedSnapshot::id)
-                .toArray();
+        LinkedHashMap<Long, SnapshotHolder> snapshotsById = new LinkedHashMap<>();
         jdbcTemplate.query(
                 """
-                SELECT pria.plan_report_indicator_id,
-                       a.id,
+                SELECT pri.id,
+                       pri.report_id,
+                       pri.indicator_id,
+                       pri.progress,
+                       pri.comment,
+                       pri.milestone_note,
+                       a.id AS attachment_id,
                        a.original_name,
                        a.size_bytes,
                        a.content_type,
                        COALESCE(NULLIF(a.public_url, ''), CONCAT('/api/v1/attachments/', a.id, '/download')) AS url,
                        a.uploaded_by,
                        a.uploaded_at
-                FROM public.plan_report_indicator_attachment pria
-                JOIN public.attachment a ON a.id = pria.attachment_id
-                WHERE pria.plan_report_indicator_id IN (%s)
-                  AND COALESCE(a.is_deleted, false) = false
-                ORDER BY pria.plan_report_indicator_id ASC, pria.sort_order ASC, pria.id ASC
+                FROM public.plan_report_indicator pri
+                LEFT JOIN public.plan_report_indicator_attachment pria
+                       ON pria.plan_report_indicator_id = pri.id
+                LEFT JOIN public.attachment a
+                       ON a.id = pria.attachment_id
+                      AND COALESCE(a.is_deleted, false) = false
+                WHERE pri.report_id IN (%s)
+                ORDER BY pri.report_id ASC, pri.id ASC, pria.sort_order ASC, pria.id ASC
                 """.formatted(placeholders),
+                params.toArray(),
                 rs -> {
-                    Long planReportIndicatorId = rs.getLong("plan_report_indicator_id");
-                    OffsetDateTime uploadedAt = rs.getObject("uploaded_at", OffsetDateTime.class);
-                    attachmentsByPriId.computeIfAbsent(planReportIndicatorId, ignored -> new ArrayList<>())
-                            .add(new PlanReportAttachmentSnapshot(
-                                    rs.getLong("id"),
-                                    rs.getString("original_name"),
-                                    rs.getLong("size_bytes"),
-                                    rs.getString("content_type"),
-                                    rs.getString("url"),
-                                    rs.getLong("uploaded_by"),
-                                    uploadedAt == null ? null : uploadedAt.toString()
-                            ));
-                },
-                params
+                    Long indicatorId = rs.getLong("id");
+                    SnapshotHolder holder = snapshotsById.get(indicatorId);
+                    if (holder == null) {
+                        List<PlanReportAttachmentSnapshot> attachments = new ArrayList<>();
+                        holder = new SnapshotHolder(
+                                rs.getLong("report_id"),
+                                new PlanReportIndicatorSnapshot(
+                                        rs.getLong("indicator_id"),
+                                        rs.getInt("progress"),
+                                        rs.getString("comment"),
+                                        rs.getString("milestone_note"),
+                                        attachments
+                                ),
+                                attachments
+                        );
+                        snapshotsById.put(indicatorId, holder);
+                    }
+                    Long attachmentId = rs.getObject("attachment_id", Long.class);
+                    if (attachmentId != null) {
+                        OffsetDateTime uploadedAt = rs.getObject("uploaded_at", OffsetDateTime.class);
+                        holder.attachments().add(new PlanReportAttachmentSnapshot(
+                                attachmentId,
+                                rs.getString("original_name"),
+                                rs.getLong("size_bytes"),
+                                rs.getString("content_type"),
+                                rs.getString("url"),
+                                rs.getLong("uploaded_by"),
+                                uploadedAt == null ? null : uploadedAt.toString()
+                        ));
+                    }
+                }
         );
 
-        return indexedSnapshots.stream()
-                .map(indexed -> new PlanReportIndicatorSnapshot(
-                        indexed.snapshot().indicatorId(),
-                        indexed.snapshot().progress(),
-                        indexed.snapshot().comment(),
-                        indexed.snapshot().milestoneNote(),
-                        attachmentsByPriId.getOrDefault(indexed.id(), List.of())
-                ))
-                .toList();
+        if (snapshotsById.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<Long, List<PlanReportIndicatorSnapshot>> grouped = new HashMap<>();
+        for (SnapshotHolder holder : snapshotsById.values()) {
+            grouped.computeIfAbsent(holder.reportId(), ignored -> new ArrayList<>())
+                    .add(holder.snapshot());
+        }
+
+        return grouped;
     }
 
-    private record IndexedSnapshot(Long id, PlanReportIndicatorSnapshot snapshot) {
+    private record SnapshotHolder(Long reportId,
+                                  PlanReportIndicatorSnapshot snapshot,
+                                  List<PlanReportAttachmentSnapshot> attachments) {
+    }
+
+    private String buildPlaceholders(int count) {
+        if (count <= 0) {
+            return "";
+        }
+        return String.join(",", java.util.Collections.nCopies(count, "?"));
     }
 }

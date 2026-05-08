@@ -1,6 +1,8 @@
 package com.sism.analytics.infrastructure.repository;
 
 import com.sism.analytics.domain.Dashboard;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,28 +27,53 @@ public interface DashboardRepository extends JpaRepository<Dashboard, Long> {
      * 根据用户ID查找所有未删除的仪表板
      */
     @Query("SELECT d FROM Dashboard d WHERE d.userId = :userId AND d.deleted = false ORDER BY d.createdAt DESC")
-    List<Dashboard> findByUserIdAndNotDeleted(@Param("userId") Long userId);
+    Page<Dashboard> findByUserIdAndNotDeleted(@Param("userId") Long userId, Pageable pageable);
+
+    default List<Dashboard> findByUserIdAndNotDeleted(Long userId) {
+        return AnalyticsRepositoryPagingSupport.contentOf(
+                findByUserIdAndNotDeleted(userId, AnalyticsRepositoryPagingSupport.firstPage())
+        );
+    }
 
     /**
      * 根据用户ID查找所有未删除的公开仪表板
      */
     @Query("SELECT d FROM Dashboard d WHERE d.userId = :userId AND d.isPublic = true AND d.deleted = false ORDER BY d.createdAt DESC")
-    List<Dashboard> findByUserIdAndPublicAndNotDeleted(@Param("userId") Long userId);
+    Page<Dashboard> findByUserIdAndPublicAndNotDeleted(@Param("userId") Long userId, Pageable pageable);
+
+    default List<Dashboard> findByUserIdAndPublicAndNotDeleted(Long userId) {
+        return AnalyticsRepositoryPagingSupport.contentOf(
+                findByUserIdAndPublicAndNotDeleted(userId, AnalyticsRepositoryPagingSupport.firstPage())
+        );
+    }
 
     /**
      * 查找所有未删除的公开仪表板
      */
     @Query("SELECT d FROM Dashboard d WHERE d.isPublic = true AND d.deleted = false ORDER BY d.createdAt DESC")
-    List<Dashboard> findAllPublicAndNotDeleted();
+    Page<Dashboard> findAllPublicAndNotDeleted(Pageable pageable);
+
+    default List<Dashboard> findAllPublicAndNotDeleted() {
+        return AnalyticsRepositoryPagingSupport.contentOf(
+                findAllPublicAndNotDeleted(AnalyticsRepositoryPagingSupport.firstPage())
+        );
+    }
 
     /**
      * 根据名称模糊查找用户的仪表板
      */
-    @Query("SELECT d FROM Dashboard d WHERE d.userId = :userId AND d.name LIKE %:name% AND d.deleted = false ORDER BY d.createdAt DESC")
-    List<Dashboard> findByUserIdAndNameContainingAndNotDeleted(
+    @Query("SELECT d FROM Dashboard d WHERE d.userId = :userId AND d.name LIKE CONCAT('%', :name, '%') ESCAPE '\\' AND d.deleted = false ORDER BY d.createdAt DESC")
+    Page<Dashboard> findByUserIdAndNameContainingAndNotDeleted(
             @Param("userId") Long userId,
-            @Param("name") String name
+            @Param("name") String name,
+            Pageable pageable
     );
+
+    default List<Dashboard> findByUserIdAndNameContainingAndNotDeleted(Long userId, String name) {
+        return AnalyticsRepositoryPagingSupport.contentOf(
+                findByUserIdAndNameContainingAndNotDeleted(userId, name, AnalyticsRepositoryPagingSupport.firstPage())
+        );
+    }
 
     /**
      * 统计用户的仪表板数量

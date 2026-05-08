@@ -27,6 +27,10 @@
             <groupId>com.sism</groupId>
             <artifactId>sism-organization</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.sism</groupId>
+            <artifactId>sism-iam</artifactId>
+        </dependency>
 
         <!-- Spring Boot Starters -->
         <dependency>

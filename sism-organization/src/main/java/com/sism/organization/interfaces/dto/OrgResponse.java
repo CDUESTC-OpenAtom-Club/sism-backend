@@ -49,9 +49,6 @@ public class OrgResponse {
     @Schema(description = "Organization last update time")
     private LocalDateTime updatedAt;
 
-    @Schema(description = "Whether the organization is deleted", example = "false")
-    private Boolean isDeleted;
-
     @Schema(description = "Child organizations (transient, not persisted)")
     @Builder.Default
     private List<OrgResponse> children = new ArrayList<>();

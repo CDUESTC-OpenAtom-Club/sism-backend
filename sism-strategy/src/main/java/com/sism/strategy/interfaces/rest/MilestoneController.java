@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -19,8 +20,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/milestones")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 @Tag(name = "里程碑", description = "战略侧里程碑主要接口。这是规划的权威入口点。")
 public class MilestoneController {
+
+    private static final String MILESTONE_WRITE_ACCESS =
+            "hasAnyRole('REPORTER','STRATEGY_DEPT_HEAD','VICE_PRESIDENT')";
 
     private final MilestoneApplicationService milestoneApplicationService;
 
@@ -35,9 +40,7 @@ public class MilestoneController {
     @GetMapping("/plan/{planId}")
     @Operation(summary = "根据计划ID获取里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> getMilestonesByPlan(@PathVariable Long planId) {
-        // 注意：MilestoneApplicationService当前没有getMilestonesByPlanId方法
-        // 这里返回空列表，需要在MilestoneApplicationService中添加相关方法
-        java.util.List<MilestoneResponse> milestones = java.util.List.of();
+        java.util.List<MilestoneResponse> milestones = milestoneApplicationService.getMilestonesByPlanId(planId);
         return ResponseEntity.ok(ApiResponse.success(milestones));
     }
 
@@ -57,6 +60,7 @@ public class MilestoneController {
     }
 
     @PostMapping
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "创建新里程碑", description = "战略侧里程碑管理的主要入口点。")
     public ResponseEntity<ApiResponse<MilestoneResponse>> createMilestone(
             @Valid @RequestBody com.sism.strategy.interfaces.dto.CreateMilestoneRequest request) {
@@ -65,6 +69,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "更新里程碑")
     public ResponseEntity<ApiResponse<MilestoneResponse>> updateMilestone(
             @PathVariable Long id,
@@ -74,6 +79,7 @@ public class MilestoneController {
     }
 
     @PutMapping("/indicator/{indicatorId}/batch")
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "为指标批量保存里程碑")
     public ResponseEntity<ApiResponse<java.util.List<MilestoneResponse>>> saveMilestones(
             @PathVariable Long indicatorId,
@@ -84,6 +90,7 @@ public class MilestoneController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize(MILESTONE_WRITE_ACCESS)
     @Operation(summary = "删除里程碑")
     public ResponseEntity<ApiResponse<Void>> deleteMilestone(@PathVariable Long id) {
         milestoneApplicationService.deleteMilestone(id);

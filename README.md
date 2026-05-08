@@ -44,8 +44,9 @@ sism-backend/
 
 - 当前数据库结构已经冻结为新的 Flyway `V1` 基线
 - 活跃 Flyway 目录是 `sism-main/src/main/resources/db/migration/`
+- 当前以该目录为唯一权威迁移链
 - 尽量不要改数据库结构，除非客户需求明确要求
-- 如必须改表结构，只能新增新的 `V2__*.sql`、`V3__*.sql` 迁移，不要改 `V1__baseline_current_schema.sql`
+- 如必须改表结构，不要修改 `V1__baseline_current_schema.sql`，应在活跃目录新增一个全局唯一版本号的迁移文件
 
 ### 环境要求
 
@@ -113,14 +114,14 @@ GRANT ALL PRIVILEGES ON DATABASE sism_dev TO sism_user;
 \q
 ```
 
-**方法 B: 使用 Node.js 脚本 (推荐)**
+**方法 B: 手动创建数据库后使用 Flyway（推荐）**
 
 ```bash
-# 安装依赖
-npm install pg dotenv
+# 查看迁移状态
+./mvnw flyway:info
 
-# 运行初始化脚本
-node database/scripts/db-setup.js
+# 应用所有迁移
+./mvnw flyway:migrate
 ```
 
 #### 4. 运行数据库迁移
@@ -141,12 +142,20 @@ node database/scripts/db-setup.js
 #### 5. 加载种子数据 (可选)
 
 ```bash
-# 加载基础数据
-psql -U your_username -d sism_dev -f database/seeds/seed-data.sql
-
-# 审核新版种子草案（仅审阅，不会落库）
-psql -U your_username -d sism_dev -f database/seeds/seed_data_v3_review.sql
+# 使用当前受支持的 clean seed 流程前，请先确认目标环境是本地开发库
+./database/scripts/reset-clean-seeds.sh
 ```
+
+说明：
+
+- 当前仓库仅保留最小化的本地 seed 重置脚本
+- 如果要执行约束型迁移、重置种子或重建老库 Flyway 历史，请先阅读 `sism-main/src/main/resources/db/migration/README.md` 与 `database/scripts/README.md`
+- 当前 clean seed 的装载总入口是 `database/seeds/reset-and-load-clean-seeds.sql`
+- 推荐先看 `database/seeds/seed-review-order.md`，再看以下关键种子文件：
+  - 账号：`database/seeds/sys_user-data.sql`
+  - 角色映射：`database/seeds/sys_user_role-data.sql`
+  - 审批模板：`database/seeds/audit_flow_def-data.sql`、`database/seeds/audit_step_def-data.sql`
+  - 测试周期与 Plan 容器：`database/seeds/cycle-data.sql`、`database/seeds/plan-data.sql`
 
 #### 6. 构建项目
 
@@ -221,27 +230,66 @@ java -jar target/sism-backend-1.0.1.jar --spring.profiles.active=dev
 
 应用启动后，访问以下地址验证:
 
-- **健康检查**: http://localhost:8080/api/health
-- **Swagger UI**: http://localhost:8080/api/swagger-ui/index.html
-- **OpenAPI JSON**: http://localhost:8080/api/v3/api-docs
-- **本地 OpenAPI 快照**: `./openapi.json` 与 `./openapi-latest.json`
+- **认证健康检查**: http://localhost:8080/api/v1/auth/health
+- **前端兼容健康检查**: http://localhost:8080/api/v1/actuator/health
+- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+- **OpenAPI JSON**: http://localhost:8080/api-docs
+- **权威 OpenAPI 快照**: `./openapi.json`
 
 ### 默认测试账号
 
-系统预置了三个角色的测试账号:
+当前 seed 数据已切换为“按组织 + 流程节点”生成测试账号，不再使用早期 README 中的通用账号
+`func_user / func123` 与 `college_user / college123`。
 
-| 角色 | 用户名 | 密码 | 权限 |
+推荐直接查看 [docs/用户账号密码文档.md](docs/用户账号密码文档.md) 获取完整账号矩阵。下面给出最常用的本地测试账号示例：
+
+| 场景 | 用户名 | 密码 | 说明 |
 |------|--------|------|------|
-| 战略发展部 | `admin` | `admin123` | 系统管理员，查看所有部门数据 |
-| 职能部门 | `func_user` | `func123` | 中层管理，审批和分配任务 |
-| 二级学院 | `college_user` | `college123` | 执行层，报告和任务执行 |
+| 全局分管校领导 | `admin` | `admin123` | 可直接验证战略发展部主链 |
+| 战略发展部填报 | `zlb_admin` | `admin123` | 战略发展部填报账号 |
+| 战略发展部审批 | `zlb_final1` | `admin123` | 战略发展部审批账号 |
+| 职能部门填报示例 | `jiaowu_report` | `admin123` | 教务处填报账号 |
+| 职能部门负责人示例 | `jiaowu_audit1` | `admin123` | 教务处负责人账号 |
+| 职能部门分管校领导 seat 示例 | `jiaowu_leader` | `admin123` | 教务处第三步审批账号 |
+| 二级学院填报示例 | `jisuanji_report` | `admin123` | 计算机学院填报账号 |
+| 二级学院负责人示例 | `jisuanji_audit1` | `admin123` | 计算机学院第二步审批账号 |
+| 二级学院院长示例 | `jisuanji_leader` | `admin123` | 计算机学院第三步审批账号 |
+
+### 当前推荐本地 smoke 测试流程
+
+后端文档站已经给出了按 clean seed 收敛过的测试链路，不建议再按旧 README 里的泛化账号自己拼流程。推荐优先执行下面 4 条主链：
+
+| 流程 | 发起账号 | 审批链 | 对应文档 |
+|------|----------|--------|----------|
+| `PLAN_DISPATCH_STRATEGY` | `zlb_admin` | `zlb_final1` -> `admin` | `docs/workflow-test-guide.md`、`docs/PLAN_DISPATCH_STRATEGY-前端测试清单.md` |
+| `PLAN_DISPATCH_FUNCDEPT` | `jiaowu_report` | `jiaowu_audit1` -> `jiaowu_leader` | `docs/workflow-test-guide.md`、`docs/PLAN_DISPATCH_FUNCDEPT-前端测试清单.md` |
+| `PLAN_APPROVAL_FUNCDEPT` | `keji_report` | `keji_audit1` -> `keji_leader` -> `zlb_final1` | `docs/workflow-test-guide.md`、`docs/PLAN_APPROVAL_FUNCDEPT-前端测试清单.md` |
+| `PLAN_APPROVAL_COLLEGE` | `jisuanji_report` | `jisuanji_audit1` -> `jisuanji_leader` -> `jiaowu_audit1` | `docs/workflow-test-guide.md`、`docs/PLAN_APPROVAL_COLLEGE-前端测试清单.md` |
+
+说明:
+
+- 后端当前对 `ROLE_VICE_PRESIDENT` 节点按发起组织 `requester_org_id` 解析审批人，因此职能部门流程第 3 步通常是本部门 `_leader` / `_audit2`。
+- 只有战略发展部流程的第 3 步会因为发起组织就是战略发展部而落到 `admin`。
+
+推荐 smoke 顺序：
+
+1. 先用 `admin` 或 `zlb_admin` 验证登录、`/strategic-tasks` 主链和核心接口是否可用。
+2. 再按 `docs/workflow-test-guide.md` 跑 4 条审批链中的 1 条或多条，确认待办分发、通过、驳回是否符合预期。
+3. 非战略发展部账号至少补测一次登录后落到 `/dashboard`，避免把权限限制误判成登录失败。
+
+### 测试数据从哪里看
+
+- 完整账号矩阵以 `docs/用户账号密码文档.md` 为准。
+- 当前审批模板以 `database/seeds/audit_flow_def-data.sql` 和 `database/seeds/audit_step_def-data.sql` 为准。
+- 本地测试 Plan 容器和年度周期分别来自 `database/seeds/plan-data.sql` 与 `database/seeds/cycle-data.sql`。
+- `workflow_task-data.sql` 与 `workflow_task_history-data.sql` 默认保持空表，待办由运行时自动生成，不需要手动预种。
 
 ### API 使用示例
 
 #### 1. 用户登录
 
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -270,14 +318,14 @@ curl -X POST http://localhost:8080/api/auth/login \
 #### 2. 获取指标列表
 
 ```bash
-curl -X GET http://localhost:8080/api/indicators \
+curl -X GET http://localhost:8080/api/v1/indicators \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 #### 3. 创建新指标
 
 ```bash
-curl -X POST http://localhost:8080/api/indicators \
+curl -X POST http://localhost:8080/api/v1/indicators \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -293,32 +341,32 @@ curl -X POST http://localhost:8080/api/indicators \
 #### 4. 上传附件
 
 ```bash
-curl -X POST http://localhost:8080/api/attachments/upload \
+curl -X POST http://localhost:8080/api/v1/attachments/upload \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -F "file=@/path/to/document.pdf" \
   -F "uploadedBy=1"
 ```
 
-#### 5. 创建审批流程
+#### 5. 查看审批模板
 
 ```bash
-curl -X POST http://localhost:8080/api/audit-flows \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flowName": "指标审批流程",
-    "flowCode": "INDICATOR_APPROVAL",
-    "entityType": "INDICATOR",
-    "description": "战略指标审批流程"
-  }'
+curl -X GET http://localhost:8080/api/v1/approval/flows/code/PLAN_DISPATCH_FUNCDEPT \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+#### 6. 查询当前待办
+
+```bash
+curl -X GET "http://localhost:8080/api/v1/workflows/my-tasks?pageNum=1" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### API 文档
 
 应用启动后，访问 Swagger UI 查看完整 API 文档:
-- **Swagger UI**: http://localhost:8080/api/swagger-ui/index.html
-- **OpenAPI JSON**: http://localhost:8080/api/v3/api-docs
-- **本地快照说明**: 见 `OPENAPI.md`
+- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+- **OpenAPI JSON**: http://localhost:8080/api-docs
+- **权威本地快照**: 项目根目录 `openapi.json`
 
 > 注意: 生产环境默认禁用 Swagger。如需启用，在 `.env` 文件中设置 `SWAGGER_ENABLED=true`
 
@@ -411,34 +459,28 @@ copy .env.example .env
 ### 初始化数据库
 
 ```bash
-# 使用 Node.js 脚本初始化
-node database/scripts/db-setup.js
+# 使用 Flyway 初始化结构
+./mvnw flyway:migrate
 
-# 或手动执行 SQL
-psql -U postgres -d sism_dev -f database/migrations/V1.0__init.sql
-psql -U postgres -d sism_dev -f database/seeds/seed-data.sql
-```
-
-### 数据同步
-
-```bash
-# 同步所有数据
-node scripts/sync/sync-all.js
-
-# 验证数据一致性
-node scripts/sync/verify.js
+# 如需本地重置并加载 clean seeds
+./database/scripts/reset-clean-seeds.sh
 ```
 
 ### 数据维护
 
 ```bash
-# 验证前后端数据一致性
-node scripts/maintenance/verify-data-consistency.cjs
+# 本地重置并加载 clean seeds
+./database/scripts/reset-clean-seeds.sh
+
+# 检查 Flyway 迁移版本是否冲突
+./scripts/testing/check-flyway-version-collisions.sh
 ```
 
-**注意**: 一次性修复脚本（fix-*、add-*、update-*）已归档到 `scripts/archive/2026-02-one-time-fixes/`
+**注意**: `scripts/` 目录现在只保留长期可复用的部署、报告重建和校验脚本；历史一次性同步/修复脚本已清理，不再作为公共脚本保留。
 
 ## 测试
+
+本地联调与审批 smoke 请优先参考 `docs/workflow-test-guide.md` 以及 4 份 `PLAN_*` 前端测试清单，避免继续使用旧脚本里的历史账号命名。
 
 ```bash
 # 运行所有测试
@@ -519,14 +561,14 @@ NVD_API_KEY=your_nvd_api_key_here
 
 ```java
 // 1. 登录获取 Token
-POST /api/auth/login
+POST /api/v1/auth/login
 {
   "username": "admin",
   "password": "admin123"
 }
 
 // 2. 创建新指标
-POST /api/indicators
+POST /api/v1/indicators
 Authorization: Bearer {token}
 {
   "name": "学生就业率",
@@ -543,7 +585,7 @@ Authorization: Bearer {token}
 }
 
 // 3. 为指标添加里程碑
-POST /api/milestones
+POST /api/v1/milestones
 Authorization: Bearer {token}
 {
   "indicatorId": 1,
@@ -554,11 +596,11 @@ Authorization: Bearer {token}
 }
 
 // 4. 查询指标进度
-GET /api/indicators/1
+GET /api/v1/indicators/1
 Authorization: Bearer {token}
 
 // 5. 提交进度报告
-POST /api/reports
+POST /api/v1/reports
 Authorization: Bearer {token}
 {
   "indicatorId": 1,
@@ -574,7 +616,7 @@ Authorization: Bearer {token}
 
 ```bash
 # 1. 上传文件
-curl -X POST http://localhost:8080/api/attachments/upload \
+curl -X POST http://localhost:8080/api/v1/attachments/upload \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@report.pdf" \
   -F "uploadedBy=1"
@@ -595,151 +637,75 @@ curl -X POST http://localhost:8080/api/attachments/upload \
 }
 
 # 2. 下载文件
-curl -X GET http://localhost:8080/api/attachments/1/download \
+curl -X GET http://localhost:8080/api/v1/attachments/1/download \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -o downloaded_report.pdf
 
 # 3. 获取文件元数据
-curl -X GET http://localhost:8080/api/attachments/1/metadata \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 4. 搜索文件
-curl -X GET "http://localhost:8080/api/attachments/search?keyword=report" \
+curl -X GET http://localhost:8080/api/v1/attachments/1/metadata \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 5. 删除文件 (软删除)
-curl -X DELETE http://localhost:8080/api/attachments/1 \
+curl -X DELETE http://localhost:8080/api/v1/attachments/1 \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-#### 场景 3: 审批流程配置
+#### 场景 3: 审批流程测试（当前推荐）
 
 ```bash
-# 1. 创建审批流程
-curl -X POST http://localhost:8080/api/audit-flows \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flowName": "指标审批流程",
-    "flowCode": "INDICATOR_APPROVAL",
-    "entityType": "INDICATOR",
-    "description": "战略指标三级审批流程"
-  }'
-
-# 2. 添加审批步骤
-curl -X POST http://localhost:8080/api/audit-flows/steps \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flowId": 1,
-    "stepOrder": 1,
-    "stepName": "二级学院审核",
-    "approverRole": "secondary_college",
-    "isRequired": true
-  }'
-
-# 3. 添加第二步
-curl -X POST http://localhost:8080/api/audit-flows/steps \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flowId": 1,
-    "stepOrder": 2,
-    "stepName": "职能部门审批",
-    "approverRole": "functional_dept",
-    "isRequired": true
-  }'
-
-# 4. 添加第三步
-curl -X POST http://localhost:8080/api/audit-flows/steps \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flowId": 1,
-    "stepOrder": 3,
-    "stepName": "战略发展部终审",
-    "approverRole": "strategic_dept",
-    "isRequired": true
-  }'
-
-# 5. 查询流程详情
-curl -X GET http://localhost:8080/api/audit-flows/1 \
+# 1. 查看固定审批模板
+curl -X GET http://localhost:8080/api/v1/approval/flows/code/PLAN_DISPATCH_FUNCDEPT \
   -H "Authorization: Bearer YOUR_TOKEN"
 
-# 6. 查询流程的所有步骤
-curl -X GET http://localhost:8080/api/audit-flows/1/steps \
+# 2. 查询当前待办
+curl -X GET "http://localhost:8080/api/v1/workflows/my-tasks?pageNum=1" \
   -H "Authorization: Bearer YOUR_TOKEN"
-```
 
-#### 场景 4: 预警级别配置
-
-```bash
-# 1. 创建预警级别
-curl -X POST http://localhost:8080/api/warn-levels \
+# 3. 对指定待办执行通过
+curl -X POST http://localhost:8080/api/v1/workflows/tasks/{taskId}/approve \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "levelName": "严重延期",
-    "levelCode": "SEVERE_DELAY",
-    "thresholdValue": 30,
-    "severity": "CRITICAL",
-    "description": "任务延期超过 30 天"
+    "comment": "README smoke approval"
   }'
 
-# 2. 查询所有预警级别
-curl -X GET http://localhost:8080/api/warn-levels \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 3. 查询活跃的预警级别
-curl -X GET http://localhost:8080/api/warn-levels/active \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 4. 根据代码查询
-curl -X GET http://localhost:8080/api/warn-levels/code/SEVERE_DELAY \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 5. 更新预警级别
-curl -X PUT http://localhost:8080/api/warn-levels/1 \
+# 4. 对指定待办执行驳回
+curl -X POST http://localhost:8080/api/v1/workflows/tasks/{taskId}/reject \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "thresholdValue": 45,
-    "description": "任务延期超过 45 天"
+    "reason": "README smoke reject"
   }'
 ```
 
-#### 场景 5: 计划管理
+#### 场景 4: 计划管理
 
 ```bash
 # 1. 创建年度计划
-curl -X POST http://localhost:8080/api/plans \
+curl -X POST http://localhost:8080/api/v1/plans \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "cycleId": 1,
-    "targetOrgId": 10,
+    "cycleId": 4,
+    "targetOrgId": 44,
     "planLevel": "STRAT_TO_FUNC",
     "status": "DRAFT"
   }'
 
 # 2. 查询计划列表
-curl -X GET http://localhost:8080/api/plans \
+curl -X GET http://localhost:8080/api/v1/plans \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 3. 按周期查询计划
-curl -X GET http://localhost:8080/api/plans/cycle/1 \
+curl -X GET http://localhost:8080/api/v1/plans/cycle/4 \
   -H "Authorization: Bearer YOUR_TOKEN"
 
-# 4. 按目标组织查询计划
-curl -X GET http://localhost:8080/api/plans/target-org/10 \
+# 4. 审批计划
+curl -X POST http://localhost:8080/api/v1/plans/4044/approve \
   -H "Authorization: Bearer YOUR_TOKEN"
 
-# 5. 审批计划
-curl -X POST http://localhost:8080/api/plans/1/approve \
-  -H "Authorization: Bearer YOUR_TOKEN"
-
-# 6. 更新计划
-curl -X PUT http://localhost:8080/api/plans/1 \
+# 5. 更新计划
+curl -X PUT http://localhost:8080/api/v1/plans/4044 \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -771,7 +737,7 @@ class IndicatorControllerIntegrationTest {
             .year(2026)
             .build();
 
-        mockMvc.perform(post("/api/indicators")
+        mockMvc.perform(post("/api/v1/indicators")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request))
                 .header("Authorization", "Bearer " + getTestToken()))
@@ -782,7 +748,7 @@ class IndicatorControllerIntegrationTest {
 
     @Test
     void testGetIndicatorById() throws Exception {
-        mockMvc.perform(get("/api/indicators/1")
+        mockMvc.perform(get("/api/v1/indicators/1")
                 .header("Authorization", "Bearer " + getTestToken()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
@@ -1152,7 +1118,7 @@ EXPOSE 8080
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/auth/health || exit 1
 
 # 启动应用
 ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
@@ -1199,7 +1165,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/migrations:/docker-entrypoint-initdb.d
+      - ./sism-main/src/main/resources/db/migration:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
@@ -1226,7 +1192,7 @@ services:
       - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/auth/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -1305,8 +1271,8 @@ server {
     }
 
     # 健康检查端点
-    location /api/health {
-        proxy_pass http://sism_backend/api/health;
+    location /api/v1/auth/health {
+        proxy_pass http://sism_backend/api/v1/auth/health;
         access_log off;
     }
 }
@@ -1355,14 +1321,14 @@ netstat -tlnp | grep 8080
 
 **健康检查**:
 ```bash
-# 检查应用健康状态
-curl http://localhost:8080/api/health
+# 检查认证健康状态
+curl http://localhost:8080/api/v1/auth/health
 
-# 检查数据库连接
-curl http://localhost:8080/api/health/db
+# 检查前端兼容健康端点
+curl http://localhost:8080/api/v1/actuator/health
 
-# 检查 Actuator 端点
-curl http://localhost:8080/actuator/health
+# 检查 Swagger 文档
+curl http://localhost:8080/api-docs
 ```
 
 #### 7. 备份策略

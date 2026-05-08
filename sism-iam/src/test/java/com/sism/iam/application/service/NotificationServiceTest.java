@@ -1,7 +1,7 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.Notification;
-import com.sism.iam.domain.repository.NotificationRepository;
+import com.sism.iam.domain.notification.Notification;
+import com.sism.iam.domain.notification.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

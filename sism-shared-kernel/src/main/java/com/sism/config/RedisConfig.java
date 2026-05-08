@@ -1,8 +1,5 @@
 package com.sism.config;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.SocketOptions;
 import org.slf4j.Logger;
@@ -141,15 +138,9 @@ public class RedisConfig {
         // String serializer for keys
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
         
-        // Jackson2Json serializer for values
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY
-        );
-        GenericJackson2JsonRedisSerializer jsonSerializer = 
-                new GenericJackson2JsonRedisSerializer(objectMapper);
+        // Use Spring's safe default typing strategy instead of enabling unrestricted polymorphic types.
+        GenericJackson2JsonRedisSerializer jsonSerializer =
+                new GenericJackson2JsonRedisSerializer();
         
         // Set key serializer
         template.setKeySerializer(stringSerializer);

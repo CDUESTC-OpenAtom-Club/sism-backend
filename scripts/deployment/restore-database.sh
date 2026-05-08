@@ -328,7 +328,7 @@ verify_backup_file() {
         # 检查是否包含关键表
         log_info "检查关键表定义..."
         local tables_found=0
-        local required_tables=("org" "app_user" "indicator" "milestone" "strategic_task")
+        local required_tables=("sys_org" "sys_user" "cycle" "indicator" "indicator_milestone" "sys_task")
         
         for table in "${required_tables[@]}"; do
             if gunzip -c "$BACKUP_FILE" 2>/dev/null | grep -q "CREATE TABLE.*$table\|COPY.*$table"; then
@@ -368,14 +368,14 @@ verify_restore() {
     echo "关键表记录数:"
     echo "----------------------------------------"
     
-    TABLES=("org" "app_user" "assessment_cycle" "strategic_task" "indicator" "milestone" "progress_report" "audit_log")
+    TABLES=("sys_org" "sys_user" "cycle" "sys_task" "indicator" "indicator_milestone" "progress_report" "audit_log")
     
     for table in "${TABLES[@]}"; do
         COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo "N/A")
         printf "  %-20s: %s\n" "$table" "$COUNT"
         
         # 检查关键表是否有数据
-        if [[ "$table" == "org" ]] || [[ "$table" == "app_user" ]]; then
+        if [[ "$table" == "sys_org" ]] || [[ "$table" == "sys_user" ]]; then
             if [[ "$COUNT" == "0" ]] || [[ "$COUNT" == "N/A" ]]; then
                 log_warn "关键表 $table 为空或不存在"
             fi
@@ -389,8 +389,8 @@ verify_restore() {
     
     local fk_errors
     fk_errors=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "
-        SELECT COUNT(*) FROM indicator i 
-        LEFT JOIN org o ON i.owner_org_id = o.org_id 
+        SELECT COUNT(*) FROM indicator i
+        LEFT JOIN sys_org o ON i.owner_org_id = o.org_id
         WHERE i.owner_org_id IS NOT NULL AND o.org_id IS NULL;
     " 2>/dev/null || echo "0")
     

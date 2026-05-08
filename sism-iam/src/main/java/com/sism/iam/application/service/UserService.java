@@ -1,10 +1,12 @@
 package com.sism.iam.application.service;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.repository.RoleRepository;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.access.RoleRepository;
+import com.sism.iam.domain.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /**
      * 创建用户
@@ -33,6 +36,7 @@ public class UserService {
             String password,
             String realName,
             String email,
+            String phone,
             Long orgId,
             List<String> roleCodes
     ) {
@@ -45,8 +49,9 @@ public class UserService {
 
         User user = new User();
         user.setUsername(username);
-        user.setPassword(password);
+        user.setPassword(passwordEncoder.encode(password));
         user.setRealName(realName);
+        applyContactInfo(user, email, phone, null);
         user.setOrgId(orgId);
         user.setIsActive(true);
         user.setRoles(resolveRoles(roleCodes));
@@ -58,13 +63,14 @@ public class UserService {
      * 更新用户
      */
     @Transactional
-    public User updateUser(Long userId, String realName, String email, Long orgId, List<String> roleCodes) {
+    public User updateUser(Long userId, String realName, String email, String phone, Long orgId, List<String> roleCodes) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
         if (realName != null) {
             user.setRealName(realName);
         }
+        applyContactInfo(user, email, phone, userId);
         if (orgId != null) {
             user.setOrgId(orgId);
         }
@@ -72,6 +78,14 @@ public class UserService {
             user.setRoles(resolveRoles(roleCodes));
         }
 
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public User updateCurrentUserContact(Long userId, String email, String phone) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        applyContactInfo(user, email, phone, userId);
         return userRepository.save(user);
     }
 
@@ -115,6 +129,14 @@ public class UserService {
     }
 
     /**
+     * 分页查询所有用户
+     */
+    @Transactional(readOnly = true)
+    public Page<User> findPage(int page, int size) {
+        return userRepository.findAll(PaginationPolicy.toPageRequest(page, size));
+    }
+
+    /**
      * 锁定用户
      */
     @Transactional
@@ -153,5 +175,29 @@ public class UserService {
         }
 
         return roles;
+    }
+
+    private void applyContactInfo(User user, String email, String phone, Long selfUserId) {
+        String normalizedEmail = ContactInfoPolicy.normalizeEmail(email);
+        String normalizedPhone = ContactInfoPolicy.normalizePhone(phone);
+
+        if (normalizedEmail != null) {
+            userRepository.findByEmail(normalizedEmail)
+                    .filter(existing -> !existing.getId().equals(selfUserId))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("邮箱已被其他用户使用");
+                    });
+        }
+
+        if (normalizedPhone != null) {
+            userRepository.findByPhone(normalizedPhone)
+                    .filter(existing -> !existing.getId().equals(selfUserId))
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException("手机号已被其他用户使用");
+                    });
+        }
+
+        user.setEmail(normalizedEmail);
+        user.setPhone(normalizedPhone);
     }
 }

@@ -1,0 +1,252 @@
+{
+  "reportId": "message-center-performance-2026-04-26",
+  "title": "消息中心模块后端性能排查报告",
+  "module": "消息中心模块",
+  "category": "performance-report",
+  "createdAt": "2026-04-26T00:33:00+08:00",
+  "source": "基于 sism-main、sism-iam、sism-workflow 的静态代码排查结论生成",
+  "storage": {
+    "strategy": "ordered-chunks",
+    "chunkCount": 6,
+    "totalBytes": 7553,
+    "namingPattern": "chunks/NNNN-slug.md",
+    "orderingKey": "seq",
+    "renderCommand": "node scripts/report-chunks/render-report.js docs/generated/performance-reports/message-center/2026-04-26"
+  },
+  "retrieval": {
+    "tags": [
+      "后端",
+      "性能排查",
+      "消息中心",
+      "MessageCenter",
+      "工作流",
+      "通知"
+    ],
+    "keywords": [
+      "01 摘要与排查范围",
+      "本次覆盖的核心对象",
+      "为什么优先排查这个模块",
+      "本次排查的结论摘要",
+      "后端",
+      "性能排查",
+      "消息中心",
+      "MessageCenter",
+      "工作流",
+      "通知",
+      "消息中心模块",
+      "MessageCenterController.java",
+      "MessageCenterApplicationService.java",
+      "MessageCenterModels.java",
+      "WorkflowReadModelService.java",
+      "UserNotificationRepository.java",
+      "02 当前处理链路",
+      "模块职责",
+      "当前主链路",
+      "这条链路的问题",
+      "summary",
+      "messages",
+      "detail",
+      "read",
+      "MessageCenterApplicationService",
+      "03 P0 级瓶颈",
+      "1. 列表接口是先全量聚合，再内存分页",
+      "2. 摘要接口也走完整聚合路径",
+      "3. 详情接口查询工作流消息时，仍要扫全量待办",
+      "count",
+      "summary + messages",
+      "workflow:*"
+    ],
+    "lastUpdatedAt": "2026-04-26T07:39:33.100Z"
+  },
+  "chunks": [
+    {
+      "seq": 1,
+      "file": "chunks/0001-summary-and-scope.md",
+      "title": "01 摘要与排查范围",
+      "headings": [
+        "01 摘要与排查范围",
+        "本次覆盖的核心对象",
+        "为什么优先排查这个模块",
+        "本次排查的结论摘要"
+      ],
+      "preview": "01 摘要与排查范围 本次只做**后端性能排查**，不改业务代码，优先选择了对用户体感最直接、同时又能放大上游压力的 消息中心模块。 本次覆盖的核心对象 - MessageCenterController.java - MessageCenterApplicationServi…",
+      "byteSize": 1160,
+      "sha256": "a2ae9af79ff3abf4a300242e68dbd8cf77bd28f4d13b00e4b047e0dcc1d851d9",
+      "keywords": [
+        "01 摘要与排查范围",
+        "本次覆盖的核心对象",
+        "为什么优先排查这个模块",
+        "本次排查的结论摘要",
+        "后端",
+        "性能排查",
+        "消息中心",
+        "MessageCenter",
+        "工作流",
+        "通知",
+        "消息中心模块",
+        "MessageCenterController.java",
+        "MessageCenterApplicationService.java",
+        "MessageCenterModels.java",
+        "WorkflowReadModelService.java",
+        "UserNotificationRepository.java"
+      ]
+    },
+    {
+      "seq": 2,
+      "file": "chunks/0002-processing-chain.md",
+      "title": "02 当前处理链路",
+      "headings": [
+        "02 当前处理链路",
+        "模块职责",
+        "当前主链路",
+        "这条链路的问题"
+      ],
+      "preview": "02 当前处理链路 模块职责 消息中心当前承接四类能力： - summary：返回待审批、未读提醒等摘要计数 - messages：返回消息列表 - detail：返回单条消息详情 - read：处理已读状态更新 当前主链路 控制层进入 MessageCenterApplica…",
+      "byteSize": 1069,
+      "sha256": "3f1e4d8e96a301ff82030e5cc93edf5ce42e68d3387b94e344a52ab8bc0b241f",
+      "keywords": [
+        "02 当前处理链路",
+        "模块职责",
+        "当前主链路",
+        "这条链路的问题",
+        "后端",
+        "性能排查",
+        "消息中心",
+        "MessageCenter",
+        "工作流",
+        "通知",
+        "summary",
+        "messages",
+        "detail",
+        "read",
+        "MessageCenterApplicationService"
+      ]
+    },
+    {
+      "seq": 3,
+      "file": "chunks/0003-p0-bottlenecks.md",
+      "title": "03 P0 级瓶颈",
+      "headings": [
+        "03 P0 级瓶颈",
+        "1. 列表接口是先全量聚合，再内存分页",
+        "2. 摘要接口也走完整聚合路径",
+        "3. 详情接口查询工作流消息时，仍要扫全量待办"
+      ],
+      "preview": "03 P0 级瓶颈 1. 列表接口是先全量聚合，再内存分页 messages 当前不是直接按条件查询当前页，而是先执行统一聚合，再在内存中做分类、关键字、风险和排序处理。结果是： - 前端只看第一页，后端也要先准备**全部候选消息** - 用户消息量越大，响应耗时越接近线性增长…",
+      "byteSize": 1209,
+      "sha256": "d4244943b7f4ae55a6e913ca0a202a733e40b697ebb821610dfaf54887967ed2",
+      "keywords": [
+        "03 P0 级瓶颈",
+        "1. 列表接口是先全量聚合，再内存分页",
+        "2. 摘要接口也走完整聚合路径",
+        "3. 详情接口查询工作流消息时，仍要扫全量待办",
+        "后端",
+        "性能排查",
+        "消息中心",
+        "MessageCenter",
+        "工作流",
+        "通知",
+        "messages",
+        "summary",
+        "count",
+        "summary + messages",
+        "workflow:*",
+        "instanceId + taskId + userId"
+      ]
+    },
+    {
+      "seq": 4,
+      "file": "chunks/0004-p1-risks.md",
+      "title": "04 P1 级放大项与结构风险",
+      "headings": [
+        "04 P1 级放大项与结构风险",
+        "1. 工作流读模型虽有分页，但上层把分页抵消掉了",
+        "2. enrich 阶段存在轻度 N+1 放大",
+        "3. 去重位置偏后",
+        "4. 索引需要结合真实 SQL 再核验"
+      ],
+      "preview": "04 P1 级放大项与结构风险 1. 工作流读模型虽有分页，但上层把分页抵消掉了 WorkflowReadModelService.getMyPendingTasks() 自身是分页查询，但消息中心的聚合逻辑会从第 1 页开始一直翻到最后一页，把所有待办全部拉完。结果是： - …",
+      "byteSize": 1492,
+      "sha256": "678b9991100915fa3a4468c3b0ba53a4f1fc01cd2a0e16a67df95799c23d98cd",
+      "keywords": [
+        "04 P1 级放大项与结构风险",
+        "1. 工作流读模型虽有分页，但上层把分页抵消掉了",
+        "2. enrich 阶段存在轻度 N+1 放大",
+        "3. 去重位置偏后",
+        "4. 索引需要结合真实 SQL 再核验",
+        "后端",
+        "性能排查",
+        "消息中心",
+        "MessageCenter",
+        "工作流",
+        "通知",
+        "WorkflowReadModelService.getMyPendingTasks()",
+        "approvalInstanceId",
+        "EXPLAIN",
+        "recipient_user_id + created_at",
+        "recipient_user_id + status + created_at"
+      ]
+    },
+    {
+      "seq": 5,
+      "file": "chunks/0005-optimization-plan.md",
+      "title": "05 优化方案",
+      "headings": [
+        "05 优化方案",
+        "方案 A：把分页、过滤、统计下推到查询层",
+        "方案 B：为 workflow 详情增加精准查询",
+        "方案 C：中期演进为分源分页归并或统一读模型",
+        "方案 D：补充观测能力"
+      ],
+      "preview": "05 优化方案 方案 A：把分页、过滤、统计下推到查询层 这是收益最高的一步，建议把消息中心拆成两条路径： - **摘要路径**：只统计待审批数、审批结果未读数、提醒未读数、系统未读数 - **列表路径**：按 category、keyword、readState、includ…",
+      "byteSize": 1406,
+      "sha256": "42d9972114fbe6c96b62dc1d20f23279f74c384a0ac232c2ab488d44a3034426",
+      "keywords": [
+        "05 优化方案",
+        "方案 A：把分页、过滤、统计下推到查询层",
+        "方案 B：为 workflow 详情增加精准查询",
+        "方案 C：中期演进为分源分页归并或统一读模型",
+        "方案 D：补充观测能力",
+        "后端",
+        "性能排查",
+        "消息中心",
+        "MessageCenter",
+        "工作流",
+        "通知",
+        "category",
+        "keyword",
+        "readState",
+        "includeRisk",
+        "createdAt"
+      ]
+    },
+    {
+      "seq": 6,
+      "file": "chunks/0006-priority-and-gains.md",
+      "title": "06 实施顺序与预期收益",
+      "headings": [
+        "06 实施顺序与预期收益",
+        "推荐实施顺序",
+        "预期收益",
+        "本次最终判断"
+      ],
+      "preview": "06 实施顺序与预期收益 推荐实施顺序 第一阶段：低风险高收益 - 拆分 summary query 与 messages query - 列表分页与过滤直接下推到查询层 - workflow 详情改为单条精准查询 第二阶段：结构优化 - 压缩工作流 enrich 的额外查找成…",
+      "byteSize": 1217,
+      "sha256": "e3c475265d9bca33d056bd283d49718138f67ba98c7699be93ab9aa91474c30b",
+      "keywords": [
+        "06 实施顺序与预期收益",
+        "推荐实施顺序",
+        "预期收益",
+        "本次最终判断",
+        "后端",
+        "性能排查",
+        "消息中心",
+        "MessageCenter",
+        "工作流",
+        "通知",
+        "summary query",
+        "messages query"
+      ]
+    }
+  ]
+}

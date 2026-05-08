@@ -1,8 +1,8 @@
 package com.sism.workflow.application.runtime;
 
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
-import com.sism.workflow.domain.runtime.repository.WorkflowTaskRepository;
+import com.sism.workflow.domain.runtime.WorkflowTask;
+import com.sism.workflow.domain.runtime.WorkflowTaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

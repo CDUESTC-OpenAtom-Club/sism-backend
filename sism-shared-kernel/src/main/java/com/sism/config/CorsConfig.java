@@ -3,9 +3,12 @@ package com.sism.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,7 +20,10 @@ import java.util.List;
  * Requirements: 7.3 - Configure CORS for production domain
  */
 @Configuration
+@Profile("!prod")
 public class CorsConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(CorsConfig.class);
     
     @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:3500}")
     private String allowedOrigins;
@@ -47,6 +53,10 @@ public class CorsConfig {
         // Use allowedOriginPatterns for wildcard support
         for (String origin : origins) {
             String trimmedOrigin = origin.trim();
+            if ("*".equals(trimmedOrigin) && allowCredentials) {
+                log.error("Wildcard CORS origin '*' cannot be used when credentials are enabled");
+                throw new IllegalStateException("Cannot use wildcard CORS origin with credentials enabled");
+            }
             if (trimmedOrigin.contains("*")) {
                 // Use pattern for wildcard origins
                 config.addAllowedOriginPattern(trimmedOrigin);

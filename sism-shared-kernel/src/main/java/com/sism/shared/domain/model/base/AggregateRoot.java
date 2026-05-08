@@ -1,9 +1,7 @@
 package com.sism.shared.domain.model.base;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * 聚合根基类
@@ -11,45 +9,15 @@ import java.util.Objects;
  *
  * @param <ID> 聚合根标识类型
  */
-public abstract class AggregateRoot<ID> {
-
-    protected ID id;
-    protected LocalDateTime createdAt;
-    protected LocalDateTime updatedAt;
+public abstract class AggregateRoot<ID> extends Entity<ID> {
     private final List<DomainEvent> domainEvents = new ArrayList<>();
 
     public AggregateRoot() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        super();
     }
 
     public AggregateRoot(ID id) {
-        this();
-        this.id = id;
-    }
-
-    public ID getId() {
-        return id;
-    }
-
-    public void setId(ID id) {
-        this.id = id;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
+        super(id);
     }
 
     /**
@@ -87,28 +55,4 @@ public abstract class AggregateRoot<ID> {
      */
     public abstract void validate();
 
-    /**
-     * 标记实体已更新
-     */
-    protected void markUpdated() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        AggregateRoot<?> that = (AggregateRoot<?>) o;
-        return Objects.equals(getId(), that.getId());
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(getId());
-    }
-
-    @Override
-    public String toString() {
-        return getClass().getSimpleName() + "{id=" + getId() + "}";
-    }
 }

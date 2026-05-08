@@ -1,15 +1,19 @@
 package com.sism.exception;
 
 /**
- * Exception thrown when a requested resource is not found
+ * Legacy resource-not-found exception kept for compatibility with older modules.
+ *
+ * <p>Delegates to the shared-domain resource-not-found hierarchy so the shared
+ * kernel can resolve both legacy and new callers through one handler path.</p>
  */
-public class ResourceNotFoundException extends BusinessException {
-    
+@Deprecated
+public class ResourceNotFoundException extends com.sism.shared.domain.exception.ResourceNotFoundException {
+
     public ResourceNotFoundException(String resource, Long id) {
-        super(404, resource + " not found with id: " + id);
+        super(resource, id);
     }
-    
+
     public ResourceNotFoundException(String message) {
-        super(404, message);
+        super(message);
     }
 }

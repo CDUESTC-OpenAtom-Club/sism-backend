@@ -1,10 +1,11 @@
 package com.sism.workflow.domain;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AuditFlowDefTest {
@@ -68,6 +69,16 @@ class AuditFlowDefTest {
         flowDef.addStep(step(2, "再次提交", AuditStepDef.STEP_TYPE_SUBMIT, null));
 
         assertThrows(IllegalArgumentException.class, flowDef::validate);
+    }
+
+    @Test
+    void resolveEffectiveStepType_shouldPreferStructuralFallbackForLegacySubmitStep() {
+        AuditStepDef step = new AuditStepDef();
+        step.setStepOrder(1);
+        step.setStepName("发起");
+        step.setRoleId(null);
+
+        assertEquals(AuditStepDef.STEP_TYPE_SUBMIT, step.resolveEffectiveStepType());
     }
 
     private AuditStepDef step(int order, String name, String type, Long roleId) {

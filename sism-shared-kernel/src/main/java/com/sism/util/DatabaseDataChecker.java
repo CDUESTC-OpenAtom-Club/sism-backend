@@ -16,6 +16,28 @@ import java.util.*;
 @RequiredArgsConstructor
 public class DatabaseDataChecker {
 
+    private static final List<String> MAIN_TABLES = List.of(
+            "sys_org",
+            "sys_user",
+            "sys_role",
+            "assessment_cycle",
+            "sys_task",
+            "indicator",
+            "indicator_milestone",
+            "progress_report",
+            "adhoc_task",
+            "adhoc_task_indicator_map",
+            "adhoc_task_target",
+            "approval_record",
+            "audit_log",
+            "plan",
+            "plan_report",
+            "alert_rule",
+            "alert_event",
+            "alert_window",
+            "refresh_token"
+    );
+
     private final JdbcTemplate jdbcTemplate;
 
     /**
@@ -41,31 +63,9 @@ public class DatabaseDataChecker {
     public Map<String, Long> getAllTableCounts() {
         Map<String, Long> counts = new LinkedHashMap<>();
 
-        String[] tables = {
-            "sys_org",
-            "sys_user",
-            "sys_role",
-            "assessment_cycle",
-            "sys_task",
-            "indicator",
-            "indicator_milestone",
-            "progress_report",
-            "adhoc_task",
-            "adhoc_task_indicator_map",
-            "adhoc_task_target",
-            "approval_record",
-            "audit_log",
-            "plan",
-            "plan_report",
-            "alert_rule",
-            "alert_event",
-            "alert_window",
-            "refresh_token"
-        };
-
-        for (String table : tables) {
+        for (String table : MAIN_TABLES) {
             try {
-                Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table, Long.class);
+                Long count = countRowsFromTrustedTable(table);
                 counts.put(table, count != null ? count : 0L);
             } catch (Exception e) {
                 counts.put(table, 0L);
@@ -74,6 +74,13 @@ public class DatabaseDataChecker {
         }
 
         return counts;
+    }
+
+    private Long countRowsFromTrustedTable(String tableName) {
+        if (!MAIN_TABLES.contains(tableName)) {
+            throw new IllegalArgumentException("Unsupported table name: " + tableName);
+        }
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM public." + tableName, Long.class);
     }
 
     /**
@@ -111,7 +118,7 @@ public class DatabaseDataChecker {
                 SELECT COUNT(*) FROM indicator WHERE owner_org_id IS NULL
                 """, Long.class);
 
-            if (count > 0) {
+            if (count != null && count > 0) {
                 issues.add(Map.of(
                     "type", "INDICATORS_WITHOUT_OWNER",
                     "description", "Indicators without owner organization",
@@ -128,7 +135,7 @@ public class DatabaseDataChecker {
                 SELECT COUNT(*) FROM indicator WHERE target_org_id IS NULL
                 """, Long.class);
 
-            if (count > 0) {
+            if (count != null && count > 0) {
                 issues.add(Map.of(
                     "type", "INDICATORS_WITHOUT_TARGET",
                     "description", "Indicators without target organization",

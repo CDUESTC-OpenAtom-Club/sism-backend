@@ -2,6 +2,7 @@ package com.sism.analytics.interfaces.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -23,5 +24,6 @@ public class UpdateDashboardRequest {
     private Boolean isPublic;
 
     @Schema(description = "仪表板配置(JSON格式)")
+    @Size(max = 10000, message = "仪表盘配置不能超过10000个字符")
     private String config;
 }

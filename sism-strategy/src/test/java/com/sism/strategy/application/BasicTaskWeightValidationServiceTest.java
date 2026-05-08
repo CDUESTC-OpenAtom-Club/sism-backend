@@ -2,8 +2,10 @@ package com.sism.strategy.application;
 
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
+import com.sism.strategy.domain.plan.Plan;
+import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.repository.PlanRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +20,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,9 +52,11 @@ class BasicTaskWeightValidationServiceTest {
 
         when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Long.class), org.mockito.ArgumentMatchers.eq(7L)))
                 .thenReturn(List.of(1001L));
-        when(indicatorRepository.findAll()).thenReturn(List.of(indicatorA, indicatorB));
+        when(indicatorRepository.findByTaskIds(List.of(1001L))).thenReturn(List.of(indicatorA, indicatorB));
 
         assertDoesNotThrow(() -> service.validatePlanBasicWeight(7L, 49L));
+        verify(indicatorRepository).findByTaskIds(List.of(1001L));
+        verify(indicatorRepository, never()).findAll();
     }
 
     @Test
@@ -61,7 +67,7 @@ class BasicTaskWeightValidationServiceTest {
 
         when(jdbcTemplate.queryForList(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(Long.class), org.mockito.ArgumentMatchers.eq(7L)))
                 .thenReturn(List.of(1001L));
-        when(indicatorRepository.findAll()).thenReturn(List.of(indicatorA, indicatorB));
+        when(indicatorRepository.findByTaskIds(List.of(1001L))).thenReturn(List.of(indicatorA, indicatorB));
 
         IllegalStateException error = assertThrows(
                 IllegalStateException.class,
@@ -69,6 +75,37 @@ class BasicTaskWeightValidationServiceTest {
         );
 
         org.junit.jupiter.api.Assertions.assertTrue(error.getMessage().contains("基础性任务指标权重合计必须为100"));
+        verify(indicatorRepository).findByTaskIds(List.of(1001L));
+        verify(indicatorRepository, never()).findAll();
+    }
+
+    @Test
+    @DisplayName("Should ignore development child indicators when validating func-to-college plan")
+    void shouldIgnoreDevelopmentChildIndicatorsWhenValidatingFuncToCollegePlan() {
+        Plan plan = Plan.create(4L, 55L, 36L, PlanLevel.FUNC_TO_COLLEGE);
+        plan.setId(403655L);
+
+        Indicator basicChildA = buildChildIndicator(2042L, 41001L, 36L, 55L, BigDecimal.valueOf(50));
+        Indicator basicChildB = buildChildIndicator(2043L, 41001L, 36L, 55L, BigDecimal.valueOf(50));
+        Indicator developmentChild = buildChildIndicator(2041L, 41023L, 36L, 55L, BigDecimal.valueOf(40));
+
+        when(jdbcTemplate.queryForList(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.eq(Long.class),
+                org.mockito.ArgumentMatchers.eq(403655L)))
+                .thenReturn(List.of());
+        when(planRepository.findById(403655L)).thenReturn(java.util.Optional.of(plan));
+        when(jdbcTemplate.queryForList(
+                org.mockito.ArgumentMatchers.contains("t.org_id = ?"),
+                org.mockito.ArgumentMatchers.eq(Long.class),
+                org.mockito.ArgumentMatchers.eq(36L),
+                org.mockito.ArgumentMatchers.eq(4L)))
+                .thenReturn(List.of(41001L));
+        when(indicatorRepository.findByTaskIds(List.of(41001L)))
+                .thenReturn(List.of(basicChildA, basicChildB));
+
+        assertDoesNotThrow(() -> service.validatePlanBasicWeight(403655L, 55L));
+        verify(indicatorRepository).findByTaskIds(List.of(41001L));
     }
 
     private Indicator buildIndicator(Long id, Long taskId, Long targetOrgId, BigDecimal weight) {
@@ -80,6 +117,28 @@ class BasicTaskWeightValidationServiceTest {
         indicator.setId(id);
         indicator.setTaskId(taskId);
         indicator.setParent(null);
+        indicator.setWeightPercent(weight);
+        indicator.setIsDeleted(false);
+        return indicator;
+    }
+
+    private Indicator buildChildIndicator(Long id,
+                                          Long taskId,
+                                          Long ownerOrgId,
+                                          Long targetOrgId,
+                                          BigDecimal weight) {
+        SysOrg ownerOrg = SysOrg.create("职能部门", OrgType.functional);
+        ownerOrg.setId(ownerOrgId);
+        SysOrg targetOrg = SysOrg.create("学院", OrgType.academic);
+        targetOrg.setId(targetOrgId);
+
+        Indicator parent = Indicator.create("父指标", ownerOrg, ownerOrg, "定量");
+        parent.setId(9000L + id);
+
+        Indicator indicator = Indicator.create("子指标", ownerOrg, targetOrg, "定量");
+        indicator.setId(id);
+        indicator.setTaskId(taskId);
+        indicator.setParent(parent);
         indicator.setWeightPercent(weight);
         indicator.setIsDeleted(false);
         return indicator;

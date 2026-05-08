@@ -24,11 +24,32 @@ ORDER BY task_type;
 
 -- 步骤2: 查看修复前的 type 分布
 SELECT '修复前 type 分布:' AS status;
-SELECT type, COUNT(*) AS cnt
-FROM sys_task
-WHERE COALESCE(is_deleted, false) = false
-GROUP BY type
-ORDER BY type;
+DO $$
+DECLARE
+    row_data RECORD;
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'sys_task'
+          AND column_name = 'type'
+    ) THEN
+        FOR row_data IN EXECUTE $sql$
+            SELECT type, COUNT(*) AS cnt
+            FROM sys_task
+            WHERE COALESCE(is_deleted, false) = false
+            GROUP BY type
+            ORDER BY type
+        $sql$
+        LOOP
+            RAISE NOTICE 'type=%, cnt=%', row_data.type, row_data.cnt;
+        END LOOP;
+    ELSE
+        RAISE NOTICE 'sys_task.type 字段不存在，跳过 type 分布检查';
+    END IF;
+END
+$$;
 
 -- 步骤3: 统计 NULL task_type 的数量
 SELECT 'NULL task_type 数量:' AS status, COUNT(*) AS cnt
@@ -44,17 +65,35 @@ BEGIN
 END $$;
 
 -- 步骤5: 用 type 字段的值填充 NULL 的 task_type
-WITH updated AS (
-  UPDATE sys_task
-  SET task_type = type::text,
-      updated_at = NOW()
-  WHERE task_type IS NULL
-    AND type IS NOT NULL
-    AND COALESCE(is_deleted, false) = false
-  RETURNING task_id
-)
-SELECT '步骤5: 从 type 填充 task_type' AS status, COUNT(*) AS affected_rows
-FROM updated;
+DO $$
+DECLARE
+    affected_rows BIGINT := 0;
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'sys_task'
+          AND column_name = 'type'
+    ) THEN
+        EXECUTE $sql$
+            WITH updated AS (
+                UPDATE sys_task
+                SET task_type = type::text,
+                    updated_at = NOW()
+                WHERE task_type IS NULL
+                  AND type IS NOT NULL
+                  AND COALESCE(is_deleted, false) = false
+                RETURNING task_id
+            )
+            SELECT COUNT(*) FROM updated
+        $sql$
+        INTO affected_rows;
+    END IF;
+
+    RAISE NOTICE '步骤5: 从 type 填充 task_type，受影响行数=%', affected_rows;
+END
+$$;
 
 -- 步骤6: 剩余的 NULL task_type 设置为 'BASIC'
 WITH updated AS (
@@ -72,15 +111,16 @@ FROM updated;
 -- 注意: 先将字段设置为允许 NULL，然后删除
 DO $$
 BEGIN
-    -- 首先将 type 字段改为 nullable
-    ALTER TABLE sys_task ALTER COLUMN type DROP NOT NULL;
-    RAISE NOTICE '已将 sys_task.type 设为 nullable';
-
-    -- 删除冗余的 type 字段
     IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'sys_task' AND column_name = 'type'
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'sys_task'
+          AND column_name = 'type'
     ) THEN
+        ALTER TABLE sys_task ALTER COLUMN type DROP NOT NULL;
+        RAISE NOTICE '已将 sys_task.type 设为 nullable';
+
         ALTER TABLE sys_task DROP COLUMN IF EXISTS type;
         RAISE NOTICE '已删除 sys_task.type 字段';
     ELSE

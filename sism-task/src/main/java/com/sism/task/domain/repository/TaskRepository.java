@@ -1,7 +1,8 @@
 package com.sism.task.domain.repository;
 
-import com.sism.task.domain.StrategicTask;
-import com.sism.task.domain.TaskType;
+import com.sism.task.domain.task.StrategicTask;
+import com.sism.task.domain.task.TaskType;
+import com.sism.task.infrastructure.persistence.TaskFlatView;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -27,6 +28,34 @@ public interface TaskRepository {
      * @return 任务Optional对象，不存在时返回Optional.empty()
      */
     Optional<StrategicTask> findById(Long id);
+
+    Optional<TaskFlatView> findFlatViewById(Long id);
+
+    List<TaskFlatView> findAllFlatViews();
+
+    List<TaskFlatView> findFlatViewsByCriteria(
+            Long planId,
+            Long cycleId,
+            Long orgId,
+            Long createdByOrgId,
+            String taskType,
+            String name);
+
+    List<TaskFlatView> findFlatViewsByCycleId(Long cycleId);
+
+    List<TaskFlatView> findFlatViewsByAccessibleOrgId(Long accessibleOrgId);
+
+    Page<TaskFlatView> findPagedFlatViewsByCriteria(
+            Long planId,
+            Long cycleId,
+            Long orgId,
+            Long createdByOrgId,
+            String taskType,
+            String name,
+            String planStatus,
+            String taskStatus,
+            Long accessibleOrgId,
+            Pageable pageable);
 
     /**
      * 查找所有任务

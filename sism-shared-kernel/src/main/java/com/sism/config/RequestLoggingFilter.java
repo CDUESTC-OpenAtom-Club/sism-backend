@@ -11,7 +11,6 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -55,29 +54,23 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
                                     HttpServletResponse response, 
                                     FilterChain filterChain) throws ServletException, IOException {
         long startTime = System.currentTimeMillis();
-        
-        // Wrap response to capture status
-        ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
-        
+
         try {
             // Set up MDC context
             setupMDC(request, response);
-            
+
             // Process request
-            filterChain.doFilter(request, responseWrapper);
-            
+            filterChain.doFilter(request, response);
+
         } finally {
             // Calculate response time
             long responseTime = System.currentTimeMillis() - startTime;
             MDC.put(RESPONSE_TIME_KEY, String.valueOf(responseTime));
-            MDC.put(RESPONSE_STATUS_KEY, String.valueOf(responseWrapper.getStatus()));
-            
+            MDC.put(RESPONSE_STATUS_KEY, String.valueOf(response.getStatus()));
+
             // Log access entry
-            logAccessEntry(request, responseWrapper, responseTime);
-            
-            // Copy response body to actual response
-            responseWrapper.copyBodyToResponse();
-            
+            logAccessEntry(request, response, responseTime);
+
             // Clean up MDC
             clearMDC();
         }
@@ -156,7 +149,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
      * Log access entry for request/response.
      */
     private void logAccessEntry(HttpServletRequest request, 
-                                ContentCachingResponseWrapper response, 
+                                HttpServletResponse response,
                                 long responseTime) {
         int status = response.getStatus();
         String method = request.getMethod();

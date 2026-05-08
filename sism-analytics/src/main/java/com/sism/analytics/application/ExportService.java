@@ -9,15 +9,15 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -29,31 +29,26 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class ExportService {
+    private static final long MAX_DOWNLOAD_SIZE_BYTES = 50L * 1024 * 1024;
 
     private final DataExportApplicationService dataExportApplicationService;
     private final DataExportRepository dataExportRepository;
-
-    private static final String EXPORT_BASE_PATH = "exports/";
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private final AnalyticsFileStorageService analyticsFileStorageService;
 
     /**
      * 导出数据为Excel格式
      */
-    @Transactional
     public DataExport exportToExcel(String exportName, String exportType, Long requestedBy,
                                      List<Map<String, Object>> data, List<String> headers) {
+        validateExportInput(exportName, exportType, requestedBy, data, headers);
         DataExport export = dataExportApplicationService.createDataExport(
                 exportName, exportType, ExportFormat.EXCEL.getCode(), requestedBy, null
         );
 
         try {
-            dataExportApplicationService.startProcessing(export.getId());
+            dataExportApplicationService.startProcessing(export.getId(), requestedBy);
 
-            String fileName = generateFileName(exportName, ExportFormat.EXCEL);
-            String filePath = EXPORT_BASE_PATH + fileName;
-
-            // 确保目录存在
-            Files.createDirectories(Paths.get(EXPORT_BASE_PATH));
+            Path filePath = analyticsFileStorageService.prepareManagedExportFile(export);
 
             // 创建Excel文件
             try (Workbook workbook = new XSSFWorkbook()) {
@@ -86,45 +81,41 @@ public class ExportService {
                 }
 
                 // 保存文件
-                try (FileOutputStream fileOut = new FileOutputStream(filePath)) {
+                try (FileOutputStream fileOut = new FileOutputStream(filePath.toFile())) {
                     workbook.write(fileOut);
                 }
             }
 
-            long fileSize = Files.size(Paths.get(filePath));
-            return dataExportApplicationService.completeDataExport(export.getId(), filePath, fileSize);
+            long fileSize = Files.size(filePath);
+            return dataExportApplicationService.completeDataExport(export.getId(), requestedBy, filePath.toString(), fileSize);
 
         } catch (Exception e) {
             log.error("Failed to export to Excel: {}", e.getMessage(), e);
-            return dataExportApplicationService.failDataExport(export.getId(), e.getMessage());
+            return dataExportApplicationService.failDataExport(export.getId(), requestedBy, e.getMessage());
         }
     }
 
     /**
      * 导出数据为CSV格式
      */
-    @Transactional
     public DataExport exportToCSV(String exportName, String exportType, Long requestedBy,
                                    List<Map<String, Object>> data, List<String> headers) {
+        validateExportInput(exportName, exportType, requestedBy, data, headers);
         DataExport export = dataExportApplicationService.createDataExport(
                 exportName, exportType, ExportFormat.CSV.getCode(), requestedBy, null
         );
 
         try {
-            dataExportApplicationService.startProcessing(export.getId());
+            dataExportApplicationService.startProcessing(export.getId(), requestedBy);
 
-            String fileName = generateFileName(exportName, ExportFormat.CSV);
-            String filePath = EXPORT_BASE_PATH + fileName;
-
-            // 确保目录存在
-            Files.createDirectories(Paths.get(EXPORT_BASE_PATH));
+            Path filePath = analyticsFileStorageService.prepareManagedExportFile(export);
 
             // 创建CSV文件
             CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
                     .setHeader(headers.toArray(new String[0]))
                     .build();
 
-            try (BufferedWriter writer = Files.newBufferedWriter(Paths.get(filePath));
+            try (BufferedWriter writer = Files.newBufferedWriter(filePath);
                  CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat)) {
 
                 for (Map<String, Object> rowData : data) {
@@ -138,36 +129,53 @@ public class ExportService {
                 }
             }
 
-            long fileSize = Files.size(Paths.get(filePath));
-            return dataExportApplicationService.completeDataExport(export.getId(), filePath, fileSize);
+            long fileSize = Files.size(filePath);
+            return dataExportApplicationService.completeDataExport(export.getId(), requestedBy, filePath.toString(), fileSize);
 
         } catch (Exception e) {
             log.error("Failed to export to CSV: {}", e.getMessage(), e);
-            return dataExportApplicationService.failDataExport(export.getId(), e.getMessage());
+            return dataExportApplicationService.failDataExport(export.getId(), requestedBy, e.getMessage());
         }
     }
 
-    /**
-     * 生成文件名
-     */
-    private String generateFileName(String exportName, ExportFormat format) {
-        String safeName = exportName.replaceAll("[^a-zA-Z0-9\u4e00-\u9fa5]", "_");
-        String timestamp = LocalDateTime.now().format(DATE_FORMATTER);
-        return safeName + "_" + timestamp + format.getFileExtension();
+    private void validateExportInput(String exportName, String exportType, Long requestedBy,
+                                     List<Map<String, Object>> data, List<String> headers) {
+        if (exportName == null || exportName.isBlank()) {
+            throw new IllegalArgumentException("Export name cannot be null or blank");
+        }
+        if (exportType == null || exportType.isBlank()) {
+            throw new IllegalArgumentException("Export type cannot be null or blank");
+        }
+        if (requestedBy == null || requestedBy <= 0) {
+            throw new IllegalArgumentException("Requested by must be a positive number");
+        }
+        if (data == null) {
+            throw new IllegalArgumentException("Export data cannot be null");
+        }
+        if (headers == null || headers.isEmpty()) {
+            throw new IllegalArgumentException("Export headers cannot be null or empty");
+        }
+        if (headers.stream().anyMatch(header -> header == null || header.isBlank())) {
+            throw new IllegalArgumentException("Export headers cannot contain blank values");
+        }
     }
 
     /**
      * 获取导出文件路径
      */
-    public Path getExportFilePath(Long exportId) {
+    public Path getExportFilePath(Long exportId, Long currentUserId) {
         DataExport export = dataExportApplicationService.findDataExportById(exportId)
                 .orElseThrow(() -> new IllegalArgumentException("Export not found: " + exportId));
+
+        if (!currentUserId.equals(export.getRequestedBy())) {
+            throw new AccessDeniedException("No permission to download export: " + exportId);
+        }
 
         if (!export.isDownloadable()) {
             throw new IllegalStateException("Export is not downloadable");
         }
 
-        return Paths.get(export.getFilePath());
+        return resolveExportPath(export.getFilePath());
     }
 
     /**
@@ -179,9 +187,9 @@ public class ExportService {
 
         if (export.getFilePath() != null) {
             try {
-                Path path = Paths.get(export.getFilePath());
+                Path path = resolveExportPath(export.getFilePath());
                 Files.deleteIfExists(path);
-            } catch (IOException e) {
+            } catch (IOException | IllegalArgumentException e) {
                 log.warn("Failed to delete export file: {}", e.getMessage());
             }
         }
@@ -200,21 +208,46 @@ public class ExportService {
                 cutoffDate
         );
 
-        int cleaned = 0;
+        List<DataExport> exportsToSoftDelete = new ArrayList<>();
         for (DataExport export : expiredExports) {
             if (export.getFilePath() != null) {
                 try {
-                    Path path = Paths.get(export.getFilePath());
+                    Path path = resolveExportPath(export.getFilePath());
                     Files.deleteIfExists(path);
-                } catch (IOException e) {
+                } catch (IOException | IllegalArgumentException e) {
                     log.warn("Failed to delete expired export file: {}", e.getMessage());
                 }
             }
-            dataExportApplicationService.deleteDataExport(export.getId());
-            cleaned++;
+            export.delete();
+            exportsToSoftDelete.add(export);
         }
+
+        if (!exportsToSoftDelete.isEmpty()) {
+            dataExportRepository.saveAll(exportsToSoftDelete);
+        }
+
+        int cleaned = exportsToSoftDelete.size();
 
         log.info("Cleaned up {} expired exports", cleaned);
         return cleaned;
+    }
+
+    private Path resolveExportPath(String rawPath) {
+        if (rawPath == null || rawPath.isBlank()) {
+            throw new IllegalStateException("Export file path is empty");
+        }
+
+        Path resolved = analyticsFileStorageService.resolveManagedPath(rawPath);
+        if (!Files.exists(resolved) || !Files.isRegularFile(resolved)) {
+            throw new IllegalArgumentException("Export file not found: " + resolved.getFileName());
+        }
+        try {
+            if (Files.size(resolved) > MAX_DOWNLOAD_SIZE_BYTES) {
+                throw new IllegalStateException("Export file is too large to download directly");
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to inspect export file size", e);
+        }
+        return resolved;
     }
 }

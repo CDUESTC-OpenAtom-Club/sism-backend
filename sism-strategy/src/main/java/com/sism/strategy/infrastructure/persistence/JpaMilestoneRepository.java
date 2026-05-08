@@ -1,6 +1,6 @@
 package com.sism.strategy.infrastructure.persistence;
 
-import com.sism.strategy.domain.model.milestone.Milestone;
+import com.sism.strategy.domain.milestone.Milestone;
 import com.sism.strategy.domain.repository.MilestoneRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

@@ -1,6 +1,6 @@
 package com.sism.execution.interfaces.dto;
 
-import com.sism.execution.domain.model.report.ReportOrgType;
+import com.sism.execution.domain.report.ReportOrgType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

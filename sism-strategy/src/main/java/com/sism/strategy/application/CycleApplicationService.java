@@ -1,6 +1,6 @@
 package com.sism.strategy.application;
 
-import com.sism.strategy.domain.Cycle;
+import com.sism.strategy.domain.cycle.Cycle;
 import com.sism.strategy.domain.repository.CycleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -19,51 +18,47 @@ public class CycleApplicationService {
     private final CycleRepository cycleRepository;
 
     public Page<Cycle> getAllCycles(Pageable pageable) {
-        Page<Cycle> page = cycleRepository.findAll(pageable);
-        page.forEach(this::normalizeCycle);
-        return page;
+        return cycleRepository.findAll(pageable);
     }
 
     public List<Cycle> getAllCyclesList() {
-        return cycleRepository.findAll().stream()
-                .peek(this::normalizeCycle)
-                .toList();
+        return cycleRepository.findAll();
     }
 
     public Cycle getCycleById(Long id) {
-        Cycle cycle = cycleRepository.findById(id).orElse(null);
-        if (cycle != null) {
-            normalizeCycle(cycle);
-        }
+        Cycle cycle = cycleRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         return cycle;
     }
 
     public List<Cycle> getCyclesByStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return cycleRepository.findAll();
+        }
+        String expectedStatus = status.trim().toUpperCase();
         return cycleRepository.findAll().stream()
-                .peek(this::normalizeCycle)
-                .filter(cycle -> matchesStatus(cycle, status))
+                .filter(cycle -> expectedStatus.equals(cycle.deriveStatus()))
                 .toList();
     }
 
     public List<Cycle> getCyclesByYear(Integer year) {
-        return cycleRepository.findByYear(year).stream()
-                .peek(this::normalizeCycle)
-                .toList();
+        return cycleRepository.findByYear(year);
     }
 
     public List<Cycle> getCyclesByStatusAndYear(String status, Integer year) {
+        if (status == null || status.isBlank()) {
+            return cycleRepository.findByYear(year);
+        }
+        String expectedStatus = status.trim().toUpperCase();
         return cycleRepository.findByYear(year).stream()
-                .peek(this::normalizeCycle)
-                .filter(cycle -> matchesStatus(cycle, status))
+                .filter(cycle -> expectedStatus.equals(cycle.deriveStatus()))
                 .toList();
     }
 
     @Transactional
     public Cycle createCycle(String name, Integer year, LocalDate startDate, LocalDate endDate) {
         Cycle cycle = Cycle.create(name, year, startDate, endDate);
-        Cycle savedCycle = cycleRepository.save(cycle);
-        normalizeCycle(savedCycle);
-        return savedCycle;
+        return cycleRepository.save(cycle);
     }
 
     @Transactional
@@ -72,7 +67,6 @@ public class CycleApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         cycle.activate();
         Cycle savedCycle = cycleRepository.save(cycle);
-        normalizeCycle(savedCycle);
         return savedCycle;
     }
 
@@ -82,7 +76,6 @@ public class CycleApplicationService {
                 .orElseThrow(() -> new IllegalArgumentException("Cycle not found: " + id));
         cycle.deactivate();
         Cycle savedCycle = cycleRepository.save(cycle);
-        normalizeCycle(savedCycle);
         return savedCycle;
     }
 
@@ -99,20 +92,5 @@ public class CycleApplicationService {
      */
     public List<Integer> getAvailableYears() {
         return cycleRepository.findDistinctYears();
-    }
-
-    private void normalizeCycle(Cycle cycle) {
-        cycle.setStatus(cycle.deriveStatus());
-        if (cycle.getIsDeleted() == null) {
-            cycle.setIsDeleted(false);
-        }
-    }
-
-    private boolean matchesStatus(Cycle cycle, String expectedStatus) {
-        if (expectedStatus == null || expectedStatus.isBlank()) {
-            return true;
-        }
-        return cycle.getStatus() != null
-                && cycle.getStatus().equalsIgnoreCase(expectedStatus.trim().toUpperCase(Locale.ROOT));
     }
 }

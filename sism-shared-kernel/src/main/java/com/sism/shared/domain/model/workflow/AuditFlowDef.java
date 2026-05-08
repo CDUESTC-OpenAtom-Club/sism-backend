@@ -3,7 +3,6 @@ package com.sism.shared.domain.model.workflow;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -14,7 +13,6 @@ import java.util.List;
  * Defines approval flow templates for different entity types
  */
 @Getter
-@Setter
 @Entity
 @Table(name = "audit_flow_def")
 @Access(AccessType.FIELD)
@@ -36,7 +34,7 @@ public class AuditFlowDef extends AggregateRoot<Long> {
     @Column(name = "entity_type", nullable = false)
     private String entityType;  // INDICATOR, PLAN_REPORT, etc.
 
-    @Column(name = "is_active", nullable = false)
+    @Column(name = "is_enabled", nullable = false)
     private Boolean isActive = true;
 
     @Column(name = "version")
@@ -47,14 +45,47 @@ public class AuditFlowDef extends AggregateRoot<Long> {
     private List<AuditStepDef> steps = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime persistedCreatedAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private LocalDateTime persistedUpdatedAt;
 
     @Override
     public boolean canPublish() {
         return isActive != null && isActive;
+    }
+
+    @Override
+    public Long getId() {
+        return id;
+    }
+
+    @Override
+    public void setId(Long id) {
+        assertIdUnchanged(this.id, id);
+        this.id = id;
+    }
+
+    @Override
+    public LocalDateTime getCreatedAt() {
+        return persistedCreatedAt;
+    }
+
+    @Override
+    public void setCreatedAt(LocalDateTime createdAt) {
+        super.setCreatedAt(createdAt);
+        this.persistedCreatedAt = createdAt;
+    }
+
+    @Override
+    public LocalDateTime getUpdatedAt() {
+        return persistedUpdatedAt;
+    }
+
+    @Override
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        super.setUpdatedAt(updatedAt);
+        this.persistedUpdatedAt = updatedAt;
     }
 
     @Override
@@ -84,14 +115,45 @@ public class AuditFlowDef extends AggregateRoot<Long> {
         return steps.size();
     }
 
+    public void setFlowCode(String flowCode) {
+        this.flowCode = flowCode;
+    }
+
+    public void setFlowName(String flowName) {
+        this.flowName = flowName;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setEntityType(String entityType) {
+        this.entityType = entityType;
+    }
+
+    public void setIsActive(Boolean active) {
+        isActive = active;
+    }
+
+    public void setVersion(Integer version) {
+        this.version = version;
+    }
+
+    public void setSteps(List<AuditStepDef> steps) {
+        this.steps.clear();
+        if (steps != null) {
+            steps.forEach(this::addStep);
+        }
+    }
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        setCreatedAt(LocalDateTime.now());
+        setUpdatedAt(LocalDateTime.now());
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        setUpdatedAt(LocalDateTime.now());
     }
 }

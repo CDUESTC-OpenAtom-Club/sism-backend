@@ -3,10 +3,11 @@ package com.sism.workflow.application;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
 import com.sism.workflow.application.runtime.*;
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
-import com.sism.workflow.domain.runtime.repository.AuditInstanceRepository;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.WorkflowTask;
+import com.sism.workflow.domain.runtime.AuditInstanceRepository;
+import com.sism.workflow.domain.runtime.WorkflowTaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,7 @@ public class WorkflowApplicationService {
     private final CancelWorkflowUseCase cancelWorkflowUseCase;
     private final WorkflowTaskCommandService workflowTaskCommandService;
     private final AuditInstanceRepository auditInstanceRepository;
+    private final WorkflowTaskRepository workflowTaskRepository;
     private final WorkflowEventDispatcher workflowEventDispatcher;
 
     public List<AuditFlowDef> getAllAuditFlowDefs() {
@@ -119,6 +121,10 @@ public class WorkflowApplicationService {
 
     public WorkflowTask startWorkflowTask(WorkflowTask task, Long operatorId, Long operatorOrgId) {
         return workflowTaskCommandService.start(task, operatorId, operatorOrgId);
+    }
+
+    public WorkflowTask getWorkflowTaskById(Long taskId) {
+        return workflowTaskRepository.findById(taskId).orElse(null);
     }
 
     public WorkflowTask completeWorkflowTask(WorkflowTask task, String result) {

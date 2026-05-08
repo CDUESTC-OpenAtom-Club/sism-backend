@@ -1,10 +1,10 @@
 package com.sism.workflow.infrastructure.persistence;
 
 import com.sism.workflow.domain.AuditStatus;
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditFlowDef;
 import com.sism.workflow.domain.repository.WorkflowRepository;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.WorkflowTask;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

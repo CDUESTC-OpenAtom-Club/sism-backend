@@ -1,6 +1,5 @@
 package com.sism.organization.domain;
 
-import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.event.OrgCreatedEvent;
 import com.sism.organization.domain.event.OrgActivatedEvent;
 import com.sism.organization.domain.event.OrgDeactivatedEvent;
@@ -76,8 +75,11 @@ public class SysOrg extends AggregateRoot<Long> {
             throw new IllegalArgumentException("Organization type cannot be null");
         }
 
+        String normalizedName = name.trim();
+        validateNameLength(normalizedName);
+
         SysOrg org = new SysOrg();
-        org.name = name.trim();
+        org.name = normalizedName;
         org.type = type;
         org.isActive = true;
         org.sortOrder = 0;
@@ -85,7 +87,6 @@ public class SysOrg extends AggregateRoot<Long> {
         org.createdAt = LocalDateTime.now();
         org.updatedAt = LocalDateTime.now();
         org.isDeleted = false;
-        org.addEvent(new OrgCreatedEvent(org.id, name, type.name()));
         return org;
     }
 
@@ -97,7 +98,9 @@ public class SysOrg extends AggregateRoot<Long> {
         }
         this.isActive = true;
         this.updatedAt = LocalDateTime.now();
-        this.addEvent(new OrgActivatedEvent(this.id, this.name));
+        if (this.id != null) {
+            this.addEvent(new OrgActivatedEvent(this.id, this.name));
+        }
     }
 
     public void deactivate() {
@@ -106,14 +109,25 @@ public class SysOrg extends AggregateRoot<Long> {
         }
         this.isActive = false;
         this.updatedAt = LocalDateTime.now();
-        this.addEvent(new OrgDeactivatedEvent(this.id, this.name));
+        if (this.id != null) {
+            this.addEvent(new OrgDeactivatedEvent(this.id, this.name));
+        }
+    }
+
+    public void registerCreatedEvent() {
+        if (this.id == null) {
+            throw new IllegalStateException("Organization must be persisted before publishing created event");
+        }
+        this.addEvent(new OrgCreatedEvent(this.id, this.name, this.type.name()));
     }
 
     public void rename(String newName) {
         if (Objects.isNull(newName) || newName.trim().isEmpty()) {
             throw new IllegalArgumentException("Organization name cannot be empty");
         }
-        this.name = newName;
+        String normalizedName = newName.trim();
+        validateNameLength(normalizedName);
+        this.name = normalizedName;
         this.updatedAt = LocalDateTime.now();
     }
 
@@ -134,22 +148,7 @@ public class SysOrg extends AggregateRoot<Long> {
     }
 
     public void updateName(String name) {
-        if (Objects.isNull(name) || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Organization name cannot be empty");
-        }
-        this.name = name;
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public void updateDescription(String description) {
-        // Description is not currently stored in the entity - this method is for future use
-        // This is a placeholder to support the test method
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    public String getDescription() {
-        // Description is not currently stored in the entity - this method is for future use
-        return null;
+        rename(name);
     }
 
     public void updateParent(SysOrg parentOrg) {
@@ -163,11 +162,6 @@ public class SysOrg extends AggregateRoot<Long> {
             this.level = 1;
         }
         this.updatedAt = LocalDateTime.now();
-    }
-
-    public SysOrg getParentOrg() {
-        // Parent org is stored as ID only - this method is for future use
-        return null;
     }
 
     public void delete() {
@@ -190,7 +184,7 @@ public class SysOrg extends AggregateRoot<Long> {
     }
 
     public void setOrgName(String orgName) {
-        this.name = orgName;
+        rename(orgName);
     }
 
     public boolean isTopLevel() {
@@ -210,11 +204,18 @@ public class SysOrg extends AggregateRoot<Long> {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Organization name is required");
         }
+        validateNameLength(name.trim());
         if (type == null) {
             throw new IllegalArgumentException("Organization type is required");
         }
         if (level == null || level < 1) {
             throw new IllegalArgumentException("Organization level must be at least 1");
+        }
+    }
+
+    private static void validateNameLength(String name) {
+        if (name != null && name.length() > 100) {
+            throw new IllegalArgumentException("Organization name cannot exceed 100 characters");
         }
     }
 

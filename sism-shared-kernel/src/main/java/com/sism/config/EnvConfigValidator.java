@@ -108,7 +108,10 @@ public class EnvConfigValidator implements ApplicationRunner {
      */
     private String getPropertyValueForEnvVar(String envVarName) {
         return switch (envVarName) {
-            case "JWT_SECRET" -> environment.getProperty("jwt.secret");
+            case "JWT_SECRET" -> {
+                String appJwtSecret = environment.getProperty("app.jwt.secret");
+                yield appJwtSecret != null ? appJwtSecret : environment.getProperty("jwt.secret");
+            }
             case "DB_URL" -> environment.getProperty("spring.datasource.url");
             case "DB_USERNAME" -> environment.getProperty("spring.datasource.username");
             case "DB_PASSWORD" -> environment.getProperty("spring.datasource.password");

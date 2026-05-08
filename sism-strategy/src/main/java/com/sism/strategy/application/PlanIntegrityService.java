@@ -2,16 +2,20 @@ package com.sism.strategy.application;
 
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
-import com.sism.organization.domain.repository.OrganizationRepository;
-import com.sism.strategy.domain.Cycle;
+import com.sism.organization.domain.OrganizationRepository;
+import com.sism.strategy.domain.cycle.Cycle;
 import com.sism.strategy.domain.plan.Plan;
 import com.sism.strategy.domain.plan.PlanLevel;
 import com.sism.strategy.domain.repository.CycleRepository;
 import com.sism.strategy.domain.repository.PlanRepository;
+import com.sism.strategy.infrastructure.StrategyOrgProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.util.List;
@@ -22,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class PlanIntegrityService {
 
-    private static final long SYSTEM_ADMIN_ORG_ID = 35L;
     private static final long ENSURE_INTERVAL_MILLIS = Duration.ofMinutes(10).toMillis();
     private static final Object STRAT_TO_FUNC_LOCK = new Object();
     private static final Object FUNC_TO_COLLEGE_LOCK = new Object();
@@ -30,6 +33,7 @@ public class PlanIntegrityService {
     private final PlanRepository planRepository;
     private final CycleRepository cycleRepository;
     private final OrganizationRepository organizationRepository;
+    private final StrategyOrgProperties strategyOrgProperties;
     private final AtomicBoolean ensureInProgress = new AtomicBoolean(false);
     private volatile long lastEnsuredAtMillis = -1L;
 
@@ -69,7 +73,7 @@ public class PlanIntegrityService {
                 ensureFunctionalToCollegePlans(cycle, functionalOrgs, academicOrgs);
             }
 
-            lastEnsuredAtMillis = System.currentTimeMillis();
+            markEnsureCompletedAfterCommit();
             log.info(
                     "[PlanIntegrityService] Ensured plan matrix for cycles={}, functionalOrgs={}, academicOrgs={}",
                     cycles.size(),
@@ -86,13 +90,26 @@ public class PlanIntegrityService {
                 && nowMillis - lastEnsuredAtMillis < ENSURE_INTERVAL_MILLIS;
     }
 
+    private void markEnsureCompletedAfterCommit() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            lastEnsuredAtMillis = System.currentTimeMillis();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                lastEnsuredAtMillis = System.currentTimeMillis();
+            }
+        });
+    }
+
     private void ensureStrategyToFunctionalPlans(Cycle cycle, List<SysOrg> functionalOrgs) {
         synchronized (STRAT_TO_FUNC_LOCK) {
             for (SysOrg functionalOrg : functionalOrgs) {
                 ensurePlanExists(
                         cycle.getId(),
                         PlanLevel.STRAT_TO_FUNC,
-                        SYSTEM_ADMIN_ORG_ID,
+                        strategyOrgProperties.getSystemAdminOrgId(),
                         functionalOrg.getId()
                 );
             }
@@ -138,13 +155,34 @@ public class PlanIntegrityService {
         }
 
         Plan createdPlan = Plan.create(cycleId, targetOrgId, createdByOrgId, planLevel);
-        planRepository.save(createdPlan);
-        log.info(
-                "[PlanIntegrityService] Auto-created missing plan: cycleId={}, planLevel={}, createdByOrgId={}, targetOrgId={}",
-                cycleId,
-                planLevel,
-                createdByOrgId,
-                targetOrgId
-        );
+        try {
+            planRepository.saveAndFlush(createdPlan);
+            log.info(
+                    "[PlanIntegrityService] Auto-created missing plan: cycleId={}, planLevel={}, createdByOrgId={}, targetOrgId={}",
+                    cycleId,
+                    planLevel,
+                    createdByOrgId,
+                    targetOrgId
+            );
+        } catch (DataIntegrityViolationException ex) {
+            List<Plan> concurrentPlans = planRepository.findActiveByCycleIdAndPlanLevelAndCreatedByOrgIdAndTargetOrgId(
+                    cycleId,
+                    planLevel,
+                    createdByOrgId,
+                    targetOrgId
+            );
+            if (!concurrentPlans.isEmpty()) {
+                log.info(
+                        "[PlanIntegrityService] Detected concurrent plan creation, reusing existing active plan: planId={}, cycleId={}, planLevel={}, createdByOrgId={}, targetOrgId={}",
+                        concurrentPlans.get(0).getId(),
+                        cycleId,
+                        planLevel,
+                        createdByOrgId,
+                        targetOrgId
+                );
+                return;
+            }
+            throw ex;
+        }
     }
 }

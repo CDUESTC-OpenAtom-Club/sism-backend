@@ -1,7 +1,7 @@
 package com.sism.iam.infrastructure.persistence;
 
-import com.sism.iam.domain.Permission;
-import com.sism.iam.domain.repository.PermissionRepository;
+import com.sism.iam.domain.access.Permission;
+import com.sism.iam.domain.access.PermissionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

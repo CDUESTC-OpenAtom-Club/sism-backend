@@ -1,6 +1,7 @@
 package com.sism.strategy.infrastructure.persistence;
 
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.organization.domain.OrgType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +17,10 @@ import org.springframework.data.domain.Pageable;
 public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator, Long> {
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
     Optional<Indicator> findByIdAndIsDeletedFalse(Long id);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    Optional<Indicator> findByIdAndOwnerOrgIdAndIsDeletedFalse(Long id, Long ownerOrgId);
+
     boolean existsByIdAndIsDeletedFalse(Long id);
 
     List<Indicator> findAllByIsDeletedFalse();
@@ -33,6 +38,14 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
 
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
     List<Indicator> findByTaskIdAndIsDeletedFalse(Long taskId);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    @Query("""
+            SELECT i FROM Indicator i
+            WHERE i.taskId IN :taskIds
+              AND i.isDeleted = false
+            """)
+    List<Indicator> findByTaskIds(@Param("taskIds") List<Long> taskIds);
 
     /**
      * 根据任务ID列表分页查询指标
@@ -88,4 +101,25 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
      */
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
     List<Indicator> findByOwnerOrgIdAndTargetOrgIdAndIsDeletedFalse(Long ownerOrgId, Long targetOrgId);
+
+    List<Indicator> findByIdInAndIsDeletedFalse(List<Long> ids);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    @Query("""
+            SELECT i FROM Indicator i
+            WHERE i.isDeleted = false
+              AND i.ownerOrg.type <> :functionalType
+            """)
+    List<Indicator> findFirstLevelIndicators(@Param("functionalType") OrgType functionalType);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    @Query("""
+            SELECT i FROM Indicator i
+            WHERE i.isDeleted = false
+              AND i.ownerOrg.type = :functionalType
+            """)
+    List<Indicator> findSecondLevelIndicators(@Param("functionalType") OrgType functionalType);
+
+    @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
+    List<Indicator> findByIndicatorDescContainingIgnoreCaseAndIsDeletedFalse(String keyword);
 }

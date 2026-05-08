@@ -1,0 +1,16 @@
+{
+  "reportId": "backend-security-injection-audit-2026-04-26",
+  "title": "sism-backend 注入防护与输入校验安全审计报告",
+  "module": "后端安全与注入防护",
+  "category": "audit-report",
+  "createdAt": "2026-04-26T08:00:00+08:00",
+  "source": "基于 sism-backend 多模块静态代码排查结论生成",
+  "tags": [
+    "后端",
+    "安全审计",
+    "注入防护",
+    "输入校验",
+    "SQL注入",
+    "错误信息泄露"
+  ]
+}

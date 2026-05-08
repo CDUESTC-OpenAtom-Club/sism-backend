@@ -1,8 +1,11 @@
 package com.sism.execution.infrastructure.persistence;
 
-import com.sism.execution.domain.model.milestone.Milestone;
-import com.sism.execution.domain.repository.ExecutionMilestoneRepository;
+import com.sism.execution.domain.milestone.ExecutionMilestoneRepository;
+import com.sism.execution.domain.milestone.Milestone;
+import com.sism.execution.domain.milestone.MilestoneStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -25,13 +28,23 @@ public class JpaExecutionMilestoneRepository implements ExecutionMilestoneReposi
     }
 
     @Override
+    public Page<Milestone> findAll(Pageable pageable) {
+        return jpaRepository.findAll(pageable);
+    }
+
+    @Override
     public List<Milestone> findByIndicatorId(Long indicatorId) {
         return jpaRepository.findByIndicatorId(indicatorId);
     }
 
     @Override
-    public List<Milestone> findByStatus(String status) {
-        return jpaRepository.findByStatus(status);
+    public List<Milestone> findByStatus(MilestoneStatus status) {
+        return jpaRepository.findByStatus(status == null ? null : status.name());
+    }
+
+    @Override
+    public Page<Milestone> findByStatus(MilestoneStatus status, Pageable pageable) {
+        return jpaRepository.findByStatus(status == null ? null : status.name(), pageable);
     }
 
     @Override

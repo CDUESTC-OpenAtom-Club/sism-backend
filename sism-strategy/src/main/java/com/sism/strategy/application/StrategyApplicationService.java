@@ -4,10 +4,10 @@ import com.sism.organization.domain.SysOrg;
 import com.sism.shared.domain.model.base.DomainEvent;
 import com.sism.shared.infrastructure.event.DomainEventPublisher;
 import com.sism.shared.infrastructure.event.EventStore;
-import com.sism.strategy.domain.enums.IndicatorStatus;
-import com.sism.strategy.domain.Indicator;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
+import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.repository.IndicatorRepository;
-import com.sism.task.domain.StrategicTask;
+import com.sism.task.domain.task.StrategicTask;
 import com.sism.task.domain.repository.TaskRepository;
 import org.hibernate.Hibernate;
 import lombok.RequiredArgsConstructor;
@@ -211,7 +211,13 @@ public class StrategyApplicationService {
     }
 
     public Indicator getIndicatorById(Long id) {
-        return indicatorRepository.findById(id).orElse(null);
+        return indicatorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found: " + id));
+    }
+
+    public Indicator getIndicatorByIdAndOwnerOrgId(Long id, Long ownerOrgId) {
+        return indicatorRepository.findByIdAndOwnerOrgId(id, ownerOrgId)
+                .orElseThrow(() -> new IllegalArgumentException("Indicator not found for owner org: " + id));
     }
 
     public List<Indicator> getAllIndicators() {

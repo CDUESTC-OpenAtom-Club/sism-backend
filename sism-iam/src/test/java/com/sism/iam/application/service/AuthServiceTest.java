@@ -3,7 +3,11 @@ package com.sism.iam.application.service;
 import com.sism.iam.application.JwtTokenService;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
-import com.sism.iam.domain.User;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.user.UserRepository;
+import com.sism.organization.domain.OrgType;
+import com.sism.organization.domain.SysOrg;
+import com.sism.organization.domain.OrganizationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +31,7 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     @Mock
-    private com.sism.iam.domain.repository.UserRepository userRepository;
+    private UserRepository userRepository;
 
     @Mock
     private JwtTokenService jwtTokenService;
@@ -35,18 +39,30 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private LoginAttemptService loginAttemptService;
+
+    @Mock
+    private OrganizationRepository organizationRepository;
+
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(userRepository, jwtTokenService, passwordEncoder);
+        authService = new AuthService(
+                userRepository,
+                jwtTokenService,
+                passwordEncoder,
+                loginAttemptService,
+                organizationRepository
+        );
     }
 
     @Test
     @DisplayName("Should login successfully with valid credentials")
     void shouldLoginSuccessfully() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("password123");
 
         User user = new User();
@@ -55,11 +71,15 @@ class AuthServiceTest {
         user.setRealName("Test User");
         user.setPassword("encodedPassword");
         user.setIsActive(true);
+        user.setOrgId(35L);
+        SysOrg org = SysOrg.create("战略发展部", OrgType.admin);
+        org.setId(35L);
 
         when(userRepository.findByUsername("testuser"))
                 .thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "encodedPassword"))
                 .thenReturn(true);
+        when(organizationRepository.findById(35L)).thenReturn(Optional.of(org));
         when(jwtTokenService.generateToken(eq(user), anyList()))
                 .thenReturn("jwt.token.here");
 
@@ -73,13 +93,15 @@ class AuthServiceTest {
         verify(userRepository).findByUsername("testuser");
         verify(passwordEncoder).matches("password123", "encodedPassword");
         verify(jwtTokenService).generateToken(eq(user), anyList());
+        verify(loginAttemptService).assertNotBlocked("testuser", "global");
+        verify(loginAttemptService).recordSuccess("testuser", "global");
     }
 
     @Test
     @DisplayName("Should throw exception when login with blank username")
     void shouldThrowExceptionWhenLoginWithBlankUsername() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("");
+        request.setAccount("");
         request.setPassword("password123");
 
         IllegalArgumentException exception = assertThrows(
@@ -87,7 +109,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("请输入用户名", exception.getMessage());
+        assertEquals("请输入账号", exception.getMessage());
         verify(userRepository, never()).findByUsername(anyString());
     }
 
@@ -95,7 +117,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with null username")
     void shouldThrowExceptionWhenLoginWithNullUsername() {
         LoginRequest request = new LoginRequest();
-        request.setUsername(null);
+        request.setAccount(null);
         request.setPassword("password123");
 
         IllegalArgumentException exception = assertThrows(
@@ -103,14 +125,14 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        assertEquals("请输入用户名", exception.getMessage());
+        assertEquals("请输入账号", exception.getMessage());
     }
 
     @Test
     @DisplayName("Should throw exception when login with blank password")
     void shouldThrowExceptionWhenLoginWithBlankPassword() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("");
 
         IllegalArgumentException exception = assertThrows(
@@ -126,7 +148,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with non-existent user")
     void shouldThrowExceptionWhenLoginWithNonExistentUser() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("nonexistent");
+        request.setAccount("nonexistent");
         request.setPassword("password123");
 
         when(userRepository.findByUsername("nonexistent"))
@@ -145,7 +167,7 @@ class AuthServiceTest {
     @DisplayName("Should throw exception when login with wrong password")
     void shouldThrowExceptionWhenLoginWithWrongPassword() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("wrongpassword");
 
         User user = new User();
@@ -166,13 +188,14 @@ class AuthServiceTest {
 
         assertEquals("用户名或密码错误", exception.getMessage());
         verify(jwtTokenService, never()).generateToken(any());
+        verify(loginAttemptService).recordFailure("testuser", "global");
     }
 
     @Test
     @DisplayName("Should throw exception when login with inactive account")
     void shouldThrowExceptionWhenLoginWithInactiveAccount() {
         LoginRequest request = new LoginRequest();
-        request.setUsername("testuser");
+        request.setAccount("testuser");
         request.setPassword("password123");
 
         User user = new User();
@@ -235,7 +258,7 @@ class AuthServiceTest {
                 () -> authService.register("", "password123", "Test User")
         );
 
-        assertEquals("Username is required", exception.getMessage());
+        assertEquals("请输入用户名", exception.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -247,7 +270,7 @@ class AuthServiceTest {
                 () -> authService.register("testuser", "", "Test User")
         );
 
-        assertEquals("Password is required", exception.getMessage());
+        assertEquals("请输入密码", exception.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
@@ -267,7 +290,7 @@ class AuthServiceTest {
                 () -> authService.register(username, "password123", "Test User")
         );
 
-        assertEquals("Username already exists", exception.getMessage());
+        assertEquals("用户名已存在", exception.getMessage());
         verify(passwordEncoder, never()).encode(anyString());
         verify(userRepository, never()).save(any(User.class));
     }
@@ -297,6 +320,16 @@ class AuthServiceTest {
         boolean result = authService.validateToken(token);
 
         assertFalse(result);
+    }
+
+    @Test
+    @DisplayName("Should blacklist token on logout")
+    void shouldBlacklistTokenOnLogout() {
+        String token = "jwt.token";
+
+        authService.logout(token);
+
+        verify(jwtTokenService).blacklistToken(token);
     }
 
     @Test

@@ -1,33 +1,28 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.domain.Role;
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.application.service.ContactInfoPolicy;
+import com.sism.iam.application.service.UserProfileService;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.user.User;
+import com.sism.organization.domain.OrganizationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -37,25 +32,22 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/v1/profile")
 @RequiredArgsConstructor
-@Slf4j
 @Tag(name = "用户中心", description = "用户个人资料管理接口")
 public class UserProfileController {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final UserProfileService userProfileService;
+    private final OrganizationRepository organizationRepository;
 
     // ========== 个人资料查询 ==========
 
     @GetMapping
     @Operation(summary = "获取当前用户个人资料")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getProfile(Authentication authentication) {
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
+        User user = userProfileService.findCurrentUser(authentication);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
 
-        User user = userOpt.get();
         return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
     }
 
@@ -67,107 +59,48 @@ public class UserProfileController {
             @Valid @RequestBody UpdateProfileRequest request,
             Authentication authentication
     ) {
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
+        User user = userProfileService.findCurrentUser(authentication);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
 
-        User user = userOpt.get();
-        user.setRealName(request.getRealName());
-        user.setUpdatedAt(LocalDateTime.now());
-
-        user = userRepository.save(user);
-        return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
-    }
-
-    // ========== 头像上传 ==========
-
-    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "上传用户头像")
-    public ResponseEntity<ApiResponse<AvatarResponse>> uploadAvatar(
-            @RequestPart("file") MultipartFile file,
-            Authentication authentication
-    ) throws IOException {
-        // 验证文件
-        if (file == null || file.isEmpty()) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("请选择要上传的文件"));
+        try {
+            user = userProfileService.updateProfile(user, request.getRealName());
+            user = userProfileService.updateContact(user, request.getEmail(), request.getPhone());
+            if (request.getAvatar() != null && !request.getAvatar().isBlank()) {
+                user = userProfileService.updateAvatar(user, request.getAvatar());
+            }
+            return ResponseEntity.ok(ApiResponse.success(convertToProfileResponse(user)));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(1001, ex.getMessage()));
         }
-
-        // 验证文件类型
-        String contentType = file.getContentType();
-        if (!ALLOWED_AVATAR_TYPES.contains(contentType)) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("头像只能是 JPG/PNG/GIF/WebP 格式的图片"));
-        }
-
-        // 验证文件大小
-        if (file.getSize() > MAX_AVATAR_SIZE) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("头像大小不能超过 2MB"));
-        }
-
-        // 获取当前用户
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        User user = userOpt.get();
-
-        // 保存文件
-        String avatarUrl = saveAvatarFile(file, user.getId());
-
-        // 更新用户头像URL
-        user.setAvatarUrl(avatarUrl);
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        log.info("User {} uploaded avatar: {}", username, avatarUrl);
-
-        return ResponseEntity.ok(ApiResponse.success(new AvatarResponse(avatarUrl)));
     }
 
     // ========== 密码修改 ==========
 
     @PostMapping("/password")
     @Operation(summary = "修改当前用户密码")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
+    public ResponseEntity<ApiResponse<Object>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,
             Authentication authentication
     ) {
-        String username = authentication.getName();
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
+        User user = userProfileService.findCurrentUser(authentication);
+        if (user == null) {
             return ResponseEntity.notFound().build();
         }
-
-        User user = userOpt.get();
-
-        // 验证旧密码
-        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Current password is incorrect"));
+        try {
+            userProfileService.changePassword(
+                    user,
+                    request.getOldPassword(),
+                    request.getNewPassword(),
+                    request.getConfirmPassword()
+            );
+            return ResponseEntity.ok(ApiResponse.success("密码修改成功", null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(buildPasswordValidationError(ex.getMessage()));
         }
-
-        // 验证两次输入的新密码一致
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("New password and confirm password do not match"));
-        }
-
-        // 验证密码复杂度（手动验证，确保生效）
-        String newPassword = request.getNewPassword();
-        String passwordPattern = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$";
-        if (!newPassword.matches(passwordPattern)) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("密码必须包含大小写字母、数字和特殊字符(@$!%*?&)，至少8个字符"));
-        }
-
-        // 更新密码
-        String encodedPassword = passwordEncoder.encode(request.getNewPassword());
-        user.setPassword(encodedPassword);
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        return ResponseEntity.ok(ApiResponse.success(null));
     }
 
     // ========== 第三方账号绑定 (TODO：需要相应的实体和服务) ==========
@@ -203,45 +136,26 @@ public class UserProfileController {
 
     // ========== 内部辅助方法 ==========
 
-    private static final List<String> ALLOWED_AVATAR_TYPES = List.of(
-            "image/jpeg", "image/png", "image/gif", "image/webp"
-    );
-    private static final long MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
-
     private UserProfileResponse convertToProfileResponse(User user) {
+        var organization = organizationRepository.findById(user.getOrgId()).orElse(null);
         UserProfileResponse response = new UserProfileResponse();
         response.setId(user.getId());
         response.setUsername(user.getUsername());
         response.setRealName(user.getRealName());
         response.setOrgId(user.getOrgId());
+        response.setOrgName(organization != null ? organization.getName() : null);
+        response.setOrgType(organization != null ? organization.getType().name() : null);
         response.setIsActive(user.getIsActive());
-        response.setAvatarUrl(user.getAvatarUrl());
-        response.setRoles(user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setRoles(user.getRoles() == null
+                ? List.of()
+                : user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList()));
+        response.setAvatar(user.getAvatarUrl());
         response.setCreatedAt(user.getCreatedAt());
         response.setLastLoginTime(null); // TODO: 需要记录最后登录时间
 
         return response;
-    }
-
-    private String saveAvatarFile(MultipartFile file, Long userId) throws IOException {
-        // 创建上传目录
-        Path uploadDir = Paths.get("uploads", "avatars");
-        Files.createDirectories(uploadDir);
-
-        // 生成文件名
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-        String filename = "user_" + userId + "_" + UUID.randomUUID().toString().substring(0, 8) + extension;
-
-        // 保存文件
-        Path targetPath = uploadDir.resolve(filename);
-        Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
-
-        // 返回访问 URL
-        return "/uploads/avatars/" + filename;
     }
 
     // ========== 请求和响应 DTO ==========
@@ -251,19 +165,16 @@ public class UserProfileController {
         private Long id;
         private String username;
         private String realName;
+        private String email;
+        private String phone;
         private Long orgId;
+        private String orgName;
+        private String orgType;
         private Boolean isActive;  // 新版本改为 isActive 布尔字段
         private List<String> roles;
-        private String avatarUrl;
+        private String avatar;
         private LocalDateTime createdAt;
         private LocalDateTime lastLoginTime;
-    }
-
-    @lombok.Data
-    @lombok.AllArgsConstructor
-    @lombok.NoArgsConstructor
-    public static class AvatarResponse {
-        private String avatarUrl;
     }
 
     @lombok.Data
@@ -271,10 +182,10 @@ public class UserProfileController {
         @NotBlank(message = "Real name is required")
         private String realName;
 
-        @Email(message = "Invalid email format")
+        @Pattern(regexp = ContactInfoPolicy.EMAIL_REGEX, message = "邮箱格式不正确")
         private String email;
 
-        @Pattern(regexp = "^1[3-9]\\d{9}$", message = "Invalid phone number format")
+        @Pattern(regexp = ContactInfoPolicy.PHONE_REGEX, message = "手机号格式不正确")
         private String phone;
 
         private String avatar;
@@ -286,8 +197,8 @@ public class UserProfileController {
         private String oldPassword;
 
         @NotBlank(message = "New password is required")
-        @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-                 message = "密码必须包含大小写字母、数字和特殊字符,至少8个字符")
+        @Size(min = 8, max = 20, message = "Password must be at least 8 characters and contain at least one letter and one number")
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "Password must be at least 8 characters and contain at least one letter and one number")
         private String newPassword;
 
         @NotBlank(message = "Confirm password is required")
@@ -309,5 +220,28 @@ public class UserProfileController {
         private String platform;
         private String platformNickname;
         private LocalDateTime bindTime;
+    }
+
+    private ApiResponse<Object> buildPasswordValidationError(String message) {
+        List<Map<String, String>> fieldErrors = new ArrayList<>();
+        fieldErrors.add(buildFieldError(resolvePasswordErrorField(message), message));
+        return ApiResponse.error(1001, "参数验证失败", fieldErrors);
+    }
+
+    private Map<String, String> buildFieldError(String field, String message) {
+        Map<String, String> fieldError = new HashMap<>();
+        fieldError.put("field", field);
+        fieldError.put("message", message);
+        return fieldError;
+    }
+
+    private String resolvePasswordErrorField(String message) {
+        if ("Current password is incorrect".equals(message)) {
+            return "oldPassword";
+        }
+        if ("New password and confirm password do not match".equals(message)) {
+            return "confirmPassword";
+        }
+        return "newPassword";
     }
 }

@@ -1,7 +1,7 @@
 package com.sism.task.application.dto;
 
-import com.sism.task.domain.TaskType;
 import lombok.Data;
+import com.sism.task.domain.task.TaskType;
 
 /**
  * TaskQueryRequest - 任务查询请求DTO

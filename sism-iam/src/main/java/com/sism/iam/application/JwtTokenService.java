@@ -1,9 +1,13 @@
 package com.sism.iam.application;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.Role;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.access.Role;
+import com.sism.iam.domain.user.UserRepository;
+import com.sism.util.TokenBlacklistService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +22,7 @@ import java.util.Map;
 @Service
 public class JwtTokenService {
 
-    @Value("${jwt.secret:SismSecretKeyForJWTTokenGeneration2024VeryLongSecretKey}")
+    @Value("${app.jwt.secret:${jwt.secret:}}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}")
@@ -26,6 +30,34 @@ public class JwtTokenService {
 
     @Value("${jwt.refresh-expiration:604800000}")
     private Long refreshExpiration;
+
+    private final TokenBlacklistService tokenBlacklistService;
+    private final UserRepository userRepository;
+
+    @Autowired
+    public JwtTokenService(TokenBlacklistService tokenBlacklistService, UserRepository userRepository) {
+        this.tokenBlacklistService = tokenBlacklistService;
+        this.userRepository = userRepository;
+    }
+
+    public JwtTokenService(TokenBlacklistService tokenBlacklistService) {
+        this(tokenBlacklistService, null);
+    }
+
+    public JwtTokenService() {
+        this.tokenBlacklistService = null;
+        this.userRepository = null;
+    }
+
+    @PostConstruct
+    void validateConfiguration() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT secret must be configured");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT secret must be at least 256 bits (32 bytes)");
+        }
+    }
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
@@ -41,6 +73,7 @@ public class JwtTokenService {
         claims.put("username", user.getUsername());
         claims.put("orgId", user.getOrgId());
         claims.put("roles", normalizeRoleCodes(roleCodes));
+        claims.put("tokenVersion", normalizeTokenVersion(user));
 
         return Jwts.builder()
                 .claims(claims)
@@ -57,7 +90,7 @@ public class JwtTokenService {
 
     public boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token);
+            return !isTokenExpired(token) && !isBlacklisted(token) && isTokenVersionCurrent(token);
         } catch (Exception e) {
             return false;
         }
@@ -95,20 +128,28 @@ public class JwtTokenService {
     }
 
     public Map<String, Object> refreshToken(String refreshToken) {
+        if (!isRefreshToken(refreshToken)) {
+            throw new IllegalArgumentException("Not a refresh token");
+        }
+
         if (!validateToken(refreshToken)) {
             throw new IllegalArgumentException("Invalid refresh token");
         }
 
         String username = extractUsername(refreshToken);
         Long userId = getUserIdFromToken(refreshToken);
+        Long orgId = getOrgIdFromToken(refreshToken);
+        List<String> roleCodes = getRolesFromToken(refreshToken);
+
+        blacklistToken(refreshToken);
 
         User user = new User();
         user.setId(userId);
         user.setUsername(username);
-        user.setOrgId(getOrgIdFromToken(refreshToken));
+        user.setOrgId(orgId);
 
-        String newAccessToken = generateToken(user);
-        String newRefreshToken = generateRefreshToken(user);
+        String newAccessToken = generateToken(user, roleCodes);
+        String newRefreshToken = generateRefreshToken(user, roleCodes);
 
         Map<String, Object> result = new HashMap<>();
         result.put("accessToken", newAccessToken);
@@ -129,6 +170,7 @@ public class JwtTokenService {
         claims.put("username", user.getUsername());
         claims.put("orgId", user.getOrgId());
         claims.put("roles", normalizeRoleCodes(roleCodes));
+        claims.put("tokenVersion", normalizeTokenVersion(user));
         claims.put("type", "refresh");
 
         return Jwts.builder()
@@ -142,6 +184,41 @@ public class JwtTokenService {
 
     public long getExpirationSeconds() {
         return expiration / 1000;
+    }
+
+    public void blacklistToken(String token) {
+        if (token != null && !token.isBlank()) {
+            if (tokenBlacklistService != null) {
+                tokenBlacklistService.blacklist(token);
+            }
+        }
+    }
+
+    private boolean isBlacklisted(String token) {
+        return tokenBlacklistService != null && tokenBlacklistService.isBlacklisted(token);
+    }
+
+    private boolean isRefreshToken(String token) {
+        return "refresh".equalsIgnoreCase(extractClaims(token).get("type", String.class));
+    }
+
+    private boolean isTokenVersionCurrent(String token) {
+        if (userRepository == null) {
+            return true;
+        }
+
+        Claims claims = extractClaims(token);
+        String username = claims.getSubject();
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
+        Long tokenVersion = claims.get("tokenVersion", Long.class);
+        long expectedVersion = tokenVersion == null ? 0L : tokenVersion;
+
+        return userRepository.findByUsername(username)
+                .map(user -> normalizeTokenVersion(user) == expectedVersion)
+                .orElse(false);
     }
 
     private List<String> extractRoleCodes(Collection<Role> roles) {
@@ -163,5 +240,12 @@ public class JwtTokenService {
                 .filter(roleCode -> roleCode != null && !roleCode.isBlank())
                 .distinct()
                 .toList();
+    }
+
+    private long normalizeTokenVersion(User user) {
+        if (user == null || user.getTokenVersion() == null || user.getTokenVersion() < 0) {
+            return 0L;
+        }
+        return user.getTokenVersion();
     }
 }

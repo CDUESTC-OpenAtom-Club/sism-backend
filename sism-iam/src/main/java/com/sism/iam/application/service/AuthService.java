@@ -3,8 +3,9 @@ package com.sism.iam.application.service;
 import com.sism.iam.application.JwtTokenService;
 import com.sism.iam.application.dto.LoginRequest;
 import com.sism.iam.application.dto.LoginResponse;
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
+import com.sism.iam.domain.user.User;
+import com.sism.iam.domain.user.UserRepository;
+import com.sism.organization.domain.OrganizationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,23 +25,30 @@ public class AuthService {
     private final UserRepository userRepository;
     private final JwtTokenService jwtTokenService;
     private final PasswordEncoder passwordEncoder;
+    private final LoginAttemptService loginAttemptService;
+    private final OrganizationRepository organizationRepository;
 
     /**
      * 用户登录
      */
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        if (request.getUsername() == null || request.getUsername().isBlank()) {
-            throw new IllegalArgumentException("请输入用户名");
+        String account = ContactInfoPolicy.normalizeAccount(request.getAccount());
+        if (account == null) {
+            throw new IllegalArgumentException("请输入账号");
         }
         if (request.getPassword() == null || request.getPassword().isBlank()) {
             throw new IllegalArgumentException("请输入密码");
         }
 
-        User user = userRepository.findByUsername(request.getUsername())
+        String clientKey = "global";
+        loginAttemptService.assertNotBlocked(account, clientKey);
+
+        User user = findUserByAccount(account)
                 .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            loginAttemptService.recordFailure(account, clientKey);
             throw new IllegalArgumentException("用户名或密码错误");
         }
 
@@ -48,14 +56,19 @@ public class AuthService {
             throw new IllegalStateException("账号已被禁用，请联系管理员");
         }
 
+        loginAttemptService.recordSuccess(account, clientKey);
+
         List<String> roleCodes = userRepository.findRoleCodesByUserId(user.getId());
 
         String accessToken = jwtTokenService.generateToken(user, roleCodes);
         String refreshToken = jwtTokenService.generateRefreshToken(user, roleCodes);
+        var organization = organizationRepository.findById(user.getOrgId()).orElse(null);
 
         return LoginResponse.fromUser(
                 user,
                 roleCodes,
+                organization != null ? organization.getName() : null,
+                organization != null ? organization.getType().name() : null,
                 accessToken,
                 refreshToken,
                 jwtTokenService.getExpirationSeconds()
@@ -68,14 +81,14 @@ public class AuthService {
     @Transactional
     public User register(String username, String password, String realName) {
         if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException("Username is required");
+            throw new IllegalArgumentException("请输入用户名");
         }
         if (password == null || password.isBlank()) {
-            throw new IllegalArgumentException("Password is required");
+            throw new IllegalArgumentException("请输入密码");
         }
 
         if (userRepository.findByUsername(username).isPresent()) {
-            throw new IllegalArgumentException("Username already exists");
+            throw new IllegalArgumentException("用户名已存在");
         }
 
         User user = new User();
@@ -92,6 +105,10 @@ public class AuthService {
      */
     public boolean validateToken(String token) {
         return jwtTokenService.validateToken(token);
+    }
+
+    public void logout(String token) {
+        jwtTokenService.blacklistToken(token);
     }
 
     /**
@@ -117,5 +134,15 @@ public class AuthService {
             return List.of();
         }
         return userRepository.findPermissionCodesByUserId(userId);
+    }
+
+    private java.util.Optional<User> findUserByAccount(String account) {
+        if (ContactInfoPolicy.looksLikeEmail(account)) {
+            return userRepository.findByEmail(account);
+        }
+        if (ContactInfoPolicy.looksLikePhone(account)) {
+            return userRepository.findByPhone(account);
+        }
+        return userRepository.findByUsername(account);
     }
 }

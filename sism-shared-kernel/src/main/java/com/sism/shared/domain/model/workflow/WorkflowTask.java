@@ -3,7 +3,6 @@ package com.sism.shared.domain.model.workflow;
 import com.sism.shared.domain.model.base.AggregateRoot;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -13,7 +12,6 @@ import java.util.List;
  * WorkflowTask aggregate root - manages workflow task state
  */
 @Getter
-@Setter
 @Entity
 @Table(name = "workflow_task")
 @Access(AccessType.FIELD)
@@ -88,6 +86,17 @@ public class WorkflowTask extends AggregateRoot<Long> {
     }
 
     @Override
+    public Long getId() {
+        return id;
+    }
+
+    @Override
+    public void setId(Long id) {
+        assertIdUnchanged(this.id, id);
+        this.id = id;
+    }
+
+    @Override
     public void validate() {
         if (workflowId == null || workflowId.trim().isEmpty()) {
             throw new IllegalArgumentException("Workflow ID is required");
@@ -97,7 +106,80 @@ public class WorkflowTask extends AggregateRoot<Long> {
         }
     }
 
+    public void setWorkflowId(String workflowId) {
+        this.workflowId = workflowId;
+    }
+
+    public void setWorkflowType(String workflowType) {
+        this.workflowType = workflowType;
+    }
+
+    public void setTaskName(String taskName) {
+        this.taskName = taskName;
+    }
+
+    public void setTaskType(String taskType) {
+        this.taskType = taskType;
+    }
+
+    @Deprecated
+    public void setStatus(String status) {
+        validateStatus(status);
+        this.status = status;
+    }
+
+    public void setCurrentStep(String currentStep) {
+        this.currentStep = currentStep;
+    }
+
+    public void setNextStep(String nextStep) {
+        this.nextStep = nextStep;
+    }
+
+    public void setInitiatorId(Long initiatorId) {
+        this.initiatorId = initiatorId;
+    }
+
+    public void setInitiatorOrgId(Long initiatorOrgId) {
+        this.initiatorOrgId = initiatorOrgId;
+    }
+
+    public void setAssigneeId(Long assigneeId) {
+        this.assigneeId = assigneeId;
+    }
+
+    public void setAssigneeOrgId(Long assigneeOrgId) {
+        this.assigneeOrgId = assigneeOrgId;
+    }
+
+    public void setStartedAt(LocalDateTime startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public void setCompletedAt(LocalDateTime completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public void setDueDate(LocalDateTime dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public void setResult(String result) {
+        this.result = result;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+
+    public void setHistory(List<String> history) {
+        this.history = history != null ? new ArrayList<>(history) : new ArrayList<>();
+    }
+
     public void start(Long operatorId, Long operatorOrgId) {
+        if (!STATUS_PENDING.equals(status)) {
+            throw new IllegalStateException("Cannot start: task is not pending");
+        }
         this.status = STATUS_RUNNING;
         this.startedAt = LocalDateTime.now();
         this.assigneeId = operatorId;
@@ -106,6 +188,9 @@ public class WorkflowTask extends AggregateRoot<Long> {
     }
 
     public void complete(String result) {
+        if (!STATUS_RUNNING.equals(status)) {
+            throw new IllegalStateException("Cannot complete: task is not running");
+        }
         this.status = STATUS_COMPLETED;
         this.completedAt = LocalDateTime.now();
         this.result = result;
@@ -113,6 +198,9 @@ public class WorkflowTask extends AggregateRoot<Long> {
     }
 
     public void fail(String errorMessage) {
+        if (!STATUS_RUNNING.equals(status)) {
+            throw new IllegalStateException("Cannot fail: task is not running");
+        }
         this.status = STATUS_FAILED;
         this.completedAt = LocalDateTime.now();
         this.errorMessage = errorMessage;
@@ -120,6 +208,9 @@ public class WorkflowTask extends AggregateRoot<Long> {
     }
 
     public void cancel() {
+        if (!(STATUS_PENDING.equals(status) || STATUS_RUNNING.equals(status))) {
+            throw new IllegalStateException("Cannot cancel: task is already finished");
+        }
         this.status = STATUS_CANCELLED;
         this.completedAt = LocalDateTime.now();
         addHistory("Task cancelled");
@@ -154,6 +245,19 @@ public class WorkflowTask extends AggregateRoot<Long> {
     private void addHistory(String entry) {
         String timestamp = LocalDateTime.now().toString();
         history.add("[" + timestamp + "] " + entry);
+    }
+
+    private void validateStatus(String nextStatus) {
+        if (nextStatus == null) {
+            throw new IllegalArgumentException("Status cannot be null");
+        }
+        if (!STATUS_PENDING.equals(nextStatus)
+                && !STATUS_RUNNING.equals(nextStatus)
+                && !STATUS_COMPLETED.equals(nextStatus)
+                && !STATUS_FAILED.equals(nextStatus)
+                && !STATUS_CANCELLED.equals(nextStatus)) {
+            throw new IllegalArgumentException("Unsupported workflow task status: " + nextStatus);
+        }
     }
 
     @PrePersist

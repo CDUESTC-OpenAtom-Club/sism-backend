@@ -1,8 +1,9 @@
 package com.sism.workflow.infrastructure.persistence;
 
-import com.sism.workflow.domain.definition.model.AuditFlowDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
-import com.sism.workflow.domain.runtime.model.WorkflowTask;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
+import com.sism.workflow.domain.runtime.WorkflowTask;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -59,12 +60,79 @@ public interface JpaWorkflowRepository extends JpaRepository<AuditInstance, Long
             "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :userId")
     List<AuditInstance> findPendingAuditInstancesByUserId(@Param("userId") Long userId);
 
+    @EntityGraph(attributePaths = "stepInstances")
+    @Query(
+            value = "SELECT DISTINCT a FROM WorkflowAuditInstance a JOIN a.stepInstances s " +
+                    "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :userId",
+            countQuery = "SELECT COUNT(DISTINCT a.id) FROM WorkflowAuditInstance a JOIN a.stepInstances s " +
+                    "WHERE a.status = 'IN_REVIEW' AND s.status = 'PENDING' AND s.approverId = :userId"
+    )
+    Page<AuditInstance> findPendingAuditInstancesByUserId(@Param("userId") Long userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = "stepInstances")
+    @Query("""
+            SELECT DISTINCT a
+              FROM WorkflowAuditInstance a
+              JOIN a.stepInstances s
+             WHERE a.status = 'IN_REVIEW'
+               AND s.id = :stepInstanceId
+               AND s.status = 'PENDING'
+               AND s.approverId = :userId
+            """)
+    Optional<AuditInstance> findPendingAuditInstanceByStepIdAndUserId(
+            @Param("stepInstanceId") Long stepInstanceId,
+            @Param("userId") Long userId
+    );
+
+    @Query("""
+            SELECT COUNT(s.id)
+              FROM WorkflowAuditInstance a
+              JOIN a.stepInstances s
+             WHERE a.status = 'IN_REVIEW'
+               AND s.status = 'PENDING'
+               AND s.approverId = :userId
+            """)
+    long countPendingTasksByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT new com.sism.workflow.domain.query.repository.WorkflowQueryRepository$PendingTaskIdentity(
+                s.id,
+                a.id,
+                a.entityType,
+                a.entityId
+            )
+              FROM WorkflowAuditInstance a
+              JOIN a.stepInstances s
+             WHERE a.status = 'IN_REVIEW'
+               AND s.status = 'PENDING'
+               AND s.approverId = :userId
+             ORDER BY COALESCE(s.createdAt, a.startedAt) DESC, s.id DESC
+            """)
+    List<com.sism.workflow.domain.query.repository.WorkflowQueryRepository.PendingTaskIdentity>
+    findPendingTaskIdentitiesByUserId(@Param("userId") Long userId);
+
     @Query("SELECT DISTINCT a FROM WorkflowAuditInstance a JOIN a.stepInstances s " +
             "WHERE a.status = 'APPROVED' AND s.approverId = :userId")
     List<AuditInstance> findApprovedAuditInstancesByUserId(@Param("userId") Long userId);
 
+    @EntityGraph(attributePaths = "stepInstances")
+    @Query(
+            value = "SELECT DISTINCT a FROM WorkflowAuditInstance a JOIN a.stepInstances s " +
+                    "WHERE a.status = 'APPROVED' AND s.approverId = :userId",
+            countQuery = "SELECT COUNT(DISTINCT a.id) FROM WorkflowAuditInstance a JOIN a.stepInstances s " +
+                    "WHERE a.status = 'APPROVED' AND s.approverId = :userId"
+    )
+    Page<AuditInstance> findApprovedAuditInstancesByUserId(@Param("userId") Long userId, Pageable pageable);
+
     @Query("SELECT DISTINCT a FROM WorkflowAuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.requesterId = :userId")
     List<AuditInstance> findAppliedAuditInstancesByUserId(@Param("userId") Long userId);
+
+    @EntityGraph(attributePaths = "stepInstances")
+    @Query(
+            value = "SELECT DISTINCT a FROM WorkflowAuditInstance a WHERE a.requesterId = :userId",
+            countQuery = "SELECT COUNT(a.id) FROM WorkflowAuditInstance a WHERE a.requesterId = :userId"
+    )
+    Page<AuditInstance> findAppliedAuditInstancesByUserId(@Param("userId") Long userId, Pageable pageable);
 
     @Query("SELECT DISTINCT a FROM WorkflowAuditInstance a LEFT JOIN FETCH a.stepInstances WHERE a.id = :instanceId")
     List<AuditInstance> findAuditInstanceHistory(@Param("instanceId") Long instanceId);

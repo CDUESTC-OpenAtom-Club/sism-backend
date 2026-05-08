@@ -1,56 +1,40 @@
 package com.sism.workflow.application.support;
 
-import com.sism.iam.domain.User;
-import com.sism.iam.domain.repository.UserRepository;
-import com.sism.strategy.domain.repository.PlanRepository;
-import com.sism.workflow.domain.definition.model.AuditStepDef;
-import com.sism.workflow.domain.runtime.model.AuditInstance;
+import com.sism.shared.domain.user.UserIdentity;
+import com.sism.shared.domain.user.UserProvider;
+import com.sism.shared.domain.workflow.WorkflowBusinessContextPort;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.domain.runtime.AuditInstance;
 import com.sism.workflow.interfaces.dto.ApproverCandidateResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.core.JdbcTemplate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
-@RequiredArgsConstructor
+@Slf4j
 public class ApproverResolver {
 
-    private static final Long ROLE_APPROVER = 2L;
-    private static final Long ROLE_STRATEGY_DEPT_HEAD = 3L;
-    private static final Long ROLE_VICE_PRESIDENT = 4L;
-    private static final Long STRATEGY_ORG_ID = 35L;
     private static final String PLAN_ENTITY_TYPE = "PLAN";
     private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
     private static final String COLLEGE_FINAL_APPROVAL_STEP_NAME = "职能部门终审";
-    private static final Map<Long, Long> FUNCTIONAL_VICE_PRESIDENT_SCOPE_BY_ORG = Map.ofEntries(
-            Map.entry(35L, 35L),
-            Map.entry(36L, 36L),
-            Map.entry(37L, 37L),
-            Map.entry(38L, 38L),
-            Map.entry(39L, 39L),
-            Map.entry(40L, 40L),
-            Map.entry(41L, 41L),
-            Map.entry(42L, 42L),
-            Map.entry(43L, 43L),
-            Map.entry(44L, 44L),
-            Map.entry(45L, 45L),
-            Map.entry(46L, 46L),
-            Map.entry(47L, 47L),
-            Map.entry(48L, 48L),
-            Map.entry(49L, 49L),
-            Map.entry(50L, 50L),
-            Map.entry(51L, 51L),
-            Map.entry(52L, 52L),
-            Map.entry(53L, 53L),
-            Map.entry(54L, 54L)
-    );
 
-    private final UserRepository userRepository;
-    private final PlanRepository planRepository;
-    private final JdbcTemplate jdbcTemplate;
+    private final UserProvider userProvider;
+    private final List<WorkflowBusinessContextPort> workflowBusinessContextPorts;
+    private final WorkflowApproverProperties workflowApproverProperties;
+
+    public ApproverResolver(
+            UserProvider userProvider,
+            List<WorkflowBusinessContextPort> workflowBusinessContextPorts,
+            WorkflowApproverProperties workflowApproverProperties
+    ) {
+        this.userProvider = userProvider;
+        this.workflowBusinessContextPorts = workflowBusinessContextPorts;
+        this.workflowApproverProperties = workflowApproverProperties;
+    }
 
     public Long resolveApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId) {
         return resolveApproverId(stepDef, requesterId, requesterOrgId, null);
@@ -63,21 +47,17 @@ public class ApproverResolver {
         }
 
         Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
-        return resolveByRoleId(roleId, requesterId, scopeOrgId, stepDef.getStepName());
+        return resolveByRoleId(roleId, scopeOrgId, stepDef.getStepName());
     }
 
-    private Long resolveByRoleId(Long roleId, Long requesterId, Long requesterOrgId, String stepName) {
-        List<User> candidates = userRepository.findByRoleId(roleId).stream()
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepName))
-                .sorted(Comparator.comparing(User::getId))
-                .toList();
+    private Long resolveByRoleId(Long roleId, Long requesterOrgId, String stepName) {
+        List<UserIdentity> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId);
         if (candidates.isEmpty()) {
             throw new IllegalStateException("No available approver candidates for step: " + stepName);
         }
 
         return candidates.stream()
-                .map(User::getId)
+                .map(UserIdentity::id)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No available approver candidates for step: " + stepName));
     }
@@ -86,12 +66,12 @@ public class ApproverResolver {
         if (userId == null || userId <= 0) {
             return "Unknown";
         }
-        return userRepository.findById(userId)
+        return userProvider.findIdentity(userId)
                 .map(user -> {
-                    if (user.getRealName() != null && !user.getRealName().isBlank()) {
-                        return user.getRealName();
+                    if (user.realName() != null && !user.realName().isBlank()) {
+                        return user.realName();
                     }
-                    return user.getUsername() != null ? user.getUsername() : "User-" + userId;
+                    return user.username() != null ? user.username() : "User-" + userId;
                 })
                 .orElse("User-" + userId);
     }
@@ -100,8 +80,7 @@ public class ApproverResolver {
         if (userId == null || userId <= 0) {
             return null;
         }
-        return userRepository.findById(userId)
-                .map(User::getOrgId)
+        return userProvider.getUserOrgId(userId)
                 .orElse(null);
     }
 
@@ -115,11 +94,11 @@ public class ApproverResolver {
 
         Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
         Long roleId = stepDef.getRoleId();
-        if (ROLE_STRATEGY_DEPT_HEAD.equals(roleId)) {
-            return STRATEGY_ORG_ID;
+        if (getStrategyDeptHeadRoleId().equals(roleId)) {
+            return getStrategyOrgId();
         }
-        if (ROLE_VICE_PRESIDENT.equals(roleId)) {
-            return resolveVicePresidentScopeOrgId(stepDef.getStepName(), scopeOrgId);
+        if (getVicePresidentRoleId().equals(roleId)) {
+            return resolveVicePresidentScopeOrgId(scopeOrgId);
         }
         return scopeOrgId;
     }
@@ -130,15 +109,13 @@ public class ApproverResolver {
             throw new IllegalStateException("Workflow step is missing role assignment: " + stepDef.getStepName());
         }
 
-        List<ApproverCandidateResponse> candidates = userRepository.findByRoleId(roleId).stream()
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
-                .sorted(Comparator.comparing(User::getId))
+        List<ApproverCandidateResponse> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId).stream()
+                .sorted(Comparator.comparing(UserIdentity::id))
                 .map(user -> ApproverCandidateResponse.builder()
-                        .userId(user.getId())
-                        .username(user.getUsername())
-                        .realName(user.getRealName())
-                        .orgId(user.getOrgId())
+                        .userId(user.id())
+                        .username(user.username())
+                        .realName(user.realName())
+                        .orgId(user.orgId())
                         .build())
                 .toList();
         if (candidates.isEmpty()) {
@@ -162,11 +139,12 @@ public class ApproverResolver {
         }
 
         Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
+        List<Long> roleIds = userProvider.getUserRoleIds(userId);
 
-        return userRepository.findById(userId)
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> userRepository.findRoleIdsByUserId(userId).contains(roleId))
-                .filter(user -> matchesRoleScope(user, roleId, scopeOrgId, stepDef.getStepName()))
+        return userProvider.findIdentity(userId)
+                .filter(user -> Boolean.TRUE.equals(user.isActive()))
+                .filter(user -> roleIds.contains(roleId))
+                .filter(user -> matchesRoleScope(user, roleId, scopeOrgId))
                 .isPresent();
     }
 
@@ -184,52 +162,48 @@ public class ApproverResolver {
 
         Long roleId = stepDef.getRoleId();
         if (roleId == null || roleId <= 0) {
-            userRepository.findById(approverId)
-                    .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+            userProvider.findIdentity(approverId)
+                    .filter(user -> Boolean.TRUE.equals(user.isActive()))
                     .orElseThrow(() -> new IllegalArgumentException("Invalid approver for step: " + stepDef.getStepName()));
             return;
         }
 
-        boolean valid = userRepository.findByRoleId(roleId).stream()
-                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId, stepDef.getStepName()))
-                .anyMatch(user -> approverId.equals(user.getId()));
+        boolean valid = findScopedActiveUsersByRole(roleId, requesterOrgId).stream()
+                .anyMatch(user -> approverId.equals(user.id()));
         if (!valid) {
             throw new IllegalArgumentException("Selected approver does not match step role: " + stepDef.getStepName());
         }
+    }
+
+    private List<UserIdentity> findScopedActiveUsersByRole(Long roleId, Long requesterOrgId) {
+        return userProvider.findActiveIdentitiesByRole(roleId).stream()
+                .filter(user -> Boolean.TRUE.equals(user.isActive()))
+                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId))
+                .sorted(Comparator.comparing(UserIdentity::id))
+                .toList();
     }
 
     private Long resolveScopeOrgId(AuditStepDef stepDef, Long requesterOrgId, AuditInstance instance) {
         if (!isCollegeFinalApprovalStep(stepDef, instance)) {
             return requesterOrgId;
         }
+        return resolveBusinessSummary(instance.getEntityType(), instance.getEntityId())
+                .map(summary -> summary.sourceOrgId() != null ? summary.sourceOrgId() : requesterOrgId)
+                .orElse(requesterOrgId);
+    }
 
-        if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            return planRepository.findById(instance.getEntityId())
-                    .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
-                    .orElse(requesterOrgId);
-        }
-
-        if (PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            Long planId = jdbcTemplate.query(
-                    """
-                    SELECT plan_id
-                    FROM public.plan_report
-                    WHERE id = ?
-                    """,
-                    rs -> rs.next() ? rs.getLong("plan_id") : null,
-                    instance.getEntityId()
-            );
-            if (planId == null || planId <= 0) {
-                return requesterOrgId;
+    private java.util.Optional<WorkflowBusinessContextPort.BusinessSummary> resolveBusinessSummary(
+            String entityType,
+            Long entityId
+    ) {
+        for (WorkflowBusinessContextPort contextPort : workflowBusinessContextPorts) {
+            java.util.Optional<WorkflowBusinessContextPort.BusinessSummary> summary =
+                    contextPort.getBusinessSummary(entityType, entityId);
+            if (summary.isPresent()) {
+                return summary;
             }
-
-            return planRepository.findById(planId)
-                    .map(plan -> plan.getCreatedByOrgId() != null ? plan.getCreatedByOrgId() : requesterOrgId)
-                    .orElse(requesterOrgId);
         }
-
-        return requesterOrgId;
+        return java.util.Optional.empty();
     }
 
     private boolean isCollegeFinalApprovalStep(AuditStepDef stepDef, AuditInstance instance) {
@@ -240,35 +214,75 @@ public class ApproverResolver {
                 && !PLAN_REPORT_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
             return false;
         }
+
+        if (!getApproverRoleId().equals(stepDef.getRoleId())) {
+            return false;
+        }
+
+        if (Boolean.TRUE.equals(stepDef.getIsTerminal())) {
+            return true;
+        }
+
         String stepName = stepDef.getStepName();
-        return stepName != null && stepName.contains(COLLEGE_FINAL_APPROVAL_STEP_NAME);
+        boolean fallbackMatched = stepName != null && stepName.contains(COLLEGE_FINAL_APPROVAL_STEP_NAME);
+        if (fallbackMatched) {
+            log.warn("Using legacy step-name fallback for college final approval scope: stepName={}", stepName);
+        }
+        return fallbackMatched;
     }
 
-    private boolean matchesRoleScope(User user, Long roleId, Long requesterOrgId, String stepName) {
-        Long userOrgId = user.getOrgId();
+    private boolean matchesRoleScope(UserIdentity user, Long roleId, Long requesterOrgId) {
+        Long userOrgId = user.orgId();
 
-        if (ROLE_APPROVER.equals(roleId)) {
+        if (getApproverRoleId().equals(roleId)) {
             return requesterOrgId != null && requesterOrgId.equals(userOrgId);
         }
-        if (ROLE_STRATEGY_DEPT_HEAD.equals(roleId)) {
+        if (getStrategyDeptHeadRoleId().equals(roleId)) {
             return isStrategyOrg(userOrgId);
         }
-        if (ROLE_VICE_PRESIDENT.equals(roleId)) {
-            Long scopeOrgId = resolveVicePresidentScopeOrgId(stepName, requesterOrgId);
+        if (getVicePresidentRoleId().equals(roleId)) {
+            Long scopeOrgId = resolveVicePresidentScopeOrgId(requesterOrgId);
             return scopeOrgId != null && scopeOrgId.equals(userOrgId);
         }
 
         return true;
     }
 
-    private Long resolveVicePresidentScopeOrgId(String stepName, Long requesterOrgId) {
-        if (stepName != null && stepName.contains("学院院长")) {
+    private Long resolveVicePresidentScopeOrgId(Long requesterOrgId) {
+        Map<Long, Long> scopeByOrg = workflowApproverProperties.getFunctionalVicePresidentScopeByOrg();
+        if (scopeByOrg == null || scopeByOrg.isEmpty()) {
             return requesterOrgId;
         }
-        return FUNCTIONAL_VICE_PRESIDENT_SCOPE_BY_ORG.getOrDefault(requesterOrgId, requesterOrgId);
+        return scopeByOrg.getOrDefault(requesterOrgId, requesterOrgId);
     }
 
     private boolean isStrategyOrg(Long orgId) {
-        return orgId != null && orgId.equals(STRATEGY_ORG_ID);
+        return orgId != null && orgId.equals(getStrategyOrgId());
+    }
+
+    private Long getApproverRoleId() {
+        return requireConfigured(workflowApproverProperties.getApproverRoleId(), "workflow.approver.approver-role-id");
+    }
+
+    private Long getStrategyDeptHeadRoleId() {
+        return requireConfigured(
+                workflowApproverProperties.getStrategyDeptHeadRoleId(),
+                "workflow.approver.strategy-dept-head-role-id"
+        );
+    }
+
+    private Long getVicePresidentRoleId() {
+        return requireConfigured(
+                workflowApproverProperties.getVicePresidentRoleId(),
+                "workflow.approver.vice-president-role-id"
+        );
+    }
+
+    private Long getStrategyOrgId() {
+        return requireConfigured(workflowApproverProperties.getStrategyOrgId(), "workflow.approver.strategy-org-id");
+    }
+
+    private Long requireConfigured(Long value, String propertyName) {
+        return Objects.requireNonNull(value, propertyName + " is not configured");
     }
 }

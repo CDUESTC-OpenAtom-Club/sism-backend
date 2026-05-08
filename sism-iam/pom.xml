@@ -23,6 +23,10 @@
             <groupId>com.sism</groupId>
             <artifactId>sism-shared-kernel</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.sism</groupId>
+            <artifactId>sism-organization</artifactId>
+        </dependency>
 
         <!-- Spring Boot Starters -->
         <dependency>
@@ -44,6 +48,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
         <!-- OpenAPI/Swagger -->

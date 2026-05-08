@@ -1,10 +1,10 @@
 package com.sism.iam.interfaces.rest;
 
 import com.sism.common.ApiResponse;
-import com.sism.iam.application.dto.CurrentUser;
-import com.sism.iam.application.service.NotificationService;
+import com.sism.shared.application.dto.CurrentUser;
 import com.sism.iam.application.service.UserNotificationService;
-import com.sism.iam.domain.Notification;
+import com.sism.iam.application.service.NotificationService;
+import com.sism.iam.domain.notification.Notification;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -38,6 +39,7 @@ public class NotificationController {
     // ==================== User Notification Operations ====================
 
     @GetMapping("/my")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "查询我的通知", description = "查询当前用户的通知列表，支持分页和状态筛选")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMyNotifications(
             @RequestParam(defaultValue = "0") int page,
@@ -61,6 +63,7 @@ public class NotificationController {
     }
 
     @PostMapping("/read-all")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "全部标记已读", description = "将所有通知标记为已读")
     public ResponseEntity<ApiResponse<Map<String, Object>>> markAllNotificationsAsRead(
             @AuthenticationPrincipal CurrentUser currentUser) {
@@ -71,6 +74,7 @@ public class NotificationController {
     }
 
     @PostMapping("/{id}/read")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "标记单条已读", description = "将通知标记为已读")
     public ResponseEntity<ApiResponse<Map<String, Object>>> markNotificationAsRead(
             @PathVariable Long id,
@@ -78,11 +82,8 @@ public class NotificationController {
         if (currentUser == null) {
             return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
         }
-        try {
-            return ResponseEntity.ok(ApiResponse.success(userNotificationService.markNotificationAsRead(id, currentUser.getId())));
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(400, ex.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.success(
+                userNotificationService.markNotificationAsRead(id, currentUser.getId())));
     }
 
     // ==================== Alert Event Operations ====================
@@ -91,6 +92,7 @@ public class NotificationController {
      * 根据指标ID查询告警事件
      */
     @GetMapping("/indicator/{indicatorId}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "按指标ID分页查询告警事件")
     public ResponseEntity<Page<Notification>> getNotificationsByIndicatorId(
             @PathVariable Long indicatorId,
@@ -105,6 +107,7 @@ public class NotificationController {
      * 根据规则ID查询告警事件
      */
     @GetMapping("/rule/{ruleId}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "按规则ID查询告警事件")
     public ResponseEntity<List<Notification>> getNotificationsByRuleId(@PathVariable Long ruleId) {
         return ResponseEntity.ok(notificationService.getNotificationsByRuleId(ruleId));
@@ -114,6 +117,7 @@ public class NotificationController {
      * 根据窗口ID查询告警事件
      */
     @GetMapping("/window/{windowId}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "按时间窗口ID查询告警事件")
     public ResponseEntity<List<Notification>> getNotificationsByWindowId(@PathVariable Long windowId) {
         return ResponseEntity.ok(notificationService.getNotificationsByWindowId(windowId));
@@ -123,6 +127,7 @@ public class NotificationController {
      * 获取指定指标的告警事件统计
      */
     @GetMapping("/indicator/{indicatorId}/count")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "统计指标的告警事件数量")
     public ResponseEntity<Long> countNotificationsByIndicatorId(@PathVariable Long indicatorId) {
         return ResponseEntity.ok(notificationService.countNotificationsByIndicatorId(indicatorId));
@@ -132,6 +137,7 @@ public class NotificationController {
      * 获取指定规则和状态的告警事件统计
      */
     @GetMapping("/rule/{ruleId}/count")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "按规则和状态统计告警事件数量")
     public ResponseEntity<Long> countNotificationsByRuleIdAndStatus(
             @PathVariable Long ruleId,
@@ -143,6 +149,7 @@ public class NotificationController {
      * 根据ID查询单个告警事件
      */
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "根据ID获取告警事件")
     public ResponseEntity<Notification> getNotificationById(@PathVariable Long id) {
         return notificationService.getNotificationById(id)
@@ -154,6 +161,7 @@ public class NotificationController {
      * 查询所有告警事件
      */
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     @Operation(summary = "获取所有告警事件")
     public ResponseEntity<List<Notification>> getAllNotifications() {
         return ResponseEntity.ok(notificationService.getAllNotifications());
@@ -163,6 +171,7 @@ public class NotificationController {
      * 创建告警事件
      */
     @PostMapping
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "创建新告警事件")
     public ResponseEntity<Notification> createNotification(
             @RequestParam Long indicatorId,
@@ -189,6 +198,7 @@ public class NotificationController {
      * 更新告警事件状态
      */
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "更新告警事件状态")
     public ResponseEntity<Notification> updateNotificationStatus(
             @PathVariable Long id,
@@ -200,6 +210,7 @@ public class NotificationController {
      * 标记告警事件为已处理
      */
     @PostMapping("/{id}/handle")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "标记告警事件为已处理")
     public ResponseEntity<Notification> handleNotification(
             @PathVariable Long id,
@@ -214,6 +225,7 @@ public class NotificationController {
      * 删除告警事件
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
     @Operation(summary = "删除告警事件")
     public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
         notificationService.deleteNotification(id);

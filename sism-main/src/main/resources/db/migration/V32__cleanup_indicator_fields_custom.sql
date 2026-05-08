@@ -146,6 +146,7 @@ DECLARE
     v_draft_count INTEGER;
     v_distributed_count INTEGER;
     v_pending_count INTEGER;
+    v_status_column TEXT;
 BEGIN
     RAISE NOTICE '====================================================';
     RAISE NOTICE '指标表字段清理完成！';
@@ -158,10 +159,27 @@ BEGIN
     RAISE NOTICE '  定量指标: %', v_quantitative_count;
     RAISE NOTICE '  定性指标: %', v_qualitative_count;
 
-    -- 统计下发状态分布
-    SELECT COUNT(*) INTO v_draft_count FROM public.indicator WHERE distribution_status = 'DRAFT';
-    SELECT COUNT(*) INTO v_distributed_count FROM public.indicator WHERE distribution_status = 'DISTRIBUTED';
-    SELECT COUNT(*) INTO v_pending_count FROM public.indicator WHERE distribution_status = 'PENDING';
+    -- 统计状态分布。空库基线已经只保留 status，老库仍可能保留 distribution_status。
+    SELECT CASE
+        WHEN EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_name = 'indicator' AND column_name = 'distribution_status'
+        ) THEN 'distribution_status'
+        ELSE 'status'
+    END
+    INTO v_status_column;
+
+    IF v_status_column = 'distribution_status' THEN
+        SELECT COUNT(*) INTO v_draft_count FROM public.indicator WHERE distribution_status = 'DRAFT';
+        SELECT COUNT(*) INTO v_distributed_count FROM public.indicator WHERE distribution_status = 'DISTRIBUTED';
+        SELECT COUNT(*) INTO v_pending_count FROM public.indicator WHERE distribution_status = 'PENDING';
+    ELSE
+        SELECT COUNT(*) INTO v_draft_count FROM public.indicator WHERE status = 'DRAFT';
+        SELECT COUNT(*) INTO v_distributed_count FROM public.indicator WHERE status = 'DISTRIBUTED';
+        SELECT COUNT(*) INTO v_pending_count FROM public.indicator WHERE status = 'PENDING';
+    END IF;
+
     RAISE NOTICE '下发状态分布:';
     RAISE NOTICE '  DRAFT(草稿未下发): %', v_draft_count;
     RAISE NOTICE '  DISTRIBUTED(已下发): %', v_distributed_count;

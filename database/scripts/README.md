@@ -1,0 +1,54 @@
+# Database Scripts Guide
+
+`database/scripts/` 不是当前 Flyway 活跃迁移链的一部分。
+
+这个目录目前只保留本地 clean seed 重置链所需的最小脚本集。
+
+高风险提醒：
+
+- `reset-clean-seeds.sh`
+
+该脚本会重置并重新导入本地 seed 数据，只能用于本地或明确批准的测试库。
+
+使用原则：
+
+- 不要把这里的脚本当成可直接上线的正式迁移
+- 任何会改数据的脚本都应先确认目标环境，默认只建议在本地或受控测试环境执行
+- 如需把某项修复纳入正式发布流程，应把它转成 `sism-main/src/main/resources/db/migration/` 下的 Flyway 迁移
+- 对约束型迁移，先做数据审计，再执行迁移；不要假设目标库数据天然满足约束
+- 如果老库需要重建 Flyway 历史，先确认目标库结构已与当前基线一致，再按活跃迁移目录执行 baseline / migrate
+
+推荐执行顺序：
+
+1. 优先看活跃 Flyway 迁移目录
+2. 再看 `sism-main/src/main/resources/db/migration/README.md`
+3. 最后才评估是否需要执行本目录脚本
+
+当前可直接复用的本地校验：
+
+- `check-seed-schema-drift.js`
+- `rebuild-local-db.sh`
+
+该脚本会读取 `reset-and-load-clean-seeds.sql` 实际纳入的 seed 文件，并用 `.env` 指向的 PostgreSQL 数据库做表 / 字段对齐检查：
+
+- seed 目标表是否存在
+- seed `INSERT` 字段是否存在
+- 当前表里 `NOT NULL` 且无默认值的字段是否被 seed 漏掉
+
+运行方式：
+
+```bash
+cd sism-backend
+node ./database/scripts/check-seed-schema-drift.js
+```
+
+脚本是只读检查，不会改数据库数据；发现漂移时会返回非零退出码。
+
+本地重建脚本：
+
+```bash
+cd sism-backend
+./database/scripts/rebuild-local-db.sh --yes
+```
+
+该脚本会先备份 `.env` 指向的本地数据库到 `/tmp`，然后重建数据库、执行当前活跃 Flyway 迁移链、重新导入 clean seeds，并在最后再次做 seed/schema 对齐检查。
