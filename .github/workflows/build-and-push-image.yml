@@ -464,23 +464,21 @@ jobs:
           fi
 
           echo "Database is empty. Loading clean seed baseline."
-          podman exec -i production_postgres_1 psql \
+          podman exec production_postgres_1 rm -rf /tmp/sism-seed-bundle || true
+          podman cp "${REMOTE_DIR}/seed-bundle" production_postgres_1:/tmp/sism-seed-bundle
+
+          podman exec production_postgres_1 psql \
             -U "${POSTGRES_USER}" \
             -d "${POSTGRES_DB}" \
-            < "${REMOTE_DIR}/seed-bundle/scripts/bootstrap-local-seed-support.sql"
+            -f /tmp/sism-seed-bundle/scripts/bootstrap-local-seed-support.sql
 
-          (
-            cd "${REMOTE_DIR}/seed-bundle/seeds"
-            podman exec -i production_postgres_1 psql \
-              -U "${POSTGRES_USER}" \
-              -d "${POSTGRES_DB}" \
-              < "${REMOTE_DIR}/seed-bundle/seeds/reset-and-load-clean-seeds.sql"
-          )
+          podman exec production_postgres_1 sh -lc \
+            "cd /tmp/sism-seed-bundle/seeds && psql -U '${POSTGRES_USER}' -d '${POSTGRES_DB}' -f reset-and-load-clean-seeds.sql"
 
-          podman exec -i production_postgres_1 psql \
+          podman exec production_postgres_1 psql \
             -U "${POSTGRES_USER}" \
             -d "${POSTGRES_DB}" \
-            < "${REMOTE_DIR}/seed-bundle/scripts/validate-clean-seeds.sql"
+            -f /tmp/sism-seed-bundle/scripts/validate-clean-seeds.sql
           SCRIPT
 
       - name: Verify stack health
