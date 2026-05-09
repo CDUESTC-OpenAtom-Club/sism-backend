@@ -295,6 +295,7 @@ jobs:
               printf 'ALLOWED_ORIGINS=%s\n' "http://${SERVER_HOST}"
               printf 'FRONTEND_IMAGE=%s\n' "${FRONTEND_IMAGE}"
               printf 'BACKEND_IMAGE=%s\n' "${BACKEND_IMAGE}"
+              printf 'AUTO_LOAD_CLEAN_SEEDS=%s\n' 'true'
               printf 'SPRING_FLYWAY_ENABLED=%s\n' 'true'
               printf 'BACKEND_PORT=%s\n' '8080'
               printf 'FRONTEND_PORT=%s\n' '80'
@@ -307,6 +308,7 @@ jobs:
             upsert_env BACKEND_IMAGE "${BACKEND_IMAGE}"
           fi
           grep -q '^SPRING_FLYWAY_ENABLED=' "${ENV_FILE}" || upsert_env SPRING_FLYWAY_ENABLED true
+          grep -q '^AUTO_LOAD_CLEAN_SEEDS=' "${ENV_FILE}" || upsert_env AUTO_LOAD_CLEAN_SEEDS true
           grep -q '^BACKEND_PORT=' "${ENV_FILE}" || upsert_env BACKEND_PORT 8080
           grep -q '^FRONTEND_PORT=' "${ENV_FILE}" || upsert_env FRONTEND_PORT 80
           grep -q '^ALLOWED_ORIGINS=' "${ENV_FILE}" || upsert_env ALLOWED_ORIGINS "http://${SERVER_HOST}"
@@ -406,6 +408,80 @@ jobs:
           chmod +x /tmp/run-remote-deploy.sh
           scp /tmp/run-remote-deploy.sh "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/run-remote-deploy.sh"
           ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && nohup bash ./run-remote-deploy.sh '${REMOTE_DIR}' '${DEPLOY_MODE}' >/dev/null 2>&1 &"
+
+      - name: Upload clean seed bundle
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE_DIR="/opt/sism-stack/${{ steps.meta.outputs.target_env }}"
+          BUNDLE_DIR="$(mktemp -d)"
+          mkdir -p "${BUNDLE_DIR}/seeds" "${BUNDLE_DIR}/scripts"
+          cp -R database/seeds/. "${BUNDLE_DIR}/seeds/"
+          cp database/scripts/bootstrap-local-seed-support.sql "${BUNDLE_DIR}/scripts/"
+          cp database/scripts/validate-clean-seeds.sql "${BUNDLE_DIR}/scripts/"
+          tar -C "${BUNDLE_DIR}" -czf /tmp/sism-seed-bundle.tgz .
+          scp /tmp/sism-seed-bundle.tgz "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/sism-seed-bundle.tgz"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "mkdir -p '${REMOTE_DIR}/seed-bundle' && tar -xzf '${REMOTE_DIR}/sism-seed-bundle.tgz' -C '${REMOTE_DIR}/seed-bundle' && rm -f '${REMOTE_DIR}/sism-seed-bundle.tgz'"
+
+      - name: Load clean seeds when database is empty
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE_DIR="/opt/sism-stack/${{ steps.meta.outputs.target_env }}"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "REMOTE_DIR='${REMOTE_DIR}' bash -s" <<'SCRIPT'
+          set -euo pipefail
+          cd "${REMOTE_DIR}"
+
+          AUTO_LOAD_CLEAN_SEEDS="$(awk -F= '/^AUTO_LOAD_CLEAN_SEEDS=/{print $2}' .env | tail -n 1)"
+          POSTGRES_DB="$(awk -F= '/^POSTGRES_DB=/{print $2}' .env | tail -n 1)"
+          POSTGRES_USER="$(awk -F= '/^POSTGRES_USER=/{print $2}' .env | tail -n 1)"
+
+          if [[ "${AUTO_LOAD_CLEAN_SEEDS}" != "true" ]]; then
+            echo "AUTO_LOAD_CLEAN_SEEDS is disabled, skipping clean seed bootstrap."
+            exit 0
+          fi
+
+          USER_COUNT="$(
+            podman exec production_postgres_1 psql \
+              -U "${POSTGRES_USER}" \
+              -d "${POSTGRES_DB}" \
+              -tAc "SELECT COUNT(*) FROM public.sys_user;" | tr -d '[:space:]'
+          )"
+          ORG_COUNT="$(
+            podman exec production_postgres_1 psql \
+              -U "${POSTGRES_USER}" \
+              -d "${POSTGRES_DB}" \
+              -tAc "SELECT COUNT(*) FROM public.sys_org;" | tr -d '[:space:]'
+          )"
+
+          if [[ "${USER_COUNT}" != "0" || "${ORG_COUNT}" != "0" ]]; then
+            echo "Database already has seed data (sys_user=${USER_COUNT}, sys_org=${ORG_COUNT}), skipping clean seed bootstrap."
+            exit 0
+          fi
+
+          echo "Database is empty. Loading clean seed baseline."
+          podman exec -i production_postgres_1 psql \
+            -U "${POSTGRES_USER}" \
+            -d "${POSTGRES_DB}" \
+            < "${REMOTE_DIR}/seed-bundle/scripts/bootstrap-local-seed-support.sql"
+
+          (
+            cd "${REMOTE_DIR}/seed-bundle/seeds"
+            podman exec -i production_postgres_1 psql \
+              -U "${POSTGRES_USER}" \
+              -d "${POSTGRES_DB}" \
+              < "${REMOTE_DIR}/seed-bundle/seeds/reset-and-load-clean-seeds.sql"
+          )
+
+          podman exec -i production_postgres_1 psql \
+            -U "${POSTGRES_USER}" \
+            -d "${POSTGRES_DB}" \
+            < "${REMOTE_DIR}/seed-bundle/scripts/validate-clean-seeds.sql"
+          SCRIPT
 
       - name: Verify stack health
         env:
