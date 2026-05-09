@@ -340,6 +340,18 @@ jobs:
           LOG_FILE="${REMOTE_DIR}/deploy-run.log"
           STATUS_FILE="${REMOTE_DIR}/deploy-status.env"
           START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          pull_image() {
+            local image="$1"
+            local attempt
+            for attempt in 1 2 3; do
+              if timeout 900 podman pull "${image}"; then
+                return 0
+              fi
+              echo "[deploy] pull failed for ${image}, attempt ${attempt}" >> "${LOG_FILE}" 2>&1
+              sleep 5
+            done
+            return 1
+          }
           {
             echo "DEPLOY_START_UTC=${START_TS}"
             echo "FRONTEND_PULL_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -354,7 +366,7 @@ jobs:
                 echo "FRONTEND_PULL_MODE=cache-hit" >> "${STATUS_FILE}"
               else
                 echo "FRONTEND_PULL_MODE=pulled" >> "${STATUS_FILE}"
-                podman pull "${FRONTEND_IMAGE}"
+                pull_image "${FRONTEND_IMAGE}"
               fi
             else
               echo "FRONTEND_PULL_MODE=skipped" >> "${STATUS_FILE}"
@@ -368,7 +380,7 @@ jobs:
                 echo "BACKEND_PULL_MODE=cache-hit" >> "${STATUS_FILE}"
               else
                 echo "BACKEND_PULL_MODE=pulled" >> "${STATUS_FILE}"
-                podman pull "${BACKEND_IMAGE}"
+                pull_image "${BACKEND_IMAGE}"
               fi
             else
               echo "BACKEND_PULL_MODE=skipped" >> "${STATUS_FILE}"
@@ -407,7 +419,15 @@ jobs:
           SCRIPT
           chmod +x /tmp/run-remote-deploy.sh
           scp /tmp/run-remote-deploy.sh "${SERVER_USER}@${SERVER_HOST}:${REMOTE_DIR}/run-remote-deploy.sh"
-          ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && nohup bash ./run-remote-deploy.sh '${REMOTE_DIR}' '${DEPLOY_MODE}' >/dev/null 2>&1 &"
+          ssh "${SERVER_USER}@${SERVER_HOST}" "
+            set -e
+            cd '${REMOTE_DIR}'
+            pkill -f \"run-remote-deploy.sh '${REMOTE_DIR}'\" || true
+            pkill -f 'podman pull ghcr.io/cduestc-openatom-club/sism-backend' || true
+            pkill -f 'podman pull ghcr.io/cduestc-openatom-club/strategic-task-management' || true
+            setsid bash ./run-remote-deploy.sh '${REMOTE_DIR}' '${DEPLOY_MODE}' </dev/null >/dev/null 2>&1 &
+            exit 0
+          "
 
       - name: Upload clean seed bundle
         env:
