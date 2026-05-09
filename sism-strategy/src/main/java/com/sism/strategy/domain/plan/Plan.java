@@ -15,6 +15,8 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 
@@ -50,6 +52,7 @@ public class Plan extends AggregateRoot<Long> {
     private Long createdByOrgId;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "plan_level", columnDefinition = "plan_level", nullable = false)
     private PlanLevel planLevel;
 
