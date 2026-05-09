@@ -422,9 +422,15 @@ jobs:
           ssh "${SERVER_USER}@${SERVER_HOST}" "
             set -e
             cd '${REMOTE_DIR}'
-            pkill -f \"[r]un-remote-deploy.sh '${REMOTE_DIR}'\" || true
-            pkill -f '[p]odman pull ghcr.io/cduestc-openatom-club/sism-backend' || true
-            pkill -f '[p]odman pull ghcr.io/cduestc-openatom-club/strategic-task-management' || true
+            for pid in \$(pgrep -f \"run-remote-deploy.sh ${REMOTE_DIR}\" || true); do
+              if [ \"\$pid\" != \"\$\$\" ]; then kill \"\$pid\" || true; fi
+            done
+            for pid in \$(pgrep -f 'podman pull ghcr.io/cduestc-openatom-club/sism-backend' || true); do
+              if [ \"\$pid\" != \"\$\$\" ]; then kill \"\$pid\" || true; fi
+            done
+            for pid in \$(pgrep -f 'podman pull ghcr.io/cduestc-openatom-club/strategic-task-management' || true); do
+              if [ \"\$pid\" != \"\$\$\" ]; then kill \"\$pid\" || true; fi
+            done
             setsid bash ./run-remote-deploy.sh '${REMOTE_DIR}' '${DEPLOY_MODE}' </dev/null >/dev/null 2>&1 &
             exit 0
           "
