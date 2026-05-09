@@ -52,3 +52,8 @@ cd sism-backend
 ```
 
 该脚本会先备份 `.env` 指向的本地数据库到 `/tmp`，然后重建数据库、执行当前活跃 Flyway 迁移链、重新导入 clean seeds，并在最后再次做 seed/schema 对齐检查。
+
+当前标准做法：
+
+- 本地第一代数据初始化直接依赖活跃 Flyway 迁移链加 clean seeds
+- 不再保留或使用“从远程数据库同步到本地”的旧脚本
