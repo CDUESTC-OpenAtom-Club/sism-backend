@@ -19,6 +19,7 @@ RUN mvn -B -pl sism-main -am dependency:go-offline
 COPY . .
 
 RUN mvn -B -pl sism-main -am package -Dmaven.test.skip=true -Dmaven.javadoc.skip=true
+RUN java -Djarmode=layertools -jar /workspace/sism-main/target/sism-main-1.0.0.jar extract --destination /workspace/layers
 
 FROM eclipse-temurin:17-jre-jammy AS runtime
 
@@ -28,7 +29,10 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY --from=build /workspace/sism-main/target/sism-main-1.0.0.jar /app/app.jar
+COPY --from=build /workspace/layers/dependencies/ ./
+COPY --from=build /workspace/layers/spring-boot-loader/ ./
+COPY --from=build /workspace/layers/snapshot-dependencies/ ./
+COPY --from=build /workspace/layers/application/ ./
 COPY docker/backend-entrypoint.sh /app/backend-entrypoint.sh
 
 RUN chmod +x /app/backend-entrypoint.sh

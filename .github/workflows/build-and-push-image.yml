@@ -340,11 +340,13 @@ jobs:
           LOG_FILE="${REMOTE_DIR}/deploy-run.log"
           STATUS_FILE="${REMOTE_DIR}/deploy-status.env"
           START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          PULL_TIMEOUT_SECONDS=420
+          PULL_MAX_ATTEMPTS=2
           pull_image() {
             local image="$1"
             local attempt
-            for attempt in 1 2 3; do
-              if timeout 900 podman pull "${image}"; then
+            for attempt in $(seq 1 "${PULL_MAX_ATTEMPTS}"); do
+              if timeout "${PULL_TIMEOUT_SECONDS}" podman pull "${image}"; then
                 return 0
               fi
               echo "[deploy] pull failed for ${image}, attempt ${attempt}" >> "${LOG_FILE}" 2>&1
@@ -391,13 +393,13 @@ jobs:
             echo "STACK_UP_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${STATUS_FILE}"
             case "${DEPLOY_MODE}" in
               frontend-only)
-                docker compose up -d frontend
+                docker compose up -d --force-recreate frontend
                 ;;
               backend-only)
-                docker compose up -d backend
+                docker compose up -d --force-recreate backend
                 ;;
               *)
-                docker compose up -d
+                docker compose up -d --force-recreate
                 ;;
             esac
             STACK_UP_END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -515,9 +517,11 @@ jobs:
         run: |
           set -euo pipefail
           REMOTE_DIR="/opt/sism-stack/${{ steps.meta.outputs.target_env }}"
+          DEPLOY_COMPLETED=false
           for i in $(seq 1 120); do
             STATUS_RAW="$(ssh "${SERVER_USER}@${SERVER_HOST}" "test -f '${REMOTE_DIR}/deploy-status.env' && cat '${REMOTE_DIR}/deploy-status.env' || true")"
             if printf '%s\n' "$STATUS_RAW" | grep -q '^DEPLOY_STATE=success$'; then
+              DEPLOY_COMPLETED=true
               break
             fi
             if printf '%s\n' "$STATUS_RAW" | grep -q '^DEPLOY_STATE=failure$'; then
@@ -527,6 +531,12 @@ jobs:
             fi
             sleep 5
           done
+          if [[ "${DEPLOY_COMPLETED}" != "true" ]]; then
+            echo "Deployment did not reach DEPLOY_STATE=success within polling window." >&2
+            ssh "${SERVER_USER}@${SERVER_HOST}" "cat '${REMOTE_DIR}/deploy-status.env' 2>/dev/null || true" >&2
+            ssh "${SERVER_USER}@${SERVER_HOST}" "tail -200 '${REMOTE_DIR}/deploy-run.log' || true" >&2
+            exit 1
+          fi
           STATUS_RAW="$(ssh "${SERVER_USER}@${SERVER_HOST}" "cat '${REMOTE_DIR}/deploy-status.env'")"
           echo "$STATUS_RAW"
           ssh "${SERVER_USER}@${SERVER_HOST}" "cd '${REMOTE_DIR}' && docker compose ps"

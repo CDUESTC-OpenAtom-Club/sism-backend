@@ -16,4 +16,4 @@ until pg_isready -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USERNAME}" >/dev/null 
   sleep 2
 done
 
-exec java -jar /app/app.jar --spring.profiles.active="${SPRING_PROFILES_ACTIVE}"
+exec java org.springframework.boot.loader.launch.JarLauncher --spring.profiles.active="${SPRING_PROFILES_ACTIVE}"
