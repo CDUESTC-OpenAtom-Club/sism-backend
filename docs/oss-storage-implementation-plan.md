@@ -488,7 +488,7 @@ CDN_HTTPS=false
 
 ### 9.4 开发环境 `.env` 推荐完整片段
 
-> 下列内容用于开发联调，保留了本项目当前需要的详细配置项。  
+> 下列内容用于本地开发联调，保留了本项目当前需要的详细配置项。  
 > 建议开发人员在复制 `.env.example` 后，将此块追加到文件末尾。
 
 ```properties
@@ -529,7 +529,7 @@ CDN_DOMAIN=oss.blackevil.cn
 CDN_HTTPS=false
 ```
 
-> 开发联调可保留完整参数模板，但 `.env` 属于敏感配置文件，不应提交真实密钥或数据库密码。
+> 上述 `DB_URL` 仅适用于本机受信任开发环境。远程或生产 PostgreSQL 应改为 `sslmode=verify-full` 并使用受信任 CA 校验服务端身份；不要把 `loginTimeout` 当作 SCRAM 认证 DoS 的完整缓解。`.env` 属于敏感配置文件，不应提交真实密钥或数据库密码。
 
 ### 9.5 生产环境变量建议
 

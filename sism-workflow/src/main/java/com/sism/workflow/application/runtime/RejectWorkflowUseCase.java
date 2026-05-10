@@ -92,9 +92,12 @@ public class RejectWorkflowUseCase {
         returnedStep.setStepName(returnedStepDef.getStepName());
 
         Long contextOrgId = resolveContextOrgId(instance, returnedStepDef);
-        Long approverId = returnedStepDef.isSubmitStep()
-                ? instance.getRequesterId()
-                : approverResolver.resolveApproverId(returnedStepDef, instance.getRequesterId(), contextOrgId, instance);
+        Long approverId = approverResolver.resolveAssignedApproverId(
+                returnedStepDef,
+                instance.getRequesterId(),
+                contextOrgId,
+                instance
+        );
         returnedStep.setApproverId(approverId);
         returnedStep.setApproverOrgId(returnedStepDef.isSubmitStep()
                 ? instance.getRequesterOrgId()

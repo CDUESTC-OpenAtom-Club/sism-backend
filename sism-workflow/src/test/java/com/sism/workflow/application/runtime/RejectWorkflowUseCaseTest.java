@@ -2,6 +2,7 @@ package com.sism.workflow.application.runtime;
 
 import com.sism.workflow.application.WorkflowBusinessStatusSyncService;
 import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
+import com.sism.workflow.application.support.ApproverResolver;
 import com.sism.workflow.application.support.WorkflowEventDispatcher;
 import com.sism.workflow.domain.definition.AuditFlowDef;
 import com.sism.workflow.domain.definition.AuditStepDef;
@@ -34,6 +35,9 @@ class RejectWorkflowUseCaseTest {
 
     @Mock
     private WorkflowDefinitionQueryService workflowDefinitionQueryService;
+
+    @Mock
+    private ApproverResolver approverResolver;
 
     @InjectMocks
     private RejectWorkflowUseCase rejectWorkflowUseCase;
@@ -85,6 +89,7 @@ class RejectWorkflowUseCaseTest {
         instance.addStepInstance(deptInstance);
 
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
+        when(approverResolver.resolveAssignedApproverId(submit, 100L, 57L, instance)).thenReturn(100L);
         when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AuditInstance saved = rejectWorkflowUseCase.reject(instance, 300L, "打回");
@@ -136,5 +141,77 @@ class RejectWorkflowUseCaseTest {
         assertEquals(AuditInstance.STATUS_REJECTED, saved.getStatus());
         assertEquals(1, saved.getStepInstances().size());
         assertEquals(AuditInstance.STEP_STATUS_REJECTED, saved.getStepInstances().get(0).getStatus());
+    }
+
+    @Test
+    void reject_shouldAssignReturnedApprovalStepToDemoRequesterWhenEligible() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+
+        AuditStepDef submit = new AuditStepDef();
+        submit.setId(21L);
+        submit.setStepName("填报人提交");
+        submit.setStepOrder(1);
+        submit.setStepType(AuditStepDef.STEP_TYPE_SUBMIT);
+
+        AuditStepDef dept = new AuditStepDef();
+        dept.setId(22L);
+        dept.setStepName("职能部门审批人审批");
+        dept.setStepOrder(2);
+        dept.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
+        dept.setRoleId(2L);
+
+        AuditStepDef strategy = new AuditStepDef();
+        strategy.setId(23L);
+        strategy.setStepName("战略发展部终审人审批");
+        strategy.setStepOrder(3);
+        strategy.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
+        strategy.setRoleId(3L);
+
+        flowDef.setSteps(List.of(submit, dept, strategy));
+
+        AuditInstance instance = new AuditInstance();
+        instance.setId(3L);
+        instance.setFlowDefId(9L);
+        instance.setRequesterId(410L);
+        instance.setRequesterOrgId(44L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+
+        AuditStepInstance submitInstance = new AuditStepInstance();
+        submitInstance.setStepNo(1);
+        submitInstance.setStepDefId(21L);
+        submitInstance.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+        submitInstance.setApproverId(410L);
+        submitInstance.setApproverOrgId(44L);
+
+        AuditStepInstance deptInstance = new AuditStepInstance();
+        deptInstance.setStepNo(2);
+        deptInstance.setStepDefId(22L);
+        deptInstance.setStatus(AuditInstance.STEP_STATUS_APPROVED);
+        deptInstance.setApproverId(410L);
+        deptInstance.setApproverOrgId(44L);
+
+        AuditStepInstance strategyInstance = new AuditStepInstance();
+        strategyInstance.setStepNo(3);
+        strategyInstance.setStepDefId(23L);
+        strategyInstance.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        strategyInstance.setApproverId(189L);
+        strategyInstance.setApproverOrgId(35L);
+
+        instance.addStepInstance(submitInstance);
+        instance.addStepInstance(deptInstance);
+        instance.addStepInstance(strategyInstance);
+
+        when(workflowDefinitionQueryService.getAuditFlowDefById(9L)).thenReturn(flowDef);
+        when(approverResolver.resolveAssignedApproverId(dept, 410L, 44L, instance)).thenReturn(410L);
+        when(approverResolver.resolveApproverOrgId(dept, 44L, instance)).thenReturn(44L);
+        when(auditInstanceRepository.save(any(AuditInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuditInstance saved = rejectWorkflowUseCase.reject(instance, 189L, "退回重审");
+
+        assertEquals(AuditInstance.STATUS_PENDING, saved.getStatus());
+        assertEquals(4, saved.getStepInstances().size());
+        assertEquals(22L, saved.getStepInstances().get(3).getStepDefId());
+        assertEquals(410L, saved.getStepInstances().get(3).getApproverId());
+        assertEquals(44L, saved.getStepInstances().get(3).getApproverOrgId());
     }
 }

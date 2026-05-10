@@ -55,6 +55,9 @@ public class User extends AggregateRoot<Long> {
     @Column(name = "token_version", nullable = false)
     private Long tokenVersion = 0L;
 
+    @Column(name = "is_demo", nullable = false)
+    private Boolean isDemo = false;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "sys_user_role",
