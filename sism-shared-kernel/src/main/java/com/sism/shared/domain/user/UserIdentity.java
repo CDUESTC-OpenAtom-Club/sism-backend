@@ -8,6 +8,13 @@ public record UserIdentity(
         String username,
         String realName,
         Long orgId,
-        Boolean isActive
+        Boolean isActive,
+        Boolean isDemo
 ) {
+    /**
+     * Backward-compatible 5-arg constructor (isDemo defaults to false).
+     */
+    public UserIdentity(Long id, String username, String realName, Long orgId, Boolean isActive) {
+        this(id, username, realName, orgId, isActive, false);
+    }
 }

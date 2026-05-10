@@ -130,6 +130,44 @@ class StepInstanceFactoryTest {
         assertEquals(9L, instance.getStepInstances().get(1).getApproverId());
         assertEquals(35L, instance.getStepInstances().get(1).getApproverOrgId());
     }
+
+    @Test
+    void initialize_shouldAssignSecondApprovalStepToDemoRequester() {
+        AuditFlowDef flowDef = new AuditFlowDef();
+
+        AuditStepDef submitStep = new AuditStepDef();
+        submitStep.setId(1L);
+        submitStep.setStepName("提交");
+        submitStep.setStepOrder(1);
+        submitStep.setStepType(AuditStepDef.STEP_TYPE_SUBMIT);
+
+        AuditStepDef approvalStep = new AuditStepDef();
+        approvalStep.setId(2L);
+        approvalStep.setStepName("战略发展部负责人审批");
+        approvalStep.setStepOrder(2);
+        approvalStep.setStepType(AuditStepDef.STEP_TYPE_APPROVAL);
+        approvalStep.setRoleId(3L);
+        flowDef.setSteps(List.of(submitStep, approvalStep));
+
+        UserIdentity demoRequester = new UserIdentity(410L, "jiaowu_demo", "教务处[演示]", 44L, true, true);
+
+        when(userProvider.findIdentity(410L)).thenReturn(java.util.Optional.of(demoRequester));
+        when(userProvider.getUserRoleIds(410L)).thenReturn(List.of(1L, 2L, 3L, 4L));
+
+        StepInstanceFactory factory = new StepInstanceFactory(
+                new ApproverResolver(userProvider, List.of(workflowBusinessContextPort), workflowApproverProperties()),
+                new SubmissionStepAutoCompletePolicy()
+        );
+
+        AuditInstance instance = new AuditInstance();
+        instance.setEntityType("Plan");
+        instance.setEntityId(4044L);
+
+        factory.initialize(instance, flowDef, 410L, 44L);
+
+        assertEquals(410L, instance.getStepInstances().get(1).getApproverId());
+        assertEquals(35L, instance.getStepInstances().get(1).getApproverOrgId());
+    }
     private WorkflowApproverProperties workflowApproverProperties() {
         WorkflowApproverProperties properties = new WorkflowApproverProperties();
         properties.setApproverRoleId(2L);

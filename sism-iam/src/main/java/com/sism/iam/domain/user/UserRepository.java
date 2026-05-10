@@ -89,7 +89,8 @@ public interface UserRepository extends UserProvider {
                 user.getUsername(),
                 user.getRealName(),
                 user.getOrgId(),
-                user.getIsActive()
+                user.getIsActive(),
+                Boolean.TRUE.equals(user.getIsDemo())
         ));
     }
 
@@ -102,7 +103,8 @@ public interface UserRepository extends UserProvider {
                         user.getUsername(),
                         user.getRealName(),
                         user.getOrgId(),
-                        user.getIsActive()
+                        user.getIsActive(),
+                        Boolean.TRUE.equals(user.getIsDemo())
                 ))
                 .toList();
     }

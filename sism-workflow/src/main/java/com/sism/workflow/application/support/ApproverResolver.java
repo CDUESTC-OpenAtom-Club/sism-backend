@@ -50,6 +50,22 @@ public class ApproverResolver {
         return resolveByRoleId(roleId, scopeOrgId, stepDef.getStepName());
     }
 
+    public Long resolveAssignedApproverId(AuditStepDef stepDef, Long requesterId, Long requesterOrgId, AuditInstance instance) {
+        if (stepDef == null) {
+            throw new IllegalArgumentException("Workflow step is required");
+        }
+        if (stepDef.isSubmitStep()) {
+            return requesterId;
+        }
+        if (requesterId != null
+                && requesterId > 0
+                && isDemoUser(requesterId)
+                && canUserApprove(stepDef, requesterId, requesterOrgId, instance)) {
+            return requesterId;
+        }
+        return resolveApproverId(stepDef, requesterId, requesterOrgId, instance);
+    }
+
     private Long resolveByRoleId(Long roleId, Long requesterOrgId, String stepName) {
         List<UserIdentity> candidates = findScopedActiveUsersByRole(roleId, requesterOrgId);
         if (candidates.isEmpty()) {
@@ -138,13 +154,26 @@ public class ApproverResolver {
             return false;
         }
 
-        Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
         List<Long> roleIds = userProvider.getUserRoleIds(userId);
 
         return userProvider.findIdentity(userId)
                 .filter(user -> Boolean.TRUE.equals(user.isActive()))
                 .filter(user -> roleIds.contains(roleId))
-                .filter(user -> matchesRoleScope(user, roleId, scopeOrgId))
+                .filter(user -> {
+                    // Demo accounts bypass scope matching
+                    if (Boolean.TRUE.equals(user.isDemo())) {
+                        return true;
+                    }
+                    Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
+                    return matchesRoleScope(user, roleId, scopeOrgId);
+                })
+                .isPresent();
+    }
+
+    private boolean isDemoUser(Long userId) {
+        return userProvider.findIdentity(userId)
+                .map(UserIdentity::isDemo)
+                .filter(Boolean.TRUE::equals)
                 .isPresent();
     }
 
@@ -178,7 +207,13 @@ public class ApproverResolver {
     private List<UserIdentity> findScopedActiveUsersByRole(Long roleId, Long requesterOrgId) {
         return userProvider.findActiveIdentitiesByRole(roleId).stream()
                 .filter(user -> Boolean.TRUE.equals(user.isActive()))
-                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId))
+                .filter(user -> {
+                    // Demo accounts bypass scope matching
+                    if (Boolean.TRUE.equals(user.isDemo())) {
+                        return true;
+                    }
+                    return matchesRoleScope(user, roleId, requesterOrgId);
+                })
                 .sorted(Comparator.comparing(UserIdentity::id))
                 .toList();
     }

@@ -76,9 +76,12 @@ public class ApproveWorkflowUseCase {
         nextStep.setStepName(nextStepDef.getStepName());
 
         Long contextOrgId = getCurrentApproverOrgId(instance);
-        nextStep.setApproverId(
-                approverResolver.resolveApproverId(nextStepDef, instance.getRequesterId(), contextOrgId, instance)
-        );
+        nextStep.setApproverId(approverResolver.resolveAssignedApproverId(
+                nextStepDef,
+                instance.getRequesterId(),
+                contextOrgId,
+                instance
+        ));
         nextStep.setApproverOrgId(approverResolver.resolveApproverOrgId(nextStepDef, contextOrgId, instance));
         nextStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
         instance.addStepInstance(nextStep);
