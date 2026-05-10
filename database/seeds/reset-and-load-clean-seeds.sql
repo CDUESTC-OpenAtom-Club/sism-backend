@@ -56,6 +56,7 @@ COMMIT;
 \i audit_flow_def-data.sql
 \i sys_role_permission-data.sql
 \i sys_user_role-data.sql
+\i sys_demo_user-data.sql
 \i audit_step_def-data.sql
 \i cycle-data.sql
 \i plan-data.sql

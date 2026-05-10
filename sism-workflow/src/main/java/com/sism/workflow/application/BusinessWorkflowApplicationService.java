@@ -35,16 +35,8 @@ import java.util.Comparator;
 public class BusinessWorkflowApplicationService {
 
     private static final String PLAN_ENTITY_TYPE = "PLAN";
-    private static final String PLAN_APPROVE_PERMISSION = "BTN_STRATEGY_TASK_DISPATCH_APPROVE";
-    private static final String PLAN_REPORT_APPROVE_PERMISSION = "BTN_STRATEGY_TASK_REPORT_APPROVE";
-    private static final String INDICATOR_DISPATCH_APPROVE_PERMISSION = "BTN_INDICATOR_DISPATCH_APPROVE";
-    private static final String INDICATOR_REPORT_APPROVE_PERMISSION = "BTN_INDICATOR_REPORT_APPROVE";
     private static final String PLAN_REPORT_ENTITY_TYPE = "PLAN_REPORT";
     private static final String LEGACY_PLAN_REPORT_ENTITY_TYPE = "PlanReport";
-    private static final String PLAN_DISPATCH_STRATEGY_FLOW_CODE = "PLAN_DISPATCH_STRATEGY";
-    private static final String PLAN_DISPATCH_FUNCDEPT_FLOW_CODE = "PLAN_DISPATCH_FUNCDEPT";
-    private static final String PLAN_APPROVAL_FUNCDEPT_FLOW_CODE = "PLAN_APPROVAL_FUNCDEPT";
-    private static final String PLAN_APPROVAL_COLLEGE_FLOW_CODE = "PLAN_APPROVAL_COLLEGE";
 
     private final WorkflowDefinitionQueryService workflowDefinitionQueryService;
     private final AuditInstanceRepository auditInstanceRepository;
@@ -239,7 +231,6 @@ public class BusinessWorkflowApplicationService {
         if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId(), instance)) {
             throw new SecurityException("You are not authorized to approve this task");
         }
-        ensureUserHasApprovalPermission(instance, userId);
 
         AuditInstance approved = workflowApplicationService.approveAuditInstance(
                 instance, userId, request.getComment());
@@ -289,7 +280,6 @@ public class BusinessWorkflowApplicationService {
         if (!approverResolver.canUserApprove(currentStepDef, userId, instance.getRequesterOrgId(), instance)) {
             throw new SecurityException("You are not authorized to reject this task");
         }
-        ensureUserHasApprovalPermission(instance, userId);
 
         AuditInstance rejected = workflowApplicationService.rejectAuditInstance(
                 instance, userId, request.getReason());
@@ -352,48 +342,6 @@ public class BusinessWorkflowApplicationService {
                 .filter(step -> step.getId() != null && step.getId().equals(currentStep.getStepDefId()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Workflow step definition not found for step: " + currentStep.getStepDefId()));
-    }
-
-    private void ensureUserHasApprovalPermission(AuditInstance instance, Long userId) {
-        List<String> requiredPermissions = resolveApprovalPermissionCodes(instance);
-        if (requiredPermissions.isEmpty()) {
-            return;
-        }
-
-        List<String> permissionCodes = userProvider.getUserPermissionCodes(userId);
-        boolean hasPermission = requiredPermissions.stream().anyMatch(permissionCodes::contains);
-        if (!hasPermission) {
-            throw new SecurityException("You are not authorized to operate this approval task");
-        }
-    }
-
-    private List<String> resolveApprovalPermissionCodes(AuditInstance instance) {
-        if (instance == null || instance.getEntityType() == null) {
-            return List.of();
-        }
-
-        if (PLAN_ENTITY_TYPE.equalsIgnoreCase(instance.getEntityType())) {
-            AuditFlowDef flowDef = resolveFlowDef(instance.getFlowDefId());
-            String flowCode = flowDef != null ? flowDef.getFlowCode() : null;
-            if (PLAN_APPROVAL_FUNCDEPT_FLOW_CODE.equals(flowCode) || PLAN_APPROVAL_COLLEGE_FLOW_CODE.equals(flowCode)) {
-                return List.of(PLAN_REPORT_APPROVE_PERMISSION, INDICATOR_REPORT_APPROVE_PERMISSION);
-            }
-            if (PLAN_DISPATCH_STRATEGY_FLOW_CODE.equals(flowCode) || PLAN_DISPATCH_FUNCDEPT_FLOW_CODE.equals(flowCode)) {
-                return List.of(PLAN_APPROVE_PERMISSION, INDICATOR_DISPATCH_APPROVE_PERMISSION);
-            }
-            return List.of(PLAN_APPROVE_PERMISSION, INDICATOR_DISPATCH_APPROVE_PERMISSION);
-        }
-        if (isPlanReportEntityType(instance.getEntityType())) {
-            return List.of(PLAN_REPORT_APPROVE_PERMISSION, INDICATOR_REPORT_APPROVE_PERMISSION);
-        }
-        return List.of();
-    }
-
-    private AuditFlowDef resolveFlowDef(Long flowDefId) {
-        if (flowDefId == null) {
-            return null;
-        }
-        return workflowDefinitionQueryService.getAuditFlowDefById(flowDefId);
     }
 
     /**
@@ -509,6 +457,10 @@ public class BusinessWorkflowApplicationService {
             boolean approved,
             String comment
     ) {
+        if (approved && !AuditInstance.STATUS_APPROVED.equalsIgnoreCase(instance.getStatus())) {
+            return;
+        }
+
         Long senderOrgId = userProvider.getUserOrgId(userId).orElse(null);
         String businessName = firstNonBlank(
                 detailSnapshot == null ? null : detailSnapshot.getPlanName(),

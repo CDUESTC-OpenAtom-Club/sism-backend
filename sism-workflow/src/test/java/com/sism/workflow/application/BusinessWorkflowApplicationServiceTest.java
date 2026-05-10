@@ -27,6 +27,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -367,8 +369,6 @@ class BusinessWorkflowApplicationServiceTest {
         when(auditInstanceRepository.findByStepInstanceId(5L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(3L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 192L, 36L, instance)).thenReturn(true);
-        when(userProvider.getUserPermissionCodes(192L))
-                .thenReturn(List.of("BTN_INDICATOR_REPORT_APPROVE"));
         when(workflowApplicationService.approveAuditInstance(instance, 192L, "同意")).thenReturn(instance);
         when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
                 WorkflowInstanceResponse.builder().instanceId("4036").status("IN_REVIEW").build()
@@ -381,7 +381,53 @@ class BusinessWorkflowApplicationServiceTest {
     }
 
     @Test
-    void approveTask_shouldRejectUserWithoutRequiredPermissionCode() {
+    void approveTask_shouldNotCreateApprovedNotificationBeforeWorkflowFinishes() {
+        AuditInstance instance = new AuditInstance();
+        instance.setId(7036L);
+        instance.setStatus(AuditInstance.STATUS_PENDING);
+        instance.setFlowDefId(1L);
+        instance.setRequesterOrgId(35L);
+        instance.setEntityType("PLAN");
+        instance.setEntityId(7036L);
+
+        com.sism.workflow.domain.runtime.AuditStepInstance currentStep =
+                new com.sism.workflow.domain.runtime.AuditStepInstance();
+        currentStep.setId(3L);
+        currentStep.setStepDefId(3L);
+        currentStep.setStepNo(3);
+        currentStep.setStepName("分管校领导审批");
+        currentStep.setStatus(AuditInstance.STEP_STATUS_PENDING);
+        instance.addStepInstance(currentStep);
+
+        AuditFlowDef flowDef = new AuditFlowDef();
+        flowDef.setId(1L);
+        AuditStepDef stepDef = new AuditStepDef();
+        stepDef.setId(3L);
+        stepDef.setRoleId(4L);
+        stepDef.setStepName("分管校领导审批");
+        flowDef.setSteps(List.of(stepDef));
+
+        ApprovalRequest request = new ApprovalRequest();
+        request.setComment("同意");
+
+        when(auditInstanceRepository.findByStepInstanceId(3L)).thenReturn(Optional.of(instance));
+        when(workflowDefinitionQueryService.getAuditFlowDefById(1L)).thenReturn(flowDef);
+        when(approverResolver.canUserApprove(stepDef, 401L, 35L, instance)).thenReturn(true);
+        when(workflowApplicationService.approveAuditInstance(instance, 401L, "同意")).thenReturn(instance);
+        when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
+                WorkflowInstanceResponse.builder().instanceId("7036").status("IN_REVIEW").build()
+        );
+
+        WorkflowInstanceResponse response = businessWorkflowApplicationService.approveTask("3", request, 401L);
+
+        assertEquals("7036", response.getInstanceId());
+        verify(notificationProvider, never()).createApprovalResultNotification(
+                any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean(), any()
+        );
+    }
+
+    @Test
+    void approveTask_shouldAllowUserWithoutLegacyPermissionCode() {
         AuditInstance instance = new AuditInstance();
         instance.setId(140L);
         instance.setStatus(AuditInstance.STATUS_PENDING);
@@ -410,12 +456,15 @@ class BusinessWorkflowApplicationServiceTest {
         when(auditInstanceRepository.findByStepInstanceId(400L)).thenReturn(Optional.of(instance));
         when(workflowDefinitionQueryService.getAuditFlowDefById(4L)).thenReturn(flowDef);
         when(approverResolver.canUserApprove(stepDef, 9L, 22L, instance)).thenReturn(true);
-        when(userProvider.getUserPermissionCodes(9L)).thenReturn(List.of());
-
-        assertThrows(
-                SecurityException.class,
-                () -> businessWorkflowApplicationService.approveTask("400", request, 9L)
+        when(workflowApplicationService.approveAuditInstance(instance, 9L, "同意")).thenReturn(instance);
+        when(workflowReadModelMapper.toInstanceResponse(instance)).thenReturn(
+                WorkflowInstanceResponse.builder().instanceId("140").status("IN_REVIEW").build()
         );
+
+        WorkflowInstanceResponse response = businessWorkflowApplicationService.approveTask("400", request, 9L);
+
+        assertEquals("140", response.getInstanceId());
+        verify(workflowApplicationService).approveAuditInstance(instance, 9L, "同意");
     }
 
     @Test

@@ -280,10 +280,13 @@ public class GlobalExceptionHandler {
         log.warn("Authentication failed: message={}, requestId={}, context=[{}]",
                 e.getMessage(), requestId, requestContext);
 
-        ApiResponse<Void> response = ApiResponse.error(ErrorCodes.INVALID_CREDENTIALS, MESSAGE_AUTHENTICATION_FAILED);
+        ApiResponse<Void> response = ApiResponse.error(
+                mapBusinessCodeToApiErrorCode(e.getCode()),
+                e.getMessage() == null || e.getMessage().isBlank() ? MESSAGE_AUTHENTICATION_FAILED : e.getMessage()
+        );
 
         return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
+                .status(getHttpStatus(e.getCode()))
                 .body(response);
     }
 
@@ -518,6 +521,9 @@ public class GlobalExceptionHandler {
         return switch (code) {
             case "400", "BUSINESS_ERROR" -> ErrorCodes.BAD_REQUEST;
             case "401", "AUTHENTICATION_FAILED", "INVALID_TOKEN" -> ErrorCodes.INVALID_TOKEN;
+            case "INVALID_CREDENTIALS", "2001" -> ErrorCodes.INVALID_CREDENTIALS;
+            case "USER_DISABLED", "2002" -> ErrorCodes.USER_DISABLED;
+            case "USER_LOCKED", "2003" -> ErrorCodes.USER_LOCKED;
             case "403", "AUTHORIZATION_FAILED", "INSUFFICIENT_PERMISSION" -> ErrorCodes.INSUFFICIENT_PERMISSION;
             case "404", "RESOURCE_NOT_FOUND", "DATA_NOT_FOUND" -> ErrorCodes.DATA_NOT_FOUND;
             case "409", "DATA_ALREADY_EXISTS" -> ErrorCodes.DATA_ALREADY_EXISTS;
@@ -538,6 +544,9 @@ public class GlobalExceptionHandler {
         return switch (code) {
             case 400 -> ErrorCodes.BAD_REQUEST;
             case 401 -> ErrorCodes.INVALID_TOKEN;
+            case ErrorCodes.INVALID_CREDENTIALS -> ErrorCodes.INVALID_CREDENTIALS;
+            case ErrorCodes.USER_DISABLED -> ErrorCodes.USER_DISABLED;
+            case ErrorCodes.USER_LOCKED -> ErrorCodes.USER_LOCKED;
             case 403 -> ErrorCodes.INSUFFICIENT_PERMISSION;
             case 404 -> ErrorCodes.DATA_NOT_FOUND;
             case 409 -> ErrorCodes.DATA_ALREADY_EXISTS;
@@ -558,7 +567,8 @@ public class GlobalExceptionHandler {
 
         return switch (code) {
             case "400", "BUSINESS_ERROR" -> HttpStatus.BAD_REQUEST;
-            case "401", "AUTHENTICATION_FAILED" -> HttpStatus.UNAUTHORIZED;
+            case "401", "AUTHENTICATION_FAILED", "INVALID_CREDENTIALS", "USER_DISABLED", "USER_LOCKED",
+                    "2001", "2002", "2003" -> HttpStatus.UNAUTHORIZED;
             case "403", "AUTHORIZATION_FAILED" -> HttpStatus.FORBIDDEN;
             case "404", "RESOURCE_NOT_FOUND" -> HttpStatus.NOT_FOUND;
             case "409" -> HttpStatus.CONFLICT;
@@ -579,6 +589,7 @@ public class GlobalExceptionHandler {
         return switch (code) {
             case 400 -> HttpStatus.BAD_REQUEST;
             case 401 -> HttpStatus.UNAUTHORIZED;
+            case ErrorCodes.INVALID_CREDENTIALS, ErrorCodes.USER_DISABLED, ErrorCodes.USER_LOCKED -> HttpStatus.UNAUTHORIZED;
             case 403 -> HttpStatus.FORBIDDEN;
             case 404 -> HttpStatus.NOT_FOUND;
             case 409 -> HttpStatus.CONFLICT;

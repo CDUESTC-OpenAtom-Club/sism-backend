@@ -23,8 +23,12 @@ public class WorkflowApproverProperties {
     @NotNull
     private Long strategyOrgId;
     private Map<Long, Long> functionalVicePresidentScopeByOrg = new LinkedHashMap<>();
+    @Deprecated(since = "2026-05", forRemoval = false)
     private String planApprovePermissionCode;
+    @Deprecated(since = "2026-05", forRemoval = false)
     private String planReportApprovePermissionCode;
+    @Deprecated(since = "2026-05", forRemoval = false)
     private String indicatorDispatchApprovePermissionCode;
+    @Deprecated(since = "2026-05", forRemoval = false)
     private String indicatorReportApprovePermissionCode;
 }

@@ -8,6 +8,7 @@ import com.sism.iam.domain.user.UserRepository;
 import com.sism.organization.domain.OrgType;
 import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.OrganizationRepository;
+import com.sism.shared.domain.exception.AuthenticationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -154,8 +155,8 @@ class AuthServiceTest {
         when(userRepository.findByUsername("nonexistent"))
                 .thenReturn(Optional.empty());
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        AuthenticationException exception = assertThrows(
+                AuthenticationException.class,
                 () -> authService.login(request)
         );
 
@@ -181,8 +182,8 @@ class AuthServiceTest {
         when(passwordEncoder.matches("wrongpassword", "encodedPassword"))
                 .thenReturn(false);
 
-        IllegalArgumentException exception = assertThrows(
-                IllegalArgumentException.class,
+        AuthenticationException exception = assertThrows(
+                AuthenticationException.class,
                 () -> authService.login(request)
         );
 
@@ -209,8 +210,8 @@ class AuthServiceTest {
         when(passwordEncoder.matches("password123", "encodedPassword"))
                 .thenReturn(true);
 
-        IllegalStateException exception = assertThrows(
-                IllegalStateException.class,
+        AuthenticationException exception = assertThrows(
+                AuthenticationException.class,
                 () -> authService.login(request)
         );
 

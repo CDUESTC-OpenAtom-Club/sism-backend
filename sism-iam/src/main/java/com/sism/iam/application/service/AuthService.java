@@ -6,6 +6,7 @@ import com.sism.iam.application.dto.LoginResponse;
 import com.sism.iam.domain.user.User;
 import com.sism.iam.domain.user.UserRepository;
 import com.sism.organization.domain.OrganizationRepository;
+import com.sism.shared.domain.exception.AuthenticationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -45,15 +46,15 @@ public class AuthService {
         loginAttemptService.assertNotBlocked(account, clientKey);
 
         User user = findUserByAccount(account)
-                .orElseThrow(() -> new IllegalArgumentException("用户名或密码错误"));
+                .orElseThrow(() -> new AuthenticationException("INVALID_CREDENTIALS", "用户名或密码错误"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             loginAttemptService.recordFailure(account, clientKey);
-            throw new IllegalArgumentException("用户名或密码错误");
+            throw new AuthenticationException("INVALID_CREDENTIALS", "用户名或密码错误");
         }
 
         if (!user.getIsActive()) {
-            throw new IllegalStateException("账号已被禁用，请联系管理员");
+            throw new AuthenticationException("USER_DISABLED", "账号已被禁用，请联系管理员");
         }
 
         loginAttemptService.recordSuccess(account, clientKey);

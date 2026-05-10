@@ -1,5 +1,6 @@
 package com.sism.iam.application.service;
 
+import com.sism.shared.domain.exception.AuthenticationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,10 @@ public class InMemoryLoginAttemptService implements LoginAttemptService {
         Instant now = Instant.now();
         if (state.lockedUntil() != null && state.lockedUntil().isAfter(now)) {
             long remainingSeconds = Duration.between(now, state.lockedUntil()).toSeconds();
-            throw new IllegalStateException("登录失败次数过多，请在 " + Math.max(remainingSeconds, 1) + " 秒后重试");
+            throw new AuthenticationException(
+                    "USER_LOCKED",
+                    "登录失败次数过多，请在 " + Math.max(remainingSeconds, 1) + " 秒后重试"
+            );
         }
 
         if (state.lockedUntil() != null && !state.lockedUntil().isAfter(now)) {
