@@ -33,7 +33,7 @@ permissions:
 
 concurrency:
   group: backend-deploy-${{ github.ref_name || github.run_id }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   JAVA_VERSION: "17"
