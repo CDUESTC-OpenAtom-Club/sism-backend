@@ -6,12 +6,19 @@ import com.sism.execution.domain.report.ReportOrgType;
 import com.sism.execution.domain.report.event.PlanReportApprovedEvent;
 import com.sism.execution.domain.report.event.PlanReportRejectedEvent;
 import com.sism.execution.domain.report.event.PlanReportSubmittedEvent;
+import com.sism.iam.application.service.UserNotificationService;
 import com.sism.workflow.application.BusinessWorkflowApplicationService;
 import com.sism.workflow.application.WorkflowApplicationService;
 import com.sism.workflow.application.WorkflowTerminalStatusSyncService;
+import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
+import com.sism.workflow.application.query.WorkflowReadModelService;
+import com.sism.workflow.application.support.ApproverResolver;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
 import com.sism.workflow.domain.runtime.AuditInstance;
 import com.sism.workflow.domain.runtime.AuditInstanceRepository;
 import com.sism.workflow.domain.runtime.AuditStepInstance;
+import com.sism.workflow.interfaces.dto.WorkflowInstanceDetailResponse;
 import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +46,10 @@ public class ReportWorkflowEventListener {
     private final AuditInstanceRepository auditInstanceRepository;
     private final WorkflowTerminalStatusSyncService workflowTerminalStatusSyncService;
     private final ReportApplicationService reportApplicationService;
+    private final WorkflowDefinitionQueryService workflowDefinitionQueryService;
+    private final WorkflowReadModelService workflowReadModelService;
+    private final ApproverResolver approverResolver;
+    private final UserNotificationService userNotificationService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -78,7 +89,9 @@ public class ReportWorkflowEventListener {
             var response = startWorkflowWithRetry(request, initiatorId, event.getReportOrgId());
             log.info("✅ 工作流启动成功 - 工作流实例ID: {}, 报告ID: {}", response.getInstanceId(), event.getReportId());
             if (response.getInstanceId() != null) {
-                reportApplicationService.attachAuditInstance(event.getReportId(), Long.parseLong(response.getInstanceId()));
+                Long instanceId = Long.parseLong(response.getInstanceId());
+                reportApplicationService.attachAuditInstance(event.getReportId(), instanceId);
+                notifyNextApprovers(event, request.getWorkflowCode(), instanceId, report);
             }
         } catch (IllegalStateException e) {
             log.warn("⚠️ 无法启动工作流（可能是因为已存在活跃实例）: reportId={}, reason={}", event.getReportId(), e.getMessage());
@@ -213,5 +226,79 @@ public class ReportWorkflowEventListener {
             }
         }
         throw lastFailure == null ? new IllegalStateException("Unknown report workflow start failure") : lastFailure;
+    }
+
+    private void notifyNextApprovers(
+            PlanReportSubmittedEvent event,
+            String workflowCode,
+            Long instanceId,
+            PlanReport report
+    ) {
+        try {
+            AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefByCode(workflowCode);
+            if (flowDef == null || flowDef.getSteps() == null || flowDef.getSteps().isEmpty()) {
+                return;
+            }
+
+            WorkflowInstanceDetailResponse detail = workflowReadModelService.getInstanceDetail(String.valueOf(instanceId));
+            AuditStepDef nextApprovalStep = resolveNextApprovalStep(flowDef, detail == null ? null : detail.getCurrentStepName());
+            if (nextApprovalStep == null) {
+                return;
+            }
+
+            String submitterName = approverResolver.resolveApproverName(event.getSubmitterId());
+            String businessName = resolveReportBusinessName(report, event);
+
+            approverResolver.resolveCandidates(nextApprovalStep, event.getReportOrgId()).forEach(candidate ->
+                    userNotificationService.createSubmissionNotification(
+                            candidate.getUserId(),
+                            event.getSubmitterId(),
+                            event.getReportOrgId(),
+                            instanceId,
+                            PLAN_REPORT_ENTITY_TYPE,
+                            event.getReportId(),
+                            businessName,
+                            nextApprovalStep.getStepName(),
+                            submitterName
+                    )
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to notify report approvers for reportId={}, workflowCode={}: {}",
+                    event.getReportId(), workflowCode, ex.getMessage(), ex);
+        }
+    }
+
+    private String resolveReportBusinessName(PlanReport report, PlanReportSubmittedEvent event) {
+        if (report != null && report.getTitle() != null && !report.getTitle().isBlank()) {
+            return report.getTitle().trim();
+        }
+        if (event.getReportMonth() != null && !event.getReportMonth().isBlank()) {
+            return event.getReportMonth().trim() + "月报";
+        }
+        return "月报#" + event.getReportId();
+    }
+
+    private AuditStepDef resolveNextApprovalStep(AuditFlowDef flowDef, String currentStepName) {
+        if (flowDef == null || flowDef.getSteps() == null) {
+            return null;
+        }
+
+        if (currentStepName != null && !currentStepName.isBlank()) {
+            String normalizedCurrentStepName = currentStepName.trim();
+            AuditStepDef matched = flowDef.getSteps().stream()
+                    .filter(AuditStepDef::isApprovalStep)
+                    .filter(step -> normalizedCurrentStepName.equals(step.getStepName()))
+                    .findFirst()
+                    .orElse(null);
+            if (matched != null) {
+                return matched;
+            }
+        }
+
+        return flowDef.getSteps().stream()
+                .filter(AuditStepDef::isApprovalStep)
+                .sorted(Comparator.comparing(step -> step.getStepOrder() == null ? Integer.MAX_VALUE : step.getStepOrder()))
+                .findFirst()
+                .orElse(null);
     }
 }

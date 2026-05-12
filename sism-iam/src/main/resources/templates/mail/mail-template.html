@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            color: #343a40;
+        }
+
+        .container {
+            max-width: 650px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e6ed;
+        }
+
+        .header {
+            background-color: #003366;
+            padding: 30px 40px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            font-size: 26px;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: #cceeff;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 40px;
+            line-height: 1.7;
+            color: #495057;
+        }
+
+        .content h2 {
+            font-size: 22px;
+            margin-top: 0;
+            margin-bottom: 25px;
+            color: #003366;
+            font-weight: 600;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 15px;
+        }
+
+        .code-wrapper {
+            background: #f0f4f7;
+            border: 1px solid #dcdfe4;
+            border-left: 5px solid #0056b3;
+            border-radius: 6px;
+            padding: 30px;
+            text-align: center;
+            margin: 35px 0;
+        }
+
+        .verification-code {
+            font-size: 44px;
+            font-weight: 700;
+            color: #0056b3;
+            letter-spacing: 6px;
+            font-family: 'Roboto Mono', 'Consolas', monospace;
+            margin-bottom: 15px;
+        }
+
+        .code-wrapper p {
+            color: #6c757d;
+            margin-bottom: 0;
+            font-size: 14px;
+        }
+
+        .warning {
+            font-size: 14px;
+            color: #dc3545;
+            margin-top: 30px;
+            padding: 15px 20px;
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+            border-radius: 6px;
+        }
+
+        .footer {
+            padding: 30px 40px;
+            background: #f0f4f7;
+            text-align: center;
+            font-size: 13px;
+            color: #6c757d;
+            border-top: 1px solid #e0e6ed;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
+
+        .footer a {
+            color: #0056b3;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer a:hover {
+            color: #003366;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1 th:text="${systemName ?: 'SISM 系统通知'}">SISM 系统通知</h1>
+                <p th:text="${systemSubTitle ?: '战略任务管理系统'}">战略指标管理系统</p>
+            </div>
+        </div>
+
+        <!-- Body -->
+        <div class="content">
+            <h2 th:text="${title}">安全验证 / Secure Verification</h2>
+            <p th:text="${greeting ?: '尊敬的老师/领导，您好！'}">尊敬的老师/领导，您好！</p>
+            <p th:utext="${message}">您的账户请求已受理，请执行相关操作。</p>
+
+            <div class="code-wrapper" th:if="${code != null}">
+                <div class="verification-code" th:text="${code}">882391</div>
+                <p th:text="${codeHint ?: '此验证码将在 10 分钟内失效，请尽快使用。'}">此验证码将在 10 分钟内失效，请尽快使用。</p>
+            </div>
+
+            <p th:if="${warning != null}" class="warning" th:text="${warning}">如果您未曾发起此请求，请忽略此邮件。</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>© 2024-<span th:text="${currentYear}">2026</span> SISM 战略指标管理系统. 版权所有.</p>
+            <p>
+                <a th:href="${systemUrl ?: 'http://47.108.249.115/strategic-tasks'}">系统首页</a> |
+                <a href="#">帮助中心</a> |
+                <a href="#">隐私政策</a>
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -473,7 +473,7 @@ public class BusinessWorkflowApplicationService {
         );
 
         notificationProvider.createApprovalResultNotification(
-                userId,
+                instance.getRequesterId(),
                 userId,
                 senderOrgId,
                 instance.getId(),

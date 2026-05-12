@@ -1,8 +1,8 @@
 -- Demo (full-flow test) accounts
 -- Each department gets one demo account with ALL 4 roles assigned.
--- is_demo = true bypasses ApproverResolver scope checks,
--- allowing a single account to act as reporter + approver + strategy head + VP
--- across all workflow steps without switching accounts.
+-- Demo accounts still follow the same org-scope filtering as real users.
+-- Extra roles let a single in-org account verify reporter + approver + strategy head + VP
+-- seats without creating separate test people for each department.
 -- Password for all demo accounts: admin123
 
 -- ============================================================

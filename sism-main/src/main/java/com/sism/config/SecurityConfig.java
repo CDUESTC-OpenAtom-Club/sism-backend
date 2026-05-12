@@ -118,6 +118,7 @@ public class SecurityConfig {
                                  "/api/v1/auth/validate", "/api/v1/auth/logout",
                                  "/api/v1/auth/refresh", "/api/v1/auth/health",
                                  "/api/v1/auth/password-reset/**").permitAll()
+                .requestMatchers("/api/v1/announcements/public", "/api/v1/announcements/public/**").permitAll()
                 // Public endpoints - Health check
                 .requestMatchers("/api/v1/actuator/health", "/health", "/error").permitAll()
                 // Public endpoints - WebSocket

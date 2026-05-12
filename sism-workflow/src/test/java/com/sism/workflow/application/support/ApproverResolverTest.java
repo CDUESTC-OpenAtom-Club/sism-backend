@@ -204,10 +204,10 @@ class ApproverResolverTest {
         assertEquals(267L, resolver.resolveApproverId(stepDef, 188L, 57L, instance));
     }
 
-    // ---- Demo account scope bypass tests ----
+    // ---- Demo account scope filtering tests ----
 
     @Test
-    void canUserApprove_demoUser_shouldBypassScopeCheck() {
+    void canUserApprove_demoUser_shouldStillRequireScopeMatch() {
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setRoleId(3L); // strategy dept head role (requires org 35)
         stepDef.setStepName("战略发展部负责人审批");
@@ -224,8 +224,7 @@ class ApproverResolverTest {
                 workflowApproverProperties()
         );
 
-        // Demo user should be able to approve despite being in the wrong org
-        assertEquals(true, resolver.canUserApprove(stepDef, 410L, 44L));
+        assertEquals(false, resolver.canUserApprove(stepDef, 410L, 44L));
     }
 
     @Test
@@ -250,7 +249,7 @@ class ApproverResolverTest {
     }
 
     @Test
-    void resolveApproverId_demoUserShouldBeCandidateAcrossOrgs() {
+    void resolveCandidates_shouldExcludeOutOfScopeDemoUsers() {
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setRoleId(3L); // strategy dept head role
         stepDef.setStepName("战略发展部终审人审批");
@@ -267,12 +266,14 @@ class ApproverResolverTest {
                 workflowApproverProperties()
         );
 
-        // Demo user should be included as a candidate (sorted by id first)
-        assertEquals(189L, resolver.resolveApproverId(stepDef, 188L, 35L));
+        assertEquals(
+                List.of(189L),
+                resolver.resolveCandidates(stepDef, 35L).stream().map(candidate -> candidate.getUserId()).toList()
+        );
     }
 
     @Test
-    void resolveAssignedApproverId_demoRequesterShouldPreferSelfForApprovalStep() {
+    void resolveAssignedApproverId_demoRequesterShouldNotApproveAcrossOrgScope() {
         AuditStepDef stepDef = new AuditStepDef();
         stepDef.setRoleId(3L);
         stepDef.setStepName("战略发展部终审人审批");
@@ -288,7 +289,7 @@ class ApproverResolverTest {
                 workflowApproverProperties()
         );
 
-        assertEquals(410L, resolver.resolveAssignedApproverId(stepDef, 410L, 44L, null));
+        assertThrows(IllegalStateException.class, () -> resolver.resolveAssignedApproverId(stepDef, 410L, 44L, null));
     }
 
     private WorkflowApproverProperties workflowApproverProperties() {

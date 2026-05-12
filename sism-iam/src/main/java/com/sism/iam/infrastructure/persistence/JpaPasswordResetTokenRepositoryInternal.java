@@ -15,15 +15,10 @@ public interface JpaPasswordResetTokenRepositoryInternal extends JpaRepository<P
 
     Optional<PasswordResetToken> findTopByEmailOrderByCreatedAtDesc(String email);
 
-    @Query("""
-            SELECT t
-            FROM PasswordResetToken t
-            WHERE t.email = :email
-              AND t.used = false
-              AND t.expiresAt > :now
-            ORDER BY t.createdAt DESC
-            """)
-    Optional<PasswordResetToken> findFirstActiveByEmail(String email, LocalDateTime now);
+    Optional<PasswordResetToken> findTopByEmailAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(
+            String email,
+            LocalDateTime now
+    );
 
     long countByEmailAndCreatedAtAfter(String email, LocalDateTime createdAfter);
 

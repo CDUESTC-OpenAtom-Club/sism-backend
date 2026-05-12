@@ -50,8 +50,8 @@ spring:
   mail:
     host: ${MAIL_HOST:${SPRING_MAIL_HOST:}}
     port: ${MAIL_PORT:${SPRING_MAIL_PORT:25}}
-    username: ${MAIL_USERNAME:${SPRING_MAIL_USERNAME:}}
-    password: ${MAIL_PASSWORD:${SPRING_MAIL_PASSWORD:}}
+    username: ${MAIL_USERNAME:${MAIL_NOREPLY_USERNAME:${SPRING_MAIL_USERNAME:}}}
+    password: ${MAIL_PASSWORD:${MAIL_NOREPLY_PASSWORD:${SPRING_MAIL_PASSWORD:}}}
     protocol: smtp
     properties:
       mail:

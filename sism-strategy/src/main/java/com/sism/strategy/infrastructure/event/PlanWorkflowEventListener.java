@@ -1,6 +1,12 @@
 package com.sism.strategy.infrastructure.event;
 
-import com.sism.shared.domain.notification.NotificationProvider;
+import com.sism.iam.application.service.UserNotificationService;
+import com.sism.workflow.application.definition.WorkflowDefinitionQueryService;
+import com.sism.workflow.application.query.WorkflowReadModelService;
+import com.sism.workflow.application.support.ApproverResolver;
+import com.sism.workflow.domain.definition.AuditFlowDef;
+import com.sism.workflow.domain.definition.AuditStepDef;
+import com.sism.workflow.interfaces.dto.WorkflowInstanceDetailResponse;
 import com.sism.strategy.domain.plan.event.PlanSubmittedForApprovalEvent;
 import com.sism.workflow.application.BusinessWorkflowApplicationService;
 import com.sism.workflow.interfaces.dto.StartWorkflowRequest;
@@ -13,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.Comparator;
+
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -22,6 +30,10 @@ public class PlanWorkflowEventListener {
     private static final int MAX_START_ATTEMPTS = 3;
 
     private final BusinessWorkflowApplicationService businessWorkflowApplicationService;
+    private final WorkflowDefinitionQueryService workflowDefinitionQueryService;
+    private final WorkflowReadModelService workflowReadModelService;
+    private final ApproverResolver approverResolver;
+    private final UserNotificationService userNotificationService;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async
@@ -39,6 +51,7 @@ public class PlanWorkflowEventListener {
 
             var response = startWorkflowWithRetry(request, event.getSubmitterId(), event.getSubmitterOrgId());
             log.info("Started plan workflow for planId={}, instanceId={}", event.getPlanId(), response.getInstanceId());
+            notifyNextApprovers(event, request.getWorkflowCode(), response);
         } catch (Exception ex) {
             log.error("Failed to start plan workflow for planId={}, workflowCode={}: {}",
                     event.getPlanId(), event.getWorkflowCode(), ex.getMessage(), ex);
@@ -70,5 +83,76 @@ public class PlanWorkflowEventListener {
             }
         }
         throw lastFailure == null ? new IllegalStateException("Unknown plan workflow start failure") : lastFailure;
+    }
+
+    private void notifyNextApprovers(
+            PlanSubmittedForApprovalEvent event,
+            String workflowCode,
+            com.sism.workflow.interfaces.dto.WorkflowInstanceResponse response
+    ) {
+        try {
+            Long instanceId = response.getInstanceId() == null ? null : Long.parseLong(response.getInstanceId());
+            if (instanceId == null || instanceId <= 0) {
+                return;
+            }
+
+            AuditFlowDef flowDef = workflowDefinitionQueryService.getAuditFlowDefByCode(workflowCode);
+            if (flowDef == null || flowDef.getSteps() == null || flowDef.getSteps().isEmpty()) {
+                return;
+            }
+
+            WorkflowInstanceDetailResponse detail = workflowReadModelService.getInstanceDetail(String.valueOf(instanceId));
+            AuditStepDef nextApprovalStep = resolveNextApprovalStep(flowDef, detail == null ? null : detail.getCurrentStepName());
+            if (nextApprovalStep == null) {
+                return;
+            }
+
+            String submitterName = approverResolver.resolveApproverName(event.getSubmitterId());
+            String businessName =
+                    detail != null && detail.getPlanName() != null && !detail.getPlanName().isBlank()
+                            ? detail.getPlanName().trim()
+                            : "Plan " + event.getPlanId();
+
+            approverResolver.resolveCandidates(nextApprovalStep, event.getSubmitterOrgId()).forEach(candidate ->
+                    userNotificationService.createSubmissionNotification(
+                            candidate.getUserId(),
+                            event.getSubmitterId(),
+                            event.getSubmitterOrgId(),
+                            instanceId,
+                            PLAN_ENTITY_TYPE,
+                            event.getPlanId(),
+                            businessName,
+                            nextApprovalStep.getStepName(),
+                            submitterName
+                    )
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to notify plan approvers for planId={}, workflowCode={}: {}",
+                    event.getPlanId(), workflowCode, ex.getMessage(), ex);
+        }
+    }
+
+    private AuditStepDef resolveNextApprovalStep(AuditFlowDef flowDef, String currentStepName) {
+        if (flowDef == null || flowDef.getSteps() == null) {
+            return null;
+        }
+
+        if (currentStepName != null && !currentStepName.isBlank()) {
+            String normalizedCurrentStepName = currentStepName.trim();
+            AuditStepDef matched = flowDef.getSteps().stream()
+                    .filter(AuditStepDef::isApprovalStep)
+                    .filter(step -> normalizedCurrentStepName.equals(step.getStepName()))
+                    .findFirst()
+                    .orElse(null);
+            if (matched != null) {
+                return matched;
+            }
+        }
+
+        return flowDef.getSteps().stream()
+                .filter(AuditStepDef::isApprovalStep)
+                .sorted(Comparator.comparing(step -> step.getStepOrder() == null ? Integer.MAX_VALUE : step.getStepOrder()))
+                .findFirst()
+                .orElse(null);
     }
 }

@@ -10,9 +10,11 @@ import com.sism.shared.domain.notification.NotificationProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashMap;
@@ -21,21 +23,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import com.sism.iam.application.NotificationEvent;
 
 @Service
 @RequiredArgsConstructor
 public class UserNotificationService implements NotificationProvider {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
     private static final String TYPE_REMINDER = "REMINDER";
+    private static final String TYPE_OVERDUE = "OVERDUE";
+    private static final String TYPE_ALERT = "ALERT";
+    private static final String TYPE_APPROVAL_SUBMITTED = "APPROVAL_SUBMITTED";
     private static final String TYPE_APPROVAL_APPROVED = "APPROVAL_APPROVED";
     private static final String TYPE_APPROVAL_REJECTED = "APPROVAL_REJECTED";
     private static final String ENTITY_TYPE_INDICATOR = "INDICATOR";
+    private static final String ENTITY_TYPE_ALERT = "ALERT";
     private static final String STATUS_READ = "READ";
     private static final String STATUS_UNREAD = "UNREAD";
 
     private final UserNotificationRepository userNotificationRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public record ReminderResult(
             Long reminderId,
@@ -52,6 +60,23 @@ public class UserNotificationService implements NotificationProvider {
             LocalDateTime lastRemindedAt,
             long remindCount,
             LocalDateTime cooldownUntil
+    ) {}
+
+    public record SubmissionNotificationResult(
+            Long notificationId,
+            Long recipientUserId,
+            Long approvalInstanceId,
+            String entityType,
+            Long entityId,
+            LocalDateTime createdAt
+    ) {}
+
+    public record OverdueNotificationResult(
+            Long notificationId,
+            Long recipientUserId,
+            Long indicatorId,
+            Long milestoneId,
+            LocalDateTime createdAt
     ) {}
 
     public Page<Map<String, Object>> getMyNotifications(Long userId, int page, int size, String status) {
@@ -118,6 +143,7 @@ public class UserNotificationService implements NotificationProvider {
                 ))
                 .toList();
         List<UserNotification> savedNotifications = userNotificationRepository.saveAll(notifications);
+        savedNotifications.forEach(this::publishNotificationEmailIfPossible);
 
         long remindCount = userNotificationRepository.countReminderBatches(indicatorId, senderUserId);
         LocalDateTime lastRemindedAt = savedNotifications.stream()
@@ -164,6 +190,72 @@ public class UserNotificationService implements NotificationProvider {
         }
 
         return statuses;
+    }
+
+    @Transactional
+    public SubmissionNotificationResult createSubmissionNotification(
+            Long recipientUserId,
+            Long senderUserId,
+            Long senderOrgId,
+            Long approvalInstanceId,
+            String entityType,
+            Long entityId,
+            String businessName,
+            String stepName,
+            String submitterName
+    ) {
+        if (recipientUserId == null) {
+            throw new IllegalArgumentException("Recipient user ID is required");
+        }
+
+        String normalizedEntityType = entityType == null ? null : entityType.trim().toUpperCase();
+        String resolvedBusinessName =
+                businessName == null || businessName.isBlank()
+                        ? (entityId == null ? "审批事项" : "业务对象#" + entityId)
+                        : businessName.trim();
+        String resolvedStepName =
+                stepName == null || stepName.isBlank() ? "当前审批环节" : stepName.trim();
+        String resolvedSubmitterName =
+                submitterName == null || submitterName.isBlank() ? "提交人" : submitterName.trim();
+        String actionUrl = approvalInstanceId == null
+                ? "/messages"
+                : "/messages?approvalInstanceId=" + approvalInstanceId;
+
+        String title = resolveApprovalSubmissionTitle(normalizedEntityType);
+        String content = resolvedSubmitterName + "提交了“" + resolvedBusinessName + "”，当前待处理环节为“"
+                + resolvedStepName + "”，请尽快审批。";
+
+        UserNotification notification = new UserNotification();
+        notification.setRecipientUserId(recipientUserId);
+        notification.setSenderUserId(senderUserId);
+        notification.setSenderOrgId(senderOrgId);
+        notification.setNotificationType(TYPE_APPROVAL_SUBMITTED);
+        notification.setTitle(title);
+        notification.setContent(content);
+        notification.setStatus(STATUS_UNREAD);
+        notification.setActionUrl(actionUrl);
+        notification.setRelatedEntityType(normalizedEntityType);
+        notification.setRelatedEntityId(entityId);
+        notification.setMetadataJson(buildApprovalSubmissionMetadataJson(
+                approvalInstanceId,
+                normalizedEntityType,
+                entityId,
+                resolvedBusinessName,
+                resolvedStepName,
+                resolvedSubmitterName
+        ));
+        notification.validate();
+
+        UserNotification saved = userNotificationRepository.save(notification);
+        publishNotificationEmailIfPossible(saved);
+        return new SubmissionNotificationResult(
+                saved.getId(),
+                saved.getRecipientUserId(),
+                approvalInstanceId,
+                normalizedEntityType,
+                entityId,
+                saved.getCreatedAt()
+        );
     }
 
     @Transactional
@@ -227,12 +319,140 @@ public class UserNotificationService implements NotificationProvider {
         notification.validate();
 
         UserNotification saved = userNotificationRepository.save(notification);
+        publishNotificationEmailIfPossible(saved);
         return new ApprovalResultNotification(
                 saved.getId(),
                 saved.getRecipientUserId(),
                 approvalInstanceId,
                 normalizedEntityType,
                 entityId,
+                saved.getNotificationType(),
+                saved.getCreatedAt()
+        );
+    }
+
+    @Transactional
+    @Override
+    public OverdueNotification createOverdueNotification(
+            Long recipientUserId,
+            Long senderUserId,
+            Long senderOrgId,
+            Long indicatorId,
+            String indicatorName,
+            Long milestoneId,
+            String milestoneName,
+            LocalDateTime dueDate,
+            Integer actualProgress,
+            Integer expectedProgress
+    ) {
+        if (recipientUserId == null) {
+            throw new IllegalArgumentException("Recipient user ID is required");
+        }
+
+        String resolvedIndicatorName =
+                indicatorName == null || indicatorName.isBlank() ? "指标" : indicatorName.trim();
+        String resolvedMilestoneName =
+                milestoneName == null || milestoneName.isBlank() ? "里程碑" : milestoneName.trim();
+        String dueDateText = dueDate == null ? "未知时间" : dueDate.toString();
+        int actual = actualProgress == null ? 0 : actualProgress;
+        int expected = expectedProgress == null ? 0 : expectedProgress;
+
+        UserNotification notification = new UserNotification();
+        notification.setRecipientUserId(recipientUserId);
+        notification.setSenderUserId(senderUserId);
+        notification.setSenderOrgId(senderOrgId);
+        notification.setNotificationType(TYPE_OVERDUE);
+        notification.setTitle("指标进度逾期提醒");
+        notification.setContent("指标「" + resolvedIndicatorName + "」的里程碑「" + resolvedMilestoneName
+                + "」已于 " + dueDateText + " 截止，当前进度 " + actual + "%，期望进度 " + expected
+                + "%，请尽快处理。");
+        notification.setStatus(STATUS_UNREAD);
+        notification.setActionUrl("/indicators/" + indicatorId);
+        notification.setRelatedEntityType(ENTITY_TYPE_INDICATOR);
+        notification.setRelatedEntityId(indicatorId);
+        notification.setMetadataJson(buildOverdueMetadataJson(
+                indicatorId,
+                resolvedIndicatorName,
+                milestoneId,
+                resolvedMilestoneName,
+                dueDate,
+                actual,
+                expected
+        ));
+        notification.validate();
+
+        UserNotification saved = userNotificationRepository.save(notification);
+        publishNotificationEmailIfPossible(saved);
+        return new OverdueNotification(
+                saved.getId(),
+                saved.getRecipientUserId(),
+                indicatorId,
+                milestoneId,
+                saved.getNotificationType(),
+                saved.getCreatedAt()
+        );
+    }
+
+    @Transactional
+    @Override
+    public AlertNotification createAlertNotification(
+            Long recipientUserId,
+            Long senderUserId,
+            Long senderOrgId,
+            Long alertId,
+            Long indicatorId,
+            String indicatorName,
+            String severity,
+            BigDecimal actualPercent,
+            BigDecimal expectedPercent,
+            BigDecimal gapPercent
+    ) {
+        if (recipientUserId == null) {
+            throw new IllegalArgumentException("Recipient user ID is required");
+        }
+
+        String severityLabel = switch (severity == null ? "" : severity.trim().toUpperCase()) {
+            case "CRITICAL" -> "严重";
+            case "WARNING" -> "警告";
+            default -> "提示";
+        };
+        String resolvedIndicatorName = indicatorName == null || indicatorName.isBlank()
+                ? "指标#" + indicatorId : indicatorName.trim();
+        String title = "指标告警通知（" + severityLabel + "）";
+        String content = String.format(
+                "指标「%s」触发了%s级别告警。实际进度 %s%%，期望进度 %s%%，偏差 %s%%。请及时处理。",
+                resolvedIndicatorName,
+                severityLabel,
+                actualPercent == null ? "N/A" : actualPercent.stripTrailingZeros().toPlainString(),
+                expectedPercent == null ? "N/A" : expectedPercent.stripTrailingZeros().toPlainString(),
+                gapPercent == null ? "N/A" : gapPercent.stripTrailingZeros().toPlainString()
+        );
+        String actionUrl = alertId == null ? "/alerts" : "/alerts?alertId=" + alertId;
+
+        UserNotification notification = new UserNotification();
+        notification.setRecipientUserId(recipientUserId);
+        notification.setSenderUserId(senderUserId);
+        notification.setSenderOrgId(senderOrgId);
+        notification.setNotificationType(TYPE_ALERT);
+        notification.setTitle(title);
+        notification.setContent(content);
+        notification.setStatus(STATUS_UNREAD);
+        notification.setActionUrl(actionUrl);
+        notification.setRelatedEntityType(ENTITY_TYPE_ALERT);
+        notification.setRelatedEntityId(alertId);
+        notification.setMetadataJson(buildAlertMetadataJson(
+                alertId, indicatorId, resolvedIndicatorName, severity,
+                actualPercent, expectedPercent, gapPercent
+        ));
+        notification.validate();
+
+        UserNotification saved = userNotificationRepository.save(notification);
+        publishNotificationEmailIfPossible(saved);
+        return new AlertNotification(
+                saved.getId(),
+                saved.getRecipientUserId(),
+                alertId,
+                indicatorId,
                 saved.getNotificationType(),
                 saved.getCreatedAt()
         );
@@ -309,6 +529,25 @@ public class UserNotificationService implements NotificationProvider {
         return result;
     }
 
+    private void publishNotificationEmailIfPossible(UserNotification notification) {
+        if (notification == null || notification.getRecipientUserId() == null) {
+            return;
+        }
+
+        userRepository.findById(notification.getRecipientUserId())
+                .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
+                .map(User::getEmail)
+                .filter(email -> email != null && !email.isBlank())
+                .ifPresent(email -> applicationEventPublisher.publishEvent(
+                        new NotificationEvent(
+                                notification.getTitle(),
+                                notification.getContent(),
+                                email,
+                                true
+                        )
+                ));
+    }
+
     private static String buildMetadataJson(
             Long indicatorId,
             String indicatorName,
@@ -342,6 +581,17 @@ public class UserNotificationService implements NotificationProvider {
         return subject + (approved ? "已通过" : "已驳回");
     }
 
+    private String resolveApprovalSubmissionTitle(String entityType) {
+        String subject = switch (entityType == null ? "" : entityType) {
+            case "PLAN" -> "计划审批";
+            case "PLAN_REPORT" -> "月报审批";
+            case "INDICATOR" -> "指标审批";
+            case "INDICATOR_DISTRIBUTION" -> "指标下发审批";
+            default -> "审批待办";
+        };
+        return subject + "待处理";
+    }
+
     private static String buildApprovalResultMetadataJson(
             Long approvalInstanceId,
             String entityType,
@@ -363,6 +613,79 @@ public class UserNotificationService implements NotificationProvider {
             return OBJECT_MAPPER.writeValueAsString(metadata);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize approval result metadata", e);
+        }
+    }
+
+    private static String buildApprovalSubmissionMetadataJson(
+            Long approvalInstanceId,
+            String entityType,
+            Long entityId,
+            String businessName,
+            String stepName,
+            String submitterName
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("approvalInstanceId", approvalInstanceId);
+        metadata.put("entityType", entityType);
+        metadata.put("entityId", entityId);
+        metadata.put("businessName", businessName);
+        metadata.put("stepName", stepName);
+        metadata.put("submitterName", submitterName);
+        metadata.put("result", "SUBMITTED");
+        try {
+            return OBJECT_MAPPER.writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize approval submission metadata", e);
+        }
+    }
+
+    private static String buildOverdueMetadataJson(
+            Long indicatorId,
+            String indicatorName,
+            Long milestoneId,
+            String milestoneName,
+            LocalDateTime dueDate,
+            Integer actualProgress,
+            Integer expectedProgress
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("indicatorId", indicatorId);
+        metadata.put("indicatorName", indicatorName);
+        metadata.put("milestoneId", milestoneId);
+        metadata.put("milestoneName", milestoneName);
+        metadata.put("dueDate", dueDate == null ? null : dueDate.toString());
+        metadata.put("actualProgress", actualProgress);
+        metadata.put("expectedProgress", expectedProgress);
+        metadata.put("result", "OVERDUE");
+        try {
+            return OBJECT_MAPPER.writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize overdue notification metadata", e);
+        }
+    }
+
+    private static String buildAlertMetadataJson(
+            Long alertId,
+            Long indicatorId,
+            String indicatorName,
+            String severity,
+            BigDecimal actualPercent,
+            BigDecimal expectedPercent,
+            BigDecimal gapPercent
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("alertId", alertId);
+        metadata.put("indicatorId", indicatorId);
+        metadata.put("indicatorName", indicatorName);
+        metadata.put("severity", severity);
+        metadata.put("actualPercent", actualPercent);
+        metadata.put("expectedPercent", expectedPercent);
+        metadata.put("gapPercent", gapPercent);
+        metadata.put("result", "ALERT");
+        try {
+            return OBJECT_MAPPER.writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize alert notification metadata", e);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.sism.strategy.infrastructure.persistence;
 
 import com.sism.strategy.domain.indicator.Indicator;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
 import com.sism.organization.domain.OrgType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -30,10 +31,10 @@ public interface JpaIndicatorRepositoryInternal extends JpaRepository<Indicator,
 
     List<Indicator> findByOwnerOrgIdAndIsDeletedFalse(Long ownerOrgId);
     List<Indicator> findByTargetOrgIdAndIsDeletedFalse(Long targetOrgId);
-    List<Indicator> findByStatusAndIsDeletedFalse(String status);
+    List<Indicator> findByStatusAndIsDeletedFalse(IndicatorStatus status);
 
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})
-    Page<Indicator> findByStatusAndIsDeletedFalse(String status, Pageable pageable);
+    Page<Indicator> findByStatusAndIsDeletedFalse(IndicatorStatus status, Pageable pageable);
     List<Indicator> findByParentIndicatorIdAndIsDeletedFalse(Long parentIndicatorId);
 
     @EntityGraph(attributePaths = {"ownerOrg", "targetOrg"})

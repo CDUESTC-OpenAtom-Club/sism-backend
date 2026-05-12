@@ -26,7 +26,7 @@ public class JpaPasswordResetTokenRepository implements PasswordResetTokenReposi
 
     @Override
     public Optional<PasswordResetToken> findLatestActiveByEmail(String email, LocalDateTime now) {
-        return jpaRepository.findFirstActiveByEmail(email, now);
+        return jpaRepository.findTopByEmailAndUsedFalseAndExpiresAtAfterOrderByCreatedAtDesc(email, now);
     }
 
     @Override

@@ -906,6 +906,15 @@ public class MessageCenterApplicationService {
         if ("REMINDER".equals(notificationType)) {
             return BIZ_REMINDER_NOTICE;
         }
+        if ("OVERDUE".equals(notificationType)) {
+            return BIZ_REMINDER_NOTICE;
+        }
+        if ("ALERT".equals(notificationType)) {
+            return BIZ_REMINDER_NOTICE;
+        }
+        if ("SYSTEM_ANNOUNCEMENT".equals(notificationType)) {
+            return BIZ_SYSTEM_NOTICE;
+        }
         if (isApprovalLikeNotification(notification)) {
             return BIZ_APPROVAL_RESULT;
         }

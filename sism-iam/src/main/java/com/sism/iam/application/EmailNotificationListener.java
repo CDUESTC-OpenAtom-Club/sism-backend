@@ -19,7 +19,7 @@ public class EmailNotificationListener {
         }
 
         try {
-            emailService.sendTextEmail(
+            emailService.sendSystemNotification(
                     event.userEmail(),
                     "SISM系统通知：" + event.title(),
                     event.content()

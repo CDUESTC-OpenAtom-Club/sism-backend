@@ -4,6 +4,7 @@ import com.sism.organization.domain.SysOrg;
 import com.sism.organization.domain.OrgType;
 import com.sism.strategy.domain.indicator.Indicator;
 import com.sism.strategy.domain.indicator.IndicatorLevel;
+import com.sism.strategy.domain.indicator.IndicatorStatus;
 import com.sism.strategy.domain.repository.IndicatorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -70,12 +71,20 @@ public class JpaIndicatorRepository implements IndicatorRepository {
 
     @Override
     public List<Indicator> findByStatus(String status) {
-        return jpaRepository.findByStatusAndIsDeletedFalse(status);
+        IndicatorStatus normalizedStatus = normalizeStatus(status);
+        if (normalizedStatus == null) {
+            return List.of();
+        }
+        return jpaRepository.findByStatusAndIsDeletedFalse(normalizedStatus);
     }
 
     @Override
     public Page<Indicator> findByStatus(String status, Pageable pageable) {
-        return jpaRepository.findByStatusAndIsDeletedFalse(status, pageable);
+        IndicatorStatus normalizedStatus = normalizeStatus(status);
+        if (normalizedStatus == null) {
+            return Page.empty(pageable);
+        }
+        return jpaRepository.findByStatusAndIsDeletedFalse(normalizedStatus, pageable);
     }
 
     @Override
@@ -162,5 +171,16 @@ public class JpaIndicatorRepository implements IndicatorRepository {
             return List.of();
         }
         return jpaRepository.findByIdInAndIsDeletedFalse(ids);
+    }
+
+    private IndicatorStatus normalizeStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return IndicatorStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

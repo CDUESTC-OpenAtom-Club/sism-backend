@@ -149,7 +149,7 @@ class StepInstanceFactoryTest {
         approvalStep.setRoleId(3L);
         flowDef.setSteps(List.of(submitStep, approvalStep));
 
-        UserIdentity demoRequester = new UserIdentity(410L, "jiaowu_demo", "教务处[演示]", 44L, true, true);
+        UserIdentity demoRequester = new UserIdentity(410L, "zlb_demo", "战略发展部[演示]", 35L, true, true);
 
         when(userProvider.findIdentity(410L)).thenReturn(java.util.Optional.of(demoRequester));
         when(userProvider.getUserRoleIds(410L)).thenReturn(List.of(1L, 2L, 3L, 4L));
@@ -163,7 +163,7 @@ class StepInstanceFactoryTest {
         instance.setEntityType("Plan");
         instance.setEntityId(4044L);
 
-        factory.initialize(instance, flowDef, 410L, 44L);
+        factory.initialize(instance, flowDef, 410L, 35L);
 
         assertEquals(410L, instance.getStepInstances().get(1).getApproverId());
         assertEquals(35L, instance.getStepInstances().get(1).getApproverOrgId());

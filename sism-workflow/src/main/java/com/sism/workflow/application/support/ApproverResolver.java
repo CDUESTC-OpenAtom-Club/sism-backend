@@ -160,10 +160,6 @@ public class ApproverResolver {
                 .filter(user -> Boolean.TRUE.equals(user.isActive()))
                 .filter(user -> roleIds.contains(roleId))
                 .filter(user -> {
-                    // Demo accounts bypass scope matching
-                    if (Boolean.TRUE.equals(user.isDemo())) {
-                        return true;
-                    }
                     Long scopeOrgId = resolveScopeOrgId(stepDef, requesterOrgId, instance);
                     return matchesRoleScope(user, roleId, scopeOrgId);
                 })
@@ -207,13 +203,7 @@ public class ApproverResolver {
     private List<UserIdentity> findScopedActiveUsersByRole(Long roleId, Long requesterOrgId) {
         return userProvider.findActiveIdentitiesByRole(roleId).stream()
                 .filter(user -> Boolean.TRUE.equals(user.isActive()))
-                .filter(user -> {
-                    // Demo accounts bypass scope matching
-                    if (Boolean.TRUE.equals(user.isDemo())) {
-                        return true;
-                    }
-                    return matchesRoleScope(user, roleId, requesterOrgId);
-                })
+                .filter(user -> matchesRoleScope(user, roleId, requesterOrgId))
                 .sorted(Comparator.comparing(UserIdentity::id))
                 .toList();
     }

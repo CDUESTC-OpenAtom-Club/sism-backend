@@ -182,10 +182,10 @@ public class UserProfileController {
         @NotBlank(message = "Real name is required")
         private String realName;
 
-        @Pattern(regexp = ContactInfoPolicy.EMAIL_REGEX, message = "邮箱格式不正确")
+        @Pattern(regexp = "^$|" + ContactInfoPolicy.EMAIL_REGEX, message = "邮箱格式不正确")
         private String email;
 
-        @Pattern(regexp = ContactInfoPolicy.PHONE_REGEX, message = "手机号格式不正确")
+        @Pattern(regexp = "^$|" + ContactInfoPolicy.PHONE_REGEX, message = "手机号格式不正确")
         private String phone;
 
         private String avatar;

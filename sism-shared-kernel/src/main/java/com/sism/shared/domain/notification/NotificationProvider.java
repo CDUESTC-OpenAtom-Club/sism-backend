@@ -1,5 +1,6 @@
 package com.sism.shared.domain.notification;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -17,6 +18,15 @@ public interface NotificationProvider {
             LocalDateTime createdAt
     ) {}
 
+    record OverdueNotification(
+            Long notificationId,
+            Long recipientUserId,
+            Long indicatorId,
+            Long milestoneId,
+            String notificationType,
+            LocalDateTime createdAt
+    ) {}
+
     ApprovalResultNotification createApprovalResultNotification(
             Long recipientUserId,
             Long senderUserId,
@@ -28,5 +38,40 @@ public interface NotificationProvider {
             String stepName,
             boolean approved,
             String comment
+    );
+
+    OverdueNotification createOverdueNotification(
+            Long recipientUserId,
+            Long senderUserId,
+            Long senderOrgId,
+            Long indicatorId,
+            String indicatorName,
+            Long milestoneId,
+            String milestoneName,
+            LocalDateTime dueDate,
+            Integer actualProgress,
+            Integer expectedProgress
+    );
+
+    record AlertNotification(
+            Long notificationId,
+            Long recipientUserId,
+            Long alertId,
+            Long indicatorId,
+            String notificationType,
+            LocalDateTime createdAt
+    ) {}
+
+    AlertNotification createAlertNotification(
+            Long recipientUserId,
+            Long senderUserId,
+            Long senderOrgId,
+            Long alertId,
+            Long indicatorId,
+            String indicatorName,
+            String severity,
+            BigDecimal actualPercent,
+            BigDecimal expectedPercent,
+            BigDecimal gapPercent
     );
 }
