@@ -339,13 +339,41 @@ jobs:
           DEPLOY_MODE="$2"
           LOG_FILE="${REMOTE_DIR}/deploy-run.log"
           STATUS_FILE="${REMOTE_DIR}/deploy-status.env"
+          LOCK_FILE="${REMOTE_DIR}/deploy.lock"
           START_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          PULL_TIMEOUT_SECONDS=420
-          PULL_MAX_ATTEMPTS=2
+          PULL_TIMEOUT_SECONDS=1800
+          PULL_MAX_ATTEMPTS=3
+          exec 9>"${LOCK_FILE}"
+          flock 9
+          set_stage() {
+            local stage="$1"
+            local ts
+            ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            if grep -q '^DEPLOY_STAGE=' "${STATUS_FILE}" 2>/dev/null; then
+              awk -v stage="${stage}" -v ts="${ts}" '
+                BEGIN { stage_written = 0; ts_written = 0 }
+                /^DEPLOY_STAGE=/ { print "DEPLOY_STAGE=" stage; stage_written = 1; next }
+                /^DEPLOY_STAGE_TS=/ { print "DEPLOY_STAGE_TS=" ts; ts_written = 1; next }
+                { print }
+                END {
+                  if (!stage_written) print "DEPLOY_STAGE=" stage;
+                  if (!ts_written) print "DEPLOY_STAGE_TS=" ts;
+                }
+              ' "${STATUS_FILE}" > "${STATUS_FILE}.tmp"
+              mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
+            else
+              {
+                echo "DEPLOY_STAGE=${stage}"
+                echo "DEPLOY_STAGE_TS=${ts}"
+              } >> "${STATUS_FILE}"
+            fi
+          }
           pull_image() {
             local image="$1"
             local attempt
             for attempt in $(seq 1 "${PULL_MAX_ATTEMPTS}"); do
+              echo "[deploy] pulling ${image}, attempt ${attempt}" >> "${LOG_FILE}" 2>&1
+              set_stage "pull:${image}:attempt-${attempt}"
               if timeout "${PULL_TIMEOUT_SECONDS}" podman pull "${image}"; then
                 return 0
               fi
@@ -361,6 +389,7 @@ jobs:
           {
             echo "[deploy] start ${START_TS}"
             cd "${REMOTE_DIR}"
+            set_stage "resolve-images"
             FRONTEND_IMAGE="$(awk -F= '/^FRONTEND_IMAGE=/{print $2}' .env)"
             BACKEND_IMAGE="$(awk -F= '/^BACKEND_IMAGE=/{print $2}' .env)"
             if [[ "${DEPLOY_MODE}" != "backend-only" ]]; then
@@ -391,6 +420,7 @@ jobs:
             echo "BACKEND_PULL_END_UTC=${BACKEND_PULL_END}" >> "${STATUS_FILE}"
 
             echo "STACK_UP_START_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "${STATUS_FILE}"
+            set_stage "compose-up"
             case "${DEPLOY_MODE}" in
               frontend-only)
                 docker compose up -d --force-recreate frontend
@@ -403,6 +433,7 @@ jobs:
                 ;;
             esac
             STACK_UP_END="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            set_stage "compose-up-complete"
             {
               echo "STACK_UP_END_UTC=${STACK_UP_END}"
               echo "DEPLOY_STATE=success"
@@ -427,10 +458,10 @@ jobs:
             for pid in \$(pgrep -f \"run-remote-deploy.sh ${REMOTE_DIR}\" || true); do
               if [ \"\$pid\" != \"\$\$\" ]; then kill \"\$pid\" || true; fi
             done
-            for pid in \$(pgrep -f 'podman pull ghcr.io/cduestc-openatom-club/sism-backend' || true); do
+            for pid in \$(pgrep -f 'podman pull ghcr.io/.*/sism-backend' || true); do
               if [ \"\$pid\" != \"\$\$\" ]; then kill \"\$pid\" || true; fi
             done
-            for pid in \$(pgrep -f 'podman pull ghcr.io/cduestc-openatom-club/strategic-task-management' || true); do
+            for pid in \$(pgrep -f 'podman pull ghcr.io/.*/strategic-task-management' || true); do
               if [ \"\$pid\" != \"\$\$\" ]; then kill \"\$pid\" || true; fi
             done
             setsid bash ./run-remote-deploy.sh '${REMOTE_DIR}' '${DEPLOY_MODE}' </dev/null >/dev/null 2>&1 &
@@ -518,7 +549,7 @@ jobs:
           set -euo pipefail
           REMOTE_DIR="/opt/sism-stack/${{ steps.meta.outputs.target_env }}"
           DEPLOY_COMPLETED=false
-          for i in $(seq 1 120); do
+          for i in $(seq 1 360); do
             STATUS_RAW="$(ssh "${SERVER_USER}@${SERVER_HOST}" "test -f '${REMOTE_DIR}/deploy-status.env' && cat '${REMOTE_DIR}/deploy-status.env' || true")"
             if printf '%s\n' "$STATUS_RAW" | grep -q '^DEPLOY_STATE=success$'; then
               DEPLOY_COMPLETED=true
