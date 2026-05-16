@@ -38,6 +38,17 @@ sism-backend/
 └── scripts/                  # 应用层维护和测试脚本
 ```
 
+## 文档入口
+
+后端文档现在统一通过以下入口查看：
+
+- `docs/README.md`
+  - 当前保留文档、生成产物、归档规则与阅读顺序
+- `docs/PROJECT_HISTORY_AND_GOVERNANCE.md`
+  - 后端目录规范、项目历史治理、状态流转与验证门禁
+- `docs/architecture/main-branch-release-and-deploy-runbook.md`
+  - `main` 分支发布、自动部署与服务器验证入口
+
 ## 快速开始
 
 ## 数据库原则
