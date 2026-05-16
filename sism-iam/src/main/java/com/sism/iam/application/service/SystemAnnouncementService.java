@@ -2,6 +2,7 @@ package com.sism.iam.application.service;
 
 import com.sism.iam.application.dto.AnnouncementResponse;
 import com.sism.iam.application.dto.CreateAnnouncementRequest;
+import com.sism.iam.application.dto.UpdateAnnouncementRequest;
 import com.sism.iam.domain.announcement.AnnouncementStatus;
 import com.sism.iam.domain.announcement.SystemAnnouncement;
 import com.sism.iam.domain.announcement.SystemAnnouncementRepository;
@@ -37,18 +38,9 @@ public class SystemAnnouncementService {
 
     @Transactional
     public AnnouncementResponse create(CreateAnnouncementRequest request, Long currentUserId) {
-        if (request.title() == null || request.title().isBlank()) {
-            throw new IllegalArgumentException("公告标题不能为空");
-        }
-        if (request.content() == null || request.content().isBlank()) {
-            throw new IllegalArgumentException("公告内容不能为空");
-        }
-
         SystemAnnouncement announcement = new SystemAnnouncement();
-        announcement.setTitle(request.title().trim());
-        announcement.setContent(request.content().trim());
+        applyAnnouncementDraftFields(announcement, request.title(), request.content(), request.scheduledAt());
         announcement.setStatus(AnnouncementStatus.DRAFT);
-        announcement.setScheduledAt(request.scheduledAt());
         announcement.setCreatedBy(currentUserId);
         announcement.validate();
 
@@ -64,9 +56,6 @@ public class SystemAnnouncementService {
 
         if (announcement.getStatus() == AnnouncementStatus.PUBLISHED) {
             throw new IllegalStateException("公告已发布，不能重复发布");
-        }
-        if (announcement.getStatus() == AnnouncementStatus.WITHDRAWN) {
-            throw new IllegalStateException("已撤回的公告不能重新发布");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -85,6 +74,29 @@ public class SystemAnnouncementService {
     }
 
     @Transactional
+    public AnnouncementResponse update(Long id, UpdateAnnouncementRequest request, Long currentUserId) {
+        SystemAnnouncement announcement = announcementRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("公告不存在: " + id));
+
+        if (announcement.getStatus() == AnnouncementStatus.PUBLISHED) {
+            throw new IllegalStateException("已发布公告不允许修改");
+        }
+        if (!announcement.getCreatedBy().equals(currentUserId)) {
+            log.info(
+                    "Announcement updated by different operator: announcementId={}, owner={}, operator={}",
+                    announcement.getId(),
+                    announcement.getCreatedBy(),
+                    currentUserId
+            );
+        }
+
+        applyAnnouncementDraftFields(announcement, request.title(), request.content(), request.scheduledAt());
+        SystemAnnouncement saved = announcementRepository.save(announcement);
+        log.info("System announcement updated: id={}, title={}, status={}", saved.getId(), saved.getTitle(), saved.getStatus());
+        return toResponse(saved);
+    }
+
+    @Transactional
     public AnnouncementResponse withdraw(Long id) {
         SystemAnnouncement announcement = announcementRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("公告不存在: " + id));
@@ -95,7 +107,18 @@ public class SystemAnnouncementService {
 
         announcement.setStatus(AnnouncementStatus.WITHDRAWN);
         SystemAnnouncement saved = announcementRepository.save(announcement);
+        long removedNotifications = userNotificationRepository
+                .deleteByNotificationTypeAndRelatedEntityTypeAndRelatedEntityId(
+                        TYPE_SYSTEM_ANNOUNCEMENT,
+                        "ANNOUNCEMENT",
+                        saved.getId()
+                );
         log.info("System announcement withdrawn: id={}, title={}", saved.getId(), saved.getTitle());
+        log.info(
+                "Announcement notifications removed after withdraw: announcementId={}, count={}",
+                saved.getId(),
+                removedNotifications
+        );
         return toResponse(saved);
     }
 
@@ -188,6 +211,24 @@ public class SystemAnnouncementService {
 
         // 异步发送邮件通知
         saved.forEach(this::publishNotificationEmailIfPossible);
+    }
+
+    private void applyAnnouncementDraftFields(
+            SystemAnnouncement announcement,
+            String title,
+            String content,
+            LocalDateTime scheduledAt
+    ) {
+        if (title == null || title.isBlank()) {
+            throw new IllegalArgumentException("公告标题不能为空");
+        }
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("公告内容不能为空");
+        }
+
+        announcement.setTitle(title.trim());
+        announcement.setContent(content.trim());
+        announcement.setScheduledAt(scheduledAt);
     }
 
     private void publishNotificationEmailIfPossible(UserNotification notification) {

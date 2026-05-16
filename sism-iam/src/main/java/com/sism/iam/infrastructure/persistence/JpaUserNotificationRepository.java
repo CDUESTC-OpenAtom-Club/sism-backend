@@ -31,6 +31,19 @@ public class JpaUserNotificationRepository implements UserNotificationRepository
     }
 
     @Override
+    public Page<UserNotification> findByRecipientUserIdAndNotificationType(
+            Long recipientUserId,
+            String notificationType,
+            Pageable pageable
+    ) {
+        return jpaRepository.findByRecipientUserIdAndNotificationTypeOrderByCreatedAtDesc(
+                recipientUserId,
+                notificationType,
+                pageable
+        );
+    }
+
+    @Override
     public Page<UserNotification> findApprovalLikeByRecipientUserId(Long recipientUserId, Pageable pageable) {
         return jpaRepository.findApprovalLikeByRecipientUserId(recipientUserId, pageable);
     }
@@ -113,6 +126,19 @@ public class JpaUserNotificationRepository implements UserNotificationRepository
     @Override
     public UserNotification save(UserNotification notification) {
         return jpaRepository.save(notification);
+    }
+
+    @Override
+    public long deleteByNotificationTypeAndRelatedEntityTypeAndRelatedEntityId(
+            String notificationType,
+            String relatedEntityType,
+            Long relatedEntityId
+    ) {
+        return jpaRepository.deleteByNotificationTypeAndRelatedEntityTypeAndRelatedEntityId(
+                notificationType,
+                relatedEntityType,
+                relatedEntityId
+        );
     }
 
     public int markAsRead(Long id, Long recipientUserId, LocalDateTime readAt) {

@@ -1,6 +1,9 @@
 package com.sism.main.application;
 
 import com.sism.iam.application.service.UserNotificationService;
+import com.sism.iam.domain.announcement.AnnouncementStatus;
+import com.sism.iam.domain.announcement.SystemAnnouncement;
+import com.sism.iam.domain.announcement.SystemAnnouncementRepository;
 import com.sism.iam.domain.notification.UserNotification;
 import com.sism.iam.domain.notification.UserNotificationRepository;
 import com.sism.main.interfaces.dto.MessageCenterModels;
@@ -36,6 +39,9 @@ class MessageCenterApplicationServiceTest {
 
     @Mock
     private UserNotificationRepository userNotificationRepository;
+
+    @Mock
+    private SystemAnnouncementRepository systemAnnouncementRepository;
 
     @Mock
     private UserNotificationService userNotificationService;
@@ -187,6 +193,43 @@ class MessageCenterApplicationServiceTest {
         assertEquals(1, listResponse.items().size());
         assertEquals("SYSTEM_NOTICE", listResponse.items().get(0).bizType());
         verify(workflowReadModelService, never()).getMyPendingTasks(6L, 1);
+    }
+
+    @Test
+    @DisplayName("Should clean up withdrawn announcement notifications before listing messages")
+    void shouldCleanUpWithdrawnAnnouncementNotificationsBeforeListingMessages() {
+        UserNotification announcementNotification = notification(
+                410L,
+                "SYSTEM_ANNOUNCEMENT",
+                "系统维护公告",
+                "维护通知",
+                "UNREAD",
+                "/announcements/4",
+                "ANNOUNCEMENT",
+                4L
+        );
+        SystemAnnouncement withdrawnAnnouncement = new SystemAnnouncement();
+        withdrawnAnnouncement.setId(4L);
+        withdrawnAnnouncement.setStatus(AnnouncementStatus.WITHDRAWN);
+
+        when(userNotificationRepository.findByRecipientUserIdAndNotificationType(eq(6L), eq("SYSTEM_ANNOUNCEMENT"), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(announcementNotification), PageRequest.of(0, 200), 1));
+        when(systemAnnouncementRepository.findById(4L)).thenReturn(Optional.of(withdrawnAnnouncement));
+        when(userNotificationRepository.countByRecipientUserId(6L)).thenReturn(0L);
+        when(userNotificationRepository.countReminderByRecipientUserId(6L)).thenReturn(0L);
+        when(userNotificationRepository.countApprovalLikeByRecipientUserId(6L)).thenReturn(0L);
+        when(userNotificationRepository.findByRecipientUserId(eq(6L), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 200), 0));
+
+        MessageCenterModels.ListResponse listResponse = messageCenterApplicationService.getMessages(6L, "SYSTEM", 1, 100, null, false);
+
+        assertEquals(0, listResponse.total());
+        assertTrue(listResponse.items().isEmpty());
+        verify(userNotificationRepository).deleteByNotificationTypeAndRelatedEntityTypeAndRelatedEntityId(
+                "SYSTEM_ANNOUNCEMENT",
+                "ANNOUNCEMENT",
+                4L
+        );
     }
 
     @Test

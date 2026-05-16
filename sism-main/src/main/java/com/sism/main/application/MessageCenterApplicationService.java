@@ -1,6 +1,8 @@
 package com.sism.main.application;
 
 import com.sism.iam.application.service.UserNotificationService;
+import com.sism.iam.domain.announcement.AnnouncementStatus;
+import com.sism.iam.domain.announcement.SystemAnnouncementRepository;
 import com.sism.iam.domain.notification.UserNotification;
 import com.sism.iam.domain.notification.UserNotificationRepository;
 import com.sism.main.interfaces.dto.MessageCenterModels;
@@ -46,16 +48,20 @@ public class MessageCenterApplicationService {
     private static final String BIZ_REMINDER_NOTICE = "REMINDER_NOTICE";
     private static final String BIZ_SYSTEM_NOTICE = "SYSTEM_NOTICE";
     private static final String BIZ_BUSINESS_NOTICE = "BUSINESS_NOTICE";
+    private static final String TYPE_SYSTEM_ANNOUNCEMENT = "SYSTEM_ANNOUNCEMENT";
+    private static final String ENTITY_ANNOUNCEMENT = "ANNOUNCEMENT";
 
     private static final String READ_UNREAD = "UNREAD";
     private static final String READ_READ = "READ";
     private static final String ACTION_REQUIRED = "ACTION_REQUIRED";
 
     private final UserNotificationRepository userNotificationRepository;
+    private final SystemAnnouncementRepository systemAnnouncementRepository;
     private final UserNotificationService userNotificationService;
     private final WorkflowReadModelService workflowReadModelService;
 
     public MessageCenterModels.Summary getSummary(Long userId) {
+        cleanupStaleAnnouncementNotifications(userId);
         List<String> unavailableSources = new ArrayList<>();
         boolean partialSuccess = false;
         long todoCount = 0;
@@ -105,6 +111,7 @@ public class MessageCenterApplicationService {
             int pageSize,
             String keyword,
             Boolean includeRisk) {
+        cleanupStaleAnnouncementNotifications(userId);
         int safePageNum = Math.max(pageNum, 1);
         int safePageSize = Math.max(pageSize, 1);
         String normalizedCategory = normalize(category);
@@ -375,6 +382,7 @@ public class MessageCenterApplicationService {
     }
 
     public MessageCenterModels.Item getMessageDetail(Long userId, String messageId) {
+        cleanupStaleAnnouncementNotifications(userId);
         ParsedMessageId parsedMessageId = parseMessageId(messageId);
         return switch (parsedMessageId.sourceType()) {
             case "notification" -> userNotificationRepository.findByIdAndRecipientUserId(parsedMessageId.notificationId(), userId)
@@ -403,6 +411,45 @@ public class MessageCenterApplicationService {
         LocalDateTime timestamp = toLocalDateTime(result.get("timestamp"));
         long affectedCount = toLong(result.get("readCount"));
         return new MessageCenterModels.ReadResult("notification:*", true, READ_READ, timestamp, affectedCount);
+    }
+
+    private void cleanupStaleAnnouncementNotifications(Long userId) {
+        if (userId == null) {
+            return;
+        }
+
+        Set<Long> staleAnnouncementIds = new LinkedHashSet<>();
+        int pageNum = 0;
+        Page<UserNotification> page;
+        do {
+            page = userNotificationRepository.findByRecipientUserIdAndNotificationType(
+                    userId,
+                    TYPE_SYSTEM_ANNOUNCEMENT,
+                    PageRequest.of(pageNum, NOTIFICATION_BATCH_SIZE)
+            );
+            if (page == null) {
+                return;
+            }
+            page.getContent().stream()
+                    .map(UserNotification::getRelatedEntityId)
+                    .filter(Objects::nonNull)
+                    .filter(this::isStaleAnnouncement)
+                    .forEach(staleAnnouncementIds::add);
+            pageNum++;
+        } while (page.hasNext());
+
+        staleAnnouncementIds.forEach(announcementId -> userNotificationRepository
+                .deleteByNotificationTypeAndRelatedEntityTypeAndRelatedEntityId(
+                        TYPE_SYSTEM_ANNOUNCEMENT,
+                        ENTITY_ANNOUNCEMENT,
+                        announcementId
+                ));
+    }
+
+    private boolean isStaleAnnouncement(Long announcementId) {
+        return systemAnnouncementRepository.findById(announcementId)
+                .map(announcement -> announcement.getStatus() != AnnouncementStatus.PUBLISHED)
+                .orElse(true);
     }
 
     private Aggregation aggregate(Long userId) {

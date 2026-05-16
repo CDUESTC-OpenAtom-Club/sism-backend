@@ -3,6 +3,7 @@ package com.sism.iam.interfaces.rest;
 import com.sism.common.ApiResponse;
 import com.sism.iam.application.dto.AnnouncementResponse;
 import com.sism.iam.application.dto.CreateAnnouncementRequest;
+import com.sism.iam.application.dto.UpdateAnnouncementRequest;
 import com.sism.iam.application.service.SystemAnnouncementService;
 import com.sism.shared.application.dto.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -36,6 +37,20 @@ public class SystemAnnouncementController {
         }
         AnnouncementResponse response = announcementService.create(request, currentUser.getId());
         return ResponseEntity.status(201).body(ApiResponse.success(response));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('STRATEGY_DEPT_HEAD','VICE_PRESIDENT')")
+    @Operation(summary = "编辑公告", description = "编辑草稿或已撤回公告，已发布公告不允许修改")
+    public ResponseEntity<ApiResponse<AnnouncementResponse>> update(
+            @PathVariable Long id,
+            @RequestBody UpdateAnnouncementRequest request,
+            @AuthenticationPrincipal CurrentUser currentUser) {
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error(2000, "未登录"));
+        }
+        AnnouncementResponse response = announcementService.update(id, request, currentUser.getId());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/{id}/publish")

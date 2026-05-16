@@ -13,6 +13,12 @@ public interface UserNotificationRepository {
 
     Page<UserNotification> findByRecipientUserIdAndStatus(Long recipientUserId, String status, Pageable pageable);
 
+    Page<UserNotification> findByRecipientUserIdAndNotificationType(
+            Long recipientUserId,
+            String notificationType,
+            Pageable pageable
+    );
+
     Page<UserNotification> findApprovalLikeByRecipientUserId(Long recipientUserId, Pageable pageable);
 
     Page<UserNotification> findReminderByRecipientUserId(Long recipientUserId, Pageable pageable);
@@ -46,6 +52,12 @@ public interface UserNotificationRepository {
     List<UserNotification> saveAll(List<UserNotification> notifications);
 
     UserNotification save(UserNotification notification);
+
+    long deleteByNotificationTypeAndRelatedEntityTypeAndRelatedEntityId(
+            String notificationType,
+            String relatedEntityType,
+            Long relatedEntityId
+    );
 
     int markAsRead(Long id, Long recipientUserId, LocalDateTime readAt);
 

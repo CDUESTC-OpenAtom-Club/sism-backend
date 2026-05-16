@@ -191,6 +191,20 @@ public interface JpaUserNotificationRepositoryInternal extends JpaRepository<Use
     @Modifying
     @Transactional
     @Query("""
+            delete from UserNotification n
+             where n.notificationType = :notificationType
+               and n.relatedEntityType = :relatedEntityType
+               and n.relatedEntityId = :relatedEntityId
+            """)
+    int deleteByNotificationTypeAndRelatedEntityTypeAndRelatedEntityId(
+            @Param("notificationType") String notificationType,
+            @Param("relatedEntityType") String relatedEntityType,
+            @Param("relatedEntityId") Long relatedEntityId
+    );
+
+    @Modifying
+    @Transactional
+    @Query("""
             update UserNotification n
                set n.status = 'READ',
                    n.readAt = :readAt,
